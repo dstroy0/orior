@@ -23,13 +23,12 @@
 #include "bench_seed.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
+#include <algorithm>
+#include <random>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace

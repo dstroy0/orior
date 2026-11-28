@@ -34,7 +34,8 @@ FILE_DEFS_CXX="$(dirname "$(command -v cc)")/c++"
 # program that links the formats and includes MMgr itself builds with them too
 FILE_DEFS_MMGR_TOP="$FILE_DEFS_SOURCE/../mmgr"
 FILE_DEFS_MMGR_FLAGS=(-I "$FILE_DEFS_MMGR_TOP/include" -I "$FILE_DEFS_MMGR_TOP/src"
-    -I "$FILE_DEFS_SOURCE/../embedded_types/include" -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32)
+    -I "$FILE_DEFS_SOURCE/../embedded_types/include" -I "$FILE_DEFS_SOURCE/../embedded_types/test/support"
+    -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32)
 FILE_DEFS_MMGR=("${FILE_DEFS_MMGR_FLAGS[@]}")
 
 # MMgr builds with link-time optimization, and a program that links it does too. The linker then sees each guard and
@@ -91,6 +92,9 @@ FILE_DEFS_MMGR+=("$FILE_DEFS_MMGR_TOP/src/impensa_ancorae_acus/impensa_ancorae_a
 # embed_clock_ns. The program that links them defines them (embed_turnstile.h). A program of the formats alone takes
 # the host hooks of embedded_types
 FILE_DEFS_MMGR+=("$FILE_DEFS_SOURCE/../embedded_types/test/support/host_wait.c")
+# the host threads of embedded_types: host_threads_run starts the threads of a program, and each takes its work through
+# the atomics of embed_atomic.h
+FILE_DEFS_MMGR+=("$FILE_DEFS_SOURCE/../embedded_types/test/support/host_threads.c")
 # on Windows the host's address wait is the synchronization library's, linked after every source
 case "$(uname -s)" in
 MINGW* | MSYS* | CYGWIN*) FILE_DEFS_MMGR+=(-lsynchronization) ;;

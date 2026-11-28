@@ -26,15 +26,17 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
+#include <algorithm>
 #include <math.h>
+#include <random>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
 #include <string>
-#include <thread>
 #include <vector>
+
+#include "bench_job_ring.h"
+#include "bench_load_limit.h"
 
 namespace
 {
@@ -197,6 +199,14 @@ std::vector<unsigned> choose_positions(unsigned count, Placement placement, std:
     return positions;
 }
 
+/** @brief The shares of the seats of count_survivors: the anchors, a tally for each seat, and the nonces of each. */
+struct SurvivorShares
+{
+    const std::vector<unsigned> *positions; /**< Where the anchors sit [BORROWS]. */
+    uint64_t *tallies;                      /**< A tally for each seat [BORROWS]. */
+    uint32_t share;                         /**< The nonces of each seat. */
+};
+
 /**
  * @brief Counts nonces whose digest carries a zero at every anchor position.
  *
@@ -206,23 +216,22 @@ std::vector<unsigned> choose_positions(unsigned count, Placement placement, std:
  */
 uint64_t count_survivors(const std::vector<unsigned> &positions, uint32_t span)
 {
-    const unsigned workers =
-        (std::thread::hardware_concurrency() > 1u) ? (std::thread::hardware_concurrency() - 1u) : 1u;
+    const unsigned workers = (bench_processors() > 1u) ? (bench_processors() - 1u) : 1u;
     std::vector<uint64_t> tallies(workers, 0u);
-    std::vector<std::thread> threads;
-    const uint32_t share = span / workers;
+    SurvivorShares shares = {&positions, tallies.data(), span / workers};
 
-    for (unsigned index = 0u; index < workers; index += 1u)
-    {
-        threads.emplace_back([&positions, &tallies, index, share]() {
+    bench_jobs_run(
+        [](void *context, unsigned seat) {
+            const SurvivorShares *const seat_shares = (const SurvivorShares *)context;
+            const uint32_t share = seat_shares->share;
             uint64_t found = 0u;
             for (uint32_t step = 0u; step < share; step += 1u)
             {
                 uint32_t ordered[8];
-                digest_for_nonce((index * share) + step, ordered);
+                digest_for_nonce((seat * share) + step, ordered);
 
                 bool held = true;
-                for (unsigned position : positions)
+                for (unsigned position : *seat_shares->positions)
                 {
                     // Position zero is the most significant bit of the number the target reads.
                     const uint32_t word = ordered[position / 32u];
@@ -234,13 +243,9 @@ uint64_t count_survivors(const std::vector<unsigned> &positions, uint32_t span)
                 }
                 found += held ? 1u : 0u;
             }
-            tallies[index] = found;
-        });
-    }
-    for (std::thread &thread : threads)
-    {
-        thread.join();
-    }
+            seat_shares->tallies[seat] = found;
+        },
+        &shares, workers, workers);
 
     uint64_t total = 0u;
     for (uint64_t tally : tallies)

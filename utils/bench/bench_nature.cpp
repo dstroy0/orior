@@ -38,8 +38,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
-#include <thread>
 #include <vector>
+
+#include "bench_job_ring.h"
 
 namespace
 {
@@ -254,6 +255,18 @@ struct Reading
     unsigned add_lag;
 };
 
+/** @brief The shares of the seats of sweep: the corpus, the two baselines, the two sweeps, and the seats. */
+struct LagShares
+{
+    const unsigned char *seats; /**< The corpus bytes [BORROWS]. */
+    size_t length;              /**< How many bytes to use. */
+    double xor_baseline;        /**< The shortfall of the marginal under xor. */
+    double add_baseline;        /**< The shortfall of the marginal under the difference. */
+    double *by_xor;             /**< The grip of xor at each lag [BORROWS]. */
+    double *by_add;             /**< The grip of the difference at each lag [BORROWS]. */
+    unsigned hands;             /**< The seats, which step the lags. */
+};
+
 /**
  * @brief Sweeps every lag and returns the best grip each language found.
  *
@@ -276,12 +289,15 @@ Reading sweep(const unsigned char *seats, size_t length, unsigned workers)
 
     std::vector<double> by_xor(LAG_LIMIT + 1u, 0.0);
     std::vector<double> by_add(LAG_LIMIT + 1u, 0.0);
-    std::vector<std::thread> hands;
+    const unsigned hands = workers;
+    LagShares shares = {seats, length, xor_baseline, add_baseline, by_xor.data(), by_add.data(), hands};
 
-    for (unsigned slice = 0u; slice < workers; slice += 1u)
-    {
-        hands.push_back(std::thread([&, slice]() {
-            for (unsigned lag = 1u + slice; lag <= LAG_LIMIT; lag += workers)
+    bench_jobs_run(
+        [](void *context, unsigned slice) {
+            const LagShares *const lag_shares = (const LagShares *)context;
+            const unsigned char *const seats = lag_shares->seats;
+            const size_t length = lag_shares->length;
+            for (unsigned lag = 1u + slice; lag <= LAG_LIMIT; lag += lag_shares->hands)
             {
                 if ((size_t)lag >= length)
                 {
@@ -299,15 +315,11 @@ Reading sweep(const unsigned char *seats, size_t length, unsigned workers)
                     add_counts[(unsigned char)(seats[at] - seats[at + lag])] += 1u;
                 }
 
-                by_xor[lag] = shortfall_of(xor_counts, (uint64_t)pairs) - xor_baseline;
-                by_add[lag] = shortfall_of(add_counts, (uint64_t)pairs) - add_baseline;
+                lag_shares->by_xor[lag] = shortfall_of(xor_counts, (uint64_t)pairs) - lag_shares->xor_baseline;
+                lag_shares->by_add[lag] = shortfall_of(add_counts, (uint64_t)pairs) - lag_shares->add_baseline;
             }
-        }));
-    }
-    for (std::thread &hand : hands)
-    {
-        hand.join();
-    }
+        },
+        &shares, hands, hands);
 
     Reading out = {0.0, 0.0, 0u, 0u};
     for (unsigned lag = 1u; lag <= LAG_LIMIT; lag += 1u)

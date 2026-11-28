@@ -22,14 +22,16 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
+#include <algorithm>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
-#include <thread>
 #include <vector>
+
+#include "bench_job_ring.h"
+#include "bench_load_limit.h"
 
 namespace
 {
@@ -110,6 +112,14 @@ void merge_survey(Sha256Survey &into, const Sha256Survey &from)
     }
 }
 
+/** @brief The shares of the seats of survey_threaded: the request, a survey for each seat, and the nonces of each. */
+struct SurveyShares
+{
+    const Sha256ScanRequest *base; /**< Scan request with the header [BORROWS]. */
+    Sha256Survey *partials;        /**< A survey for each seat [BORROWS]. */
+    uint32_t per_thread;           /**< The nonces of each seat. */
+};
+
 /**
  * @brief Surveys a nonce range across every core.
  *
@@ -119,25 +129,23 @@ void merge_survey(Sha256Survey &into, const Sha256Survey &from)
  */
 void survey_threaded(const Sha256ScanRequest &base, uint32_t count, Sha256Survey &survey)
 {
-    const unsigned threads = (std::thread::hardware_concurrency() > 0u) ? std::thread::hardware_concurrency() : 8u;
-    const uint32_t per_thread = (count / threads) & ~7u;
+    const unsigned threads = (bench_processors() > 0u) ? bench_processors() : 8u;
     std::vector<Sha256Survey> partials(threads);
-    std::vector<std::thread> workers;
+    SurveyShares shares = {&base, partials.data(), (count / threads) & ~7u};
 
     for (unsigned index = 0u; index < threads; index += 1u)
     {
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &partials[index], .bytes = sizeof(Sha256Survey), .val = 0);
-        workers.emplace_back([&base, &partials, index, per_thread]() {
-            Sha256ScanRequest request = base;
-            request.nonce_start = base.nonce_start + (index * per_thread);
-            request.nonce_count = per_thread;
-            sha256_survey_avx2(&request, &partials[index]);
-        });
     }
-    for (std::thread &worker : workers)
-    {
-        worker.join();
-    }
+    bench_jobs_run(
+        [](void *context, unsigned seat) {
+            const SurveyShares *const seat_shares = (const SurveyShares *)context;
+            Sha256ScanRequest request = *seat_shares->base;
+            request.nonce_start = seat_shares->base->nonce_start + (seat * seat_shares->per_thread);
+            request.nonce_count = seat_shares->per_thread;
+            sha256_survey_avx2(&request, &seat_shares->partials[seat]);
+        },
+        &shares, threads, threads);
     for (const Sha256Survey &partial : partials)
     {
         merge_survey(survey, partial);
@@ -283,6 +291,14 @@ void test_entropy_eddies(const Sha256Survey &survey)
     printf("  informed about.\n");
 }
 
+/** @brief The shares of the seats of test_repeating_curve: the request, the prefixes, and the nonces of each seat. */
+struct PrefixShares
+{
+    const Sha256ScanRequest *base; /**< Scan request with the header [BORROWS]. */
+    uint64_t *digest_prefix;       /**< The leading 64 bits of each digest [BORROWS]. */
+    uint32_t per_thread;           /**< The nonces of each seat. */
+};
+
 /**
  * @brief Hypothesis three: a curve that repeats with the rotations, tested as lag autocorrelation.
  *
@@ -301,16 +317,17 @@ void test_repeating_curve(const Sha256ScanRequest &base)
     std::vector<uint64_t> digest_prefix(sample_count);
 
     // Take the leading 64 bits of each digest. Those bits decide a share anyway.
-    const unsigned threads = (std::thread::hardware_concurrency() > 0u) ? std::thread::hardware_concurrency() : 8u;
-    std::vector<std::thread> workers;
-    const uint32_t per_thread = sample_count / threads;
+    const unsigned threads = (bench_processors() > 0u) ? bench_processors() : 8u;
+    PrefixShares shares = {&base, digest_prefix.data(), sample_count / threads};
 
-    for (unsigned index = 0u; index < threads; index += 1u)
-    {
-        workers.emplace_back([&base, &digest_prefix, index, per_thread]() {
+    bench_jobs_run(
+        [](void *context, unsigned seat) {
+            const PrefixShares *const seat_shares = (const PrefixShares *)context;
+            const Sha256ScanRequest &base = *seat_shares->base;
+            const uint32_t per_thread = seat_shares->per_thread;
             for (uint32_t at = 0u; at < per_thread; at += 1u)
             {
-                const uint32_t nonce = (index * per_thread) + at;
+                const uint32_t nonce = (seat * per_thread) + at;
 
                 // Take the digest directly, and not through the scan. The scan early-exits, and would
                 // leave gaps in a stream that must be contiguous to correlate.
@@ -343,14 +360,11 @@ void test_repeating_curve(const Sha256ScanRequest &base)
                 block[15] = 0x00000100u;
                 sha256_block_compress(&second_pass, block);
 
-                digest_prefix[nonce] = ((uint64_t)second_pass.word[0] << 32) | (uint64_t)second_pass.word[1];
+                seat_shares->digest_prefix[nonce] =
+                    ((uint64_t)second_pass.word[0] << 32) | (uint64_t)second_pass.word[1];
             }
-        });
-    }
-    for (std::thread &worker : workers)
-    {
-        worker.join();
-    }
+        },
+        &shares, threads, threads);
 
     printf("\n  Bit agreement between digest(n) and digest(n+lag), over %u pairs.\n", sample_count / 2u);
     printf("  Under independence this is 0.5 with standard error %.2e.\n",

@@ -20,12 +20,14 @@
 #include "sha256_core.h"
 
 #include "embed_turnstile.h"
+#include <immintrin.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <immintrin.h>
 #include <string>
-#include <thread>
 #include <vector>
+
+#include "bench_job_ring.h"
+#include "bench_load_limit.h"
 
 namespace
 {
@@ -310,6 +312,14 @@ void print_measurement(const ArmMeasurement &measurement)
     printf("    verdict                   : %s\n", measurement.verdict.c_str());
 }
 
+/** @brief The shares of the seats of measure_threaded_rate: the request, a count for each seat, and its nonces. */
+struct ScanShares
+{
+    const Sha256ScanRequest *shared; /**< The request of every seat [BORROWS]. */
+    uint64_t *counts;                /**< The nonces that each seat evaluated [BORROWS]. */
+    uint32_t per_thread;             /**< The nonces of each seat. */
+};
+
 /**
  * @brief Measures how the new arm scales across threads, as the client runs it.
  *
@@ -327,27 +337,22 @@ double measure_threaded_rate(const uint8_t *header, unsigned thread_count)
     shared.nbits = schedule_word_from_header(header + 72u);
     sha256_target_from_nbits(shared.share_target, header_field_value(header, 72u));
 
-    const uint32_t per_thread = BENCH_NONCES / thread_count;
-    std::vector<std::thread> workers;
     std::vector<uint64_t> counts(thread_count, 0u);
+    ScanShares shares = {&shared, counts.data(), BENCH_NONCES / thread_count};
 
     const auto started = embed_clock_ns();
-    for (unsigned index = 0u; index < thread_count; index += 1u)
-    {
-        workers.emplace_back([&shared, &counts, index, per_thread]() {
-            Sha256ScanRequest request = shared;
+    bench_jobs_run(
+        [](void *context, unsigned seat) {
+            const ScanShares *const seat_shares = (const ScanShares *)context;
+            Sha256ScanRequest request = *seat_shares->shared;
             Sha256ScanResult result;
 
-            request.nonce_start = index * per_thread;
-            request.nonce_count = per_thread;
+            request.nonce_start = seat * seat_shares->per_thread;
+            request.nonce_count = seat_shares->per_thread;
             sha256_scan_avx2(&request, &result);
-            counts[index] = result.nonces_evaluated;
-        });
-    }
-    for (std::thread &worker : workers)
-    {
-        worker.join();
-    }
+            seat_shares->counts[seat] = result.nonces_evaluated;
+        },
+        &shares, thread_count, thread_count);
     const auto finished = embed_clock_ns();
 
     uint64_t total = 0u;
@@ -518,7 +523,7 @@ int main()
     printf("\n----------------------------------------------------------------\n");
     printf("  Thread scaling of the SHA-256 arm\n");
     printf("----------------------------------------------------------------\n");
-    const unsigned available = (std::thread::hardware_concurrency() > 0u) ? std::thread::hardware_concurrency() : 8u;
+    const unsigned available = (bench_processors() > 0u) ? bench_processors() : 8u;
     const unsigned ladder[] = {1u, 2u, 4u, 8u, available};
     for (unsigned thread_count : ladder)
     {

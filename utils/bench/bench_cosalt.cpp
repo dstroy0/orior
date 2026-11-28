@@ -19,14 +19,16 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
+#include <algorithm>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
-#include <thread>
 #include <vector>
+
+#include "bench_job_ring.h"
+#include "bench_load_limit.h"
 
 namespace
 {
@@ -198,6 +200,13 @@ void run_share(uint32_t start, uint32_t count, Tally &tally)
     }
 }
 
+/** @brief The shares of the seats: a tally for each seat, and the candidates of each seat. */
+struct SeatShares
+{
+    Tally *tallies; /**< A tally for each seat [BORROWS]. */
+    uint32_t share; /**< The candidates of each seat. */
+};
+
 } // namespace
 
 int main(int argument_count, char **arguments)
@@ -218,21 +227,17 @@ int main(int argument_count, char **arguments)
     g_base.ntime = schedule_word_from_header(header.data() + 68u);
     g_base.nbits = schedule_word_from_header(header.data() + 72u);
 
-    const unsigned available =
-        (std::thread::hardware_concurrency() > 1u) ? (std::thread::hardware_concurrency() - 1u) : 1u;
+    const unsigned available = (bench_processors() > 1u) ? (bench_processors() - 1u) : 1u;
     std::vector<Tally> tallies(available);
-    std::vector<std::thread> workers;
-    const uint32_t share = total / available;
+    SeatShares seat_shares = {tallies.data(), total / available};
 
     const auto started = embed_clock_ns();
-    for (unsigned index = 0u; index < available; index += 1u)
-    {
-        workers.emplace_back([index, share, &tallies]() { run_share(index * share, share, tallies[index]); });
-    }
-    for (std::thread &worker : workers)
-    {
-        worker.join();
-    }
+    bench_jobs_run(
+        [](void *context, unsigned seat) {
+            SeatShares *const shares = (SeatShares *)context;
+            run_share(seat * shares->share, shares->share, shares->tallies[seat]);
+        },
+        &seat_shares, available, available);
     const auto finished = embed_clock_ns();
 
     Tally combined;

@@ -61,14 +61,14 @@
 #include "bench_renyi_cuda.h"
 #endif
 
-#include <atomic>
 #include <math.h>
+#include <random>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <random>
-#include <thread>
 #include <vector>
+
+#include "bench_job_ring.h"
 
 namespace
 {
@@ -301,10 +301,10 @@ unsigned protocol_leading_zeros(const uint8_t *digest)
  * @param[in]     first       First nonce in this worker's range.
  * @param[in]     count       How many nonces, ascending.
  * @param[in,out] counts      Where the private histograms accumulate [BORROWS].
- * @param[in,out] wide_window Shared counter per 32-bit value of digest bytes 0 to 3, or null.
+ * @param[in,out] wide_window Shared counter per 32-bit value of digest bytes 0 to 3, four to a word, or null.
  */
 void count_range(const Job &job, Source source, uint64_t first, uint64_t count, unsigned phase, Counts *counts,
-                 std::atomic<unsigned char> *wide_window)
+                 embed_atomic_u32 *wide_window)
 {
     uint8_t digest[DIGEST_BYTES];
 
@@ -348,10 +348,34 @@ void count_range(const Job &job, Source source, uint64_t first, uint64_t count, 
         {
             const uint32_t value = ((uint32_t)digest[0] << 24) | ((uint32_t)digest[1] << 16) |
                                    ((uint32_t)digest[2] << 8) | (uint32_t)digest[3];
-            wide_window[value].fetch_add(1u, std::memory_order_relaxed);
+            // Each word holds four byte counters, the lowest address in the low byte, as the device arm packs them
+            (void)EMBED_CALL(embed_atomic_u32_fetch_add, EmbedAtomicU32FetchAddCfg, &wide_window[value >> 2],
+                             1u << ((value & 3u) * 8u));
         }
     }
 }
+
+/** @brief The shares of the seats of the host count: the job, the domain, a histogram for each seat, the window. */
+struct CountShares
+{
+    const Job *job;               /**< Midstate and header tail [BORROWS]. */
+    Source source;                /**< Which function to evaluate. */
+    uint64_t domain;              /**< How many nonces to enumerate, from zero. */
+    unsigned phase;               /**< Bit offset every window starts at. */
+    unsigned counters;            /**< The seats, which split the domain. */
+    Counts *parts;                /**< The private histograms of each seat [BORROWS]. */
+    embed_atomic_u32 *wide_words; /**< Shared 32-bit-window counters, four to a word, or null [BORROWS]. */
+};
+
+/** @brief The shares of the seats of the flow pass: the window, its blocks, and a joint sum for each direction. */
+struct FlowShares
+{
+    const unsigned char *wide_window; /**< One counter to each 32-bit value [BORROWS]. */
+    size_t block_count;               /**< The blocks of the window. */
+    size_t block_span;                /**< The counters of each block. */
+    uint64_t *joint_by_direction;     /**< The joint sum of each of the 32 directions [BORROWS]. */
+    unsigned flow_workers;            /**< The seats, which step the directions. */
+};
 
 /** @brief The Renyi orders swept, with infinity carried as its own flag. */
 struct Order
@@ -628,18 +652,33 @@ int wide_same(const WideSum *left, const WideSum *right)
     return ((left->high == right->high) && (left->low == right->low)) ? 1 : 0;
 }
 
+/** @brief The shares of the seats of one stage of walsh_transform. */
+struct WalshShares
+{
+    int32_t *values;    /**< The values that the stage transforms in place [BORROWS]. */
+    size_t butterflies; /**< The butterflies of the stage. */
+    size_t span;        /**< The distance between the two values of a butterfly. */
+    unsigned stage;     /**< The stage, from 0. */
+    unsigned movers;    /**< The seats, which split the butterflies. */
+};
+
 void walsh_transform(int32_t *values, size_t span_total, unsigned stages, unsigned workers)
 {
     const size_t butterflies = span_total / 2u;
+    const unsigned movers = workers;
 
     for (unsigned stage = 0u; stage < stages; stage += 1u)
     {
-        const size_t span = (size_t)1u << stage;
-        std::vector<std::thread> movers;
+        WalshShares shares = {values, butterflies, (size_t)1u << stage, stage, movers};
 
-        for (unsigned slice = 0u; slice < workers; slice += 1u)
-        {
-            movers.push_back(std::thread([values, butterflies, span, stage, workers, slice]() {
+        bench_jobs_run(
+            [](void *context, unsigned slice) {
+                const WalshShares *const walsh = (const WalshShares *)context;
+                const size_t butterflies = walsh->butterflies;
+                const size_t span = walsh->span;
+                const unsigned stage = walsh->stage;
+                const unsigned workers = walsh->movers;
+                int32_t *const values = walsh->values;
                 const size_t first = (butterflies / workers) * slice;
                 const size_t last = (slice + 1u == workers) ? butterflies : ((butterflies / workers) * (slice + 1u));
 
@@ -651,12 +690,8 @@ void walsh_transform(int32_t *values, size_t span_total, unsigned stages, unsign
                     values[low] = left + right;
                     values[low + span] = left - right;
                 }
-            }));
-        }
-        for (std::thread &mover : movers)
-        {
-            mover.join();
-        }
+            },
+            &shares, movers, movers);
     }
 }
 
@@ -729,8 +764,7 @@ int walsh_transform_self_test(unsigned workers, unsigned stages)
     return 1;
 }
 
-void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t bins, uint64_t hole_total,
-                          unsigned workers)
+void report_full_spectrum(const unsigned char *wide_window, size_t bins, uint64_t hole_total, unsigned workers)
 {
     const uint64_t wanted = (uint64_t)bins * sizeof(int32_t);
     const uint64_t budget = bench_memory_budget();
@@ -789,7 +823,7 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
 
     for (size_t value = 0u; value < bins; value += 1u)
     {
-        const int is_hole = (wide_window[value].load(std::memory_order_relaxed) == 0u) ? 1 : 0;
+        const int is_hole = (wide_window[value] == 0u) ? 1 : 0;
         spectrum[value] = ((mark_holes != 0) == (is_hole != 0)) ? 1 : 0;
     }
 
@@ -1007,11 +1041,13 @@ void report_family(const char *title, const uint64_t *counts, unsigned windows, 
  * @param[in] domain      How many nonces to enumerate, from zero.
  * @param[in] workers     How many threads.
  * @param[in] phase       Bit offset every window starts at, zero for byte-aligned.
- * @param[in] wide_window Shared 32-bit-window counters, or null to skip that family.
+ * @param[in] wide_words  Shared 32-bit-window counters, four to a word, or null to skip that family.
  */
 void run_source(const char *name, const Job &job, Source source, uint64_t domain, unsigned workers, unsigned phase,
-                int on_device, std::atomic<unsigned char> *wide_window)
+                int on_device, embed_atomic_u32 *wide_words)
 {
+    // The bytes of the words, one counter to a byte, which every read after the count takes
+    unsigned char *const wide_window = (unsigned char *)wide_words;
     printf("\n================================================================\n");
     printf("  %s\n", name);
     printf("================================================================\n");
@@ -1050,23 +1086,22 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
 
     if (!counted_on_device)
     {
-        std::vector<Counts> parts((size_t)workers);
-        std::vector<std::thread> threads;
-        const uint64_t share = domain / workers;
+        const unsigned counters = workers;
+        std::vector<Counts> parts((size_t)counters);
+        CountShares shares = {&job, source, domain, phase, counters, parts.data(), wide_words};
 
-        for (unsigned worker = 0u; worker < workers; worker += 1u)
-        {
-            const uint64_t first = (uint64_t)worker * share;
-            const uint64_t count = (worker + 1u == workers) ? (domain - first) : share;
-            threads.push_back(
-                std::thread(count_range, std::cref(job), source, first, count, phase, &parts[worker], wide_window));
-        }
-        for (std::thread &thread : threads)
-        {
-            thread.join();
-        }
+        bench_jobs_run(
+            [](void *context, unsigned worker) {
+                const CountShares *const count_shares = (const CountShares *)context;
+                const uint64_t share = count_shares->domain / count_shares->counters;
+                const uint64_t first = (uint64_t)worker * share;
+                const uint64_t count = (worker + 1u == count_shares->counters) ? (count_shares->domain - first) : share;
+                count_range(*count_shares->job, count_shares->source, first, count, count_shares->phase,
+                            &count_shares->parts[worker], count_shares->wide_words);
+            },
+            &shares, counters, counters);
 
-        for (unsigned worker = 0u; worker < workers; worker += 1u)
+        for (unsigned worker = 0u; worker < counters; worker += 1u)
         {
             for (size_t slot = 0u; slot < merged.byte_window.size(); slot += 1u)
             {
@@ -1102,7 +1137,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
         std::vector<uint64_t> spectrum(spectrum_span, 0u);
         for (size_t bin = 0u; bin < bins; bin += 1u)
         {
-            const unsigned count = wide_window[bin].load(std::memory_order_relaxed);
+            const unsigned count = wide_window[bin];
             spectrum[(count < (spectrum_span - 1u)) ? count : (spectrum_span - 1u)] += 1u;
         }
         if (spectrum[spectrum_span - 1u] != 0u)
@@ -1216,7 +1251,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
 
             for (size_t bin = 0u; bin < bins; bin += 1u)
             {
-                if (wide_window[bin].load(std::memory_order_relaxed) != 0u)
+                if (wide_window[bin] != 0u)
                 {
                     continue;
                 }
@@ -1314,7 +1349,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
 
                 for (size_t bin = 0u; bin < bins; bin += 1u)
                 {
-                    const int is_hole = (wide_window[bin].load(std::memory_order_relaxed) == 0u) ? 1 : 0;
+                    const int is_hole = (wide_window[bin] == 0u) ? 1 : 0;
 
                     if (is_hole != 0)
                     {
@@ -1439,12 +1474,15 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                 // less exact.
                 std::vector<uint64_t> joint_by_direction(32u, 0u);
                 {
-                    std::vector<std::thread> flow_threads;
                     const unsigned flow_workers = (workers < 32u) ? workers : 32u;
-                    for (unsigned slice = 0u; slice < flow_workers; slice += 1u)
-                    {
-                        flow_threads.push_back(std::thread([&, slice]() {
-                            for (unsigned bit = slice; bit < 32u; bit += flow_workers)
+                    FlowShares shares = {wide_window, block_count, block_span, joint_by_direction.data(), flow_workers};
+                    bench_jobs_run(
+                        [](void *context, unsigned slice) {
+                            const FlowShares *const flow = (const FlowShares *)context;
+                            const unsigned char *const wide_window = flow->wide_window;
+                            const size_t block_count = flow->block_count;
+                            const size_t block_span = flow->block_span;
+                            for (unsigned bit = slice; bit < 32u; bit += flow->flow_workers)
                             {
                                 const uint64_t direction = (uint64_t)1u << bit;
                                 uint64_t joint = 0u;
@@ -1459,19 +1497,14 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                                     for (size_t offset = 0u; offset < block_span; offset += 1u)
                                     {
                                         const size_t mate = (bit < BLOCK_BITS) ? (offset ^ (size_t)direction) : offset;
-                                        joint +=
-                                            (uint64_t)wide_window[left_base + offset].load(std::memory_order_relaxed) *
-                                            (uint64_t)wide_window[right_base + mate].load(std::memory_order_relaxed);
+                                        joint += (uint64_t)wide_window[left_base + offset] *
+                                                 (uint64_t)wide_window[right_base + mate];
                                     }
                                 }
-                                joint_by_direction[bit] = joint;
+                                flow->joint_by_direction[bit] = joint;
                             }
-                        }));
-                    }
-                    for (std::thread &thread : flow_threads)
-                    {
-                        thread.join();
-                    }
+                        },
+                        &shares, flow_workers, flow_workers);
                 }
 
                 for (unsigned bit = 0u; bit < 32u; bit += 1u)
@@ -1690,10 +1723,11 @@ int main(int argc, char **argv)
     job.nbits = ((uint32_t)header[72] << 24) | ((uint32_t)header[73] << 16) | ((uint32_t)header[74] << 8) |
                 (uint32_t)header[75];
 
-    std::atomic<unsigned char> *wide_window = nullptr;
+    embed_atomic_u32 *wide_window = nullptr;
     if ((with_holes != 0) && (domain_bits >= 24u))
     {
-        wide_window = new (std::nothrow) std::atomic<unsigned char>[(size_t)1u << 32];
+        // 2^30 words, four byte counters to each word, one counter to each 32-bit value
+        wide_window = new (std::nothrow) embed_atomic_u32[(size_t)1u << 30];
         if (wide_window == nullptr)
         {
             printf("\n  [!] four gigabytes unavailable, the 32-bit window is skipped\n");
