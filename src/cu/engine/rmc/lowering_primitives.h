@@ -11,8 +11,8 @@
 #include "machine_ir.h"
 
 // the carry chains: the add chain, the subtract chain, and the subtract chain whose top limb leaves its borrow for
-// codegen_borrowed to read. The borrow chain is the subtract chain's first and middle alone: a register of one limb
-// leaves its borrow as the first limb of a longer one does, and the top limb as a middle one does
+// codegen_borrowed to read. The borrow chain is the first and middle of the subtract chain alone. A register of one
+// limb leaves its borrow as the first limb of a longer one does. The top limb leaves it as a middle one does
 CODEGEN_CORE CarryChain codegen_add_chain(void)
 {
     const CarryChain chain = {OPCODE_WORD_ADD, OPCODE_WORD_ADD_FIRST, OPCODE_WORD_ADD_MIDDLE, OPCODE_WORD_ADD_LAST};
@@ -33,8 +33,9 @@ CODEGEN_CORE CarryChain codegen_borrow_chain(void)
     return chain;
 }
 
-// the lane leaves the step being decided errored where `error` is set, for the store of the record words it has not
-// stored yet: those whose last put is this step's or a later one's
+// the lane leaves the step that the core now decides in error where the predicate `error` is true. It does so for the
+// store of the record words that it did not store yet. Those are the words whose last put is in this step or a later
+// one
 CODEGEN_CORE void codegen_error(MachineFunction *lane, MachineOperand error)
 {
     lane->errors = 1u;
@@ -71,8 +72,8 @@ CODEGEN_CORE MachineOperand codegen_borrowed(MachineFunction *lane)
     return borrowed;
 }
 
-// a limb limited to its low `bits` bits where bits is under 32; bits is reckoned as the interpreter reckons it, in 32
-// bits, wrapping
+// a limb limited to its low `bits` bits where bits is under 32. The call counts bits as the interpreter counts it, in
+// 32 bits, with a wrap
 CODEGEN_CORE void codegen_mask(MachineFunction *lane, MachineOperand limb, unsigned int bits)
 {
     if (bits < 32u)
@@ -150,9 +151,9 @@ CODEGEN_CORE void codegen_signed_negative(MachineFunction *lane, const IrStep *a
     codegen_signed(lane, at, operand);
 }
 
-// word `word` of a member's atom, loaded at its first reader, and the zero register past the atom's limbs. The lane
-// runs its steps in one straight line, which an errored lane leaves for good: every later reader follows the load. A
-// field reads its words in order: a word the step has read already is below the one past the last it read
+// word `word` of the atom of a member, loaded at its first reader, and the zero register past the limbs of the atom.
+// The lane runs its steps in one straight line, which a lane in error leaves for good. Every later reader follows the
+// load. A field reads its words in order: a word that the step already read is below the one past the last it read
 CODEGEN_CORE MachineOperand codegen_atom(MachineFunction *lane, unsigned int member, unsigned int word)
 {
     const IrProgram *const program = lane->program;
@@ -172,9 +173,9 @@ CODEGEN_CORE MachineOperand codegen_atom(MachineFunction *lane, unsigned int mem
     return name;
 }
 
-// a field, unsigned or signed, gathered as cycle_record_field gathers it: each limb its two atom words funnel-shifted,
-// masked to the bits left where fewer than 32 are. A signed field whose top bit is set is negated within its bits, the
-// magnitude retained and the sign -1
+// a field, unsigned or signed, gathered as cycle_record_field gathers it. Each limb is its two atom words
+// funnel-shifted, masked to the bits that remain where fewer than 32 do. The call negates a signed field whose top bit
+// is on within its bits, keeps the magnitude, and sets the sign to -1
 CODEGEN_CORE void codegen_field(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -210,7 +211,7 @@ CODEGEN_CORE void codegen_field(MachineFunction *lane, const IrStep *at)
     codegen_signed_negative(lane, at, negative);
 }
 
-// a constant's two words, every limb above them cleared, its sign known as it is written
+// the two words of a constant, with every limb above them cleared, and its sign known as the program writes it
 CODEGEN_CORE void codegen_constant(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -259,9 +260,9 @@ CODEGEN_CORE void codegen_absolute(MachineFunction *lane, const IrStep *at)
     codegen_instr2(lane, OPCODE_SIGN_ABSOLUTE, codegen_sign(at->place), codegen_sign(at->left_place));
 }
 
-// the order of two signed registers, as cycle_record_operate takes it: signs that differ order the registers alone,
-// and signs that agree order them by their magnitudes, read from their difference's borrow and whether it is zero,
-// times the sign. The order is the step's sign, and its low limb 1 where the registers differ
+// the order of two signed registers, as cycle_record_operate takes it. Signs that differ order the registers alone.
+// Signs that agree order them by their magnitudes, read from the borrow of their difference and whether it is zero,
+// times the sign. The order is the sign of the step, and its low limb is 1 where the registers differ
 CODEGEN_CORE void codegen_compare(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -293,10 +294,10 @@ CODEGEN_CORE void codegen_compare(MachineFunction *lane, const IrStep *at)
     }
 }
 
-// the sum or the difference of two signed registers, branch-free: the magnitudes' sum, their difference with its
-// borrow, and that difference negated are all taken, and the signs choose among them as cycle_record_operate does.
-// Signs that agree, or either one zero, add, and take the left's sign where it has one. Signs that differ subtract the
-// lesser magnitude from the greater, the borrow indicating which is greater, and take the greater's sign
+// the sum or the difference of two signed registers, with no branch. The call takes the sum of the magnitudes, their
+// difference with its borrow, and that difference negated. The signs choose among them as cycle_record_operate does.
+// Signs that agree, or either one zero, add, and take the sign of the left where it has one. Signs that differ subtract
+// the lesser magnitude from the greater, with the borrow to show which is greater, and take the sign of the greater
 CODEGEN_CORE void codegen_sum(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -337,9 +338,9 @@ CODEGEN_CORE void codegen_sum(MachineFunction *lane, const IrStep *at)
     codegen_signed(lane, at, greater);
 }
 
-// one schoolbook row: `value` += multiplier . right over value's `limbs`, each limb product a low and high pair on the
-// carry with the row's carry added in, and the row's last carry run up the limbs above it. `carry` and `upper` are the
-// row's two temporaries
+// one schoolbook row: `value += multiplier . right` over the `limbs` of value. Each limb product is a low and high pair
+// on the carry, with the carry of the row added in. The last carry of the row runs up the limbs above it. `carry` and
+// `upper` are the two temporaries of the row
 CODEGEN_CORE void codegen_row(MachineFunction *lane, const MachineOperandRange &value, MachineOperand multiplier,
                               const MachineOperandRange &right, unsigned int limbs, MachineOperand carry,
                               MachineOperand upper)
@@ -387,7 +388,7 @@ CODEGEN_CORE void codegen_multiply(MachineFunction *lane, const MachineOperandRa
     }
 }
 
-// the loops a lane has written, each named by its number: a label, and a branch back to it where `where` is true
+// the loops that a lane wrote, each named by its number: a label, and a branch back to it where `where` is true
 CODEGEN_CORE MachineOperand codegen_loop_open(MachineFunction *lane)
 {
     const MachineOperand loop = codegen_number(lane->loops);
@@ -413,8 +414,8 @@ CODEGEN_CORE void codegen_halve(MachineFunction *lane, const MachineOperandRange
     }
 }
 
-// to = from shifted one bit toward the high end, the low limb's bit from `below`'s top bit; in place where to is
-// from, which the limbs taken from the top down allow
+// `to = from` shifted one bit toward the high end, with the bit of the low limb from the top bit of `below`. It works
+// in place where to is from, which the limbs, taken from the top down, allow
 CODEGEN_CORE void codegen_double(MachineFunction *lane, const MachineOperandRange &to, const MachineOperandRange &from,
                                  MachineOperand below)
 {
