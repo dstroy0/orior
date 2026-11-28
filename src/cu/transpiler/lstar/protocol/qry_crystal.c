@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// qry_crystal.c: a finished run's .qry stored as the engine's crystal, .kcr, and read back out of it (qry_run.sh). The
-// .qry's bytes are the lanes of one axis, and the engine lifts, codes and seals them as it does any sample
-// (engine_ingest_set): every sample is checked against its seal and against the bytes it was made from before the call
-// returns, and then loaded again here and checked against the .qry byte for byte. Nothing is let go before every one
-// matched.
+// qry_crystal.c: the .qry of a finished run, stored as the crystal of the engine, .kcr, and read back out of it
+// (qry_run.sh). The bytes of the .qry are the lanes of one axis. The engine lifts, codes and seals them as it does any
+// sample (engine_ingest_set). It checks every sample against its seal, and against the bytes that it came from, before
+// the call returns. This file then loads each again, and checks it against the .qry byte for byte. It lets nothing go
+// before every one matched.
 //
-//     qry_crystal write <run .qry> <set folder>    the .qry's bytes, QRY_CRYSTAL_PART at a time, each the sample
-//                                                 part<n> of the set, at <set folder>/part<n>/part<n>.kcr
-//     qry_crystal read <set folder> <run .qry>     the set's samples loaded in order and their bytes joined into the
-//                                                 .qry
+// - `qry_crystal write <run .qry> <set folder>`: the bytes of the .qry, QRY_CRYSTAL_PART at a time. Each is the sample
+//   `part<n>` of the set, at `<set folder>/part<n>/part<n>.kcr`.
+// - `qry_crystal read <set folder> <run .qry>`: the samples of the set, loaded in order, with their bytes joined into
+//   the .qry.
 //
-// The lifting runs on the device. Exit 0 where it was done and every sample matched, 1 where it was not, 2 where the
+// The lift runs on the device. Exit 0 where it ran and every sample matched, and 1 where it did not. Exit 2 where the
 // words are none of the above
 #include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine.h"
@@ -27,11 +27,12 @@
 #define QRY_CRYSTAL_FOLDER_REMOVED(path_) rmdir(path_)
 #endif
 
-// the max bytes of the .qry one sample takes, which bounds what the device stores while it lifts one: two bytes a lane
-// and four a coefficient, with the tower's blocks beside them
+// the max bytes of the .qry that one sample takes, which bounds what the device stores while it lifts one. That is two
+// bytes for each lane and four for each coefficient, with the blocks of the tower beside them
 #define QRY_CRYSTAL_PART (256ULL << 20u)
 
-// the max samples a set contains, and the source folder the samples are read from while the set is made, inside it
+// the max samples that a set holds, and the source folder inside it that the program reads the samples from, while it
+// makes the set
 #define QRY_CRYSTAL_PARTS 4096u
 #define QRY_CRYSTAL_SOURCE "source"
 
@@ -54,8 +55,8 @@ static void qry_crystal_error_printed(const char *what, const EngineError *error
     engine_note_written(&engine_note);
 }
 
-// `count` bytes at `bytes` written as an .npy of unsigned bytes along one axis, at `path`. 1, or 0 where it could not
-// be written
+// `count` bytes at `bytes`, written as an .npy of unsigned bytes along one axis, at `path`. The return is 1, or 0 where
+// the write failed
 static int qry_crystal_npy_written(const char *path, const unsigned char *bytes, unsigned long long count)
 {
     char header[160];
@@ -65,7 +66,7 @@ static int qry_crystal_npy_written(const char *path, const unsigned char *bytes,
     mmgr_line_put(&formed_line_1, ",), }");
     (void)mmgr_line_finish(&formed_line_1);
     int length = (int)formed_line_1.at;
-    // the header is padded with spaces to a line ending that leaves the data on a 64 byte boundary, as the format
+    // the call pads the header with spaces to a line end that leaves the data on a 64 byte boundary, as the format
     // requires
     while (((10 + length + 1) % 64) != 0)
     {
@@ -81,7 +82,8 @@ static int qry_crystal_npy_written(const char *path, const unsigned char *bytes,
     {
         return 0;
     }
-    // the header and the count are each below the room they are written from, and widen to the sizes fwrite takes
+    // the header and the count are each below the room that the call writes them from, and widen to the sizes that
+    // fwrite takes
     int written = (platform_file_write_items(lead, 1u, sizeof(lead), file) == sizeof(lead)) &&
                   (platform_file_write_items(header, 1u, (size_t)length, file) == (size_t)length) &&
                   (platform_file_write_items(bytes, 1u, (size_t)count, file) == (size_t)count);
