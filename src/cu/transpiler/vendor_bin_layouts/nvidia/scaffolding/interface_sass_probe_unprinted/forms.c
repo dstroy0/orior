@@ -15,8 +15,8 @@ typedef struct
     char otherwise[512];
 } UnprintedTally;
 
-// question `number` probed at every value of its field, each value's answer printed and written into `record`: how many
-// values answered as printed, or -1 where the question was not put
+// question `number`, probed at every value of its field. The call prints the answer of each value and writes it into
+// `record`. The return is how many values answered as printed, or -1 where the call did not put the question
 int unprinted_query(const UnprintedQuestion *question, unsigned int number, PlatformFile *record)
 {
     // the field's bits as the record names them, none where the question turns no bit and runs its instruction as
@@ -184,12 +184,13 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, Plat
     return printed;
 }
 
-// One operand of a form filled for the forms question, from its form's own operand `base` of `type` at `place`, into
-// `operand`. The first operand is the result: R8, P0 or UR6. A register read is R0 and R6 in turn, which contain 0xb
-// and 0x7, a predicate read P1, which is true, and a uniform register read UR4, which contains the memory descriptor.
-// RZ, PT, URZ, a number and a constant past bank 0 are retained, and a constant in bank 0 reads c[0x0][0x0], which
-// every run contains alike. A register retains what follows its name, a half or a width. 1, or 0 where the type is one
-// this question does not fill
+// One operand of a form, filled for the forms question from the own operand `base` of its form, of `type` at `place`,
+// into `operand`. The first operand is the result: R8, P0 or UR6. A register read is R0 and R6 in turn, which hold 0xb
+// and 0x7. A predicate read is P1, which is true. A uniform register read is UR4, which holds the memory descriptor.
+//
+// The call keeps RZ, PT, URZ, a number and a constant past bank 0. A constant in bank 0 reads `c[0x0][0x0]`, which
+// every run holds alike. A register keeps what follows its name, a half or a width. The return is 1, or 0 where the
+// type is one that this question does not fill
 static int unprinted_operand(const char *base, unsigned int type, unsigned int mark, unsigned int place,
                              unsigned int *reads, char *operand, size_t room)
 {
@@ -265,8 +266,9 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
     }
 }
 
-// `form` written with its operands filled (unprinted_operand) into `text`: 1, or 0 with the reason in `why`, where its
-// result is no register, predicate or uniform register, or an operand is a type the question does not fill
+// `form`, written with its operands filled (unprinted_operand) into `text`. The return is 1, or 0 with the reason in
+// `why` where its result is no register, predicate or uniform register. The same is true where an operand is a type
+// that the question does not fill
 static int unprinted_form_text(const SassForm *form, char *text, size_t room, const char **why)
 {
     const int result = (form->operands != 0u) &&
@@ -302,9 +304,10 @@ static int unprinted_form_text(const SassForm *form, char *text, size_t room, co
     return at < room;
 }
 
-// The lines of the forms question: UNPRINTED_COPIES copies of `instruction`, each after P1 and P2 are set again and
-// each moving its result into R8 where the result is a predicate or a uniform register. The first copy's R8 is moved
-// into R7, which the kernel stores as the first word, and each copy past it stores its R8 as a word of its own
+// The lines of the forms question: UNPRINTED_COPIES copies of `instruction`, each after the code sets P1 and P2 again.
+// Each copy moves its result into R8, where the result is a predicate or a uniform register. The code moves the R8 of
+// the first copy into R7, which the kernel stores as the first word. Each copy past it stores its R8 as a word of its
+// own
 static int unprinted_form_lines(const char *instruction, unsigned int result, char *lines, size_t room)
 {
     VerbaLinea formed_line_5 = mmgr_line_over(lines, room);
@@ -355,10 +358,14 @@ static int unprinted_form_addresses(const SassForm *form)
     return addresses;
 }
 
-// `form`, which takes an address, written for the memory question into `text`: a predicate P0, or PT where it contains
-// PT; a register before the address R10, the one an atomic writes the word it found into; the address the answer's
-// third word, R4 with 0x8 added, 64 bits wide where the form's own is; and a register after it R0 and R6 in turn,
-// which contain 0xb and 0x7. 1, or 0 with the reason in `why` where an operand is a type the question does not fill
+// `form`, which takes an address, written for the memory question into `text`:
+//
+// - a predicate P0, or PT where it holds PT
+// - a register before the address R10, the one that an atomic writes the word that it found into
+// - the address, the third word of the answer, R4 with 0x8 added, 64 bits wide where the own address of the form is
+// - a register after it, R0 and R6 in turn, which hold 0xb and 0x7
+//
+// The return is 1, or 0 with the reason in `why` where an operand is a type that the question does not fill
 static int unprinted_memory_text(const SassForm *form, char *text, size_t room, const char **why)
 {
     SassInstructionParts base;
@@ -421,8 +428,9 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
     return at < room;
 }
 
-// The lines of the memory question: `instruction` once, the word it found stored as the answer's second word, and the
-// answer's third word, which the instruction wrote, loaded into R7, which the kernel stores as the first
+// The lines of the memory question: `instruction` once, and the word that it found, stored as the second word of the
+// answer. Then the third word of the answer, which the instruction wrote, loaded into R7, which the kernel stores as
+// the first word
 static int unprinted_memory_lines(const char *instruction, char *lines, size_t room)
 {
     VerbaLinea formed_line = mmgr_line_over(lines, room);
@@ -433,8 +441,8 @@ static int unprinted_memory_lines(const char *instruction, char *lines, size_t r
     return (int)formed_line.at < (int)room;
 }
 
-// `value` written as `bits` binary digits and what it answered appended to the tally's list of values answering
-// otherwise than the form's own bits
+// `value` written as `bits` binary digits, and what it answered, added to the list of the tally. That list holds the
+// values that answer otherwise than the own bits of the form
 static void unprinted_tally_otherwise(UnprintedTally *tally, unsigned long long value, unsigned int bits,
                                       const char *reading)
 {
@@ -452,8 +460,9 @@ static void unprinted_tally_otherwise(UnprintedTally *tally, unsigned long long 
     }
 }
 
-// The values probed in one run: every one where the run is UNPRINTED_FIELD_MAX bits or fewer, else the form's own
-// value with each bit turned in turn. Value `index` of them, or the count where `index` is past them
+// The values probed in one run: every one where the run is UNPRINTED_FIELD_MAX bits or fewer. Else they are the own
+// value of the form with each bit turned in turn. The return is value `index` of them, or the count where `index` is
+// past them
 static unsigned long long unprinted_value(unsigned int bits, unsigned long long own, unsigned long long index,
                                           unsigned long long *count)
 {
@@ -461,10 +470,10 @@ static unsigned long long unprinted_value(unsigned int bits, unsigned long long 
     return (bits <= UNPRINTED_FIELD_MAX) ? index : (own ^ (1ULL << index));
 }
 
-// One unprinted run of a form probed at its values, `copies` at a run, against `own`, what the form's own bits
-// answered. With several copies each answers one word, compared against own[0]; with one, all four words are its and
-// are compared against own's four. A run that did not run probes each of its values again alone, the other copies at
-// the form's own bits
+// One unprinted run of a form, probed at its values, `copies` at a run, against `own`, what the own bits of the form
+// answered. With several copies, each answers one word, and the call compares it against `own[0]`. With one copy, all
+// four words are its own, and the call compares them against the four of `own`. A run that did not run probes each of
+// its values again alone, with the other copies at the own bits of the form
 static void unprinted_form_run(const unsigned int *places, unsigned int copies, unsigned long long code_size,
                                const SassRun *run, unsigned long long field_value, const unsigned int *own,
                                UnprintedTally *tally)
@@ -535,9 +544,10 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
     }
 }
 
-// Every form the machine file contains with an operand it does not print, each written with its operands filled
-// (unprinted_form_text), UNPRINTED_COPIES copies to a cubin, and each unprinted run probed at its values against what
-// the form's own bits answer. A row of `record` for each run probed and each form not probed
+// Every form that the machine file holds with an operand that it does not print. The call writes each with its
+// operands filled (unprinted_form_text), UNPRINTED_COPIES copies to a cubin. It probes each unprinted run at its values
+// against what the own bits of the form answer. There is a row of `record` for each run probed, and for each form not
+// probed
 void unprinted_forms(PlatformFile *record)
 {
     {
@@ -583,8 +593,8 @@ void unprinted_forms(PlatformFile *record)
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
         unsigned int places[UNPRINTED_COPIES] = {0u, 0u, 0u, 0u};
-        // a form that takes an address is probed once a run through the word it writes, and every other through the
-        // copies of its result
+        // the call probes a form that takes an address once for each run, through the word that it writes. It probes
+        // every other form through the copies of its result
         const int memory = unprinted_form_addresses(form);
         const unsigned int copies = memory ? 1u : UNPRINTED_COPIES;
         const int written = memory ? unprinted_memory_text(form, instruction, sizeof(instruction), &why)
