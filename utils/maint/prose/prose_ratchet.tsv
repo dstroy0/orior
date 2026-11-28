@@ -623,8 +623,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/bus_clock.c	13
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.c	24
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing/cut.c	5
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/cubin_run_internal.h	25
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/driver.c	19
+src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/driver.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/input.c	11
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/class.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c	3

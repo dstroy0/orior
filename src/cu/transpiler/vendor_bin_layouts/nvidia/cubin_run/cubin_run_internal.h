@@ -35,14 +35,14 @@
 
 #define CUBIN_RUN_LINE 1024u
 
-// the words of a case and of an answer, the stick's arity, and the threads a block runs where the question names
-// no shape of its own
+// the words of a case and of an answer, and the arity of the stick. Then the threads that a block runs where the
+// question names no shape of its own
 #define CUBIN_RUN_IN_WORDS 8u
 
 #define CUBIN_RUN_OUT_WORDS 2u
 
-// the room each thread is given to write its answer in, as many words as a case, and the byte that room is filled
-// with before a launch, so that the words the kernel wrote are distinguished from the words it did not
+// the room that each thread gets to write its answer in, as many words as a case. Then the byte that fills that room
+// before a launch. Thus the words that the kernel wrote show apart from the words that it did not
 #define CUBIN_RUN_OUT_ROOM CUBIN_RUN_IN_WORDS
 
 #define CUBIN_RUN_FILL 0xffu
@@ -61,15 +61,15 @@
 // the exits a question's code contains at max
 #define CUBIN_RUN_EXITS 256u
 
-// the run's tables of the gate's verdicts and the carrier's launches, and what came of a launch, its row's outcome
-// (verdicts.oracle.tsv, launches.oracle.tsv)
+// the run tables of the gate verdicts and the carrier launches (verdicts.oracle.tsv, launches.oracle.tsv). Then what
+// came of a launch, the outcome of its row
 #define CUBIN_RUN_VERDICTS "verdicts"
 
 #define CUBIN_RUN_LAUNCHES "launches"
 
-// the probe instructions of launches that faulted the part, a line `<low> <high> <cause>` each, the cause the listener
-// received or `-`: each blocked from the part from then on, in this run and in every run it is carried into
-// (cubin_safe_verdict_added)
+// the probe instructions of launches that faulted the part, each a line `<low> <high> <cause>`. The cause is what the
+// listener received, or `-`. The gate blocks each from the part from then on, in this run and in every run that it
+// goes into (cubin_safe_verdict_added)
 #define CUBIN_RUN_FAULTS "faulted.txt"
 
 #define CUBIN_RUN_ANSWERED 0u
@@ -80,9 +80,9 @@
 
 #define CUBIN_RUN_TIMED_OUT 3u
 
-// the attribute the driver reports a kernel's register count under (cuFuncGetAttribute, CU_FUNC_ATTRIBUTE_NUM_REGS):
-// the count the part reports the kernel allots, read off a loaded function and not probed, and the register count
-// before it is read
+// the attribute that the driver reports the register count of a kernel under (cuFuncGetAttribute,
+// CU_FUNC_ATTRIBUTE_NUM_REGS). It is the count that, as the part reports, the kernel allots, read from a loaded
+// function and not probed. Then the register count before the call reads it
 #define CUBIN_RUN_ATTRIBUTE_NUM_REGS 4
 
 #define CUBIN_RUN_REGISTERS_UNREAD 0xffffffffu
@@ -92,7 +92,7 @@ typedef int CubinRunStatus;
 
 typedef unsigned long long CubinRunAddress;
 
-// how a question is launched: the threads of a block and the blocks of a launch
+// how the carrier launches a question: the threads of a block and the blocks of a launch
 typedef struct
 {
     unsigned int threads;
@@ -135,16 +135,12 @@ typedef struct
     unsigned long long at;
 } CubinRunLines;
 
-// What the carrier reports, gathered in a line of its own and given whole once it is written
-// (cubin_run_member_written): a question's answer, its dry record and its call each have one the event type the Xid
-// critical errors are registered and read under, and the event a wait fills: the part's handle, the type stamped and
-// its datum, with room past them for the fields a newer management layer adds; an older one's shorter event is read
-// into that same space
+// the event type that the program registers and reads the Xid critical errors under
 #define CUBIN_RUN_XID 0x0000000000000008ULL
 
 #if defined(_WIN32)
 
-// a subscription to the events a channel is written from now on, and an event rendered as its XML
+// a subscription to the events that the system writes to a channel from now on, and an event rendered as its XML
 #define CUBIN_RUN_EVENTS_FUTURE 1UL
 
 #define CUBIN_RUN_EVENTS_XML 1UL
@@ -153,9 +149,9 @@ typedef struct
 
 #define CUBIN_RUN_EVENTS_WAIT_MILLISECONDS 1000u
 
-// the Xid critical errors the part stamped against the last launch, each one's datum, its Xid, with the text the
-// driver wrote of it where the system's log records one, stored for the listener's account of a panic
-// (cubin_run_refusal_written): as many as CUBIN_RUN_XID_MAX, and the count of all
+// the Xid critical errors that the part stamped against the last launch: the datum of each, and its Xid. Each has the
+// text that the driver wrote of it where the log of the system records one. The program stores them for the account
+// of a panic by the listener (cubin_run_refusal_written), as many as CUBIN_RUN_XID_MAX, and the count of all
 #define CUBIN_RUN_XID_MAX 16u
 
 #define CUBIN_RUN_XID_TEXT 192u
@@ -164,13 +160,13 @@ typedef struct
 
 #endif
 
-// the facets a dry run pops out, each the object a stage of the carry passes on, for any one to be examined off
-// the part. The flags that set them come after --dry; --full sets them all
-#define CUBIN_FACET_QUERY 1u     // --query: the query object, the whole code read back, every place our reader names it
+// the facets that a dry run pops out, each the object that a stage of the carry passes on. A person can examine any
+// one of them with no part. The flags that set them come after --dry, and --full sets them all
+#define CUBIN_FACET_QUERY 1u     // --query: the query object, the whole code read back where our reader names it
 
-#define CUBIN_FACET_GATE 2u // --gate-check: the safety word positioned on and cubin_safe's verdict on what it then contains
+#define CUBIN_FACET_GATE 2u // --gate-check: the safety word put on, and the verdict of cubin_safe on the code then
 
-#define CUBIN_FACET_VENDOR 4u    // --diff-output-against-vendor: the post-safety-word container written out to be read
+#define CUBIN_FACET_VENDOR 4u    // --diff-output-against-vendor: the container after the safety word, written out
 
 extern SassMachine s_machine;
 extern unsigned char s_pattern[CUBIN_RUN_BYTES];
@@ -181,6 +177,8 @@ extern unsigned int s_cases[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_IN_WORDS];
 extern unsigned int s_case_count;
 extern unsigned int s_answers[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_OUT_WORDS];
 extern QryShared *s_run;
+// What the carrier reports, gathered in a line of its own and given whole after the call writes it
+// (cubin_run_member_written). The answer of a question, its dry record and its call each have one
 extern VerbaLinea s_answers_line;
 extern VerbaLinea s_dry_line;
 extern VerbaLinea s_call_line;
@@ -199,10 +197,16 @@ extern int s_driver_opened;
 extern int s_dry;
 extern unsigned int s_facets;
 
-// the carrier's clocks over a list, the host's nanoseconds in each stage of a question summed over every question and
-// reported as the list ends: the inputs read; the container written and read by the gate; the module loaded and its
-// function found; the memory allotted, filled, read back and given back; the launch between its events; the fault
-// telemetry read; and the rows and the answer passed
+// the clocks of the carrier over a list. The call sums the nanoseconds of the host in each stage of a question over
+// every question, and reports them as the list ends. The stages are these:
+//
+// - the inputs read
+// - the container written, and read by the gate
+// - the module loaded, and its function found
+// - the memory allotted, filled, read back and given back
+// - the launch between its events
+// - the fault telemetry read
+// - the rows and the answer passed
 typedef struct
 {
     unsigned long long input;
@@ -218,8 +222,9 @@ extern CubinRunClocks s_clocks;
 
 unsigned long long cubin_run_host_now(void);
 
-// the clock the part named in its .ksc beside `machine_path` opened through the listener: 1 where its word is read
-// from here on, 0 where the part names none or the listener is not reached (clock.c)
+// the clock that the part named in its .ksc beside `machine_path`, opened through the listener. The return is 1 where
+// the program reads its word from here on. It is 0 where the part names none, or the call cannot reach the listener
+// (clock.c)
 int cubin_run_clock_open(const char *machine_path);
 // the clock's word read into `word`: 1, or 0 where no clock is open
 int cubin_run_clock_read(unsigned int *word);
