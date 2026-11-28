@@ -528,67 +528,72 @@ char *cli_servers_text_alloc(const CliServersPathSizeTypeCtx *args);
 void cli_servers_key_get(const CliServersPathKeyCtx *args);
 // the URI of a file, into a line of CLI_PATH_MAX_LEN
 void cli_servers_uri_get(const CliServersPathUriCtx *args);
-// a file's diagnostics passed on whole: its server's, less its reports of an attribute a class's family sets and of a
-// name a build tool gives it, then each checker's; and a checker's findings stored, `[[path,
-// [diagnostic]]]`, each file's diagnostics passed on whose findings changed (servers_emit.c)
+// the diagnostics of a file, passed on whole (servers_emit.c). First come those of its server, less some of its
+// reports. Those are the reports of an attribute that the family of a class sets, and of a name that a build tool gives
+// the file. Then come those of each checker
 void cli_servers_emit_file(const CliServersSinkKeyCtx *args);
-// every file it names passed on where `always`, changed or the same, as a file the editor opens receives its findings
-// (servers_findings.c)
+// the findings of a checker, stored, `[[path, [diagnostic]]]` (servers_findings.c). The call passes on the diagnostics
+// of each file whose findings changed. Where `always`, it passes on every file that they name, changed or the same, as
+// a file that the editor opens gets its findings
 void cli_servers_findings_store(const CliServersSizeCtx *args);
 // a path as it is in `tree`, its slashes forward, or whole where it is outside it or `tree` is NULL
 void cli_servers_tree_path(const CliServersPathErrMsgCtx *args);
 
-// the diagnostics of each file whose server reports an attribute a class has not passed on whole again, as what a
-// class's family sets moved (servers_emit.c)
+// the diagnostics of each file whose server reports that a class has no such attribute, passed on whole again
+// (servers_emit.c). The call does this as what the family of a class sets moves
 void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args);
 
-// a file the editor opens of `language` passed to each plugin server that serves the language: 1 where one took it;
-// its new text to each that has it open, and its closing sent to each that has it open (servers_plugins.c)
+// a file of `language` that the editor opens, passed to each plugin server that serves the language. The return is 1
+// where one took it (servers_plugins.c)
 int cli_servers_plugins_open(const CliServersPathSizeLanguageCtx *args);
+// the new text of the file, sent to each that has it open
 void cli_servers_plugins_change(const CliServersPathSizeLanguageCtx *args);
+// the close of the file, sent to each that has it open
 void cli_servers_plugins_close(const CliServersPathLspCtx *args);
-// the server of plugin `id`, referenced, or NULL with why given where none runs; the next plugin server from the place
-// `at` that has `path` open, referenced, its plugin's id into `id`, sized for CLI_NAME_MAX_LEN, and `at` moved past it,
-// or NULL where none is left; and a command of an action of the server of plugin `id` it does not run itself, `size`
-// bytes of
-// `{command, arguments}`, passed to the plugin as `orior/command` (servers_plugins.c)
+// the server of plugin `id`, referenced. The return is NULL with the reason where none runs (servers_plugins.c)
 CliLsp *cli_servers_plugin_get(const CliServersErrMsgServerCtx *args);
+// the next plugin server from the place `at` that has `path` open, referenced, with the id of its plugin into `id`,
+// sized for CLI_NAME_MAX_LEN, and `at` moved past it. The return is NULL where no server remains
 CliLsp *cli_servers_plugin_owner_get(const CliServersPathIdCtx *args);
-// the program a plugin's server starts as, found by its toolchain where `server` in `json` names one, into `program`,
-// and the folder it was found in into `folder`, each sized for CLI_PATH_MAX_LEN: 1, or 0 with why given; the
-// `length` bytes of `text` written into `written` with each `{folder}` in them `folder`, escaped for a JSON string
-// where `escaped`; and the arguments of `server` put into `words` the same way (servers_plugins_program.c)
+// the program that the server of a plugin starts as, found by its toolchain where `server` in `json` names one, into
+// `program` (servers_plugins_program.c). The folder that the call found it in goes into `folder`. Each holds
+// CLI_PATH_MAX_LEN bytes. The return is 1, or 0 with the reason
 int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args);
+// the `length` bytes of `text`, written into `written` with `folder` for each `{folder}` in them, and escaped for a
+// JSON string where `escaped`
 void cli_servers_plugin_folder_append(const CliServersTextCtx *args);
+// the arguments of `server`, put into `words` in the same way
 void cli_servers_plugin_args(const CliServersJsonServerCtx *args);
-// one file checked with each checker named for its language, on a thread of its own; a file impero reads itself
-// checked as its text is; and every file of the tree impero reads itself checked as the disk stores it
-// (servers_checkers.c)
+// one file, checked with each checker named for its language, on a thread of its own (servers_checkers.c)
 void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args);
+// a file that impero reads itself, checked as its text is
 void cli_servers_check_own(const CliServersPathSizeRootSinkCtx *args);
+// every file of the tree that impero reads itself, checked as the disk stores it
 void cli_servers_check_tree_own(const CliServersFilesCtx *args);
+// each checker that reads a whole tree, run over the tree as a job of the servers
 void cli_servers_check_tree_with_checkers(const CliServersFilesCtx *args);
 // whether impero reads the file at `path` itself, as a build file or as JSON by its schema (servers_own.c)
 int cli_servers_own_reads(const CliServersPathSizeRootSinkCtx *args);
-// a run of the checker `id` over the file of `key` counted: its number, which a later run of the same checker over
-// the same file is in for; and whether the run `run` is still the last (servers_checkers.c)
+// a run of the checker `id` over the file of `key`, counted. The return is its number. A later run of the same checker
+// over the same file replaces it (servers_checkers.c)
 unsigned long long cli_servers_run_count(const CliServersKeyCtx *args);
+// whether the run `run` is still the last
 int cli_servers_run_last(const CliServersKeyCtx *args);
-// whether the tree's check is on (servers_check.c)
+// whether the check of the tree is on (servers_check.c)
 int cli_servers_check_on(void);
 
-// the tree's check's queue taken to a file let go, as the editor closes one, the file taken for the check and the
-// server referenced for the queue: 1 where the check is on and took it, 0 where the caller closes it; with the taken
-// files' lock acquired (servers_check.c)
+// the queue of the check of the tree, taken to a file that the editor closes. The check takes the file, and the queue
+// references the server. The return is 1 where the check is on and took it, 0 where the caller closes it
+// (servers_check.c)
 int cli_servers_check_allocs(const CliServersPathLspCtx *args);
-// the lock a server is written to about a file under, by the check or by the editor, which the check's taken files are
-// guarded by; whether a file is taken for the check and not for the editor; and a file taken, or let go; each with the
-// lock acquired
+// whether the check takes a file, and the editor does not (servers_check_one.c)
 int cli_servers_check_open(const CliServersUriCtx *args);
+// a file taken for the check, or let go
 void cli_servers_check_open_set(const CliServersUriCtx *args);
-// every file the check took let go of it; and each file `server` has open and the check does not take given to it
-// again, for it to read against what changed under it; each with the taken files' lock acquired (servers_check_one.c)
+// every file that the check took, let go of it (servers_check_one.c)
 void cli_servers_check_open_clear(void);
+// each file that `server` has open and the check does not take, given to it again, thus it reads it against what
+// changed under it
 void cli_servers_reread_open(const CliServersServerCommandCtx *args);
 // the tree's files the check was given, by their paths in the tree, each ended by a 0, in a cell of their size counted
 // to g_cli_servers_owner, their size into `size`: the cell, or NULL where the check is off or on another tree or the
