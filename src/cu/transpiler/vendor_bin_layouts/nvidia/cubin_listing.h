@@ -7,8 +7,8 @@
 
 #include <stddef.h>
 
-// Each kernel's listing cut out of one listing, all in one block of text: kernel `n`'s is `size[n]` bytes from
-// `start[n]`, and `found[n]` 1 where its code section is in the listing
+// The listing of each kernel, cut out of one listing, all in one block of text. That of kernel `n` is `size[n]` bytes
+// from `start[n]`, and `found[n]` is 1 where its code section is in the listing
 typedef struct
 {
     char *text;
@@ -19,12 +19,14 @@ typedef struct
     int *found;
 } CubinListingCut;
 
-// The listing `listing`, `length` bytes the vendor printed for a cubin, cut into the listings of the kernels `names`,
-// `count` of them, into `cut`, whose arrays have room for `count`. A kernel's listing is every instruction line of its
-// code section `.text.<name>` in order, each as the vendor printed it with every label it names, `` `(<label>) ``, put
-// as the offset the listing gives that label, `0x<offset>`, the offset of the instruction the label is before and
-// the end of the section for one past the last: a kernel's lines then read as the vendor prints its code read alone. A
-// label the section does not set is left as printed. 1, or 0 where the system gave no memory
+// The listing `listing`, `length` bytes that the vendor printed for a cubin. The call cuts it into the listings of the
+// kernels `names`, `count` of them, into `cut`, whose arrays have room for `count`.
+//
+// The listing of a kernel is every instruction line of its code section `.text.<name>` in order. Each is as the
+// vendor printed it, with every label that it names, `` `(<label>) ``, put as the offset that the listing gives that
+// label, `0x<offset>`. That is the offset of the instruction that the label is before, or the end of the section for
+// one past the last. Then the lines of a kernel read as the vendor prints its code when it reads it alone. A label
+// that the section does not set stays as printed. The return is 1, or 0 where the system gave no memory
 int cubin_listing_cut(const char *listing, size_t length, const char *const *names, unsigned int count,
                       CubinListingCut *cut);
 
