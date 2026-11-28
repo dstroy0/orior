@@ -460,7 +460,6 @@ src/cu/engine/analysis/unit_sweep/unit_sweep.h	1
 src/cu/engine/engine_config_requests.h	1
 src/cu/engine/nbody/body_overlap/body_overlap.cu	1
 src/cu/engine/nbody/body_overlap/body_overlap.h	2
-src/cu/engine/nbody/flatten/flatten.h	2
 src/cu/engine/nbody/max_tree/max_tree_device_overlap_kernels.cu	1
 src/cu/engine/nbody/orior/orior_field.c	2
 src/cu/engine/nbody/orior/orior_steer.c	3

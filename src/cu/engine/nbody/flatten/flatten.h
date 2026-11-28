@@ -5,8 +5,8 @@
 
 #include "../max_tree/max_tree.h"
 
-// one sample's orders, as EngineResidualRequest's: every background order even, a smooth order odd or even, and the
-// comb's length on each axis, 0 or 1 where there is none
+// the orders of one sample, as those of EngineResidualRequest: every background order even, and a smooth order odd or
+// even. Then the length of the comb on each axis, 0 or 1 where there is none
 typedef struct
 {
     unsigned int smooth[ENGINE_AXES];
@@ -29,9 +29,10 @@ typedef struct
 
 int flatten_set(const FlattenSetRequest *request);
 
-// A flattened set. `orders` contains each sample's orders, and `offset_halves` each sample's residual place per axis in
-// half voxels, three a sample, as engine_residual gives it: -1 on an axis whose smooth order and comb's n - 1 sum to
-// an odd number and 0 on the others. A body's sums sit on its own sample's residual grid.
+// A flattened set. `orders` holds the orders of each sample. `offset_halves` holds the residual place of each sample
+// for each axis in half voxels, three for each sample, as engine_residual gives it. That is -1 on an axis whose smooth
+// order and the `n - 1` of its comb sum to an odd number, and 0 on the others. The sums of a body sit on the residual
+// grid of its own sample.
 typedef struct
 {
     MaxTreeLayout layout;
