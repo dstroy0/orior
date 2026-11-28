@@ -7,32 +7,47 @@
 #include "../../../../../includes/platform/platform.h"
 #include "cycle_shared.h"
 
-// The record program compiled. Nothing hand-written is linked with it: the language's own forms write every record
-// operation into the lane and the resident kernel that runs the lanes after it (program_unit), and one text is the
-// whole program. A program is written first as PTX (code_generator("ptx.krs")): each step unrolled at its widths into
-// straight-line assembly over registers the lane uses, a step that loops on its values a loop of the same forms, and
-// nvJitLink assembles and links it alone, with no compiler between. Where the lane cannot be written so, or its
-// PTX does not build, the lane is C source instead (code_generator("c.krs")), the same lane in c.krs with its file and
-// signs in the thread block's shared memory, file_limbs the max it stores live at once, compiled by NVRTC as
-// relocatable code and linked alone the same way. A program of any length builds either way. A thread block contains as
-// many threads as its shared memory fits of the C lane's places; a PTX lane takes none. The interpreter above stays the
-// oracle, and the fallback for a program neither way builds, this process cannot load or shared memory cannot fit one
-// thread's places for.
+// The record program, compiled. No hand-written code links with it. The own forms of the language write every record
+// operation into the lane, and the resident kernel that runs the lanes after it (program_unit). One text is the whole
+// program.
+//
+// The compiler writes a program first as PTX (code_generator("ptx.krs")). It unrolls each step at its widths into
+// straight-line assembly over registers that the lane uses. A step that loops on its values is a loop of the same
+// forms. The tool nvJitLink assembles and links it alone, with no compiler between.
+//
+// Where the compiler cannot write the lane so, or its PTX does not build, the lane is C source
+// (code_generator("c.krs")). It is the same lane in c.krs, with its file and signs in the shared memory of the thread
+// block. The count file_limbs is the max that it stores live at once. NVRTC compiles it as relocatable code, and the
+// program links it alone in the same way. A program of any length builds in both ways.
+//
+// A thread block holds as many threads as its shared memory fits of the places of the C lane, and a PTX lane takes
+// none. The interpreter above stays the oracle. It is also the fallback for a program that builds in neither way, or
+// that this process cannot load. The same is true where shared memory cannot fit the places of one thread.
 //
 // The compiled program runs as a resident program with a block (EngineProgramBlock) in device memory. Its thread blocks
-// take lanes a round at a time from one counter, check in to the block as they go, and leave once the launch has run
-// its time to live or the block's command directs to. The last one out writes where the program is, and the run
-// launches it again from there until every lane is done: a launch never outlives the display driver's watchdog, and no
-// lane runs twice. The host reads the block only once a launch ended. Eight switches, read at each load or run:
-// CYCLE_RECORD_INTERPRET=1 retains every program on the interpreter, CYCLE_RECORD_CHECK=1 runs both on every launch and
-// errors on the launch where their records or errors differ, CYCLE_RECORD_REPORT=1 reports on stderr where each program
-// came from and how long each kernel ran, CYCLE_RECORD_TTL=<microseconds> sets a launch's time to live,
-// CYCLE_RECORD_LTO=1 builds the programs as LTO-IR and links each with link-time optimization, which writes no PTX,
-// CYCLE_RECORD_NVRTC=1 writes every lane as C source, and CYCLE_RECORD_HOST_C=1 writes it so and builds it with the
-// host's compiler, to run on the host (cycle_compile.cu), and CYCLE_RECORD_RETAIN_PTX=1 turns rule (i) off
-// (cycle_record_route). No switch turns the device's writing off: the device writes each lane from its step table,
-// and its text is checked against the host code generator's (cycle_codegen_on_device), the assembly printer's own lane
-// included: the assembly printer runs on the interpreter while it writes that one.
+// take lanes one round at a time from one counter, and check in to the block as they go. They leave after the launch
+// runs out its time to live, or when the command of the block tells them to.
+//
+// The last one out writes where the program is. The run launches it again from there until every lane is complete. A
+// launch never outlives the watchdog of the display driver, and no lane runs twice. The host reads the block only
+// after a launch ended.
+//
+// Eight switches, read at each load or run:
+//
+// - CYCLE_RECORD_INTERPRET=1 keeps every program on the interpreter.
+// - CYCLE_RECORD_CHECK=1 runs both on every launch, and gives an error on the launch where their records or errors
+//   differ.
+// - CYCLE_RECORD_REPORT=1 reports on stderr where each program came from and how long each kernel ran.
+// - CYCLE_RECORD_TTL=<microseconds> sets the time to live of a launch.
+// - CYCLE_RECORD_LTO=1 builds the programs as LTO-IR, and links each with link-time optimization, which writes no PTX.
+// - CYCLE_RECORD_NVRTC=1 writes every lane as C source.
+// - CYCLE_RECORD_HOST_C=1 writes it so, and builds it with the compiler of the host, to run on the host
+//   (cycle_compile.cu).
+// - CYCLE_RECORD_RETAIN_PTX=1 turns rule (i) off (cycle_record_route).
+//
+// No switch turns off the writes of the device. The device writes each lane from its step table, and the program
+// checks its text against the text of the host code generator (cycle_codegen_on_device). That includes the own lane of
+// the assembly printer, which runs on the interpreter while it writes that one.
 
 static_assert(ENGINE_RECORD_MEMBERS_MAX == 3u, "cycle: the compiled program's launch carries three members");
 
@@ -49,8 +64,8 @@ struct CycleCompiler
     decltype(&nvrtcGetCUBIN) cubin;
     decltype(&nvrtcGetLTOIRSize) ltoir_size;
     decltype(&nvrtcGetLTOIR) ltoir;
-    // PTX is read once a process, for its header alone (cycle_ptx_header); an NVRTC without it leaves every program's
-    // lane to the C source
+    // the program reads PTX once in a process, for its header alone (cycle_ptx_header). An NVRTC without it leaves the
+    // lane of every program to the C source
     decltype(&nvrtcGetPTXSize) ptx_size;
     decltype(&nvrtcGetPTX) ptx;
     decltype(&nvrtcGetProgramLogSize) log_size;
@@ -60,7 +75,8 @@ struct CycleCompiler
 
 extern CycleCompiler g_cycle_compiler;
 
-// nvJitLink, loaded once a process first links: each call by the versioned name the header was built against
+// nvJitLink, loaded once in a process, at the first link. Each call goes by the versioned name of the header that the
+// build used
 struct CycleLinker
 {
     int tried;
@@ -77,9 +93,10 @@ struct CycleLinker
 
 extern CycleLinker g_cycle_linker;
 
-// what a lane is written for, one device and one type of link, named once a process: the device, and the text that
-// names it with the prelude a C lane opens with, whose hash each program's first line carries. Nothing is compiled
-// for it: every program's text contains its own resident (program_unit), and a program is built alone
+// what the program writes a lane for, one device and one type of link, named once in a process. It has the device, and
+// the text that names it with the prelude that a C lane opens with. The first line of each program carries its hash.
+// The program compiles nothing for it. The text of every program holds its own resident (program_unit), and the
+// program builds each program alone
 struct CycleTarget
 {
     int tried;
@@ -156,9 +173,9 @@ const CycleTarget *cycle_target(int major, int minor, int lto, int report);
 // the bytes of PTX's header, its terminator among them
 #define CYCLE_PTX_HEADER_BYTES 512u
 
-// PTX's header as this toolkit writes it for the device, requested from NVRTC once a process by compiling an empty
-// kernel to PTX, the answer cached in the cache against the question: the one part of PTX's rules the lane does not
-// carry itself
+// the header of PTX as this toolkit writes it for the device. The program asks NVRTC for it once in a process, with a
+// compile of an empty kernel to PTX. It caches the answer against the question. It is the one part of the rules of PTX
+// that the lane does not carry itself
 struct CyclePtxHeader
 {
     int tried;
