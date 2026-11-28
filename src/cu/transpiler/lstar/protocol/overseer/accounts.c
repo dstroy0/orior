@@ -277,8 +277,8 @@ static void overseer_account_read(OverseerTally *tally, const char *line, const 
 }
 
 // every line of `bytes`, `size` of them, read as an account once, each a row of the table of accounts of the run for
-// the conference `conference`. A line read before in this conference is the same account received twice. The own
-// account of the carrier is so, in its answer and on the panic line
+// the conference `conference`. A line read before in this conference is the same account received twice. The account of
+// the carrier comes twice in that way, in its answer and on the panic line
 void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, unsigned long long size,
                             const unsigned char *before, unsigned long long before_size, QryShared *run,
                             unsigned long long conference)
