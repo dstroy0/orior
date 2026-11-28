@@ -19,13 +19,13 @@ unsigned int s_cases[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_IN_WORDS];
 unsigned int s_case_count;
 unsigned int s_answers[CUBIN_RUN_THREADS_MAX][CUBIN_RUN_OUT_WORDS];
 
-// The run's buffer (qry_member.h): every channel input the carrier is named is a blob of it, the latest of that name,
-// and every answer, dry line and container it gives is passed to it: no file of the channel is written but by the
-// run's writer. The carrier carries nothing where it is NULL (main)
+// The buffer of the run (qry_member.h). Every channel input that the carrier gets by name is a blob of it, the latest
+// of that name. The carrier passes every answer, dry line and container that it gives to it. Only the writer of the
+// run writes a file of the channel. The carrier carries nothing where it is NULL (main)
 QryShared *s_run = NULL;
 
 // the channel input `name` read whole into `bytes`, which has room for `room`: the latest blob of it in the run. The
-// bytes read, or 0 where it was not read or does not fit
+// return is the bytes read, or 0 where the read failed or it does not fit
 unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsigned long long room)
 {
     const unsigned char *blob = NULL;
@@ -39,8 +39,8 @@ unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsig
     return size;
 }
 
-// the key of the query whose code is the channel input `code_path`: the sequence of its latest blob in the run,
-// or 0 where the run contains none
+// the key of the query whose code is the channel input `code_path`. It is the sequence of its latest blob in the run,
+// or 0 where the run holds none
 unsigned long long cubin_run_query_key(const char *code_path)
 {
     const unsigned char *blob = NULL;
@@ -49,8 +49,8 @@ unsigned long long cubin_run_query_key(const char *code_path)
     return qry_member_blob(code_path, &blob, &size, &sequence) ? sequence : 0ULL;
 }
 
-// the gate's verdict on the query `query_key`, `verdict` and the byte `at` it blocked at, a row of the run's table of
-// verdicts: put or blocked, and carried where the part is there to carry it
+// the verdict of the gate on the query `query_key`, `verdict`, and the byte `at` that it blocked at. It is a row of the
+// table of verdicts of the run: put or blocked, and carried where the part is there to carry it
 void cubin_run_verdict_row(unsigned long long query_key, unsigned int verdict, unsigned long long at, int dry)
 {
     const char *const reason = cubin_safe_name(verdict);
@@ -68,8 +68,8 @@ void cubin_run_verdict_row(unsigned long long query_key, unsigned int verdict, u
     qry_member_append(CUBIN_RUN_VERDICTS, row, sizeof(row), QRY_ORDINARY);
 }
 
-// a launch of the query `query_key`, its outcome `outcome` and what the carrier reported of it, `message`, empty where
-// it answered, a row of the run's table of launches with its timed launches' count and times
+// a launch of the query `query_key`, its outcome `outcome`, and what the carrier reported of it, `message`, empty where
+// it answered. It is a row of the table of launches of the run, with the count and times of its timed launches
 void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, unsigned int launches,
                           unsigned long long nanoseconds, unsigned long long least, unsigned long long max,
                           const char *message)
@@ -159,7 +159,7 @@ int cubin_run_cases(const char *name)
     return fits && (count != 0u);
 }
 
-// the rooms the carrier's answer, its dry record and its call are gathered in, each at max what a record contains
+// the rooms that the answer of the carrier, its dry record and its call gather in, each at max what a record holds
 static char s_answer_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static char s_dry_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static char s_call_bytes[QRY_WRITER_RING_BYTES / 2ULL];
@@ -167,8 +167,9 @@ VerbaLinea s_answers_line = {s_answer_bytes, sizeof(s_answer_bytes), 0ULL};
 VerbaLinea s_dry_line = {s_dry_bytes, sizeof(s_dry_bytes), 0ULL};
 VerbaLinea s_call_line = {s_call_bytes, sizeof(s_call_bytes), 0ULL};
 
-// What `line` contains given whole as `name`: passed to the run at `priority`, a blob of its own after any of
-// the name before it. `carried` where it was given, 2 where it was not, and what was written let go either way
+// What `line` holds, given whole as `name`: passed to the run at `priority`, a blob of its own after any of the name
+// before it. The return is `carried` where the call gave it, and 2 where it did not. Either way, the call lets go what
+// it wrote
 int cubin_run_member_written(VerbaLinea *line, const char *name, unsigned int priority, int carried)
 {
     const int given = mmgr_line_ok(line) && (qry_member_append(name, line->out, line->at, priority) != 0);
