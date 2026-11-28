@@ -598,7 +598,6 @@ src/cu/transpiler/lstar/protocol/table/vhdl.krs	20
 src/cu/transpiler/lstar/protocol/table/yosys.krs	7
 src/cu/transpiler/lstar/protocol/table_text.c	1
 src/cu/transpiler/lstar/protocol/table_text.h	3
-src/cu/transpiler/lstar/protocol/teacher/run_channel/admitted.c	19
 src/cu/transpiler/lstar/protocol/teacher/run_channel/carried.c	1
 src/cu/transpiler/lstar/protocol/teacher/run_channel/carrier.c	9
 src/cu/transpiler/lstar/protocol/teacher/run_channel/record.c	16

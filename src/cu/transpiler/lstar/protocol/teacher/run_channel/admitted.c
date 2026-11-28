@@ -8,13 +8,15 @@
 #include "memoria_operor/memoria_operor.h"
 #include "run_channel_internal.h"
 
-// The conferences the gate calls for the round the airlock last read: each question of `questions` from `first` to
-// `count` whose answer the pop gave is a block under the key rule (RUN_GATE_KEY_RULE), read against what the cross
-// read clear (RUN_AIRLOCK_READ) by its answers' stem, its probe place or every instruction of a question read whole.
-// Where the cross read any of it clear, the accounts are passed, the cross's, the gate's and the record's, and the
-// conference convened for each encoding (overseer_admission): each admitted is a lesson the carrier loads (--lessons),
-// and the question is put as the round is carried; every other stays blocked. Each is traced. The count of lessons
-// taught that the run did not block
+// The conferences that the gate calls for the round that the airlock read last. Each is for a question of `questions`,
+// from `first` to `count`, where the pop gave a block under the key rule (RUN_GATE_KEY_RULE) as its answer. The call
+// reads it against what the cross read clear (RUN_AIRLOCK_READ), by the stem of its answers. That is its probe place,
+// or every instruction of a question read whole.
+//
+// Where the cross read any of it clear, the call passes the accounts: of the cross, of the gate and of the record. It
+// convenes the conference for each encoding (overseer_admission). Each admitted encoding is a lesson that the carrier
+// loads (--lessons), and the question goes in as the round goes to the carrier. Every other stays blocked. The call
+// traces each. The return is the count of lessons taught that the run did not block
 static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned int first, unsigned int count,
                                          int alone)
 {
@@ -63,8 +65,8 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         {
             continue;
         }
-        // the cross's clear readings of the question, the lines of the read list that lead with its stem: its probe
-        // place's, or every instruction's of a question read whole, each `<operation> <low> <high>`
+        // the clear readings of the question by the cross, the lines of the read list that start with its stem. They
+        // are of its probe place, or of every instruction of a question read whole, each `<operation> <low> <high>`
         const size_t stem_length =
             EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         unsigned int clear = 0u;
@@ -195,12 +197,14 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
     return admitted;
 }
 
-// The round on the channel's list, the questions of `questions` from `first` to `count`, checked before the part and
-// fixed where a count of registers fixes it: through the airlock, then each question its cross refuses only for
-// registers past the count its kernel allots given the count that clears it, the round listed again and read again,
-// until no question is given one; every refusal and every count given traced (run_channel_raised). The reading again
-// ends: a count only rises, and to at max what a kernel allots a thread. 1 where the round may be carried, 0 with why
-// in `refused`, which has room for `room`
+// The round on the list of the channel, the questions of `questions` from `first` to `count`. The call checks it
+// before the part, and fixes it where a count of registers fixes it. First it goes through the airlock. Then each
+// question that its cross refuses only for registers past the count that its kernel allots gets the count that clears
+// it. The call lists the round again and reads it again, until no question gets a count. It traces every refusal and
+// every count given (run_channel_raised).
+//
+// The reads again end, because a count only rises, and at max to what a kernel allots a thread. The return is 1 where
+// the round can go to the carrier. It is 0 with the reason in `refused`, which has room for `room`
 int run_channel_checked(RunQuestion *const *questions, unsigned int first, unsigned int count, int alone, char *refused,
                         size_t room)
 {
@@ -210,9 +214,9 @@ int run_channel_checked(RunQuestion *const *questions, unsigned int first, unsig
         {
             return 0;
         }
-        // the conferences the gate calls, each question it blocks for an unknown key the cross read clear admitted
-        // or still blocked, before the round's registers are raised; a round that taught a lesson is read again, so
-        // that the pop puts what the carrier will
+        // the conferences that the gate calls, before the registers of the round rise. The conference admits each
+        // question that the gate blocks for an unknown key that the cross read clear, or it stays blocked. The call
+        // reads a round that taught a lesson again, so that the pop puts what the carrier will
         const unsigned int taught =
             (s_channel.pop_words != 0u) ? run_channel_admitted(questions, first, count, alone) : 0u;
         if ((s_channel.pop_words == 0u) ||
@@ -230,8 +234,8 @@ int run_channel_checked(RunQuestion *const *questions, unsigned int first, unsig
     }
 }
 
-// How the carrier ended and what it wrote, passed as carrier.txt: a line that names its ending, then its output. A
-// panic where the carrier did not end clean, the carrier losing its mind: its ending is the record of it
+// How the carrier ended and what it wrote, passed as carrier.txt: a line that names its ending, then its output. It is
+// a panic where the carrier did not end clean, because the carrier lost its mind. Its ending is the record of it
 void run_channel_output_passed(const InterfaceAnswer *answer)
 {
     const int clean = (answer->ending == INTERFACE_ENDING_EXITED) && (answer->code == 0ULL);
@@ -254,9 +258,10 @@ void run_channel_output_passed(const InterfaceAnswer *answer)
     qry_member_append("carrier.txt", s_carrier_text, line + copied, clean ? QRY_ORDINARY : QRY_PANIC);
 }
 
-// The teacher's trace, the path `teacher` (qry_member.h): a line for each question of `questions`, `count` of
-// them, passed to the run's trace: its identity, `how` it was answered, and what came of it, with why where it was not
-// answered. Where a panic is on the line, the lines are a panic's, and always reach the run
+// The trace of the teacher, the path `teacher` (qry_member.h): a line for each question of `questions`, `count` of
+// them, passed to the trace of the run. Each line has its identity, `how` the program answered it, and what came of it.
+// Where the program did not answer it, the line has the reason. Where a panic is on the line, the lines belong to a
+// panic, and always reach the run
 void run_channel_traced(RunQuestion *const *questions, unsigned int count, const char *how)
 {
     static const char *const s_outcomes[] = {"answered", "nothing", "illegal", "no channel", "gated"};
@@ -265,8 +270,8 @@ void run_channel_traced(RunQuestion *const *questions, unsigned int count, const
     {
         return;
     }
-    // a line is at max its identity, `how`, an outcome and a refusal; the trace is passed whenever the room left
-    // could not take one more
+    // a line is at max its identity, `how`, an outcome and a refusal. The call passes the trace when the room that
+    // remains could not take one more
     const unsigned long long line_max = 96ULL + 64ULL + sizeof(questions[0]->refused) + 256ULL;
     static char s_trace_bytes[RUN_TRACE_ROOM];
     VerbaLinea text = {s_trace_bytes, sizeof(s_trace_bytes), 0ULL};
@@ -302,7 +307,7 @@ int run_channel_put(RunQuestion *question)
 {
     question->refused[0] = '\0';
     RunQuestion *const one[1] = {question};
-    // a run whose panic was ruled on carries nothing and answers nothing from R
+    // a run whose panic a conference decided carries nothing, and answers nothing from R
     if (run_channel_panic_ruled())
     {
         run_channel_halted(one, 0u, 1u);
