@@ -520,7 +520,6 @@ src/cu/transpiler/lstar/protocol/overseer/ruling.c	5
 src/cu/transpiler/lstar/protocol/query/bus_enum_walk.c	3
 src/cu/transpiler/lstar/protocol/query/bus_enum_walk.h	3
 src/cu/transpiler/lstar/protocol/query/classify_walk.c	3
-src/cu/transpiler/lstar/protocol/table/c.krs	5
 src/cu/transpiler/lstar/protocol/table/cu.krs	3
 src/cu/transpiler/lstar/protocol/table/pcie.krs	5
 src/cu/transpiler/lstar/protocol/table/sm_86.kdm	1
