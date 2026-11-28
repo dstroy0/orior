@@ -83,8 +83,8 @@ typedef struct
 
 // a dialog not displayed
 void gui_dialog_init(const GuiDialogCfg *args);
-// The dialog displayed with `title`, the lines of `body` and the `count` labels of `labels`, `preferred` the button Enter
-// presses. Where `error` is 1, the dialog tells of an error and its focus border is in the error color. It
+// The dialog displayed with `title`, the lines of `body` and the `count` labels of `labels`, `preferred` the button
+// Enter presses. Where `error` is 1, the dialog tells of an error and its focus border is in the error color. It
 // returns 1, or 0 where the count is 0 or more than GUI_DIALOG_BUTTONS_MAX, and then nothing changes
 int gui_dialog_ask(const GuiDialogAskCfg *args);
 // the client's size at `scale` that shows the title, every line and every button

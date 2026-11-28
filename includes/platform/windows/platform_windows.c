@@ -65,8 +65,8 @@ typedef DWORD(WINAPI *PlatformPagesDiscard)(PVOID at, SIZE_T bytes);
 
 void platform_pages_discarded(void *at, unsigned long long bytes)
 {
-    // The discard of the system takes the pages out of the working set at once, where the system has it. Else the
-    // call marks the pages as not needed, and the system takes them as it trims. The search runs once, on the first call
+    // The discard of the system takes the pages out of the working set at once, where the system has it. Else the call
+    // marks the pages as not needed, and the system takes them as it trims. The search runs once, on the first call
     static PlatformPagesDiscard s_discard;
     static int s_sought;
     if (!s_sought)

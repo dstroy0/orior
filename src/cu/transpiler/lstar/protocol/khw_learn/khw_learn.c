@@ -40,8 +40,8 @@
 //     through the interface) names it from its own table (mnemonic_nvidia.tsv) and writes it.
 //
 // Then the program widens the forms found. It turns each bit outside every run, the key and the word of the scheduler.
-// Then it queries the relation of the turned encoding from the top. A turn that answers a relation is a form of its own.
-// The widening repeats over what it finds for `rounds` rounds, 1 where the caller gives none.
+// Then it queries the relation of the turned encoding from the top. A turn that answers a relation is a form of its
+// own. The widening repeats over what it finds for `rounds` rounds, 1 where the caller gives none.
 //
 // The gate on the host (cubin_safe.h) reads every question against the .khw that the writer of the vendor arranges.
 // Thus the program writes that file before it queries, and passes the same path to the carrier. The writer of the
@@ -426,10 +426,10 @@ int program_main(int count, char **word)
         {
             // every form that the machine file names, timed on the timer register. Its cost and spread go in the .ksc
             // of the part, beside the machine file. A costs question writes a form many times over from the position,
-            // and the gate then holds a second instruction that no form holds. Thus the writer of the vendor writes the file
-            // of the gate again before the queries (`costs`). The file holds the places of the kernel and the forms that
-            // the part answered for. After, the vendor arranges the machine file again from the forms that the part
-            // answered for, as the registers pass leaves it
+            // and the gate then holds a second instruction that no form holds. Thus the writer of the vendor writes the
+            // file of the gate again before the queries (`costs`). The file holds the places of the kernel and the
+            // forms that the part answered for. After, the vendor arranges the machine file again from the forms that
+            // the part answered for, as the registers pass leaves it
             char ksc_path[1024];
             {
                 VerbaLinea buffer_line = mmgr_line_over(ksc_path, sizeof(ksc_path));
@@ -465,8 +465,8 @@ int program_main(int count, char **word)
             }
             return 0;
         }
-        // the register-runs of every turned form, queried at once in shared rounds. The program records its operand runs
-        // and classifies its phase. Then the vendor arranges what the part answered for whole
+        // the register-runs of every turned form, queried at once in shared rounds. The program records its operand
+        // runs and classifies its phase. Then the vendor arranges what the part answered for whole
         static KhwAnswered *s_forms[KHW_FORMS];
         const unsigned int turned = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
         // the program queries again a classified form with two runs that carry one place, over a turn case that reads

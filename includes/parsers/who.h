@@ -40,16 +40,16 @@ extern "C"
     // the who the two words `words` carry
     Who who_of_words(const unsigned long long *words);
 
-    // `who`'s code into `code`, which has room for `room`, WHO_CODE_CHARACTERS hex digits and its end; empty where it does
-    // not fit
+    // `who`'s code into `code`, which has room for `room`, WHO_CODE_CHARACTERS hex digits and its end; empty where it
+    // does not fit
     void who_code(Who who, char *code, size_t room);
 
     // the code `code` read back into `who`: 1, or 0 where it is not WHO_CODE_CHARACTERS hex digits
     int who_read(const char *code, Who *who);
 
-    // `who` named into `text`, which has room for `room`. The name holds the path of the source from the top of the tree,
-    // and the line. Then it holds the source of the program, and the time on the clock of the run in nanoseconds. A `-` stands for a
-    // number that the table does not give. The return is 1, or 0 where it does not fit
+    // `who` named into `text`, which has room for `room`. The name holds the path of the source from the top of the
+    // tree, and the line. Then it holds the source of the program, and the time on the clock of the run in nanoseconds.
+    // A `-` stands for a number that the table does not give. The return is 1, or 0 where it does not fit
     int who_named(Who who, char *text, size_t room);
 
 #ifdef __cplusplus

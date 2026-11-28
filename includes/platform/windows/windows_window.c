@@ -362,8 +362,8 @@ EMBED_INLINE GuiRect system_rect_join(const SystemWindowsCtx *args)
 // The device copies `raster` from where it lies into a buffer of the swapchain, and flips it onto the screen. The copy
 // is complete before the call returns, and the caller can draw into the raster again. The return is 1, or 0 where the
 // device cannot copy, and the draw calls of the system then take the raster. The call makes the device when the first
-// raster with pages comes, on the main window alone. `part` is the rectangle of the raster that changed after the last flip. It is the whole raster where all of it
-// changed
+// raster with pages comes, on the main window alone. `part` is the rectangle of the raster that changed after the last
+// flip. It is the whole raster where all of it changed
 static int system_flip(const SystemWindowsCtx *args)
 {
     SystemDevice *const device = &args->system->device;

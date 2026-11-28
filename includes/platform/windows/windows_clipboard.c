@@ -160,8 +160,8 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
 #define CLI_CLIPBOARD_BREAK_UNITS 2u
 
 // The memory that units_take takes and units_put hands to the system, NULL where none is out. It holds its units
-// locked, how many it holds, and how many the writer wrote. The data that units_open locks, NULL where nothing has a lock. One
-// thread at a time uses each
+// locked, how many it holds, and how many the writer wrote. The data that units_open locks, NULL where nothing has a
+// lock. One thread at a time uses each
 static HGLOBAL s_units_memory;
 static wchar_t *s_units;
 static unsigned long long s_units_capacity;

@@ -455,10 +455,10 @@ typedef struct
     const char *value; // Its value, or NULL to take it out [BORROWS].
 } PlatformSetting;
 
-// A program started and held. `process` is the handle of its process that the system gives, and `id` its number.
-// `out`, `err` and `in` are its output, its errors and its input, each a pipe end of this process, or 0 for none.
-// `group` is the group that it heads, or 0: a job on Windows, or the pseudo-console of a terminal. `waited` is 1 once
-// a wait read its end. `held` holds a suspended program until platform_program_resumed: its first thread on Windows, and the pipe
+// A program started and held. `process` is the handle of its process that the system gives, and `id` its number. `out`,
+// `err` and `in` are its output, its errors and its input, each a pipe end of this process, or 0 for none. `group` is
+// the group that it heads, or 0: a job on Windows, or the pseudo-console of a terminal. `waited` is 1 once a wait read
+// its end. `held` holds a suspended program until platform_program_resumed: its first thread on Windows, and the pipe
 // that it waits on elsewhere
 typedef struct
 {
@@ -487,8 +487,8 @@ typedef struct
 #define PLATFORM_OUTPUT_FILE 5u
 
 // Why a start failed. The stage is PLATFORM_REFUSED_ENDS where the start could not make a pipe, the null device or the
-// output file. It is PLATFORM_REFUSED_START where the system refused the program. `code` is the code that the system gave: an
-// error of Windows, or an errno
+// output file. It is PLATFORM_REFUSED_START where the system refused the program. `code` is the code that the system
+// gave: an error of Windows, or an errno
 #define PLATFORM_REFUSED_ENDS 1u
 #define PLATFORM_REFUSED_START 2u
 

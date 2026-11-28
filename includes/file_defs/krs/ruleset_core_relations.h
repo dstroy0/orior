@@ -93,7 +93,8 @@ CODEGEN_CORE int ruleset_core_relation_operand(const RulesetCoreRelations *relat
     const unsigned int length = fixed->text.length;
     for (unsigned int at = 0u; (length != 0u) && ((at + length) <= entry->text.length); at += 1u)
     {
-        // a tab or a line's end written as an escape ends the word before it, though its second character is a character
+        // a tab or a line's end written as an escape ends the word before it, though its second character is a
+        // character
         const int escaped = (at >= 2u) && (text[entry->text.first + at - 2u] == '\\');
         const unsigned char before = ((at == 0u) || escaped) ? (unsigned char)' ' : text[entry->text.first + at - 1u];
         const unsigned char past =

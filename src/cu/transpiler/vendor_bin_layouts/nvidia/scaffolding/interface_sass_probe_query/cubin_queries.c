@@ -15,8 +15,8 @@ typedef struct
 } SassQuery;
 
 // each own question of the interface, written into a cubin of its own and run. The call compares its answer with the
-// answer that the question specifies, and returns how many agree. The kernel of form_0 is the kernel. It loads the first
-// two words of the case into R0 and R7, and stores R7 as the first word of the answer
+// answer that the question specifies, and returns how many agree. The kernel of form_0 is the kernel. It loads the
+// first two words of the case into R0 and R7, and stores R7 as the first word of the answer
 unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, unsigned int *queried)
 {
     static const SassQuery s_queries[] = {
@@ -39,8 +39,8 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
         {"ISETP.EQ.U32.AND P0, PT, R7, R0, PT\nSEL R7, R0, RZ, P0", 0x00000000u},
         {"ISETP.LT.AND P0, PT, R7, R0, PT\nSEL R7, R0, RZ, P0", 0x0000000bu},
         {"ISETP.LT.AND P0, PT, R0, R7, PT\nSEL R7, R0, RZ, P0", 0x00000000u},
-        // the .EX of it, which takes the answer of the low words as its last operand. It compares the pair R0 and R7 with
-        // itself, then with a pair whose high word differs
+        // the .EX of it, which takes the answer of the low words as its last operand. It compares the pair R0 and R7
+        // with itself, then with a pair whose high word differs
         {"ISETP.EQ.U32.AND P6, PT, R0, R0, PT\nISETP.EQ.U32.AND.EX P0, PT, R7, R7, PT, P6\nSEL R7, R0, RZ, P0",
          0x0000000bu},
         {"ISETP.EQ.U32.AND P6, PT, R0, R0, PT\nISETP.EQ.U32.AND.EX P0, PT, R7, R0, PT, P6\nSEL R7, R0, RZ, P0",
@@ -59,17 +59,17 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
         {"LDG.E.64.CONSTANT R8, [R2.64]\nIMAD.MOV.U32 R7, RZ, RZ, R9", 0x00000007u},
         // The other widths, which are only names until the program queries the part. The width .128 must write four
         // registers from R8, and R9 still reads the second word of the case. The width .U8 must write one byte, zero
-        // extended. A store of
-        // 0xffffffff that reads back as 0xff tells it from a word. The store goes to the third word of the answer, which
-        // nothing reads. The safe control that the assembler writes waits on it before the load
+        // extended. A store of 0xffffffff that reads back as 0xff tells it from a word. The store goes to the third
+        // word of the answer, which nothing reads. The safe control that the assembler writes waits on it before the
+        // load
         {"LDG.E.128.CONSTANT R8, [R2.64]\nIMAD.MOV.U32 R7, RZ, RZ, R9", 0x00000007u},
         {"IMAD.MOV.U32 R8, RZ, RZ, 4294967295\nSTG.E [R4.64+0x8], R8\nLDG.E.U8.CONSTANT R9, [R4.64+0x8]\n"
          "IMAD.MOV.U32 R7, RZ, RZ, R9",
          0x000000ffu},
         // word_mul_low and word_mul_high, which the compiler fused into one IMAD.WIDE.U32 that writes an aligned pair.
         // That is form_13: MOV R7, RZ then IMAD.WIDE.U32 R6, R9, R0, R6. The core names the two halves apart, because
-        // nothing can promise a pair. Thus the program queries each half here on its own. The low is the low product word
-        // plus the addend, with its carry carried, and the high is the high word plus that carry. 0xffffffff
+        // nothing can promise a pair. Thus the program queries each half here on its own. The low is the low product
+        // word plus the addend, with its carry carried, and the high is the high word plus that carry. 0xffffffff
         // squared is 0xfffffffe00000001, and with 0xffffffff added the low is 0 with a carry of 1 and the high is
         // 0xffffffff
         {"IMAD.MOV.U32 R2, RZ, RZ, 4294967295\nIMAD.MOV.U32 R3, RZ, RZ, 4294967295\n"
@@ -101,10 +101,10 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
          "ISETP.NE.U32.AND P0, PT, R2, RZ, PT\nSEL R7, R0, RZ, P0",
          0x00000000u},
         // global_add_atomic_word, which the PTX question could only assemble and run. The program reads here what the
-        // reduction leaves, where the instructions are ours. It sets the third word of the answer to zero and adds to it
-        // twice. The first add is a one from a register, because the reduction reads no number from the instruction. The
-        // second add is the first word of the case, and then it reads the word back. 0 + 1 + 0xb is 0xc, and a reduction that
-        // added nothing would answer 0
+        // reduction leaves, where the instructions are ours. It sets the third word of the answer to zero and adds to
+        // it twice. The first add is a one from a register, because the reduction reads no number from the instruction.
+        // The second add is the first word of the case, and then it reads the word back. 0 + 1 + 0xb is 0xc, and a
+        // reduction that added nothing would answer 0
         {"STG.E [R4.64+0x8], RZ\nMOV R6, 0x1\nRED.E.ADD.STRONG.GPU [R4.64+0x8], R6\n"
          "RED.E.ADD.STRONG.GPU [R4.64+0x8], R0\nLDG.E.CONSTANT R7, [R4.64+0x8]",
          0x0000000cu},
@@ -112,17 +112,18 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
         // what RZ is. The part answers it, and the file does not.
         //
         // The high numbers are a different question, and the program does not query them here. A kernel gets the
-        // registers that its count declares. A question spliced into form_0 takes the count of form_0, which is far below
-        // the numbers that sm_86.kdm pins. It cannot ask about one above that count. The run channel queries the last
-        // register that a kernel with a count of 255 can name (orior_klq_identity register), and sm_86.ksc stores it
+        // registers that its count declares. A question spliced into form_0 takes the count of form_0, which is far
+        // below the numbers that sm_86.kdm pins. It cannot ask about one above that count. The run channel queries the
+        // last register that a kernel with a count of 255 can name (orior_klq_identity register), and sm_86.ksc stores
+        // it
         {"MOV R255, 0x5a3c69a5\nIMAD.MOV.U32 R7, RZ, RZ, R255", 0x00000000u},
         // The precepts of the alphabet (precepts.h) that the program never queried the part for. The program queried
         // everything above this point because a ruleset wanted it. It queries these because the alphabet has them. The
         // web must define a precept for a part that has no word for it.
         //
-        // NOT, NAND and NOR cost nothing to query. The immediate of LOP3 is the truth table of its three inputs, indexed
-        // by a<<2|b<<1|c. The part already answered for AND at 0xc0, OR at 0xfc and XOR at 0x3c. Their complements are
-        // 0x3f, 0x03 and, for NOT of the first input alone, 0x0f. The case is 0xb and 0x7
+        // NOT, NAND and NOR cost nothing to query. The immediate of LOP3 is the truth table of its three inputs,
+        // indexed by a<<2|b<<1|c. The part already answered for AND at 0xc0, OR at 0xfc and XOR at 0x3c. Their
+        // complements are 0x3f, 0x03 and, for NOT of the first input alone, 0x0f. The case is 0xb and 0x7
         {"LOP3.LUT R7, R0, RZ, RZ, 0x0f, !PT", 0xfffffff4u},
         {"LOP3.LUT R7, R0, R7, RZ, 0x3f, !PT", 0xfffffffcu},
         {"LOP3.LUT R7, R0, R7, RZ, 0x03, !PT", 0xfffffff0u},
@@ -131,8 +132,8 @@ unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, un
         {"IADD3 R6, -R0, RZ, RZ\nSHF.R.S32.HI R7, RZ, R7, R6", 0xffffffffu},
         // ROR and ROL, on the two definitions that carry a funnel. The program queried the .U32 definitions first, and
         // the part refused both. SHF.R.U32.HI R7, R0, R7, R0 answered 0, and SHF.L.U32 R7, R6, R7, R6 answered
-        // 0xfffffa80. Each was the plain shift, with the bits that left it dropped. A 32-bit shift with the same register
-        // twice does not rotate, because there is no second half of the funnel for it to read.
+        // 0xfffffa80. Each was the plain shift, with the bits that left it dropped. A 32-bit shift with the same
+        // register twice does not rotate, because there is no second half of the funnel for it to read.
         //
         // The .U64 definitions have one, and neither reached a listing. The compiler never wrote either, and both came
         // here from turns of the bits of a listed form, one at a time. 0xb carried right 7 places brings its low 7 bits

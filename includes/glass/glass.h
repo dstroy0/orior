@@ -1,8 +1,8 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// glass.h: a pane of glass over the lattice, as the page positions the bar, the side_menu, the status bar and the controls'
-// pane: the ink's tint, as thick as the bar opacity, with a fine grain over it, the grain's tile anchored to the
-// window as the page's fixed attachment anchors it, and the pane's corners rounded (glass.c)
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational glass.h: a pane of glass over the lattice, as the page positions
+// the bar, the side_menu, the status bar and the controls' pane: the ink's tint, as thick as the bar opacity, with a
+// fine grain over it, the grain's tile anchored to the window as the page's fixed attachment anchors it, and the pane's
+// corners rounded (glass.c)
 #ifndef GUI_GLASS_H
 #define GUI_GLASS_H
 #include "../raster/raster.h"

@@ -33,9 +33,9 @@ extern "C"
 
 #define NOISE_FLICKER_SUMS 4u
 
-    // Loads one sample of a set: its extent (frames, depth, height, width) and its volume. The volume is frame by frame,
-    // with z, y and x inside each frame. The caller frees the volume. Returns 0, or a negative value with the error filled. The driver
-    // passes the crystal loader of the engine, and the detector reaches no module but its own.
+    // Loads one sample of a set: its extent (frames, depth, height, width) and its volume. The volume is frame by
+    // frame, with z, y and x inside each frame. The caller frees the volume. Returns 0, or a negative value with the
+    // error filled. The driver passes the crystal loader of the engine, and the detector reaches no module but its own.
     typedef long (*NoiseLoad)(const char *set, const char *sample, unsigned long long extent[4],
                               unsigned short **volume, EngineError *error);
 
@@ -80,8 +80,8 @@ extern "C"
 
 #define NOISE_NEIGHBORS_SUMS 5u
 
-// the radii of the neighbor pass: the next voxel along z, y and x, then the voxel 2, 4, 8, 16 and 32 planes on along
-// z. An interpolation between adjacent planes leaves every radius past the first uncorrelated. A blur along z fades over
+// the radii of the neighbor pass: the next voxel along z, y and x, then the voxel 2, 4, 8, 16 and 32 planes on along z.
+// An interpolation between adjacent planes leaves every radius past the first uncorrelated. A blur along z fades over
 // its radius. A term that every plane of a pixel shares is valid at every radius.
 #define NOISE_NEIGHBOR_RADII 8u
 
@@ -126,11 +126,11 @@ extern "C"
     // sums the squares of their frame differences. The result goes to <set>/noise_pixels.tsv
     long noise_pixels_set(const NoiseSetRequest *request);
 
-    // the cumulant sums of every sample (noise_vector_integration_table.md, rows 1, 11 and 12). The frames of each quiet
-    // static voxel go in short blocks. The values of a block, less its own rounded mean, go to the powers 1 to 4, and the
-    // call sums them (S1 to S4). Then, per level bin by the mean of the block, it sums those sums and their products over
-    // the blocks. The unbiased k-statistics of the second, third and fourth cumulants follow from them exactly. The
-    // result goes to <set>/noise_moments.tsv
+    // the cumulant sums of every sample (noise_vector_integration_table.md, rows 1, 11 and 12). The frames of each
+    // quiet static voxel go in short blocks. The values of a block, less its own rounded mean, go to the powers 1 to 4,
+    // and the call sums them (S1 to S4). Then, per level bin by the mean of the block, it sums those sums and their
+    // products over the blocks. The unbiased k-statistics of the second, third and fourth cumulants follow from them
+    // exactly. The result goes to <set>/noise_moments.tsv
     long noise_moments_set(const NoiseSetRequest *request);
 
     // One volume's measurements, the numbers each set call prints for a sample. A sim plants a term and reads it back
@@ -187,8 +187,8 @@ extern "C"
     // The line over the level (build plan item 38): the least-squares line through points, each weighted by a count.
     // The struct stores it as three exact integers over one denominator. `count` points sit at an integer place, and
     // their measurements sum to `total`. A level is a place over level_scale, and a measurement is the share of a total
-    // over measurement_scale. The sums are `N = sum of counts`, `A = sum of count place` and `B = sum of count place^2`.
-    // Also `T = sum of totals` and `C = sum of place total`.
+    // over measurement_scale. The sums are `N = sum of counts`, `A = sum of count place` and
+    // `B = sum of count place^2`. Also `T = sum of totals` and `C = sum of place total`.
     //
     // With these sums, the line is
     //   `slope = level_scale (N C - A T) / D`, `intercept = (T B - A C) / D`, `D = measurement_scale (N B - A^2)`
@@ -272,13 +272,14 @@ extern "C"
                                 NoiseCrosstalkMeasurement *measurement, EngineError *error);
 
     // C14, charge before the gain (build plan item 38). The input is a bias series (no light, no exposure) and a dark
-    // series (no light, exposed for a named dt) of one extent. Over each, the call sums I over every voxel-frame and d^2
-    // over every frame difference. A series has M voxel-frames and P frame differences. The bias mean `A_b / M` is O,
-    // with the mean of the fixed pattern. The bias `E[d^2] / 2 = Q_b / (2 P)` is the level-free sum
+    // series (no light, exposed for a named dt) of one extent. Over each, the call sums I over every voxel-frame and
+    // d^2 over every frame difference. A series has M voxel-frames and P frame differences. The bias mean `A_b / M` is
+    // O, with the mean of the fixed pattern. The bias `E[d^2] / 2 = Q_b / (2 P)` is the level-free sum
     // `R^2 + sigma_J^2 + sigma_kTC^2`.
     //
-    // Dark electrons enter before the gain. The dark mean less the bias mean is `g D dt`, and the dark `E[d^2] / 2` less
-    // that of the bias is `g^2 D dt`. Thus g is their ratio. Each measurement is a numerator over a positive denominator.
+    // Dark electrons enter before the gain. The dark mean less the bias mean is `g D dt`, and the dark `E[d^2] / 2`
+    // less that of the bias is `g^2 D dt`. Thus g is their ratio. Each measurement is a numerator over a positive
+    // denominator.
     typedef struct
     {
         OriorExactInteger offset;
@@ -300,9 +301,9 @@ extern "C"
                              NoiseChargeMeasurement *measurement, EngineError *error);
 
     // C17, the structure function against the shared scale (build plan item 38). The pass reads each voxel and its x
-    // neighbor whose mean level over the frames lies in 40 to 199. At each lag k of the flicker pass, it takes for every
-    // frame pair `y = (d_k - d_{k,x})^2` against `q = (sum_t I - sum_t I_x)^2 = (T (L - L_x))^2`. The total of the pair
-    // is `M = sum_t I + sum_t I_x`. Per lag and level bin of 8, it sums the pairs N and the sums of
+    // neighbor whose mean level over the frames lies in 40 to 199. At each lag k of the flicker pass, it takes for
+    // every frame pair `y = (d_k - d_{k,x})^2` against `q = (sum_t I - sum_t I_x)^2 = (T (L - L_x))^2`. The total of
+    // the pair is `M = sum_t I + sum_t I_x`. Per lag and level bin of 8, it sums the pairs N and the sums of
     // `M, M^2, q, q^2, M q, y, M y, q y`.
     //
     // A scale `1 + eps_t` that the whole volume shares moves `d_k - d_{k,x}` by `(eps_{t+k} - eps_t)` times the light
@@ -311,9 +312,9 @@ extern "C"
     // bin of 8 still holds a spread of it.
     //
     // The fit of Y against M and q together runs in each bin, as the least squares of the line above over two places.
-    // Then the fit pools over the bins. The centered sums `N sum u v - sum u sum v` of each bin, summed over the bins, are
-    // MM, QQ, MQ, MY and QY. Then `D_a(k) = T^2 (MM QY - MQ MY) / (MM QQ - MQ^2)`. The intercept is the mean y of the
-    // pairs, less `D_a(k)` times their mean `(L - L_x)^2`. Each reading is a numerator over a positive denominator.
+    // Then the fit pools over the bins. The centered sums `N sum u v - sum u sum v` of each bin, summed over the bins,
+    // are MM, QQ, MQ, MY and QY. Then `D_a(k) = T^2 (MM QY - MQ MY) / (MM QQ - MQ^2)`. The intercept is the mean y of
+    // the pairs, less `D_a(k)` times their mean `(L - L_x)^2`. Each reading is a numerator over a positive denominator.
     typedef struct
     {
         unsigned long long pairs[NOISE_FLICKER_LAGS];
@@ -354,9 +355,9 @@ extern "C"
 // Each term that the noise vector table names as shared is a pattern in fewer dimensions than the box. It has one value
 // for every place along the axes that keep it, and the same value along the axes that share it.
 //
-// The pattern of a term over a box is the exact mean of the box along its shared axes, rounded down. Its residual is the
-// box less the pattern, spread back along those axes. The own coder of the crystal prices the box, each residual and
-// each pattern in bits (NoiseCost). A term saves what the box costs, less what its residual and its pattern cost
+// The pattern of a term over a box is the exact mean of the box along its shared axes, rounded down. Its residual is
+// the box less the pattern, spread back along those axes. The own coder of the crystal prices the box, each residual
+// and each pattern in bits (NoiseCost). A term saves what the box costs, less what its residual and its pattern cost
 // together. The root noise is the term that saves the max, the first where two save alike, and none where no term
 // saves. A yank of it keeps its residual and its pattern, and the box returns from them exactly (noise_root_return).
 //
@@ -394,11 +395,11 @@ extern "C"
         unsigned int root;
     } NoiseRootMeasurement;
 
-    // The box runs from `low` to below `high` on every axis (frames, z, y and x) inside the extent of the volume, with at
-    // max 2^31 voxels. Where `residual` is not NULL, the call leaves the residual of the root in it, the voxels of the box
-    // as ints. Where there is no root, it leaves the box itself. Where `pattern` is not NULL, the call leaves the pattern
-    // of the root in it, and nothing where there is no root. Its size comes from noise_root_extent, never more than the
-    // voxels of the box. A price from the cost past 2^61 bits is an error.
+    // The box runs from `low` to below `high` on every axis (frames, z, y and x) inside the extent of the volume, with
+    // at max 2^31 voxels. Where `residual` is not NULL, the call leaves the residual of the root in it, the voxels of
+    // the box as ints. Where there is no root, it leaves the box itself. Where `pattern` is not NULL, the call leaves
+    // the pattern of the root in it, and nothing where there is no root. Its size comes from noise_root_extent, never
+    // more than the voxels of the box. A price from the cost past 2^61 bits is an error.
     typedef struct
     {
         const unsigned short *volume;
@@ -419,8 +420,8 @@ extern "C"
     void noise_root_extent(unsigned int term, const unsigned long long box[4], unsigned long long pattern[4]);
 
     // The values of the box back from the residual and pattern of a term, each residual plus its pattern value. For the
-    // residual and pattern that noise_root_box leaves, the sum is the value of the box exactly. Any other pair must bound
-    // every sum within an int, and the call does not check that.
+    // residual and pattern that noise_root_box leaves, the sum is the value of the box exactly. Any other pair must
+    // bound every sum within an int, and the call does not check that.
     typedef struct
     {
         const int *residual;

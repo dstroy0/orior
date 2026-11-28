@@ -36,9 +36,10 @@ void gui_panel_box_draw(const GuiPanelCfg *args);
 // height of the text in pixels.
 //
 // A line of three backticks opens and closes a fenced block. The call draws each line of it in the code face in the
-// text color of the editor. It breaks a line by characters where the line is wider than the width. A line of three dashes alone
-// is a rule, and a blank line ends a paragraph. Every other run of lines is one paragraph, with its words in the text
-// face, wrapped at blanks. The text between single backticks goes in the code face, in the color of the type
+// text color of the editor. It breaks a line by characters where the line is wider than the width. A line of three
+// dashes alone is a rule, and a blank line ends a paragraph. Every other run of lines is one paragraph, with its words
+// in the text face, wrapped at blanks. The text between single backticks goes in the code face, in the color of the
+// type
 int gui_panel_markdown(const GuiPanelRasterCfg *args);
 // a box `pixel_width` by `pixel_height` placed for the cell `anchor`: below the cell's row, off by GUI_PANEL_OFF, where
 // `bounds` has the capacity, else above it. Its left at the anchor's less `back`, saved inside the bounds; `above` 1

@@ -1,7 +1,7 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// krs_write_internal.h: what the modules of orior_krs_write share: its includes, the bounds of the forms, lines, parameters
-// and names, the anchors' texts, the forms, costs and givens read, and the functions one module reads from another
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational krs_write_internal.h: what the modules of orior_krs_write share:
+// its includes, the bounds of the forms, lines, parameters and names, the anchors' texts, the forms, costs and givens
+// read, and the functions one module reads from another
 #ifndef KRS_WRITE_INTERNAL_H
 #define KRS_WRITE_INTERNAL_H
 
@@ -69,8 +69,8 @@ unsigned int krs_ranked(const unsigned int *writer, unsigned int writers);
 unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers);
 unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME]);
 
-// the place `{<place>}` at `walk` into `place`, its characters, braces too, into `length`: 1, or 0 where `walk` contains
-// none or a place an unsigned int does not represent
+// the place `{<place>}` at `walk` into `place`, its characters, braces too, into `length`: 1, or 0 where `walk`
+// contains none or a place an unsigned int does not represent
 int krs_place_read(const char *walk, unsigned int *place, int *length);
 int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order);
 int krs_text_named(const KrsForm *form, const unsigned int *order, char parameter[][KRS_NAME], unsigned int parameters,

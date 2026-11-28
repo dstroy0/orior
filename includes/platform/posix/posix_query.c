@@ -74,8 +74,8 @@ int query_file_copy(const QueryFromCtx *args)
     ssize_t got = whole ? read(source, piece, sizeof(piece)) : 0;
     while (whole && (got > 0))
     {
-        // a read that gave bytes gave a positive count, which a write puts whole or fails. They are the bytes of a file,
-        // and the call makes no path of them
+        // a read that gave bytes gave a positive count, which a write puts whole or fails. They are the bytes of a
+        // file, and the call makes no path of them
         whole = write(target, piece, (size_t)got) == got; // NOSONAR
         got = read(source, piece, sizeof(piece));
     }

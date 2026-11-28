@@ -1,9 +1,9 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// glyphs.c: the window's text. A face's file is read whole through the caller's faces into its segment of the block
-// and its character map saved after it; a glyph is outlined at its pixel size, measured, rasterized as coverage in a cell of its own
-// size and saved as bytes in a entry found by its key, every entry let go together as they fill; a glyph in a color is
-// a cell of lanes positioned for the one blend, saved the same way, which the text is drawn through
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational glyphs.c: the window's text. A face's file is read whole through
+// the caller's faces into its segment of the block and its character map saved after it; a glyph is outlined at its
+// pixel size, measured, rasterized as coverage in a cell of its own size and saved as bytes in a entry found by its
+// key, every entry let go together as they fill; a glyph in a color is a cell of lanes positioned for the one blend,
+// saved the same way, which the text is drawn through
 #include "glyphs.h"
 
 #include "block.h"
@@ -581,7 +581,8 @@ embed_u32 gui_glyph_bake(const GuiGlyphsBakeCfg *args)
     const unsigned long long pixels = measured.width * measured.height;
     const unsigned long long capacity = pixels + 4ULL;
     const unsigned long long scratch_bytes = EMBED_CALL(font_contours.bytes, FontContoursCfg, .contours = glyphs->contours);
-    // the coverage floats, the edges' scratch and the coverage bytes lie in the glyphs' work part, one glyph's at a time
+    // the coverage floats, the edges' scratch and the coverage bytes lie in the glyphs' work part, one glyph's at a
+    // time
     float *const floats = (float *)(void *)EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_GLYPH_WORK,
                                                      .bytes = (capacity * sizeof(*floats)) + scratch_bytes + pixels);
     if (floats == NULL)
@@ -692,8 +693,8 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
     const unsigned long long pixels = (unsigned long long)mask_bits->width * mask_bits->height;
     if (pixels != 0ULL)
     {
-        // the lanes come from the cells ring. Where the ring has no room for them, the call first empties the ring, as it
-        // empties the cache of its cells. This cell is not among them yet
+        // the lanes come from the cells ring. Where the ring has no room for them, the call first empties the ring, as
+        // it empties the cache of its cells. This cell is not among them yet
         cell->red_blue = (unsigned int *)(void *)EMBED_CALL(gui_block_part.take, GuiBlockPartCfg,
                                                             .part = GUI_BLOCK_GLYPH_CELLS, .cursor = &glyphs->cells_used,
                                                             .bytes = 3ULL * pixels * sizeof(unsigned int));
@@ -711,8 +712,8 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         cell->green = cell->red_blue + pixels;
         cell->rest = cell->green + pixels;
         // the share of the color of each pixel is its cover by the alpha of the color. Two shares of 255 multiplied and
-        // divided by 255 give a share of 255. The lanes are the color's channels by the share with half of 255 in, as the
-        // raster's blend positions them
+        // divided by 255 give a share of 255. The lanes are the color's channels by the share with half of 255 in, as
+        // the raster's blend positions them
         const unsigned int alpha = GUI_ALPHA_OF(color);
         for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)
         {

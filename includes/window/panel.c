@@ -109,8 +109,8 @@ EMBED_INLINE void layout_characters(const PanelCtx *args)
     }
 }
 
-// a line of code positioned from `text`, `length` bytes, broken by characters where it is wider than the width: each piece on
-// a line of its own
+// a line of code positioned from `text`, `length` bytes, broken by characters where it is wider than the width: each
+// piece on a line of its own
 EMBED_INLINE void layout_code_line(const PanelCtx *args)
 {
     args->layout->x = (float)args->layout->left;
@@ -147,8 +147,8 @@ EMBED_INLINE void layout_word(const PanelCtx *args)
                .pixel_height = args->layout->text_line, .text = text, .length = length, .color = args->color);
 }
 
-// a paragraph's line positioned from `text`, `length` bytes, word by word, the text between single backticks in the code
-// face in the type's color. The pen left after its last word, a blank's width on, for the next line's words
+// a paragraph's line positioned from `text`, `length` bytes, word by word, the text between single backticks in the
+// code face in the type's color. The pen left after its last word, a blank's width on, for the next line's words
 EMBED_INLINE void layout_paragraph_line(const PanelCtx *args)
 {
     const char *text = args->text;

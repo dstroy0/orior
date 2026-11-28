@@ -488,9 +488,9 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     const GuiUnder clear = {args->ground, 0u, NULL, 0u, palette->deep};
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
                .background_fill = table, .rect = clip, .radius = 0u, .inner = palette->glass);
-    // The sheet is in from the sides in the ground of the editor, at the opacity of the editor. The head band at its top
-    // is in the surface of the tabs row. Its top corners round with those of the sheet.
-    // a rounding in pixels is not negative
+    // The sheet is in from the sides in the ground of the editor, at the opacity of the editor. The head band at its
+    // top is in the surface of the tabs row. Its top corners round with those of the sheet. a rounding in pixels is not
+    // negative
     const unsigned int pane_radius =
         (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_RADIUS, .scale = scale);
     const int rounding = (int)pane_radius;

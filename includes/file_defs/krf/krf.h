@@ -60,11 +60,11 @@ extern "C"
     // the .krf beside the k-file at `path`, the same path with its last extension .krf, into `krf` of `room` bytes
     void krf_path_beside(const char *path, char *krf, size_t room);
 
-    // `rows`, `count` of them, each let go from a k-file of type `type` for `reason` by this run. The call stores them in
-    // the .krf at `path` as the run stores it. It starts the file with `krf <part>` where there is none, with the own
-    // name of the path as the part. It puts the rows after its last line under a who line of `who` (kfile_lines_put_by).
-    // Then it passes the file to the writer of the run (kfile_lines_write_by). The return is 1, or 0 where the writer
-    // could not write it
+    // `rows`, `count` of them, each let go from a k-file of type `type` for `reason` by this run. The call stores them
+    // in the .krf at `path` as the run stores it. It starts the file with `krf <part>` where there is none, with the
+    // own name of the path as the part. It puts the rows after its last line under a who line of `who`
+    // (kfile_lines_put_by). Then it passes the file to the writer of the run (kfile_lines_write_by). The return is 1,
+    // or 0 where the writer could not write it
     int krf_removed_by(const char *path, const char *type, const char *reason, const char *const *rows,
                        unsigned int count, Who who);
 

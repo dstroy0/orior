@@ -257,8 +257,9 @@ static void platform_mover_resumed(void *context)
 int platform_pool_emptied(unsigned long long bytes)
 {
     // The pool ends the mover first, and so the mover reads no cellblock as the pool empties. The gap reader runs the
-    // trims owed, and the test for an idle pool comes after it. Nothing takes a cell between the test and the
-    // moment that the pool empties. A request past the pool, or a cell still out, is a refusal, and the mover then starts again
+    // trims owed, and the test for an idle pool comes after it. Nothing takes a cell between the test and the moment
+    // that the pool empties. A request past the pool, or a cell still out, is a refusal, and the mover then starts
+    // again
     SeriesCellularum *const record = &platform_site_platform_pool_ctx;
     const int ran = s_mover_run != NULL;
     platform_mover_ended();

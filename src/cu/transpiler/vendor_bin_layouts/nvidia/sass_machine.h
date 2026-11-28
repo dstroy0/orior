@@ -13,8 +13,8 @@
 //
 // The program does not guess which bits carry which operand. The probe of the cell turns each of the 128 bits of the
 // form over one at a time, and disassembles all 129 encodings. It records the runs of bits that changed a printed
-// operand, and those runs are the fields of the form. A match of an operand to a field by the value of the base there is
-// not enough. A field that the operation does not use holds 0, and a register or predicate numbered 0 matches it.
+// operand, and those runs are the fields of the form. A match of an operand to a field by the value of the base there
+// is not enough. A field that the operation does not use holds 0, and a register or predicate numbered 0 matches it.
 //
 // The own file of a part is <part>.khw beside its rulesets (includes/file_defs/khw). Its first line is `forms 2`, then
 // `part <name>`, then one line for each form:
@@ -26,10 +26,10 @@
 // prints them. The runs are the bits that change each operand, by the place of the operand in the printed text.
 //
 // The `<place>` of a run is where its operand is in the tuple of the relation. The tuple has the words in their order,
-// then the answer, as 1,1 -> 2 satisfies them (ladder.h). It is - where the part answered it none. `<relation>` is the relation
-// that every case of the form answered, and `<signed>` is 1 where the answers read a word as signed. Both are - where
-// the program queried no relation for the form. A file at `forms 1` holds no place, relation or sign, and reads as - in
-// each.
+// then the answer, as 1,1 -> 2 satisfies them (ladder.h). It is - where the part answered it none. `<relation>` is the
+// relation that every case of the form answered, and `<signed>` is 1 where the answers read a word as signed. Both are
+// - where the program queried no relation for the form. A file at `forms 1` holds no place, relation or sign, and reads
+// as - in each.
 
 // the longest instruction text stored, the longest operation or operand, and the max operands an instruction carries
 #define SASS_MACHINE_TEXT 192u
@@ -193,12 +193,13 @@ unsigned long long sass_exit_encoding(const SassMachine *machine);
 int sass_operation_control_or_wait(const char *operation);
 
 // how the scheduler tracks the result of an operation, a property of the operation and not of one encoding of it. The
-// result is ready after a fixed count of cycles, or back late behind a write barrier that its readers wait on. Else it is
-// a store whose operands the part reads late behind a read barrier, and the next writer of those registers waits on it.
+// result is ready after a fixed count of cycles, or back late behind a write barrier that its readers wait on. Else it
+// is a store whose operands the part reads late behind a read barrier, and the next writer of those registers waits on
+// it.
 //
 // NVIDIA's compiler gives every late operation a write barrier and every store a read barrier over the CUDA sources of
-// the tree (monolith_scheduler.md). A barrier counts its producers, and a wait on it waits until all of them are back. A
-// late result with no barrier goes into a queue behind another result of the same operation from the same unit. The
+// the tree (monolith_scheduler.md). A barrier counts its producers, and a wait on it waits until all of them are back.
+// A late result with no barrier goes into a queue behind another result of the same operation from the same unit. The
 // results come back in their order
 enum SassSchedule
 {
@@ -226,9 +227,9 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
                       SassForm **taken);
 
 // an instruction that the part answered `relation` for, stored in `machine` as a form. It goes in the form of its shape
-// that answers no relation yet or answers `relation`. Where every form of its shape answers another relation, it goes in
-// a form of its own. Two relations of one shape are two forms of the protocol. The form goes through `taken`, and the
-// caller fills its runs. The return is 1, or 0 where the machine is full, counted in machine->refused
+// that answers no relation yet or answers `relation`. Where every form of its shape answers another relation, it goes
+// in a form of its own. Two relations of one shape are two forms of the protocol. The form goes through `taken`, and
+// the caller fills its runs. The return is 1, or 0 where the machine is full, counted in machine->refused
 int sass_machine_take_related(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
                               const char *relation, SassForm **taken);
 

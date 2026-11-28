@@ -36,9 +36,9 @@ extern "C"
 #define KSA_KEY_MAX 64u
 #define KSA_SIGNATURE_MAX 128u
 
-    // One scheme: its tag and name, and the bytes of its secret, its public key and its signature. Then its three calls:
-    // a public key made from a secret, a message signed, and a signature verified against its public key and message:
-    // 1, or 0
+    // One scheme: its tag and name, and the bytes of its secret, its public key and its signature. Then its three
+    // calls: a public key made from a secret, a message signed, and a signature verified against its public key and
+    // message: 1, or 0
     typedef struct
     {
         char tag[KSA_TAG_BYTES];

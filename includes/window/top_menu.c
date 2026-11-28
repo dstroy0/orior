@@ -1,9 +1,8 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bar.c: the bar across the top, on the pane the frame's base positions: the tree's name in the interface face at its right
-// before the bar's tools, as the page's bar ends with it; the tools, Preferences, Notifications, Toolchains and
-// Definitions, each its icon in a button, before the controls; and the controls at its right end; the menu bar's
-// titles are drawn over it by the menu bar part
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational bar.c: the bar across the top, on the pane the frame's base
+// positions: the tree's name in the interface face at its right before the bar's tools, as the page's bar ends with it;
+// the tools, Preferences, Notifications, Toolchains and Definitions, each its icon in a button, before the controls;
+// and the controls at its right end; the menu bar's titles are drawn over it by the menu bar part
 #include "../arith/arith.h"
 #include "block.h"
 #include "top_menu.h"

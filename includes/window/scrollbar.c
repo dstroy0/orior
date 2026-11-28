@@ -37,7 +37,8 @@ EMBED_INLINE int scrollbar_px(const ScrollbarCtx *args)
 }
 
 // whether a point `along` and `cross` lies inside the shape, in pixels on the own axes of the shape. An arrow is a
-// triangle with a reach of three pixels at the middle of its square. It points to the start or end of the scrollbar. The end of a thumb is half a disc of half the thickness of the thumb, round to the start or the end
+// triangle with a reach of three pixels at the middle of its square. It points to the start or end of the scrollbar.
+// The end of a thumb is half a disc of half the thickness of the thumb, round to the start or the end
 EMBED_INLINE int scrollbar_inside(const ScrollbarCtx *args)
 {
     const double length = (double)args->length;
