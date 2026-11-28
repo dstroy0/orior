@@ -154,7 +154,7 @@ extern "C"
 #define NOISE_PLANE_INDEPENDENT 3u
 
 // then the unbalanced layout of the static voxels: var_row, var_col and var_plane against the independent part s.
-// Each is signed per mille, and 0 where no part is common. Then s in thousandths of a lane unit squared
+// Each has a sign and is per mille, and it is 0 where no part is common. Then s in thousandths of a lane unit squared
 #define NOISE_STATIC_ROWS 4u
 
 #define NOISE_STATIC_COLUMNS 5u
