@@ -5,8 +5,8 @@
 #include "memoria_operor/memoria_operor.h"
 #include "noise_floor_internal.h"
 
-// the line over the level through the noise detector's fit (build plan item 38), each level a place and its squares a
-// total, at scale 1 on both
+// the line over the level through the fit of the noise detector (build plan item 38). Each level is a place, and its
+// squares a total, at scale 1 on both
 static int floor_fit(const unsigned long long *count, const unsigned long long *total, FloorLine *fit)
 {
     EngineError error;
@@ -83,16 +83,22 @@ static void floor_bins_close(FloorBins *bins)
     cudaFree(bins->count);
 }
 
-// The truth route's spreads, D^2 times a bound on its intercept's and its slope's variance (Derived). A pair whose
-// signal is constant at S reads y = d^2, d = X' - X, X = offset + pattern + g Poisson(S) + read, the read
-// Binomial(4 r^2, 1/2) - 2 r^2 with kappa4 = -r^2 / 2. The pattern cancels in d, sigma^2 = g^2 S + r^2,
-// k4 = kappa4(X) = g^4 S - r^2 / 2, kappa4(d) = 2 k4, and var(y) = v = 8 sigma^4 + 2 k4. Two pairs sharing a frame
-// have cov(y, y') = c = mu4 - sigma^4 = 2 sigma^4 + k4 >= 0, and pairs sharing none are independent. The bound
-// assumes pairs correlate only within one voxel's run of static pairs, and a run has one level: each run carries one
-// weight, and a run of m pairs has variance m v + 2 (m - 1) c = m (v + 2 c) - 2 c <= m u, with
-// u = v + 2 c = 12 sigma^4 + 4 k4 = 12 (g^2 S + r^2)^2 + 4 g^4 S - 2 r^2. With N, A and B the counts' sums of 1, S
-// and S^2 and D = N B - A^2, the fit's intercept is a D = sum y (B - A S) and its slope b D = sum y (N S - A), and
-// Va = sum_S count(S) (B - A S)^2 u(S) >= D^2 var(a), Vb = sum_S count(S) (N S - A)^2 u(S) >= D^2 var(b).
+// The spreads of the truth route: `D^2` times a bound on the variance of its intercept and of its slope (Derived).
+//
+// A pair whose signal is constant at S reads `y = d^2`, with `d = X' - X` and
+// `X = offset + pattern + g Poisson(S) + read`. The read is `Binomial(4 r^2, 1/2) - 2 r^2`, with
+// `kappa4 = -r^2 / 2`. The pattern cancels in d. Then `sigma^2 = g^2 S + r^2`, `k4 = kappa4(X) = g^4 S - r^2 / 2`,
+// `kappa4(d) = 2 k4`, and `var(y) = v = 8 sigma^4 + 2 k4`.
+//
+// Two pairs that share a frame have `cov(y, y') = c = mu4 - sigma^4 = 2 sigma^4 + k4 >= 0`. Pairs that share none are
+// independent. The bound assumes that pairs correlate only within the run of static pairs of one voxel, and a run has
+// one level. Thus each run carries one weight. A run of m pairs has the variance
+// `m v + 2 (m - 1) c = m (v + 2 c) - 2 c <= m u`, with
+// `u = v + 2 c = 12 sigma^4 + 4 k4 = 12 (g^2 S + r^2)^2 + 4 g^4 S - 2 r^2`.
+//
+// Let N, A and B be the sums of the counts of 1, S and `S^2`, and `D = N B - A^2`. The intercept of the fit is
+// `a D = sum y (B - A S)`, and its slope is `b D = sum y (N S - A)`. Then
+// `Va = sum_S count(S) (B - A S)^2 u(S) >= D^2 var(a)` and `Vb = sum_S count(S) (N S - A)^2 u(S) >= D^2 var(b)`.
 static int floor_spreads(const unsigned long long *count, const SimCamera *camera, OriorExactInteger *intercept_spread,
                          OriorExactInteger *slope_spread)
 {
@@ -168,7 +174,7 @@ static int floor_spreads(const unsigned long long *count, const SimCamera *camer
 static void floor_print_correlation(VerbaLinea *line, const char *name, unsigned long long product,
                                     unsigned long long here)
 {
-    // the product total was accumulated modulo 2^64 and its magnitude is below 2^63
+    // the call accumulated the product total modulo `2^64`, and its magnitude is below `2^63`
     const long long signed_product = (long long)product;
     OriorExactInteger top;
     OriorExactInteger bottom;
@@ -304,7 +310,7 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         floor_print_correlation(line, "    truth-static pairs: ", coherence.neighbor_product, coherence.square_here);
         floor_print_correlation(line, "    every pair:         ", coherence.neighbor_product_all,
                                 coherence.square_here_all);
-        // the product total's magnitude is below 2^63. It is read back signed
+        // the magnitude of the product total is below `2^63`. The call reads it back signed
         const long long product = (long long)coherence.neighbor_product;
         OriorExactInteger left;
         OriorExactInteger right;
