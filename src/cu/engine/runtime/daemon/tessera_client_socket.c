@@ -8,14 +8,12 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
-#if defined(_WIN32)
-_Alignas(8) static const char s_client_quote[] = "\"";
-_Alignas(8) static const char s_client_device[] = "\" --device ";
-_Alignas(8) static const char s_client_luid[] = " --luid ";
-_Alignas(8) static const char s_client_idle[] = " --idle ";
-#else
+#if !defined(_WIN32)
 _Alignas(8) static const char s_client_lock[] = "/daemon.lock";
 #endif
+
+// how long the client waits on the daemon that it started between two tries to connect
+#define TESSERA_CLIENT_STEP_MICROSECONDS 10000ULL
 
 TesseraConnect tessera_connect(TesseraClient *client, const char *endpoint)
 {
@@ -67,10 +65,10 @@ TesseraConnect tessera_connect(TesseraClient *client, const char *endpoint)
 }
 
 #if !defined(_WIN32)
-static int tessera_daemon_owns_lock(const unsigned char device[TESSERA_DEVICE_BYTES])
+static int tessera_daemon_owns_lock(void)
 {
     _Alignas(8) char lock_path[ENGINE_PATH_CAPACITY];
-    if (!tessera_path_state(device, lock_path, ENGINE_PATH_CAPACITY))
+    if (!tessera_path_root(lock_path, ENGINE_PATH_CAPACITY))
     {
         return 0;
     }
@@ -94,95 +92,53 @@ static int tessera_daemon_owns_lock(const unsigned char device[TESSERA_DEVICE_BY
 
 int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobSubmit *submit, const char *endpoint)
 {
-    _Alignas(8) char device_text[TESSERA_ARGUMENT_CAPACITY];
-    _Alignas(8) char luid_text[TESSERA_ARGUMENT_CAPACITY];
     _Alignas(8) char idle_text[TESSERA_ARGUMENT_CAPACITY];
-    VerbaLinea device_line = {device_text, TESSERA_ARGUMENT_CAPACITY, 0ULL};
-    VerbaLinea luid_line = {luid_text, TESSERA_ARGUMENT_CAPACITY, 0ULL};
     VerbaLinea idle_line = {idle_text, TESSERA_ARGUMENT_CAPACITY, 0ULL};
-    tessera_bytes_hex(&device_line, submit->device, TESSERA_DEVICE_BYTES);
-    mmgr_line_hex(&luid_line, submit->luid, 16u);
     mmgr_line_decimal(&idle_line, submit->idle_microseconds, 1u);
-    if ((mmgr_line_finish(&device_line) == 0ULL) || (mmgr_line_finish(&luid_line) == 0ULL) ||
-        (mmgr_line_finish(&idle_line) == 0ULL))
+    if (mmgr_line_finish(&idle_line) == 0ULL)
     {
         return 0;
     }
-#if defined(_WIN32)
-    _Alignas(8) char command[ENGINE_PATH_CAPACITY];
-    VerbaLinea line = {command, ENGINE_PATH_CAPACITY, 0ULL};
-    mmgr_line_put(&line, s_client_quote);
-    tessera_text_staged(&line, submit->daemon_path);
-    mmgr_line_put(&line, s_client_device);
-    mmgr_line_put(&line, device_text);
-    mmgr_line_put(&line, s_client_luid);
-    mmgr_line_put(&line, luid_text);
-    mmgr_line_put(&line, s_client_idle);
-    mmgr_line_put(&line, idle_text);
-    if (mmgr_line_finish(&line) == 0ULL)
+    // The system's daemon outlives the client that starts it, out of every job and group of the client's. It has no
+    // console and no output, and a fault shows no dialog
+    const char *const words[] = {submit->daemon_path, "--idle", idle_text, NULL};
+    char why[ENGINE_PATH_CAPACITY];
+    VerbaLinea err_msg = mmgr_line_over(why, sizeof(why));
+    PlatformStart start;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &start, .bytes = sizeof(start), .val = 0);
+    start.words = words;
+    start.output = PLATFORM_OUTPUT_NONE;
+    start.windowless = 1;
+    start.outlives = 1;
+    start.fault_silent = 1;
+    start.err_msg = &err_msg;
+    PlatformProgram daemon;
+    if (!platform_program_started(&start, &daemon))
     {
         return 0;
     }
-    STARTUPINFOA startup;
-    PROCESS_INFORMATION daemon;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &startup, .bytes = sizeof(startup), .val = 0);
-    startup.cb = sizeof(startup);
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &daemon, .bytes = sizeof(daemon), .val = 0);
-    if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP, NULL, NULL,
-                        &startup, &daemon))
-    {
-        return 0;
-    }
-    CloseHandle(daemon.hThread);
-    TesseraConnect outcome = tessera_connect(client, endpoint);
-    while (outcome == TESSERA_CONNECT_ABSENT)
-    {
-        if (WaitForSingleObject(daemon.hProcess, 0u) == WAIT_OBJECT_0)
-        {
-            outcome = tessera_connect(client, endpoint);
-            break;
-        }
-        SwitchToThread();
-        outcome = tessera_connect(client, endpoint);
-    }
-    CloseHandle(daemon.hProcess);
-    return outcome == TESSERA_CONNECT_MADE;
-#else
-    const pid_t daemon = fork();
-    if (daemon < 0)
-    {
-        return 0;
-    }
-    if (daemon == 0)
-    {
-        setsid();
-        char *const arguments[] = {(char *)submit->daemon_path,
-                                   (char *)"--device",
-                                   device_text,
-                                   (char *)"--luid",
-                                   luid_text,
-                                   (char *)"--idle",
-                                   idle_text,
-                                   NULL};
-        execv(submit->daemon_path, arguments);
-        _exit(127);
-    }
+    // The client waits a step on the daemon's end between each try to connect. A daemon that ended errored or found
+    // the system's daemon in its place. On POSIX the system's lock tells the two apart, while the daemon in place makes
+    // its socket
     int ended = 0;
     TesseraConnect outcome = tessera_connect(client, endpoint);
     while (outcome == TESSERA_CONNECT_ABSENT)
     {
-        int status = 0;
-        ended = ended || (waitpid(daemon, &status, WNOHANG) == daemon);
-        if (ended && !tessera_daemon_owns_lock(submit->device))
+        ended = ended || platform_program_ended_within(&daemon, TESSERA_CLIENT_STEP_MICROSECONDS);
+#if defined(_WIN32)
+        const int in_place = 0;
+#else
+        const int in_place = tessera_daemon_owns_lock();
+#endif
+        if (ended && !in_place)
         {
             outcome = tessera_connect(client, endpoint);
             break;
         }
-        sched_yield();
         outcome = tessera_connect(client, endpoint);
     }
+    platform_program_closed(&daemon);
     return outcome == TESSERA_CONNECT_MADE;
-#endif
 }
 
 int tessera_send(TesseraClient *client, const TesseraFrame *frame)
@@ -277,7 +233,7 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
         {
             return 0;
         }
-        // a synchronous pipe has no timed read, thus the call looks at the bytes that wait every few milliseconds
+        // a synchronous pipe has no timed read, and the call looks at the bytes that wait every few milliseconds
         Sleep(TESSERA_CLIENT_LOOK_MILLISECONDS);
 #else
         if (now >= deadline)
@@ -286,7 +242,7 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
         }
         const unsigned long long left = ((deadline - now) + 999ULL) / 1000ULL;
         struct pollfd watched = {client->socket_descriptor, POLLIN, 0};
-        // the milliseconds left have a bound below `2^31` here, and narrow to int exactly
+        // the bound keeps the milliseconds left below 2^31 here, and they narrow to int exactly
         const int ready = poll(&watched, 1u, (int)((left < 0x7FFFFFFFULL) ? left : 0x7FFFFFFFULL));
         if ((ready < 0) && (errno == EINTR))
         {

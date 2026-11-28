@@ -5,14 +5,14 @@
 #include "memoria_operor/memoria_operor.h"
 #include "tessera_ledger_test_internal.h"
 
-// a process occupying bytes as it requests is reserved them beside its declaration, and admitted on what it has yet to
-// find, since the device's measured use already counts what it occupies; the over-budget rule weighs the declaration
-// alone against the recorded peak
+// A process that holds bytes as it requests gets them in its reservation beside its declaration. The ledger admits it on
+// what it does not find yet, since the device's measured use already counts what it holds. The rule of the budget
+// weighs the declaration alone against the recorded peak
 static void test_located(TestResults *results)
 {
     TesseraLedger ledger;
     tessera_ledger_open(&ledger);
-    tessera_ledger_device(&ledger, 1000ull, 300ull);
+    tessera_ledger_device(&ledger, 0u, 1000ull, 300ull);
     TesseraEvent event;
     TesseraEvent events[TEST_EVENTS];
     TesseraJobRequest request = test_request(11ull, 650ull);
@@ -24,7 +24,7 @@ static void test_located(TestResults *results)
     // its whole 850 passes the 700 free, but the 650 it has yet to find fits
     test_check(results, (tessera_ledger_admit(&ledger, 0ull, events, TEST_EVENTS) == 1ull) &&
                             (events[0].bytes == 850ull) && (tessera_ledger_job(&ledger, first)->used == 200ull));
-    test_check(results, tessera_ledger_headroom(&ledger) == 50ll);
+    test_check(results, tessera_ledger_headroom(&ledger, 0u) == 50ll);
     unsigned long long second = 0ull;
     const TesseraJobRequest after = test_request(12ull, 100ull);
     test_check(results, tessera_ledger_submit(&ledger, &after, 0ull, &second, &event) &&
@@ -33,13 +33,13 @@ static void test_located(TestResults *results)
                             (tessera_ledger_job(&ledger, first)->reservation == 900ull));
     test_check(results, tessera_ledger_release(&ledger, first, 50ull, 1) &&
                             (tessera_ledger_history(&ledger, &request.signum)->peak == 900ull));
-    // located on 300 and declaring 650 under the recorded 900 is not over budget, and is reserved its whole 950
+    // a job located on 300 that declares 650 under the recorded 900 is in budget, and its reservation is its whole 950
     request.located = 300ull;
     unsigned long long third = 0ull;
     test_check(results, tessera_ledger_submit(&ledger, &request, 60ull, &third, &event) &&
                             (event.type == TESSERA_EVENT_NONE) &&
                             (tessera_ledger_wants(&ledger, tessera_ledger_job(&ledger, third)) == 950ull));
-    // declaring 950 over the recorded 900 is over budget, whatever its process is on
+    // a job that declares 950 over the recorded 900 is over budget, whatever its process is on
     const TesseraJobRequest greedy = test_request(11ull, 950ull);
     unsigned long long fourth = 0ull;
     test_check(results, tessera_ledger_submit(&ledger, &greedy, 70ull, &fourth, &event) &&
@@ -62,7 +62,7 @@ static void test_idle(TestResults *results)
 {
     TesseraLedger ledger;
     tessera_ledger_open(&ledger);
-    tessera_ledger_device(&ledger, 1000ull, 0ull);
+    tessera_ledger_device(&ledger, 0u, 1000ull, 0ull);
     unsigned long long identity = 0ull;
     TesseraEvent event;
     TesseraEvent events[TEST_EVENTS];
@@ -121,7 +121,7 @@ static unsigned long long test_shadow(const TesseraLedger *ledger, unsigned long
             frees[back - 1u] = free_bytes;
         }
     }
-    long long headroom = tessera_ledger_headroom(ledger);
+    long long headroom = tessera_ledger_headroom(ledger, 0u);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         // the test's bytes stay far below two to the sixty-third
@@ -182,12 +182,12 @@ static void test_scenario(TestResults *head_results, TestResults *finished, cons
         {
             in_use += running[job] ? jobs[job].declared : 0ull;
         }
-        tessera_ledger_device(&ledger, capacity, in_use);
+        tessera_ledger_device(&ledger, 0u, capacity, in_use);
         const TesseraJob *const before = test_head(&ledger);
         const unsigned long long head = (before != NULL) ? before->identity : 0ull;
         // the test's bytes stay far below two to the sixty-third
         const int blocked =
-            (before != NULL) && ((long long)before->request.declared > tessera_ledger_headroom(&ledger));
+            (before != NULL) && ((long long)before->request.declared > tessera_ledger_headroom(&ledger, 0u));
         const unsigned long long shadow_before = blocked ? test_shadow(&ledger, before->request.declared) : TEST_NEVER;
         TesseraEvent events[TEST_EVENTS];
         const unsigned long long made = tessera_ledger_admit(&ledger, now, events, TEST_EVENTS);
@@ -205,7 +205,7 @@ static void test_scenario(TestResults *head_results, TestResults *finished, cons
                 }
             }
         }
-        tessera_ledger_device(&ledger, capacity, in_use);
+        tessera_ledger_device(&ledger, 0u, capacity, in_use);
         const TesseraJob *const after = tessera_ledger_job(&ledger, head);
         if (blocked && (after != NULL) && (after->state == TESSERA_JOB_WAITING))
         {
@@ -242,10 +242,85 @@ static void test_backfill(TestResults *head_results, TestResults *finished)
     }
 }
 
+// One ledger of two devices. A job that holds device 1 holds back no job of device 0 behind it in the queue. Each
+// device's headroom counts its own running jobs alone. A release on device 1 admits the job that waits there, and the
+// ledger refuses a device past the table
+static void test_devices(TestResults *results)
+{
+    TesseraLedger ledger;
+    tessera_ledger_open(&ledger);
+    tessera_ledger_device(&ledger, 0u, 1000ull, 0ull);
+    tessera_ledger_device(&ledger, 1u, 1000ull, 0ull);
+    TesseraEvent event;
+    TesseraEvent events[TEST_EVENTS];
+    TesseraJobRequest wide = test_request(31ull, 900ull);
+    wide.device = 1u;
+    TesseraJobRequest held = test_request(32ull, 500ull);
+    held.device = 1u;
+    const TesseraJobRequest host = test_request(33ull, 800ull);
+    unsigned long long first = 0ull;
+    unsigned long long second = 0ull;
+    unsigned long long third = 0ull;
+    test_check(results, tessera_ledger_submit(&ledger, &wide, 0ull, &first, &event) &&
+                            tessera_ledger_submit(&ledger, &held, 0ull, &second, &event) &&
+                            tessera_ledger_submit(&ledger, &host, 0ull, &third, &event));
+    // the first job of device 1 starts, the second waits on it, and the job of device 0 behind them starts
+    test_check(results, tessera_ledger_admit(&ledger, 0ull, events, TEST_EVENTS) == 2ull);
+    test_check(results, (tessera_ledger_job(&ledger, first)->state == TESSERA_JOB_RUNNING) &&
+                            (tessera_ledger_job(&ledger, second)->state == TESSERA_JOB_WAITING) &&
+                            (tessera_ledger_job(&ledger, third)->state == TESSERA_JOB_RUNNING));
+    test_check(results,
+               (tessera_ledger_headroom(&ledger, 0u) == 200ll) && (tessera_ledger_headroom(&ledger, 1u) == 100ll));
+    test_check(results, tessera_ledger_release(&ledger, first, 10ull, 0) &&
+                            (tessera_ledger_admit(&ledger, 10ull, events, TEST_EVENTS) == 1ull) &&
+                            (events[0].identity == second));
+    test_check(results,
+               (tessera_ledger_headroom(&ledger, 0u) == 200ll) && (tessera_ledger_headroom(&ledger, 1u) == 500ll));
+    TesseraJobRequest outside = test_request(34ull, 1ull);
+    outside.device = TESSERA_LEDGER_DEVICES;
+    unsigned long long refused = 0ull;
+    test_check(results, !tessera_ledger_submit(&ledger, &outside, 20ull, &refused, &event));
+    tessera_ledger_close(&ledger);
+}
+
+// A parent holds 2 of 12, and its own child asks for all 12. The child draws the parent's 2 and starts at once, and the
+// lent 2 count once: the device's headroom is 0 then. A job of no parent that asks for 12 waits. Once the child
+// releases, the parent's room is its own again
+static void test_lend(TestResults *results)
+{
+    TesseraLedger ledger;
+    tessera_ledger_open(&ledger);
+    tessera_ledger_device(&ledger, 0u, 12ull, 0ull);
+    TesseraEvent event;
+    TesseraEvent events[TEST_EVENTS];
+    const TesseraJobRequest suite = test_request(41ull, 2ull);
+    unsigned long long parent = 0ull;
+    test_check(results, tessera_ledger_submit(&ledger, &suite, 0ull, &parent, &event) &&
+                            (tessera_ledger_admit(&ledger, 0ull, events, TEST_EVENTS) == 1ull));
+    test_check(results, tessera_ledger_headroom(&ledger, 0u) == 10ll);
+    const TesseraJobRequest stranger = test_request(42ull, 12ull);
+    unsigned long long apart = 0ull;
+    test_check(results, tessera_ledger_submit(&ledger, &stranger, 1ull, &apart, &event) &&
+                            (tessera_ledger_admit(&ledger, 1ull, events, TEST_EVENTS) == 0ull));
+    test_check(results, tessera_ledger_release(&ledger, apart, 2ull, 0));
+    TesseraJobRequest inside = test_request(43ull, 12ull);
+    inside.parent = parent;
+    unsigned long long child = 0ull;
+    test_check(results, tessera_ledger_submit(&ledger, &inside, 3ull, &child, &event) &&
+                            (tessera_ledger_admit(&ledger, 3ull, events, TEST_EVENTS) == 1ull) &&
+                            (events[0].identity == child) && (tessera_ledger_job(&ledger, child)->lent == 2ull));
+    test_check(results, tessera_ledger_headroom(&ledger, 0u) == 0ll);
+    test_check(results,
+               tessera_ledger_release(&ledger, child, 4ull, 0) && (tessera_ledger_headroom(&ledger, 0u) == 10ll));
+    tessera_ledger_close(&ledger);
+}
+
 int program_main(int count, char **arguments)
 {
     (void)count;
     (void)arguments;
+    TestResults lend = {"a child draws its parent's room", 0ull, 0ull};
+    TestResults devices = {"one queue over every device", 0ull, 0ull};
     TestResults headroom = {"headroom identity", 0ull, 0ull};
     TestResults heap = {"deadlines in order", 0ull, 0ull};
     TestResults budget = {"budget, over-budget, override, lost", 0ull, 0ull};
@@ -259,6 +334,10 @@ int program_main(int count, char **arguments)
     test_located(&located);
     test_idle(&idle);
     test_backfill(&head_results, &finished);
+    test_devices(&devices);
+    test_lend(&lend);
+    test_report(&lend);
+    test_report(&devices);
     test_report(&headroom);
     test_report(&heap);
     test_report(&budget);
@@ -266,8 +345,8 @@ int program_main(int count, char **arguments)
     test_report(&idle);
     test_report(&head_results);
     test_report(&finished);
-    const unsigned long long failed = headroom.failed + heap.failed + budget.failed + located.failed + idle.failed +
-                                      head_results.failed + finished.failed;
+    const unsigned long long failed = lend.failed + devices.failed + headroom.failed + heap.failed + budget.failed +
+                                      located.failed + idle.failed + head_results.failed + finished.failed;
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  tessera ledger: ");

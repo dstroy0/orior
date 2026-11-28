@@ -7,10 +7,13 @@
 // The host and the window speak over the standard input and output, each message framed as the Language Server
 // Protocol frames it. The window sends `initialize` with the plugin's id, its code and its stored state. Then it sends
 // `orior/ask` for each ask, and `orior/keep` for the state to store before `shutdown`. The host sends `orior/call` for
-// each `orior.*` call that the plugin makes. A call that the window refuses answers `{oriorError}` (scripts.c,
-// scripts_calls.c)
+// each `orior.*` call that the plugin makes. A call that the window refuses answers `{oriorError}`. The window sends
+// `orior/process` for each piece of a program's output and for its end (scripts.c, scripts_calls.c,
+// scripts_processes.c)
 "use strict";
 const vm = require("node:vm");
+const { EventEmitter } = require("node:events");
+const { PassThrough } = require("node:stream");
 
 // the requests that wait on an answer from the window, by id, and the next id
 const waiting = new Map();
@@ -39,6 +42,80 @@ function called(name, args) {
     });
     written({ jsonrpc: "2.0", id, method: "orior/call", params: { name, args } });
   });
+}
+
+// The programs that the plugin asked for, by the host's key of each, and the next key. Each holds its stand-in and the
+// call that ends the stand-in
+const processes = new Map();
+let nextProcess = 1;
+
+// A program that the plugin asks orior to start, as `spawn` of node:child_process gives one. The stand-in comes back
+// at once, with its three streams, and so the plugin's listeners go on it before orior answers. What the plugin writes
+// to its input waits in the stream until orior lets the program start. Then orior sends each byte to the program and
+// each byte of its output back. A refused start gives the stand-in `error`, then `exit` and `close`
+function spawned(command, words, options) {
+  const key = nextProcess;
+  nextProcess += 1;
+  const dummy = new EventEmitter();
+  dummy.stdin = new PassThrough();
+  dummy.stdout = new PassThrough();
+  dummy.stderr = new PassThrough();
+  dummy.exitCode = null;
+  dummy.killed = false;
+  let started = false;
+  let ended = false;
+  const ending = (code, error) => {
+    if (ended) {
+      return;
+    }
+    ended = true;
+    processes.delete(key);
+    if (error !== null) {
+      dummy.emit("error", error);
+    }
+    dummy.stdout.end();
+    dummy.stderr.end();
+    dummy.exitCode = code;
+    dummy.emit("exit", code, null);
+    dummy.emit("close", code, null);
+  };
+  dummy.kill = () => {
+    dummy.killed = true;
+    if (started) {
+      called("process.kill", [key]).catch(() => {});
+    }
+    return true;
+  };
+  processes.set(key, { dummy, ending });
+  const listed = Array.isArray(words) ? words.map(String) : [];
+  called("process.start", [String(command), listed, options?.cwd ?? null, key]).then(
+    () => {
+      started = true;
+      if (dummy.killed) {
+        called("process.kill", [key]).catch(() => {});
+      }
+      dummy.stdin.on("data", (piece) => called("process.write", [key, Buffer.from(piece).toString("base64")]).catch(() => {}));
+      dummy.stdin.on("end", () => called("process.close", [key]).catch(() => {}));
+      dummy.emit("spawn");
+    },
+    (error) => ending(null, error),
+  );
+  return dummy;
+}
+
+// one notification `orior/process` of the window: a piece of a program's output or errors, or its end
+function processed(params) {
+  const one = processes.get(Number(params?.key));
+  if (one === undefined) {
+    return;
+  }
+  if (params.stream === "stdout" || params.stream === "stderr") {
+    one.dummy[params.stream].write(Buffer.from(String(params.data ?? ""), "base64"));
+    return;
+  }
+  if ("exit" in params) {
+    one.ending(params.exit === null ? null : Number(params.exit), null);
+  }
 }
 
 // a handler registered under `name` for the asks of the `source` given. A command or a server method has one
@@ -86,6 +163,7 @@ function oriorMade() {
   orior.on = (name, fn) => registered("event", name, fn);
   orior.commands = { on: (id, fn) => registered("command", id, fn) };
   orior.server.on = (method, fn) => registered("server", method, fn);
+  orior.process = Object.freeze({ spawn: spawned });
   orior.keep = (fn) => {
     keeper = typeof fn === "function" ? fn : null;
   };
@@ -182,6 +260,10 @@ async function received(message) {
   }
   if (message.method === "exit") {
     process.exit(0);
+  }
+  if (message.method === "orior/process") {
+    processed(message.params);
+    return;
   }
   if (message.id === undefined) {
     return;

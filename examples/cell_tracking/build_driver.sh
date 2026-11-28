@@ -160,6 +160,9 @@ shared_objects_built DAEMON_WORDS "$ENGINE/runtime/daemon"/tessera_client_{socke
     "$ENGINE/runtime/daemon"/tessera_daemon_{state,admission,peers,main}.c || exit 1
 PORTABLE_OBJECTS+=("${SHARED_OBJECTS[@]:0:5}")
 TESSERA_DAEMON_OBJECTS=("${SHARED_OBJECTS[@]:2}")
+# the client starts the system's daemon through the programs of the platform, which the driver links
+shared_objects_built DAEMON_WORDS "${PLATFORM_PROGRAMS[@]}" || exit 1
+PORTABLE_OBJECTS+=("${SHARED_OBJECTS[@]}")
 DAEMON="$OUT/tessera_daemon$SUFFIX"
 rm -f "$DAEMON"
 SEAL_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${FUNCTIONAL_INCLUDES[@]}")

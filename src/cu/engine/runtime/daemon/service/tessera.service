@@ -1,0 +1,16 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+# tessera's daemon, the one of the system, started by its socket: systemd passes the listening socket over as fd 3
+# (LISTEN_FDS=1), the daemon takes it in place of a socket of its own, and ends once it has held no job for its idle
+# time. The next connection starts it again. Each job's own idle time replaces the one given here.
+[Unit]
+Description=tessera daemon, the gate of the system's jobs
+Requires=tessera.socket
+After=tessera.socket
+# A daemon that errors closes each connection that waits on it before it exits. A history whose seal fails is such an
+# error, and so are host cores that it cannot read. Each start answers a real client, and a start limit turns clients away
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/tessera_daemon --idle 5000000

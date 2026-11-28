@@ -127,6 +127,77 @@ EMBED_INLINE void lsp_initialize_params(const LspStartCtx *args)
     mmgr_line_put(out, ",\"clientInfo\":{\"name\":\"orior\"}}");
 }
 
+// the order of two names of the method table, by memor.cmp over the whole width: below 0, 0 or above 0
+static int lsp_method_order(const void *left, const void *right)
+{
+    // Explicit cast narrows the difference of one byte pair, which is in the range of int
+    return (int)memor.cmp(&(MemoriaCfg){.src = left, .other = right, .bytes = CLI_LSP_METHOD_LEN});
+}
+
+// One table of a server's record. It holds its rows of `width` bytes, `max` rows at most, and the names to copy into
+// it with their count. Then it holds the order of its rows, what its rows are for the reason, and where its count goes
+typedef struct
+{
+    char *table;
+    unsigned int width;
+    unsigned int max;
+    const char *const *names;
+    unsigned int count;
+    int (*order)(const void *left, const void *right);
+    const char *rows;
+    unsigned int *kept;
+    VerbaLinea *err_msg;
+} LspTableCtx;
+
+// The names of `args` copied into the table, each zero-filled to its width, and the table sorted once. 1, or 0 with
+// why given where the names are past `max`, a name is past its width, or the sort has no room
+EMBED_INLINE int lsp_table_read(const LspTableCtx *args)
+{
+    *args->kept = 0u;
+    if (args->count > args->max)
+    {
+        mmgr_line_put(args->err_msg, "the server's ");
+        mmgr_line_put(args->err_msg, args->rows);
+        mmgr_line_put(args->err_msg, " are past the max of ");
+        mmgr_line_decimal(args->err_msg, args->max, 1u);
+        return 0;
+    }
+    const unsigned long long bytes = (unsigned long long)args->width * args->max;
+    memor.set(&(MemoriaCfg){.dst = args->table, .bytes = bytes, .val = 0u});
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        const char *const name = args->names[at];
+        if (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = args->width}) >= args->width)
+        {
+            mmgr_line_put(args->err_msg, "one of the server's ");
+            mmgr_line_put(args->err_msg, args->rows);
+            mmgr_line_put(args->err_msg, " is past the max of ");
+            mmgr_line_decimal(args->err_msg, args->width - 1u, 1u);
+            mmgr_line_put(args->err_msg, " bytes");
+            return 0;
+        }
+        (void)cellul.copy(
+            &(CatenaFinitaCfg){.dst = args->table + ((size_t)at * args->width), .src = name, .cap = args->width});
+    }
+    if (args->count < 2u)
+    {
+        *args->kept = args->count;
+        return 1;
+    }
+    char *const room = g_platform_guard->temporary_buf_alloc(bytes, g_cli_servers_owner);
+    if (room == NULL)
+    {
+        mmgr_line_put(args->err_msg, "no room to sort the server's ");
+        mmgr_line_put(args->err_msg, args->rows);
+        return 0;
+    }
+    (void)memor.sort(&(MemoriaCfg){
+        .dst = args->table, .scratch = room, .count = args->count, .bytes = args->width, .order = args->order});
+    g_platform_guard->persistent_buf_release(room, g_cli_servers_owner);
+    *args->kept = args->count;
+    return 1;
+}
+
 CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
 {
     unsigned int count = args->count;
@@ -136,6 +207,13 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     if (lsp == NULL)
     {
         mmgr_line_put(args->err_msg, "no more language servers are run at once");
+        return NULL;
+    }
+    if (!EMBED_CALL(lsp_table_read, LspTableCtx, .table = &lsp->method[0][0], .width = CLI_LSP_METHOD_LEN,
+                    .max = CLI_LSP_METHODS, .names = args->methods, .count = args->method_count,
+                    .order = lsp_method_order, .rows = "methods", .kept = &lsp->methods, .err_msg = args->err_msg))
+    {
+        lsp->reserved = 0;
         return NULL;
     }
     lsp->recv = recv;

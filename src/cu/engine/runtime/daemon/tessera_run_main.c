@@ -127,11 +127,16 @@ int program_main(int count, char **arguments)
     // the whole processors of the reservation, and never none. A job reserves its tracked peak where that is more than
     // it named. The command can run on the count of whole ones in it
     const unsigned long long whole = ticket.granted / TESSERA_HOST_PROCESSOR;
-    if (!run_processors_named((whole != 0ULL) ? whole : 1ULL))
+    char job_text[24];
+    VerbaLinea job_line = mmgr_line_over(job_text, sizeof(job_text));
+    mmgr_line_decimal(&job_line, ticket.identity, 1u);
+    const int job_named =
+        (mmgr_line_finish(&job_line) != 0ULL) && platform_environment_set(TESSERA_JOB_VARIABLE, job_text);
+    if (!job_named || !run_processors_named((whole != 0ULL) ? whole : 1ULL))
     {
         EngineNote engine_note;
         engine_note_begun(&engine_note);
-        mmgr_line_put(&engine_note.line, "  tessera_run: the processors granted were not passed on to ");
+        mmgr_line_put(&engine_note.line, "  tessera_run: the job and the processors granted were not passed on to ");
         mmgr_line_put(&engine_note.line, label);
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);

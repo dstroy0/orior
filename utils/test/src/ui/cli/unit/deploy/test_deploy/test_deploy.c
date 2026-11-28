@@ -157,7 +157,12 @@ void test_a_position_in_a_container_is_not_local(void)
 
 void test_a_folder_is_a_local_position(void)
 {
+    // a drive is the top of a whole path on Windows alone (cli_path_top)
+#if defined(_WIN32)
     TEST_ASSERT_EQUAL_INT(1, position_is_local("C:/www/site"));
+#else
+    TEST_ASSERT_EQUAL_INT(1, position_is_local("/www/site"));
+#endif
 }
 
 void test_a_folder_under_the_tree_is_a_local_position(void)

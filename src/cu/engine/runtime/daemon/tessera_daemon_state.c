@@ -106,7 +106,7 @@ void daemon_wait_until(unsigned long long when)
 int daemon_state_file(const char *name, char *path)
 {
     VerbaLinea formed_line = mmgr_line_over(path, ENGINE_PATH_CAPACITY);
-    mmgr_line_put(&formed_line, g_daemon.state);
+    mmgr_line_put(&formed_line, g_daemon.root);
 #if defined(_WIN32)
     mmgr_line_ch(&formed_line, '\\');
 #else
@@ -246,7 +246,8 @@ int daemon_history_save(void)
 static int daemon_ticket_path(unsigned long long identity, const TesseraPeer *peer, int make, char *path)
 {
     char folder[ENGINE_PATH_CAPACITY];
-    if (!tessera_path_lost(g_daemon.device, identity, &peer->signum, folder, ENGINE_PATH_CAPACITY) ||
+    if ((peer->device == NULL) ||
+        !tessera_path_lost(peer->device->device, identity, &peer->signum, folder, ENGINE_PATH_CAPACITY) ||
         (make && !platform_folders_made(folder, TESSERA_DAEMON_FOLDER_MODE)))
     {
         return 0;

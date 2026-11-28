@@ -10,7 +10,7 @@
 
 #include <stdlib.h>
 
-// the longest category and example a bit's reading is given
+// the longest category and example that the reading of a bit gets
 #define SASS_CATEGORY 32u
 
 #define SASS_EXAMPLE 160u

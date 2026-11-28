@@ -2,6 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/text/text.h"
 #include "ui/query/src/tools/tools_internal.h"
 
@@ -86,23 +87,23 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/query_tools/test_query_tools/test_query_tools.c");
-  run_test(test_the_compiles_run_as_many_at_once_as_the_interfaces_queue, "test_the_compiles_run_as_many_at_once_as_the_interfaces_queue", 128);
-  run_test(test_the_compiles_run_as_far_apart_as_the_interfaces_queue, "test_the_compiles_run_as_far_apart_as_the_interfaces_queue", 133);
-  run_test(test_every_pattern_of_every_tool_reaches_a_file_of_the_tree, "test_every_pattern_of_every_tool_reaches_a_file_of_the_tree", 138);
-  run_test(test_no_two_sources_of_a_tool_share_an_object, "test_no_two_sources_of_a_tool_share_an_object", 160);
-  run_test(test_the_file_definitions_are_what_every_program_links, "test_the_file_definitions_are_what_every_program_links", 200);
-  run_test(test_paths_input_the_compilers_use_forward_slashes, "test_paths_input_the_compilers_use_forward_slashes", 222);
-  run_test(test_a_missing_binary_is_stale, "test_a_missing_binary_is_stale", 234);
-  run_test(test_a_binary_newer_than_every_source_is_not_stale, "test_a_binary_newer_than_every_source_is_not_stale", 241);
-  run_test(test_a_binary_older_than_its_sources_is_stale, "test_a_binary_older_than_its_sources_is_stale", 249);
-  run_test(test_an_object_newer_than_its_source_and_every_header_is_fresh, "test_an_object_newer_than_its_source_and_every_header_is_fresh", 258);
-  run_test(test_a_header_newer_than_the_object_compiles_it_again, "test_a_header_newer_than_the_object_compiles_it_again", 263);
-  run_test(test_a_source_newer_than_the_object_compiles_it_again, "test_a_source_newer_than_the_object_compiles_it_again", 268);
-  run_test(test_a_missing_object_is_compiled, "test_a_missing_object_is_compiled", 273);
-  run_test(test_an_object_with_no_newer_header_is_fresh, "test_an_object_with_no_newer_header_is_fresh", 278);
-  run_test(test_a_missing_compiler_is_reported_and_nothing_is_built, "test_a_missing_compiler_is_reported_and_nothing_is_built", 283);
-  run_test(test_the_writer_with_no_words_exits_2, "test_the_writer_with_no_words_exits_2", 301);
-  run_test(test_a_built_tool_is_not_stale, "test_a_built_tool_is_not_stale", 315);
+  run_test(test_the_compiles_run_as_many_at_once_as_the_interfaces_queue, "test_the_compiles_run_as_many_at_once_as_the_interfaces_queue", 130);
+  run_test(test_the_compiles_run_as_far_apart_as_the_interfaces_queue, "test_the_compiles_run_as_far_apart_as_the_interfaces_queue", 135);
+  run_test(test_every_pattern_of_every_tool_reaches_a_file_of_the_tree, "test_every_pattern_of_every_tool_reaches_a_file_of_the_tree", 140);
+  run_test(test_no_two_sources_of_a_tool_share_an_object, "test_no_two_sources_of_a_tool_share_an_object", 162);
+  run_test(test_the_file_definitions_are_what_every_program_links, "test_the_file_definitions_are_what_every_program_links", 202);
+  run_test(test_paths_input_the_compilers_use_forward_slashes, "test_paths_input_the_compilers_use_forward_slashes", 224);
+  run_test(test_a_missing_binary_is_stale, "test_a_missing_binary_is_stale", 236);
+  run_test(test_a_binary_newer_than_every_source_is_not_stale, "test_a_binary_newer_than_every_source_is_not_stale", 243);
+  run_test(test_a_binary_older_than_its_sources_is_stale, "test_a_binary_older_than_its_sources_is_stale", 251);
+  run_test(test_an_object_newer_than_its_source_and_every_header_is_fresh, "test_an_object_newer_than_its_source_and_every_header_is_fresh", 260);
+  run_test(test_a_header_newer_than_the_object_compiles_it_again, "test_a_header_newer_than_the_object_compiles_it_again", 265);
+  run_test(test_a_source_newer_than_the_object_compiles_it_again, "test_a_source_newer_than_the_object_compiles_it_again", 270);
+  run_test(test_a_missing_object_is_compiled, "test_a_missing_object_is_compiled", 275);
+  run_test(test_an_object_with_no_newer_header_is_fresh, "test_an_object_with_no_newer_header_is_fresh", 280);
+  run_test(test_a_missing_compiler_is_reported_and_nothing_is_built, "test_a_missing_compiler_is_reported_and_nothing_is_built", 285);
+  run_test(test_the_writer_with_no_words_exits_2, "test_the_writer_with_no_words_exits_2", 303);
+  run_test(test_a_built_tool_is_not_stale, "test_a_built_tool_is_not_stale", 317);
 
   return UNITY_END();
 }

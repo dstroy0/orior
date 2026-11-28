@@ -4,11 +4,14 @@
 #ifndef ROOT_UNIVERSAL_INTERNAL_H
 #define ROOT_UNIVERSAL_INTERNAL_H
 
-// The root universal: the tower with reversible lookup edges sandwiched between its floors, run on
-// camera-law volumes. Three measurements: the root stays exact (random edge programs rebuild every lane
-// through the full crystal path of lift, code, wipe, decode, lower); edges fold in order (two edges on
-// one floor produce the same crystal as the single table that composes them, and a floor between them blocks
-// the fold); and the price (what an unfitted edge costs the magnitude coder, by table width and floor).
+// The root universal: the tower with reversible lookup edges between its floors, run on camera-law volumes. There are
+// three measurements:
+//
+// - the root stays exact. Random edge programs rebuild every lane through the full crystal path of lift, code, wipe,
+//   decode and lower.
+// - edges fold in order. Two edges on one floor give the same crystal as the single table that composes them, and a
+//   floor between them blocks the fold.
+// - the price: what an edge that does not fit costs the magnitude coder, by table width and floor.
 
 #include "sim_camera.h"
 

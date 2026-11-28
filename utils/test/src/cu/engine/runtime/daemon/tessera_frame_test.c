@@ -104,7 +104,7 @@ static unsigned long long frame_test_layout(unsigned long long *failed)
     *failed +=
         (packed && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = s_magic, .bytes = 4u) == 0)) ? 0ull : 1ull;
     cases += 1ull;
-    *failed += (packed && (bytes[4] == 1u) && (bytes[8] == 1u) && (bytes[12] == 0u)) ? 0ull : 1ull;
+    *failed += (packed && (bytes[4] == TESSERA_VERSION) && (bytes[8] == 1u) && (bytes[12] == 0u)) ? 0ull : 1ull;
     cases += 1ull;
     *failed += (packed && (bytes[16] == 0xA5u) && (bytes[63] == 0x5Au)) ? 0ull : 1ull;
     cases += 1ull;

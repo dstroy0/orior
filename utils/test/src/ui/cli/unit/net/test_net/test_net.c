@@ -68,8 +68,11 @@ void test_other_hosts_are_not_local(void)
 
 void test_folders_and_files_on_this_machine_are_paths(void)
 {
+    // a drive is the top of a whole path on Windows alone (cli_path_top)
+#if defined(_WIN32)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_net_address.path, CliNetAddressCfg, .address = "D:/repos/settings"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_net_address.path, CliNetAddressCfg, .address = "C:\\remote.git"));
+#endif
     TEST_ASSERT_TRUE(EMBED_CALL(cli_net_address.path, CliNetAddressCfg, .address = "/srv/git/one.git"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_net_address.path, CliNetAddressCfg, .address = "../shared"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_net_address.path, CliNetAddressCfg, .address = "file:///srv/one.git"));

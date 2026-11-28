@@ -164,6 +164,9 @@ shared_objects_built SIM_WORDS "$DAEMON_DIRECTORY"/tessera_client_{socket,jobs}.
     "$DAEMON_DIRECTORY"/tessera_daemon_{state,admission,peers,main}.c || exit 1
 OBJECTS+=("${SHARED_OBJECTS[@]:0:5}")
 DAEMON_OBJECTS=("${SHARED_OBJECTS[@]:2}")
+# the client starts the system's daemon through the programs of the platform, which the sim links
+shared_objects_built SIM_WORDS "${PLATFORM_PROGRAMS[@]}" || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
 SEAL_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}")
 shared_objects_built SEAL_WORDS "$OBSIGNATIO_CU"/obsignatio_{hash,seal}.cu || exit 1
 SEAL_OBJECTS=("${SHARED_OBJECTS[@]}")

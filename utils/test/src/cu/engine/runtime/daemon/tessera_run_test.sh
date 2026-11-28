@@ -4,8 +4,10 @@
 # tessera_run against the host's daemon: the command's exit code passed on, the processors and the priority set on it,
 # its processors measured, a job that does not fit waiting for the one before it, two that fit running at once, the
 # errors, and a command watched by a child tessera_run (as a WSL command always is): its pid confirmed against the
-# parent's record, and a parent killed or stopped found so by the child, which ends the command and logs it. Takes
-# tessera_run, tessera_burn and a scratch directory, and reads $TESSERA_STATE, where the records are retained.
+# parent's record, and a parent killed or stopped found so by the child, which ends the command and logs it. On
+# Windows the job of a killed parent ends the child and the command at once. Takes
+# tessera_run, tessera_burn and a scratch directory. The test's tessera_run keeps its children's records in the scratch
+# directory ($TESSERA_RUN_RECORDS), apart from the records of every other job on the system's daemon.
 set -u
 
 RUN="$1"
@@ -14,8 +16,10 @@ SCRATCH="$3"
 mkdir -p "$SCRATCH"
 CHECKS=0
 FAILED=0
-STATE="$(cygpath -u "${TESSERA_STATE:-}" 2> /dev/null || echo "${TESSERA_STATE:-}")"
-CHILDREN="$STATE/00000000000000000000000000000000/children"
+CHILDREN="$SCRATCH/records"
+mkdir -p "$CHILDREN"
+TESSERA_RUN_RECORDS="$(cygpath -w "$CHILDREN" 2> /dev/null || echo "$CHILDREN")"
+export TESSERA_RUN_RECORDS
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) WINDOWS=1 ;;
     *) WINDOWS=0 ;;
@@ -150,20 +154,32 @@ check "a watched command's two threads peaked between 1.000 and 2.100 processors
 [ -z "$(ls -A "$CHILDREN" 2> /dev/null)" ]
 check "a clean end left no records ($(ls -A "$CHILDREN" 2> /dev/null | wc -l) left)" $?
 
-# 6: the parent killed: its child finds its record let go, ends the command and logs it
+# 6: the parent killed. On Windows the parent's job ends the child and the command with it, at once. Elsewhere the
+# child finds its record let go, ends the command and logs it
 rm -rf "$CHILDREN"
 "$RUN" --processors 1 --name burn_orphan --child -- "$BURN" 1 60000 0 > "$SCRATCH/orphan.out" 2> "$SCRATCH/orphan.err" &
 PARENT=$!
 sleep 3
 kill_hard "$PARENT"
 wait "$PARENT" 2> /dev/null
-log_holds "was requested to end" 40
-FOUND=$?
-cat "$SCRATCH/orphan.err"
-cat "$CHILDREN"/*.log 2> /dev/null
-[ "$FOUND" -eq 0 ] && grep -qs "its parent is gone" "$CHILDREN"/*.log && grep -qs "^orphaned " "$CHILDREN"/*.child \
-    && burn_ended 60000
-check "the child of a killed parent found it gone, ended the command, logged it, and its records are retained" $?
+if [ "$WINDOWS" -eq 1 ]; then
+    WAITED=0
+    while ! burn_ended 60000 && [ "$WAITED" -lt 10 ]; do
+        sleep 1
+        WAITED=$((WAITED + 1))
+    done
+    cat "$SCRATCH/orphan.err"
+    burn_ended 60000
+    check "the job of a killed parent ended its child and the command with it (within $WAITED s)" $?
+else
+    log_holds "was requested to end" 40
+    FOUND=$?
+    cat "$SCRATCH/orphan.err"
+    cat "$CHILDREN"/*.log 2> /dev/null
+    [ "$FOUND" -eq 0 ] && grep -qs "its parent is gone" "$CHILDREN"/*.log && grep -qs "^orphaned " "$CHILDREN"/*.child \
+        && burn_ended 60000
+    check "the child of a killed parent found it gone, ended the command, logged it, and its records are retained" $?
+fi
 
 # 7: the parent stopped (Linux): it holds its record but retains no keepalive, and its child ends the command once the
 # unresponsive time passes. The stopped parent, let go again, passes on the child's exit

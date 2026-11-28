@@ -437,6 +437,31 @@ static void calls_server_notify(const ScriptsCallsCtx *args)
                .answer = args->answer, .asks_answer = 0);
 }
 
+// the calls of a plugin's programs, each given the call's plugin, host, tree, args and answer (scripts_processes.c)
+static void calls_process_start(const ScriptsCallsCtx *args)
+{
+    cli_scripts_process_start(&(CliScriptsProcessCtx){.id = args->id, .lsp = args->lsp, .root = s_rooted ? s_root : NULL,
+                                                      .json = args->json, .args = args->args, .answer = args->answer});
+}
+
+static void calls_process_write(const ScriptsCallsCtx *args)
+{
+    cli_scripts_process_write(&(CliScriptsProcessCtx){.id = args->id, .lsp = args->lsp, .json = args->json,
+                                                      .args = args->args, .answer = args->answer});
+}
+
+static void calls_process_close(const ScriptsCallsCtx *args)
+{
+    cli_scripts_process_close(&(CliScriptsProcessCtx){.id = args->id, .lsp = args->lsp, .json = args->json,
+                                                      .args = args->args, .answer = args->answer});
+}
+
+static void calls_process_kill(const ScriptsCallsCtx *args)
+{
+    cli_scripts_process_kill(&(CliScriptsProcessCtx){.id = args->id, .lsp = args->lsp, .json = args->json,
+                                                     .args = args->args, .answer = args->answer});
+}
+
 // One entry of the calls: its name, the right that it needs, and what it does. An entry that waits on a server runs
 // on a thread of its own, and its answer goes to the host later. Last, whether the first argument is what the right's
 // list must name. An entry of a right with no such argument holds itself to the list
@@ -460,6 +485,10 @@ static const ScriptsCallEntry s_calls[] = {
     {"tree.relative", CLI_SCRIPTS_NO_RIGHT, calls_tree_relative, 0, 0},
     {"secrets.read", CLI_SCRIPTS_SECRETS, calls_secrets_read, 0, 1},
     {"secrets.write", CLI_SCRIPTS_SECRETS, calls_secrets_write, 0, 1},
+    {"process.start", CLI_SCRIPTS_STARTS, calls_process_start, 0, 1},
+    {"process.write", CLI_SCRIPTS_NO_RIGHT, calls_process_write, 0, 0},
+    {"process.close", CLI_SCRIPTS_NO_RIGHT, calls_process_close, 0, 0},
+    {"process.kill", CLI_SCRIPTS_NO_RIGHT, calls_process_kill, 0, 0},
 };
 
 // the call kept until the reader answers the right `right`: its params copied, the server kept, and the request left
@@ -627,8 +656,8 @@ EMBED_INLINE int calls_run(const ScriptsCallsCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(s_calls[at].run, ScriptsCallsCtx, .id = args->id, .json = args->json, .args = call_args,
-               .answer = args->answer);
+    EMBED_CALL(s_calls[at].run, ScriptsCallsCtx, .id = args->id, .lsp = args->lsp, .json = args->json,
+               .args = call_args, .answer = args->answer);
     return 1;
 }
 
@@ -705,14 +734,15 @@ int cli_scripts_question(const CliScriptsQuestionCfg *args)
     {
         return 0;
     }
-    static const char *const s_titles[CLI_SCRIPTS_RIGHTS] = {" reads files of the tree", " writes files of the tree",
-                                                             " reaches hosts on the network",
-                                                             " keeps secrets in the system's keychain"};
+    static const char *const s_titles[CLI_SCRIPTS_RIGHTS] = {
+        " reads files of the tree", " writes files of the tree", " reaches hosts on the network",
+        " keeps secrets in the system's keychain", " starts programs"};
     static const char *const s_bodies[CLI_SCRIPTS_RIGHTS] = {
         "The plugin reads the tree's files that its plugin.json names in reads.",
         "The plugin writes the tree's files that its plugin.json names in writes.",
         "The plugin sends requests to the hosts that its plugin.json names in reaches.",
-        "The plugin keeps the secrets that its plugin.json names in secrets, in the system's keychain."};
+        "The plugin keeps the secrets that its plugin.json names in secrets, in the system's keychain.",
+        "orior starts the programs that its plugin.json names in starts, and their bytes go through orior."};
     mmgr_line_put(args->title, s_asking_id);
     mmgr_line_put(args->title, s_titles[s_asking_right]);
     mmgr_line_put(args->body, s_bodies[s_asking_right]);

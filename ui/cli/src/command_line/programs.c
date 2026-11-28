@@ -16,7 +16,10 @@ static PlatformStart cli_start_of(const CliWordsErrMsgCtx *args, unsigned int pr
                                  .detached = args->detached,
                                  .input_piped = input_piped,
                                  .inherited_handle = args->inherited_handle,
-                                 .err_msg = args->err_msg};
+                                 .err_msg = args->err_msg,
+                                 .confined = args->confined,
+                                 .child_decided = args->child_decided,
+                                 .label = args->label};
     return start;
 }
 
@@ -129,6 +132,11 @@ void cli_spawn_kill(const CliColsCtx *args)
 int cli_spawn_interrupt(const CliColsCtx *args)
 {
     return platform_program_interrupted(args->spawned_read);
+}
+
+void cli_spawn_group_kill(const CliColsCtx *args)
+{
+    platform_program_group_killed(args->spawned_read);
 }
 
 // the processes started outside the container, at max a static count of them

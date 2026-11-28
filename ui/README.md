@@ -201,6 +201,10 @@ only once the reader lets it, Install letting it as the catalog showed, and each
 what it asked for. A plugin is updated only by Update, and an update that asks for more waits for
 Let It Run.
 
+A script plugin's `server` lists in `methods` each method the plugin takes from its language server.
+The window drops each other message of the server and logs it in confinement.jsonl. A request for a
+method outside the list gets Method not found.
+
 ```json
 { "orior": "plugin catalog", "plugins": [{ "id": "word-count", "name": "Word Count", "version": "1.2.0", "about": "Counts a file's words.", "package": "word-count-1.2.0.json", "sha256": "…", "reads": ["**/*.md"], "writes": [], "reaches": [] }] }
 ```

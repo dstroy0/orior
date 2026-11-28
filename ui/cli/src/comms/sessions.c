@@ -589,7 +589,8 @@ void cli_sessions_close(void)
     s_sessions.sending = 0;
     if (s_sessions.port != 0u)
     {
-        EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &s_sessions.server);
+        // `git daemon` runs git-daemon as a child of its own: the server's whole group ends, and no daemon outlives it
+        EMBED_CALL(cli_cols_internal.spawn_group_kill, CliColsCtx, .spawned_read = &s_sessions.server);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &s_sessions.server);
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &s_sessions.server);
         s_sessions.port = 0u;
@@ -711,7 +712,7 @@ int cli_sessions_served(const CliSessionsCfg *args)
                 const unsigned long long got =
                     EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                                .pipe_handle = s_sessions.server.err, .piece = errors, .capacity = sizeof(errors));
-                EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &s_sessions.server);
+                EMBED_CALL(cli_cols_internal.spawn_group_kill, CliColsCtx, .spawned_read = &s_sessions.server);
                 (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &s_sessions.server);
                 EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &s_sessions.server);
                 mmgr_line_put(args->err_msg, "git daemon serves nothing: ");

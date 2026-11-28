@@ -36,13 +36,19 @@ typedef struct CliLspCapacityPathCfg CliLspCapacityPathCfg;
 typedef struct CliLspCfg CliLspCfg;
 typedef struct CliLspSizeTypeCfg CliLspSizeTypeCfg;
 
-// the max requests that wait on answers at once, and the max bytes of what the server writes to its errors that are
-// retained
+// the max requests that wait on answers at once, and the max bytes of what the server writes to its errors that orior
+// keeps
 #define CLI_LSP_WAITERS 64u
 #define CLI_LSP_COMPLAINT 4096u
 
 // the max bytes of orior's answer to a request of the server's
 #define CLI_LSP_ANSWERED (1ULL << 20u)
+
+// The max methods that orior takes from one server. Then the max bytes of one method's name with its terminator. The
+// reader drops and logs a message of the server's with a method outside its table. A request for that method gets the
+// error Method not found
+#define CLI_LSP_METHODS 64u
+#define CLI_LSP_METHOD_LEN 128u
 
 // A running language server
 typedef struct CliLsp CliLsp;
@@ -124,7 +130,8 @@ void cli_lsp_key_get(const CliLspLengthCfg *args);
 // the server, referenced once for its starter, or NULL with why given. The server referenced once more, and a reference
 // given back, the server ended with the last (lsp_start.c). Where `overseen` names it, the server reports its start,
 // its readiness, its stop and an end it did not ask for to the overseer under that name. `overseen_role` is its `role`
-// there
+// there. `methods`, `method_count` of them, are the methods that `recv` takes. A table past CLI_LSP_METHODS or a name
+// past CLI_LSP_METHOD_LEN is refused before the server starts
 CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args);
 void cli_lsp_ref(const CliLspContextCfg *args);
 void cli_lsp_unref(const CliLspContextCfg *args);
@@ -197,6 +204,8 @@ struct CliLspErrMsgCfg
     void *context;
     const char *overseen;
     unsigned int overseen_role;
+    const char *const *methods;
+    unsigned int method_count;
 };
 
 struct CliLspErrMsgLengthCfg
@@ -265,12 +274,15 @@ struct CliLspWriterLockCfg
     unsigned int count;
 };
 
+// A read of one message: the reader, where its body goes and the bound on it, its length, and where a refusal's reason
+// goes. The ask of a message past its bound, a head past its bound, or a body that is not JSON whole is a refusal
 struct CliLspReaderCfg
 {
     CliLspReader *reader;
     char *body_out;
     unsigned long long capacity;
     unsigned long long *size;
+    VerbaLinea *err_msg;
 };
 
 struct CliLspCapacityCfg
@@ -288,11 +300,14 @@ struct CliLspLengthCfg
     char *key;
 };
 
+// A read of one message into a cell of its length: the reader, its length, the cell's owner, and where a refusal's
+// reason goes. A NULL with no reason is the source's end
 struct CliLspReaderSizeCfg
 {
     CliLspReader *reader;
     unsigned long long *size;
     const CellOwner *owner;
+    VerbaLinea *err_msg;
 };
 
 struct CliLspContextCfg

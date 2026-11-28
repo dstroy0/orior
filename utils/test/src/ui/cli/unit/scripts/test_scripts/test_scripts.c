@@ -6,7 +6,9 @@
 // reads or writes the file. A read of a right with no answer waits on the question. The tree's files are those that
 // reads names, and a refused reads refuses them. A whole path in the tree gives its path from the top, and a path
 // outside gives null. A secret that the plugin keeps reads back, a secret that it forgets reads null, and a key that
-// secrets does not list fails. A host past its memory ends, and the next ask starts it again. A quiet stops the host
+// secrets does not list fails. A program that starts lists runs, and its input and output pass through orior. A
+// program that starts does not list is refused. A host past its memory ends, and the next ask starts it again. A quiet
+// stops the host
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "ui/cli/src/scripts/scripts.h"
@@ -34,11 +36,20 @@ static const char s_code[] =
     "orior.commands.on('keepUnlisted', () => tried(() => orior.secrets.write('other', 'kept')));\n"
     "orior.commands.on('grow', () => { const all = []; for (;;) { all.push(new Array(1 << 20).fill(all.length)); } "
     "});\n"
+    "orior.commands.on('spawn', (program) => new Promise((resolve) => {\n"
+    "  const child = orior.process.spawn(program, ['-e', 'process.stdin.pipe(process.stdout)']);\n"
+    "  let out = '';\n"
+    "  child.stdout.on('data', (piece) => { out += piece; });\n"
+    "  child.on('error', () => resolve('refused'));\n"
+    "  child.on('close', (code) => resolve(out + ':' + code));\n"
+    "  child.stdin.write('ping');\n"
+    "  child.stdin.end();\n"
+    "}));\n"
     "orior.keep(() => ({ count }));\n";
 static const char s_manifest[] =
     "{\"id\": \"counter\", \"name\": \"Counter\", \"version\": \"1.0.0\", \"type\": \"script\", "
     "\"api\": 5, \"main\": \"plugin.js\", \"resources\": {\"memoryMiB\": 64}, \"reads\": [\"a.txt\"], "
-    "\"writes\": [\"out/*.txt\"], \"secrets\": [\"token\"]}";
+    "\"writes\": [\"out/*.txt\"], \"secrets\": [\"token\"], \"starts\": [\"node\"]}";
 static char s_tree[CLI_PATH_MAX_LEN];
 static int s_written;
 static char s_answer[4096];
@@ -175,6 +186,20 @@ void test_a_read_that_the_reader_allowed_reads_the_file(void)
     counter_answered(CLI_SCRIPTS_READS, CLI_SCRIPTS_ALLOWED);
     TEST_ASSERT_TRUE_MESSAGE(counter_asked("read", "null"), s_why);
     TEST_ASSERT_EQUAL_STRING("\"hello\"", s_answer);
+}
+
+void test_a_program_that_starts_lists_runs_with_each_byte_through_orior(void)
+{
+    counter_answered(CLI_SCRIPTS_STARTS, CLI_SCRIPTS_ALLOWED);
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("spawn", "\"node\""), s_why);
+    TEST_ASSERT_EQUAL_STRING("\"ping:0\"", s_answer);
+}
+
+void test_a_program_that_starts_does_not_list_is_refused(void)
+{
+    counter_answered(CLI_SCRIPTS_STARTS, CLI_SCRIPTS_ALLOWED);
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("spawn", "\"python3\""), s_why);
+    TEST_ASSERT_EQUAL_STRING("\"refused\"", s_answer);
 }
 
 void test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it(void)

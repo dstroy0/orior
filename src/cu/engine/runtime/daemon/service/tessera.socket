@@ -1,0 +1,14 @@
+# orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+# tessera's socket, a systemd user unit: the one endpoint of the system's daemon, which gates the host's processors
+# and every GPU. %t is $XDG_RUNTIME_DIR, the same place tessera_path_endpoint names, and a client finds it there.
+[Unit]
+Description=tessera, the gate of the system's jobs
+
+[Socket]
+ListenStream=%t/tessera.sock
+SocketMode=0600
+Accept=no
+
+[Install]
+WantedBy=sockets.target

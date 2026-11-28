@@ -4,6 +4,7 @@
 // folder: the host in plugin_host, and the state and the answers of each plugin in plugin_state (scripts.c)
 #ifndef SCRIPTS_INTERNAL_H
 #define SCRIPTS_INTERNAL_H
+#include "../text/json_tree.h"
 #include "scripts.h"
 
 typedef struct
@@ -32,6 +33,28 @@ int cli_scripts_path(const CliScriptsPathCtx *args);
 // thread of the server `lsp`. The call's result goes into `answer`, or `{"oriorError": why}`. A call that waits on the
 // reader's answer writes nothing, and its answer goes to `lsp` later (scripts_calls.c)
 void cli_scripts_call(const CliScriptsCallCtx *args);
+// One call of a plugin's programs. It holds the plugin `id`, its host `lsp`, and the tree's top `root`, NULL where no
+// tree is open. Then it holds the call's JSON `json` with its args at `args`, and the answer, null or the error
+typedef struct
+{
+    const char *id;
+    CliLsp *lsp;
+    const char *root;
+    const CliJson *json;
+    unsigned int args;
+    VerbaLinea *answer;
+} CliScriptsProcessCtx;
+
+// The call process.start(program, words, folder, key) starts the program at the tree's top under the host's key, once
+// the call checks its right. The call process.write(key, data) writes the bytes of base64 `data` to its input. The
+// call process.close(key) closes its input, and process.kill(key) ends its group. The last call ends each program of
+// `host` as the host ends (scripts_processes.c)
+void cli_scripts_process_start(const CliScriptsProcessCtx *args);
+void cli_scripts_process_write(const CliScriptsProcessCtx *args);
+void cli_scripts_process_close(const CliScriptsProcessCtx *args);
+void cli_scripts_process_kill(const CliScriptsProcessCtx *args);
+void cli_scripts_processes_end(const CliLsp *host);
+
 // The event `plugin-server` of a plugin's language server, `size` bytes of JSON {plugin, method, params, request}.
 // A worker thread takes it to the plugin's host, in the order that the events come. Other events go nowhere
 // (scripts_server.c)

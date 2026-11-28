@@ -112,6 +112,27 @@ def cmd_build_cli(a):
     return built_reported(log, built)
 
 
+def cmd_build_tessera(a):
+    """tessera's host programs, the system's daemon and tessera_run, built and published to build/tessera_host
+    (src/cu/engine/runtime/daemon/build.sh). Under WSL the same command builds and publishes the Linux programs."""
+    import harness_cli
+
+    out = os.path.join(BUILD, "tessera_host_build")
+    os.makedirs(out, exist_ok=True)
+    env = dict(os.environ)
+    env["BUILD_OUT"] = out.replace("\\", "/")
+    log = os.path.join(BUILD, "tessera_build.log")
+    words = [harness_cli.bash(), os.path.join(ROOT, "src", "cu", "engine", "runtime", "daemon", "build.sh")]
+    with open(log, "wb") as written:
+        built = subprocess.run(words, cwd=ROOT, env=env, stdout=written, stderr=subprocess.STDOUT)
+    if built.returncode != 0:
+        print("\n".join(grep(log, r"error|failed", 8)))
+        print(tail(log, 3), end="")
+        return 1
+    print(tail(log, 1), end="")
+    return 0
+
+
 def cmd_build_mmgr(a):
     tree = os.path.join(BUILD, "mmgr_tests" + a.suffix)
     env = dict(os.environ)
@@ -559,6 +580,8 @@ def register(sub):
     p = build.add_parser("cli", help="the command line's program, its debug information next to it, every window ended first")
     p.add_argument("target", nargs="?", default="", help="the target triple, the host's where none is named")
     p.set_defaults(fn=cmd_build_cli)
+    p = build.add_parser("tessera", help="the system's tessera daemon and tessera_run, built and published to build/tessera_host")
+    p.set_defaults(fn=cmd_build_tessera)
     p = build.add_parser("mmgr", help="MMgr's Unity suites built and the accuracy suites run")
     p.add_argument("--suffix", default="", help="the build tree's suffix under build/mmgr_tests")
     p.add_argument("--flags", default="", help="C flags past the tree's own")

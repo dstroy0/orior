@@ -140,7 +140,12 @@ void test_the_parent_of_a_windows_path(void)
 
 void test_the_parent_of_a_folder_on_a_windows_drive_is_the_drive(void)
 {
+    // a drive is the top of a whole path on Windows alone (cli_path_top), and elsewhere `D:` is a folder
+#if defined(_WIN32)
     assert_parent("D:\\", "D:\\a");
+#else
+    assert_parent("D:", "D:\\a");
+#endif
 }
 
 void test_the_parent_of_a_posix_path(void)

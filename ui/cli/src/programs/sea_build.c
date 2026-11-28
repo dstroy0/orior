@@ -5,7 +5,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
-#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "executables.h"
 #include "sea.h"
 
 // the max bytes of a script read, and the max modules outside Node reported
@@ -25,8 +25,6 @@ typedef struct
     const char *const *request;
     unsigned int count;
     VerbaLinea *err_msg;
-    unsigned long long *major;
-    unsigned long long *minor;
     const char *how;
 } SeaBuildCtx;
 // a line printed through `sink`
@@ -137,73 +135,6 @@ EMBED_INLINE int cli_node_run(const SeaBuildCtx *args)
     return 1;
 }
 
-// the version node reports it is, its three numbers into `major` and `minor`: 1, or 0 with why given
-EMBED_INLINE int cli_version(const SeaBuildCtx *args)
-{
-    unsigned long long *major = args->major;
-    unsigned long long *minor = args->minor;
-    VerbaLinea *err_msg = args->err_msg;
-    const char *const words[3] = {args->node, "--version", NULL};
-    CliRunResult *const run_result = cli_run_result_alloc();
-    char why[CLI_PATH_MAX_LEN];
-    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
-    if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u,
-                    .run_result = run_result, .err_msg = &unstarted))
-    {
-        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
-        mmgr_line_put(err_msg, args->node);
-        mmgr_line_put(err_msg, ": ");
-        mmgr_line_put_n(err_msg, why, unstarted.at);
-        return 0;
-    }
-    const char *text = run_result->out;
-    const char *end = run_result->out + run_result->out_size;
-    text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
-                       .size = (unsigned long long)(end - text), .set = CLI_TEXT_WHITE);
-    end = text + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = text,
-                            .at = (unsigned long long)(end - text), .set = CLI_TEXT_WHITE);
-    const char *const trimmed = text;
-    text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
-                       .size = (unsigned long long)(end - text), .set = "v");
-    // the parts between the dots that are numbers
-    unsigned long long numbers[3] = {0ULL, 0ULL, 0ULL};
-    unsigned int read = 0u;
-    while ((text < end) && (read < 3u))
-    {
-        const char *stop = text;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                           .size = (unsigned long long)(end - stop), .set = ".");
-        int number = stop > text;
-        unsigned long long value = 0ULL;
-        const char *digit = text;
-        while (number && (digit < stop))
-        {
-            // Explicit cast reads the byte as its code point
-            number = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit[0]});
-            value = (value * 10ULL) + (unsigned long long)(digit[0] - '0');
-            digit += 1;
-        }
-        if (number)
-        {
-            numbers[read] = value;
-            read += 1u;
-        }
-        text = (stop < end) ? (stop + 1) : stop;
-    }
-    if (read < 3u)
-    {
-        mmgr_line_put(err_msg, args->node);
-        mmgr_line_put(err_msg, " reports no version: ");
-        mmgr_line_put_n(err_msg, trimmed, (unsigned long long)(end - trimmed));
-        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
-        return 0;
-    }
-    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
-    *major = numbers[0];
-    *minor = numbers[1];
-    return 1;
-}
-
 // `path` could not be read or written, reported
 EMBED_INLINE int cli_fail(const SeaBuildCtx *args)
 {
@@ -267,8 +198,8 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     }
     unsigned long long major = 0ULL;
     unsigned long long minor = 0ULL;
-    if (!EMBED_CALL(cli_version, SeaBuildCtx, .node = args->node, .major = &major, .minor = &minor,
-                    .err_msg = args->err_msg))
+    if (!EMBED_CALL(cli_executables_version.read, CliExecutablesVersionCfg, .program = args->node, .major = &major,
+                    .minor = &minor, .err_msg = args->err_msg))
     {
         return 0;
     }

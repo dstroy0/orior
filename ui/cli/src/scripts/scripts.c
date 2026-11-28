@@ -21,6 +21,31 @@
 #define CLI_SCRIPTS_STATE_MAX (1ULL << 20u)
 #define CLI_SCRIPTS_LOOK_MS 1000u
 
+// The first release of each line of Node that holds the fix of every escape of its permission model that the line's
+// security releases name. A line newer than CLI_SCRIPTS_NODE_NEWEST is newer than those fixes. Any other line is past
+// its support, or it has no permission model, and the host refuses it
+typedef struct
+{
+    unsigned long long major;
+    unsigned long long minor;
+    unsigned long long patch;
+} ScriptsNodeRelease;
+static const ScriptsNodeRelease s_scripts_node_fixed[] = {
+    {22ULL, 23ULL, 4ULL},
+    {24ULL, 22ULL, 1ULL},
+    {26ULL, 12ULL, 1ULL},
+};
+#define CLI_SCRIPTS_NODE_LINES (sizeof(s_scripts_node_fixed) / sizeof(s_scripts_node_fixed[0]))
+#define CLI_SCRIPTS_NODE_NEWEST 26ULL
+
+// the variables of the environment that the host runs without: each one adds to Node's flags or to where it loads from
+static const PlatformSetting s_scripts_host_unset[] = {{"NODE_OPTIONS", NULL}, {"NODE_PATH", NULL}};
+#define CLI_SCRIPTS_HOST_UNSET (sizeof(s_scripts_host_unset) / sizeof(s_scripts_host_unset[0]))
+
+// the methods that the host sends and scripts_recv takes: a call of the plugin's, and a line that the plugin logs
+static const char *const s_scripts_host_methods[] = {"orior/call", "window/logMessage"};
+#define CLI_SCRIPTS_HOST_METHODS (sizeof(s_scripts_host_methods) / sizeof(s_scripts_host_methods[0]))
+
 // One host: whether it holds its place, its plugin's id, the server it runs as, the asks under way, and when the last
 // ask ended
 typedef struct
@@ -169,6 +194,7 @@ static void scripts_overseen_end(void *context)
     cli_gate_opened(&s_gate);
     if (lsp != NULL)
     {
+        cli_scripts_processes_end(lsp);
         EMBED_CALL(cli_lsp_context.kill, CliLspContextCfg, .lsp = lsp);
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = lsp);
     }
@@ -245,6 +271,32 @@ EMBED_INLINE int scripts_start(const ScriptsCtx *args)
                            .path_out = host_path, .err_msg = args->err_msg) &&
                 EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "node", .name = "node",
                            .path = node, .err_msg = args->err_msg);
+    // the host runs under Node's permission model, on a release that holds the fix of every escape known for its line
+    unsigned long long major = 0ULL;
+    unsigned long long minor = 0ULL;
+    unsigned long long patch = 0ULL;
+    ready = ready && EMBED_CALL(cli_executables_version.read, CliExecutablesVersionCfg, .program = node,
+                                .major = &major, .minor = &minor, .patch = &patch, .err_msg = args->err_msg);
+    const ScriptsNodeRelease *fixed = NULL;
+    for (unsigned int line = 0u; line < CLI_SCRIPTS_NODE_LINES; line += 1u)
+    {
+        fixed = (s_scripts_node_fixed[line].major == major) ? &s_scripts_node_fixed[line] : fixed;
+    }
+    const int newer = major > CLI_SCRIPTS_NODE_NEWEST;
+    const int patched =
+        (fixed != NULL) && ((minor > fixed->minor) || ((minor == fixed->minor) && (patch >= fixed->patch)));
+    if (ready && !newer && !patched)
+    {
+        mmgr_line_put(args->err_msg, "Node ");
+        mmgr_line_decimal(args->err_msg, major, 1u);
+        mmgr_line_ch(args->err_msg, '.');
+        mmgr_line_decimal(args->err_msg, minor, 1u);
+        mmgr_line_ch(args->err_msg, '.');
+        mmgr_line_decimal(args->err_msg, patch, 1u);
+        mmgr_line_put(args->err_msg, " is refused: its permission model has escapes that a later release fixes. "
+                                     "Node 22.23.4, 24.22.1 or 26.12.1, or a later release of its line, is taken");
+        ready = 0;
+    }
     // the host's folder is its root and where it starts: host.js's path up to its last separator
     char host_folder[CLI_PATH_MAX_LEN];
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = host_folder, .src = host_path, .cap = CLI_PATH_MAX_LEN});
@@ -275,12 +327,17 @@ EMBED_INLINE int scripts_start(const ScriptsCtx *args)
     mmgr_line_put(&heaped, "--max-old-space-size=");
     mmgr_line_decimal(&heaped, resources.memory_bytes >> 20u, 1u);
     ready = ready && (mmgr_line_finish(&allowed) != 0ULL) && (mmgr_line_finish(&heaped) != 0ULL);
-    const char *const words[] = {"--permission", allow, "--disallow-code-generation-from-strings", heap, host_path};
+    // The permission model grants the host a read of its own file alone. It grants no write and no network. It grants
+    // no worker, child process, addon or WASI. node:sqlite reaches files past the model, and the host has none
+    const char *const words[] = {"--permission", allow, "--no-experimental-sqlite",
+                                 "--disallow-code-generation-from-strings", heap, host_path};
     CliLsp *const lsp =
         ready ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .err_msg = args->err_msg, .program = node,
-                           .request = words, .count = 5u, .root = host_folder, .options = options.out,
+                           .request = words, .count = 6u, .settings = s_scripts_host_unset,
+                           .setting_count = CLI_SCRIPTS_HOST_UNSET, .root = host_folder, .options = options.out,
                            .length = options.at, .recv = scripts_recv, .context = &s_hosts[args->at],
-                           .overseen = args->id, .overseen_role = CLI_OVERSEER_PLUGIN)
+                           .overseen = args->id, .overseen_role = CLI_OVERSEER_PLUGIN,
+                           .methods = s_scripts_host_methods, .method_count = CLI_SCRIPTS_HOST_METHODS)
               : NULL;
     g_platform_guard->persistent_buf_release(options_text, g_cli_scripts_owner);
     cli_gate_shut(&s_gate);
@@ -329,6 +386,7 @@ EMBED_INLINE void scripts_kept_stop(const ScriptsCtx *args)
         }
     }
     g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    cli_scripts_processes_end(args->lsp);
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = args->lsp);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = args->lsp);
 }
@@ -365,6 +423,7 @@ int cli_scripts_ask(const CliScriptsCfg *args)
     cli_gate_opened(&s_gate);
     if (ended != NULL)
     {
+        cli_scripts_processes_end(ended);
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = ended);
     }
     if (at >= CLI_SCRIPTS_HOSTS)

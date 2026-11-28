@@ -19,9 +19,10 @@ __device__ static void noise_spikes_flush(unsigned long long *cells, unsigned in
     }
 }
 
-// One thread a voxel. Every frame's value is counted. A frame with a frame on either side is a triple, binned by the
-// mean of the two beside it, and a spike or a dip where it clears both by a threshold. A voxel whose least and max
-// values agree is constant: counted, its value counted apart, and its place taken into the box.
+// One thread for each voxel. The kernel counts the value of every frame. A frame with a frame on either side is a
+// triple, binned by the mean of the two beside it. It is a spike or a dip where it clears both by a threshold. A voxel
+// whose least and max values agree is constant. The kernel counts it, counts its value apart, and takes its place into
+// the box.
 __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned long long frames,
                                           unsigned long long depth, unsigned long long height, unsigned long long width,
                                           unsigned long long *counts, unsigned int *box, unsigned long long *values,

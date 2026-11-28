@@ -2,8 +2,9 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/cli/src/text/sift.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "ui/cli/src/text/sift.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -78,15 +79,15 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/sift/test_sift/test_sift.c");
-  run_test(test_the_sift_finds_what_the_plain_comparison_finds, "test_the_sift_finds_what_the_plain_comparison_finds", 110);
-  run_test(test_a_search_without_case_agrees_with_the_plain_comparison, "test_a_search_without_case_agrees_with_the_plain_comparison", 141);
-  run_test(test_a_search_without_case_finds_each_character_in_either_case, "test_a_search_without_case_finds_each_character_in_either_case", 147);
-  run_test(test_only_characters_fold, "test_only_characters_fold", 153);
-  run_test(test_a_needle_at_the_ends_and_in_the_middle_of_a_long_text_is_found_once_each, "test_a_needle_at_the_ends_and_in_the_middle_of_a_long_text_is_found_once_each", 159);
-  run_test(test_a_text_with_zero_bytes_is_searched_past_them, "test_a_text_with_zero_bytes_is_searched_past_them", 166);
-  run_test(test_an_empty_needle_is_found_nowhere, "test_an_empty_needle_is_found_nowhere", 176);
-  run_test(test_a_needle_longer_than_the_text_is_found_nowhere, "test_a_needle_longer_than_the_text_is_found_nowhere", 181);
-  run_test(test_an_empty_text_contains_nothing, "test_an_empty_text_contains_nothing", 186);
+  run_test(test_the_sift_finds_what_the_plain_comparison_finds, "test_the_sift_finds_what_the_plain_comparison_finds", 114);
+  run_test(test_a_search_without_case_agrees_with_the_plain_comparison, "test_a_search_without_case_agrees_with_the_plain_comparison", 145);
+  run_test(test_a_search_without_case_finds_each_character_in_either_case, "test_a_search_without_case_finds_each_character_in_either_case", 151);
+  run_test(test_only_characters_fold, "test_only_characters_fold", 157);
+  run_test(test_a_needle_at_the_ends_and_in_the_middle_of_a_long_text_is_found_once_each, "test_a_needle_at_the_ends_and_in_the_middle_of_a_long_text_is_found_once_each", 163);
+  run_test(test_a_text_with_zero_bytes_is_searched_past_them, "test_a_text_with_zero_bytes_is_searched_past_them", 170);
+  run_test(test_an_empty_needle_is_found_nowhere, "test_an_empty_needle_is_found_nowhere", 180);
+  run_test(test_a_needle_longer_than_the_text_is_found_nowhere, "test_a_needle_longer_than_the_text_is_found_nowhere", 185);
+  run_test(test_an_empty_text_contains_nothing, "test_an_empty_text_contains_nothing", 190);
 
   return UNITY_END();
 }

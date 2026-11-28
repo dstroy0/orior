@@ -16,8 +16,8 @@
 
 #define POWER_DRAW_COUNTS 2u
 
-// a count of false periods over n chances at 1/(draws + 1) each may exceed n p by 5 sqrt(n p), this squared over n p:
-// the binomial's spread is sqrt(n p (1 - p)). The tolerance is 5.30 of it at 8 draws and 5.13 at 19
+// a count of false periods over n chances at `1/(draws + 1)` each can pass `n p` by `5 sqrt(n p)`, this squared over
+// `n p`. The spread of the binomial is `sqrt(n p (1 - p))`. The tolerance is 5.30 of it at 8 draws, and 5.13 at 19
 #define POWER_RANGE_SQUARED 25ULL
 
 typedef struct

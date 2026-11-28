@@ -59,25 +59,30 @@ void run_record_launched(RunChannel *channel, unsigned long long pid)
     }
 }
 
-// the records' path. It is the host's tessera state, then children, then this process's pid and the job's signum. The
-// record of a lost ticket names its own the same way. The call makes each folder that is not there
+// The records' path: $TESSERA_RUN_RECORDS where it names a folder, else the host's tessera state and then children.
+// Then this process's pid and the job's signum. The record of a lost ticket names its own the same way. The call makes
+// each folder that is not there
 static int run_records_place(RunChannel *channel, const EngineSignum *signum)
 {
     unsigned char host[TESSERA_DEVICE_BYTES];
     EMBED_CALL(memor.set, MemoriaCfg, .dst = host, .bytes = sizeof(host), .val = 0);
     char *const records = channel->records;
     const size_t capacity = sizeof(channel->records);
+    const int chosen = platform_environment("TESSERA_RUN_RECORDS", records, capacity) != 0ULL;
     // the capacity is a buffer size this file allocates, which an unsigned int counts
-    if (!tessera_path_state(host, records, (unsigned int)capacity))
+    if (!chosen && !tessera_path_state(host, records, (unsigned int)capacity))
     {
         return 0;
     }
     size_t at = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = records, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea formed_line_1 = mmgr_line_over(records + at, capacity - at);
-    mmgr_line_ch(&formed_line_1, (char)(RUN_SEPARATOR));
-    mmgr_line_put(&formed_line_1, s_run_children);
+    if (!chosen)
+    {
+        mmgr_line_ch(&formed_line_1, (char)(RUN_SEPARATOR));
+        mmgr_line_put(&formed_line_1, s_run_children);
+    }
     (void)mmgr_line_finish(&formed_line_1);
-    const int folder = (int)formed_line_1.at;
+    const int folder = chosen ? 1 : (int)formed_line_1.at;
     // the test compares a non-negative length whole against the capacity
     if ((folder <= 0) || ((size_t)folder >= (capacity - at)) || !platform_folders_made(records, 0755u))
     {
@@ -612,13 +617,15 @@ int run_start(PlatformProgram *child, char *const *words, int count, unsigned lo
     (void)count;
     char why[ENGINE_PATH_CAPACITY];
     VerbaLinea err_msg = mmgr_line_over(why, sizeof(why));
-    // the command's words are a program's, which it runs and writes to none of
+    // The command's words are a program's, which it runs and writes to none of. The command's whole tree ends with
+    // this process, however this process ends, and no process of the job outlives it but the system's daemon
     const PlatformStart start = {.words = (const char *const *)words,
                                  .priority = PLATFORM_PRIORITY_GUEST,
                                  .output = PLATFORM_OUTPUT_OWN,
                                  .input_own = 1,
                                  .suspended = 1,
                                  .found_on_path = 1,
+                                 .ends_with_starter = 1,
                                  .processor_mask = mask,
                                  .err_msg = &err_msg};
     if (!platform_program_started(&start, child))

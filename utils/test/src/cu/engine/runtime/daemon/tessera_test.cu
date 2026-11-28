@@ -89,6 +89,11 @@ static TesseraCall device_test_call(unsigned long long now, unsigned long long s
     call.type = (TesseraCallType)device_test_below(10ull);
     call.now = now;
     call.identity = 1ull + device_test_below(submitted + 1ull);
+    // one ledger holds every device: each call and each job it requests is on one of three, drawn
+    call.device = (unsigned int)device_test_below(3ull);
+    call.request.device = call.device;
+    // a job inside another names one of the jobs submitted before it as its parent, or none
+    call.request.parent = device_test_below(submitted + 1ull);
     call.capacity = DEVICE_TEST_CAPACITY;
     call.in_use = device_test_below(DEVICE_TEST_CAPACITY);
     call.used = device_test_below(900ull);

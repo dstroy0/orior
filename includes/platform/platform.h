@@ -228,6 +228,9 @@ PlatformSignalHandler platform_signal_handled(int number, PlatformSignalHandler 
 // the bytes of a buffer that one path of a file goes into, its terminator among them
 #define PLATFORM_PATH_BYTES 4096u
 
+// the bytes of the label of a confined start, its terminator among them
+#define PLATFORM_LABEL_BYTES 256u
+
 // the separator that this system writes between the folders of a path, as a text of one byte
 extern const char g_platform_separator[];
 
@@ -511,6 +514,7 @@ typedef struct
     int detached;                        // A job of its own on Windows, a process group of its own elsewhere.
     int windowless;                      // No console of its own on Windows, as a detached program has none.
     int outlives;                        // It outlives this process: out of every job, or in a group of its own.
+    int ends_with_starter;               // Its job on Windows ends every process in it as this process ends.
     int input_piped;                     // Its input a pipe that `in` feeds, else nothing.
     int input_own;                       // Its input the input of this process, where `input_piped` is 0.
     int suspended;                       // It waits before it runs until platform_program_resumed.
@@ -520,6 +524,9 @@ typedef struct
     unsigned long long inherited_handle; // One more handle of this process that it takes on Windows, or 0.
     VerbaLinea *err_msg;                 // Why a start failed.
     PlatformRefusal *refusal;            // Why a start failed, as the system gave it, or NULL.
+    int confined;                        // Each start of a child goes through its glue to `child_decided`.
+    int (*child_decided)(const char *label, const char *program); // 1 lets the program run, 0 refuses it.
+    const char *label;                   // The name that `child_decided` gets, copied at the start [BORROWS].
 } PlatformStart;
 
 // The program of `start` started, its output and its errors where `output` sends them. Where `detached`, it heads a job
@@ -528,6 +535,9 @@ typedef struct
 // heads a process group of its own. A processor mask puts the program on those processors, and on Windows in a job of
 // its own that counts its processor time. Where the caller gives `refusal` and `suspended` is 0, a program that the
 // system cannot run is a failed start on every system.
+//
+// Where `confined`, the program starts no child of its own. Its glue hands each start to this process, and
+// `child_decided` gets `label` and the path of the program. A system with no glue refuses a confined start.
 //
 // The return is 1, or 0 with the reason given
 int platform_program_started(const PlatformStart *start, PlatformProgram *program);

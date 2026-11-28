@@ -1,14 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// mmio_read_check.c: the reader checked against the part. It opens the driver's device, queries the extent it mapped,
-// and reads PMC_BOOT_0, the register at offset 0 of BAR0 that names the chip: a value that is neither 0 nor all ones
-// proves the aperture is mapped and the reads reach the part's own registers. Nothing is written.
+// mmio_read_check.c: the reader, checked against the part. It opens the device of the driver, and queries the extent
+// that it mapped. It reads PMC_BOOT_0, the register at offset 0 of BAR0 that names the chip. A value that is neither
+// 0 nor all ones proves that the aperture is mapped, and that the reads reach the own registers of the part. The
+// program writes nothing.
 //
 //     mmio_read_check [<offset> [<words>]]
 //
-// With no argument it reads PMC_BOOT_0 alone. Given an offset in hex, and a count of 32-bit words, it reads that many
-// registers from that offset and prints each. Exit 0 where the read looks live, 1 where it does not, 2 where the
-// driver was not reached.
+// With no argument, it reads PMC_BOOT_0 alone. With an offset in hex and a count of 32-bit words, it reads that many
+// registers from that offset, and prints each. Exit 0 where the read looks live, 1 where it does not, and 2 where the
+// program did not reach the driver.
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"

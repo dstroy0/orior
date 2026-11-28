@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // a client with no device of its own: it submits one job for the device named on its command line through the
-// endpoint tessera_path_endpoint names ($TESSERA_RUNTIME in a container), with no daemon path: only a daemon
-// already listening there, or a socket systemd owns, can answer. It prints what came back.
+// system's endpoint that tessera_path_endpoint names, with no daemon path. Only the system's daemon already listening
+// there, or the socket that systemd owns, can answer. It prints what came back.
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
 #include "../../../../../../../includes/platform/platform.h"
 
@@ -48,7 +48,7 @@ int program_main(int count, char **arguments)
         return 2;
     }
     char endpoint[ENGINE_PATH_CAPACITY];
-    const int named = tessera_path_endpoint(submit.device, endpoint, ENGINE_PATH_CAPACITY);
+    const int named = tessera_path_endpoint(endpoint, ENGINE_PATH_CAPACITY);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  endpoint ");

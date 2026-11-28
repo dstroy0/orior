@@ -5,8 +5,8 @@
 #include "memoria_operor/memoria_operor.h"
 #include "noise_detector_internal.h"
 
-// A sample's quiet static voxels, their frames in blocks as the moment pass takes them, each retained block added to
-// the ladder's sums at its voxel's level over the other blocks
+// The quiet static voxels of a sample, with their frames in blocks as the moment pass takes them. The call adds each
+// kept block to the sums of the ladder, at the level of its voxel over the other blocks
 static long noise_ladder_sample(const unsigned short *volume, const unsigned long long extent[4], NoiseLadderSums *sums,
                                 unsigned long long *left_out, EngineError *error)
 {

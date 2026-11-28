@@ -24,6 +24,7 @@ PLATFORM_PROGRAMS=("$PLATFORM_TOP/windows/platform_windows_programs.c" "$PLATFOR
 # the probe of the lstar interface: its fault rule and its launch queue, over the programs of the platform
 PLATFORM_PROBE=("$PLATFORM_TOP/windows/windows_probe.c" "$PLATFORM_TOP/posix/posix_probe.c" "${PLATFORM_PROGRAMS[@]}")
 
-# tessera_run: a job's records and its parent's life, over the programs of the platform
-PLATFORM_TESSERA_RUN=("$PLATFORM_TOP/windows/windows_tessera_run.c" "$PLATFORM_TOP/posix/posix_tessera_run.c"
-    "${PLATFORM_PROGRAMS[@]}")
+# tessera_run: a job's records and its parent's life, over the programs of the platform. A build that links the tessera
+# client takes the programs with the client, and the files of tessera_run's own alone
+PLATFORM_TESSERA_RUN_OWN=("$PLATFORM_TOP/windows/windows_tessera_run.c" "$PLATFORM_TOP/posix/posix_tessera_run.c")
+PLATFORM_TESSERA_RUN=("${PLATFORM_TESSERA_RUN_OWN[@]}" "${PLATFORM_PROGRAMS[@]}")

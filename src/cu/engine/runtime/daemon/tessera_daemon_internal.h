@@ -37,12 +37,21 @@
 #define TESSERA_DAEMON_MILLION 1000000ULL
 #define TESSERA_HISTORY_RECORD (ENGINE_SIGNUM_BYTES + 16u)
 #define TESSERA_TICKET_CAPACITY 4096u
-
 #if defined(_WIN32)
 #define TESSERA_DAEMON_SEPARATOR '\\'
 #else
 #define TESSERA_DAEMON_SEPARATOR '/'
 #endif
+
+// One device of the system, at its index in the one ledger. It holds its UUID's bytes, all zero for the host's
+// processors at index 0. Then it holds the adapter LUID that the first job on it reports, and its measure
+typedef struct
+{
+    unsigned char device[TESSERA_DEVICE_BYTES];
+    unsigned long long luid;
+    int luid_known;
+    TesseraMeasure *measure;
+} TesseraDaemonDevice;
 
 typedef struct TesseraPeer
 {
@@ -56,6 +65,8 @@ typedef struct TesseraPeer
 #endif
     unsigned long long pid;
     TesseraProcess *process;
+    // the device that the peer's submit named, NULL until then
+    TesseraDaemonDevice *device;
     unsigned long long identity;
     unsigned long long lost_identity;
     EngineSignum signum;
@@ -69,13 +80,14 @@ typedef struct TesseraPeer
     unsigned long long grew_to;
 } TesseraPeer;
 
+// The system's one daemon. It holds its one ledger of every job on every device, and the devices by their index in
+// it. Then it holds the folder of its lock and its history, its endpoint, and its peers
 typedef struct
 {
     TesseraLedger ledger;
-    TesseraMeasure *measure;
-    unsigned char device[TESSERA_DEVICE_BYTES];
-    unsigned long long luid;
-    char state[ENGINE_PATH_CAPACITY];
+    TesseraDaemonDevice devices[TESSERA_LEDGER_DEVICES];
+    unsigned int device_count;
+    char root[ENGINE_PATH_CAPACITY];
     char endpoint[ENGINE_PATH_CAPACITY];
     TesseraPeer *peers;
     unsigned long long peer_count;
@@ -111,6 +123,7 @@ unsigned long long daemon_wall(void);
 void daemon_wait_until(unsigned long long when);
 
 
+// the file `name` in the daemon's root
 int daemon_state_file(const char *name, char *path);
 
 int daemon_history_load(void);
@@ -122,9 +135,12 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
 
 int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, const char *note);
 
-void daemon_frame_start(TesseraFrame *frame, unsigned int type, unsigned long long identity);
+// a frame of `type` for the job `identity` on `device`, which names the host's processors where it is NULL
+void daemon_frame_start(TesseraFrame *frame, const TesseraDaemonDevice *device, unsigned int type,
+                        unsigned long long identity);
 
-void daemon_device_read(void);
+// every device's capacity and use read into the ledger
+void daemon_devices_read(void);
 
 void daemon_job_dropped(TesseraPeer *peer, unsigned long long now, const char *reason);
 

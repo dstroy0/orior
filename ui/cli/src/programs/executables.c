@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables.c: a toolchain's program found where the toolchains window finds the tool, a tool's output read, and the
-// file a job's build made read back from its id and the lines its build printed
+// executables.c: a toolchain's program found where the toolchains window finds the tool, a program's version and a
+// tool's output read, and the file a job's build made read back from its id and the lines its build printed
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "executables_internal.h"
 
 int cli_executables_program(const CliExecutablesToolCfg *args)
@@ -58,6 +59,74 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
+}
+
+int cli_executables_version_read(const CliExecutablesVersionCfg *args)
+{
+    VerbaLinea *err_msg = args->err_msg;
+    const char *const words[3] = {args->program, "--version", NULL};
+    CliRunResult *const run_result = cli_run_result_alloc();
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ULL};
+    if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u,
+                    .run_result = run_result, .err_msg = &unstarted))
+    {
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+        mmgr_line_put(err_msg, args->program);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, why, unstarted.at);
+        return 0;
+    }
+    const char *text = run_result->out;
+    const char *end = run_result->out + run_result->out_size;
+    text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
+                       .size = (unsigned long long)(end - text), .set = CLI_TEXT_WHITE);
+    end = text + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = text,
+                            .at = (unsigned long long)(end - text), .set = CLI_TEXT_WHITE);
+    const char *const trimmed = text;
+    text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
+                       .size = (unsigned long long)(end - text), .set = "v");
+    // the parts between the dots that are numbers
+    unsigned long long numbers[3] = {0ULL, 0ULL, 0ULL};
+    unsigned int read = 0u;
+    while ((text < end) && (read < 3u))
+    {
+        const char *stop = text;
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
+                           .size = (unsigned long long)(end - stop), .set = ".");
+        int number = stop > text;
+        unsigned long long value = 0ULL;
+        const char *digit = text;
+        while (number && (digit < stop))
+        {
+            // Explicit cast reads the byte as its code point
+            number = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit[0]});
+            value = (value * 10ULL) + (unsigned long long)(digit[0] - '0');
+            digit += 1;
+        }
+        if (number)
+        {
+            numbers[read] = value;
+            read += 1u;
+        }
+        text = (stop < end) ? (stop + 1) : stop;
+    }
+    if (read < 3u)
+    {
+        mmgr_line_put(err_msg, args->program);
+        mmgr_line_put(err_msg, " reports no version: ");
+        mmgr_line_put_n(err_msg, trimmed, (unsigned long long)(end - trimmed));
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+        return 0;
+    }
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    *args->major = numbers[0];
+    *args->minor = numbers[1];
+    if (args->patch != NULL)
+    {
+        *args->patch = numbers[2];
+    }
+    return 1;
 }
 
 int cli_executables_output(const CliExecutablesNameCtx *args)

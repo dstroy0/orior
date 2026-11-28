@@ -123,19 +123,13 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         echo "  tessera_measure_test not built: no CUDA toolchain"
     fi
 
-    # The tests' daemons answer endpoints of their own ($TESSERA_RUNTIME), apart from the daemons that real jobs use.
-    # The endpoint is a pipe name on Windows, and on Linux a short folder, since a socket's path holds 108 bytes
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*) RUNTIME="tessera_test_$$" ;;
-        *) RUNTIME="$(mktemp -d /tmp/tessera_test.XXXXXX)" ;;
-    esac
-
-    # the daemon, and the client against it end to end
+    # the daemon, and the client against the system's daemon end to end. The client starts the daemon built here where
+    # the system has none
     rm -f "$OUT/tessera_daemon$SUFFIX" "$OUT/tessera_job_test$SUFFIX"
     OBJECTS=()
     for source in "$MODULE"/tessera_ledger.c "$MODULE"/tessera_measure.c "$MODULE"/tessera_paths.c \
                   "$MODULE"/tessera_frame.c "$MODULE"/tessera_self.c "$MODULE"/tessera_client_{socket,jobs}.c \
-                  "$MODULE"/tessera_daemon_{state,admission,peers,main}.c; do
+                  "$MODULE"/tessera_daemon_{state,admission,peers,main}.c "${PLATFORM_PROGRAMS[@]}"; do
         object="$OUT/$(basename "$source" .c)_tessera.$OBJECT"
         rm -f "$object"
         build_host -c "$source" -o "$object"
@@ -148,18 +142,39 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         build_seal "$OBSIGNATIO_CU/$name.cu" -o "$object"
         SEAL_OBJECTS+=("$object")
     done
+    # the client starts the system's daemon through the programs of the platform, which the daemon does not link. The
+    # history test links the daemon's state, its ledger and its paths
     DAEMON_OBJECTS=()
     CLIENT_OBJECTS=()
+    HISTORY_OBJECTS=()
     for object in "${OBJECTS[@]}"; do
         case "$object" in
-            *tessera_client_*_tessera.$OBJECT) CLIENT_OBJECTS+=("$object") ;;
+            *tessera_client_*_tessera.$OBJECT|*platform_*_programs_tessera.$OBJECT) CLIENT_OBJECTS+=("$object") ;;
+            *tessera_daemon_state_tessera.$OBJECT) DAEMON_OBJECTS+=("$object"); HISTORY_OBJECTS+=("$object") ;;
             *tessera_daemon_*_tessera.$OBJECT) DAEMON_OBJECTS+=("$object") ;;
-            *tessera_ledger_tessera.$OBJECT|*tessera_measure_tessera.$OBJECT) DAEMON_OBJECTS+=("$object") ;;
+            *tessera_ledger_tessera.$OBJECT) DAEMON_OBJECTS+=("$object"); HISTORY_OBJECTS+=("$object") ;;
+            *tessera_measure_tessera.$OBJECT) DAEMON_OBJECTS+=("$object") ;;
+            *tessera_paths_tessera.$OBJECT) DAEMON_OBJECTS+=("$object"); CLIENT_OBJECTS+=("$object")
+                HISTORY_OBJECTS+=("$object") ;;
             *) DAEMON_OBJECTS+=("$object"); CLIENT_OBJECTS+=("$object") ;;
         esac
     done
     build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${DAEMON_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DEVICE_LINK[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_daemon$SUFFIX"
     [ -f "$OUT/tessera_daemon$SUFFIX" ] || { echo "  build failed: the daemon did not link"; FAILED=1; }
+    rm -f "$OUT/tessera_history_test$SUFFIX" "$OUT/tessera_history_test.$OBJECT"
+    build_host -c "$TEST/tessera_history_test.c" -o "$OUT/tessera_history_test.$OBJECT"
+    build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$OUT/tessera_history_test.$OBJECT" "${HISTORY_OBJECTS[@]}" \
+        "${SEAL_OBJECTS[@]}" "${DEVICE_LINK[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_history_test$SUFFIX"
+    if [ -f "$OUT/tessera_history_test$SUFFIX" ]; then
+        rm -rf "$OUT/tessera_history_scratch"
+        "$OUT/tessera_history_test$SUFFIX" "$(cygpath -w "$OUT/tessera_history_scratch" 2>/dev/null || echo "$OUT/tessera_history_scratch")"
+        STATUS=$?
+        echo "  tessera_history_test exit $STATUS"
+        [ "$STATUS" -eq 0 ] || FAILED=1
+    else
+        echo "  build failed: tessera_history_test did not compile"
+        FAILED=1
+    fi
     if [ "$DEVICE_TOOLCHAIN" = "1" ]; then
         build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$TEST/tessera_job_test.cu" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DEVICE_LINK[@]}" \
             "${LONG_PATHS[@]}" \
@@ -168,11 +183,6 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
     if [ "$DEVICE_TOOLCHAIN" != "1" ]; then
         echo "  tessera_job_test not built: no CUDA toolchain"
     elif [ -f "$OUT/tessera_job_test$SUFFIX" ]; then
-        # the test damages the history deliberately: it runs in a state of its own; the daemon it starts inherits it
-        STATE="$OUT/tessera_state"
-        rm -rf "$STATE"
-        mkdir -p "$STATE"
-        TESSERA_STATE="$(cygpath -w "$STATE" 2>/dev/null || echo "$STATE")" TESSERA_RUNTIME="$RUNTIME" \
         "$OUT/tessera_job_test$SUFFIX" "$(cygpath -w "$OUT/tessera_daemon$SUFFIX" 2>/dev/null || echo "$OUT/tessera_daemon$SUFFIX")"
         STATUS=$?
         echo "  tessera_job_test exit $STATUS"
@@ -185,7 +195,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
     # the host's processors: tessera_run holds a host ticket around its command, beside the daemon it starts
     rm -f "$OUT/tessera_run$SUFFIX" "$OUT/tessera_burn$SUFFIX"
     RUN_OBJECTS=()
-    for source in "$MODULE"/tessera_run_{common,child,main}.c "${PLATFORM_TESSERA_RUN[@]}"; do
+    for source in "$MODULE"/tessera_run_{common,child,main}.c "${PLATFORM_TESSERA_RUN_OWN[@]}"; do
         object="$OUT/$(basename "$source" .c)_tessera.$OBJECT"
         rm -f "$object"
         build_host -c "$source" -o "$object"
@@ -196,40 +206,11 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         -o "$OUT/tessera_run$SUFFIX"
     build_host "$TEST/tessera_burn.c" "${PLATFORM_LINK[@]}" -o "$OUT/tessera_burn$SUFFIX"
     if [ -f "$OUT/tessera_run$SUFFIX" ] && [ -f "$OUT/tessera_burn$SUFFIX" ]; then
-        # the host test runs in a state of its own, which the host daemon it starts inherits
-        HOST_STATE="$OUT/tessera_host_state"
-        rm -rf "$HOST_STATE"
-        mkdir -p "$HOST_STATE"
-        TESSERA_STATE="$(cygpath -w "$HOST_STATE" 2>/dev/null || echo "$HOST_STATE")" TESSERA_RUNTIME="$RUNTIME" \
+        rm -rf "$OUT/tessera_run_scratch"
         bash "$TEST/tessera_run_test.sh" "$OUT/tessera_run$SUFFIX" "$OUT/tessera_burn$SUFFIX" "$OUT/tessera_run_scratch"
         STATUS=$?
         echo "  tessera_run_test exit $STATUS"
         [ "$STATUS" -eq 0 ] || FAILED=1
-        # Once the test holds, the script publishes tessera_run and the daemon it starts together into
-        # build/tessera_host. Every build that wraps itself in a host job finds them there. The script does not touch
-        # the device daemons beside the programs.
-        #
-        # The script first moves a copy that runs aside under another name. Windows lets a program that runs take a
-        # new name, but not a new body. The jobs already under the copy keep it. The script deletes the copies that it
-        # set aside before, once nothing runs them
-        if [ "$STATUS" -eq 0 ] && [ "$FINAL" != "$OUT" ]; then
-            HOST="$FINAL/tessera_host"
-            mkdir -p "$HOST"
-            rm -f "$HOST"/*.replaced 2> /dev/null
-            PUBLISHED=1
-            for name in "tessera_run$SUFFIX" "tessera_daemon$SUFFIX"; do
-                if [ -f "$HOST/$name" ]; then
-                    mv -f "$HOST/$name" "$HOST/$name.$(date +%Y%m%d_%H%M%S).replaced" || PUBLISHED=0
-                fi
-                cp -f "$OUT/$name" "$HOST/$name" || PUBLISHED=0
-            done
-            if [ "$PUBLISHED" -eq 1 ]; then
-                echo "  published $HOST/tessera_run$SUFFIX and its daemon"
-            else
-                echo "  build failed: could not publish tessera_run and its daemon to $HOST"
-                FAILED=1
-            fi
-        fi
     else
         echo "  build failed: tessera_run or tessera_burn did not compile"
         FAILED=1

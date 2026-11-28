@@ -78,7 +78,8 @@ exact_types_device_line || exit 1
 OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
 # sim_close releases a tessera job, and the drivers submit none. The build links the client, and nothing calls it
 shared_objects_built C_WORDS "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "$CFG_JSON/cfg_json.c" \
-    "$DAEMON_DIRECTORY"/tessera_client_{socket,jobs}.c "$DAEMON_DIRECTORY"/tessera_{paths,frame,self}.c || exit 1
+    "$DAEMON_DIRECTORY"/tessera_client_{socket,jobs}.c "$DAEMON_DIRECTORY"/tessera_{paths,frame,self}.c \
+    "${PLATFORM_PROGRAMS[@]}" || exit 1
 OBJECTS+=("${SHARED_OBJECTS[@]}")
 UNITS=("$OBSIGNATIO_CU"/obsignatio_{hash,seal}.cu)
 for module in "${MODULES[@]}"; do

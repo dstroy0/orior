@@ -18,8 +18,8 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     {
         return RESIDUAL_ERROR;
     }
-    // an odd smooth order moves both terms' centers half a voxel alike. An odd background order would move the wide
-    // term's alone, and the two would be subtracted half a voxel apart
+    // an odd smooth order moves the centers of both terms half a voxel alike. An odd background order would move that
+    // of the wide term alone, and the subtraction of the two would be half a voxel apart
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
         if (!RESIDUAL_CHECK((request->background_orders[axis] & 1u) == 0u, &request->background_orders[axis], error,
@@ -80,7 +80,7 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
         at += 1u;
     }
     program[at].operation = ENGINE_SCALE_SUBTRACT;
-    // the gain is bounded at or below 2^32 - 1 above, and narrows to unsigned int exactly
+    // the gain has a bound at or below `2^32 - 1` above, and narrows to unsigned int exactly
     program[at].shift = (unsigned int)gain;
     return (long)RESIDUAL_STEPS;
 }

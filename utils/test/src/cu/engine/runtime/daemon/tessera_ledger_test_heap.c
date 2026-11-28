@@ -80,9 +80,9 @@ static long long test_headroom_direct(const TesseraLedger *ledger)
         }
     }
     // the test's bytes stay far below two to the sixty-third
-    const long long outside = (long long)ledger->in_use - used;
+    const long long outside = (long long)ledger->in_use[0] - used;
     // the test's bytes stay far below two to the sixty-third
-    return (long long)ledger->capacity - outside - blocked;
+    return (long long)ledger->capacity[0] - outside - blocked;
 }
 
 void test_headroom(TestResults *results)
@@ -92,7 +92,7 @@ void test_headroom(TestResults *results)
         TesseraLedger ledger;
         tessera_ledger_open(&ledger);
         const unsigned long long capacity = 1000000ull + test_below(1000000ull);
-        tessera_ledger_device(&ledger, capacity, 0ull);
+        tessera_ledger_device(&ledger, 0u, capacity, 0ull);
         const unsigned int jobs = 1u + (unsigned int)test_below(8u);
         TesseraEvent events[TEST_EVENTS];
         for (unsigned int job = 0u; job < jobs; job += 1u)
@@ -114,8 +114,8 @@ void test_headroom(TestResults *results)
                 used_total += used;
             }
         }
-        tessera_ledger_device(&ledger, capacity, used_total + test_below(capacity / 4ull));
-        test_check(results, tessera_ledger_headroom(&ledger) == test_headroom_direct(&ledger));
+        tessera_ledger_device(&ledger, 0u, capacity, used_total + test_below(capacity / 4ull));
+        test_check(results, tessera_ledger_headroom(&ledger, 0u) == test_headroom_direct(&ledger));
         tessera_ledger_close(&ledger);
     }
 }
@@ -126,7 +126,7 @@ void test_heap_order(TestResults *results)
     {
         TesseraLedger ledger;
         tessera_ledger_open(&ledger);
-        tessera_ledger_device(&ledger, 1ull << 40u, 0ull);
+        tessera_ledger_device(&ledger, 0u, 1ull << 40u, 0ull);
         const unsigned int jobs = 1u + (unsigned int)test_below(300u);
         for (unsigned int job = 0u; job < jobs; job += 1u)
         {
@@ -163,7 +163,7 @@ void test_budget(TestResults *results)
 {
     TesseraLedger ledger;
     tessera_ledger_open(&ledger);
-    tessera_ledger_device(&ledger, 1000ull, 0ull);
+    tessera_ledger_device(&ledger, 0u, 1000ull, 0ull);
     unsigned long long first = 0ull;
     TesseraEvent event;
     TesseraEvent events[TEST_EVENTS];
@@ -219,7 +219,7 @@ void test_budget(TestResults *results)
     // waits, and once the peak fits it is admitted with the peak reserved
     TesseraLedger saved;
     tessera_ledger_open(&saved);
-    tessera_ledger_device(&saved, 1000ull, 700ull);
+    tessera_ledger_device(&saved, 0u, 1000ull, 700ull);
     const TesseraHistory remembered = {request.signum, 450ull, 90ull};
     test_check(results, tessera_ledger_remember(&saved, &remembered));
     unsigned long long modest = 0ull;
@@ -228,7 +228,7 @@ void test_budget(TestResults *results)
                             (event.type == TESSERA_EVENT_NONE) &&
                             (tessera_ledger_wants(&saved, tessera_ledger_job(&saved, modest)) == 450ull));
     test_check(results, tessera_ledger_admit(&saved, 7000ull, events, TEST_EVENTS) == 0ull);
-    tessera_ledger_device(&saved, 1000ull, 500ull);
+    tessera_ledger_device(&saved, 0u, 1000ull, 500ull);
     test_check(results, (tessera_ledger_admit(&saved, 7100ull, events, TEST_EVENTS) == 1ull) &&
                             (events[0].bytes == 450ull) && (tessera_ledger_job(&saved, modest)->reservation == 450ull));
     tessera_ledger_close(&saved);

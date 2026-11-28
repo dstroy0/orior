@@ -13,6 +13,11 @@
 #define CLI_LSP_PIECE 2048u
 #define CLI_LSP_ESCAPED 16384u
 
+// The max bytes of one line of a message's head, and of one message's body. A message's Content-Length is its ask to
+// send that many bytes. A head line or a Content-Length past its bound is a refusal, and the server then ends
+#define CLI_LSP_HEAD_LINE 4096u
+#define CLI_LSP_MESSAGE_MAX (64ULL << 20u)
+
 int cli_lsp_send(const CliLspWriterCfg *args)
 {
     const CliLspPart part = {args->body, args->size_value, 0};
@@ -29,12 +34,12 @@ typedef struct
     const CliLspPart *part;
     int *failed;
     CliLspReader *reader;
-    char *byte;
     char *into;
     unsigned long long *length;
     const char *body;
     unsigned long long length_value;
     char character;
+    VerbaLinea *err_msg;
 } LspWireCtx;
 // the end of the next piece of a text to escape from `at`, a character never cut
 EMBED_INLINE unsigned long long wire_piece_end(const LspWireCtx *args)
@@ -129,23 +134,50 @@ int cli_lsp_send_parts(const CliLspWriterLockCfg *args)
     return 1;
 }
 
-// the next byte the reader buffers, more read from its source where it buffers none: 1, or 0 at the source's end
-EMBED_INLINE int wire_byte(const LspWireCtx *args)
+// more bytes read from the reader's source where it buffers none: 1 where it buffers some, or 0 at the source's end
+EMBED_INLINE int wire_buffered(const LspWireCtx *args)
 {
-    char *byte = args->byte;
     if (args->reader->start == args->reader->end)
     {
         args->reader->start = 0ULL;
         args->reader->end = EMBED_CALL(args->reader->read, CliSourcePieceCapacityCfg, .source = args->reader->source,
                                        .piece = args->reader->buf, .capacity = sizeof(args->reader->buf));
-        if (args->reader->end == 0ULL)
+    }
+    return args->reader->end != 0ULL;
+}
+
+// One line of a message's head read into `into`, of CLI_LSP_HEAD_LINE bytes, its length into `length`, its newline
+// left out. 1; 0 at the source's end; or -1 with the reason in `err_msg` where the line passes CLI_LSP_HEAD_LINE
+EMBED_INLINE int wire_head_line(const LspWireCtx *args)
+{
+    unsigned long long used = 0ULL;
+    for (;;)
+    {
+        if (!EMBED_CALL(wire_buffered, LspWireCtx, .reader = args->reader))
         {
             return 0;
         }
+        const char *const buffered = args->reader->buf + args->reader->start;
+        const unsigned long long count = args->reader->end - args->reader->start;
+        const char *const newline = memor.chr(&(MemoriaCfg){.src = buffered, .val = '\n', .bytes = (embed_word)count});
+        // the newline lies in the bytes buffered, at or past their start
+        const unsigned long long taken = (newline != NULL) ? (unsigned long long)(newline - buffered) : count;
+        if ((used + taken) > CLI_LSP_HEAD_LINE)
+        {
+            mmgr_line_put(args->err_msg, "the server sent a line of a message's head past ");
+            mmgr_line_decimal(args->err_msg, CLI_LSP_HEAD_LINE, 1u);
+            mmgr_line_put(args->err_msg, " bytes, and it is refused");
+            return -1;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = args->into + used, .src = buffered, .bytes = (embed_word)taken});
+        used += taken;
+        args->reader->start += taken + ((newline != NULL) ? 1ULL : 0ULL);
+        if (newline != NULL)
+        {
+            *args->length = used;
+            return 1;
+        }
     }
-    *byte = args->reader->buf[args->reader->start];
-    args->reader->start += 1ULL;
-    return 1;
 }
 
 // `size` bytes read from the reader into `into`, or passed over where it is NULL: 1, or 0 at the source's end
@@ -178,40 +210,45 @@ EMBED_INLINE int wire_bytes(const LspWireCtx *args)
     return 1;
 }
 
-// a message's head read, up to the empty line that ends it, its Content-Length into `length`: 1, or 0 at the source's
-// end or where the head names no length
+// A message's head read, up to the empty line that ends it, its Content-Length into `length`. That length is the
+// server's ask to send its body. 1 where the ask is in the bound, and 0 at the source's end. It answers -1 with the
+// reason in `err_msg` where a line passes its bound, the head names no length, or the length passes its bound
 static int wire_head_read(const LspWireCtx *args)
 {
     unsigned long long *length = args->length;
     int has_length = 0;
     for (;;)
     {
-        char line[4096];
+        char line[CLI_LSP_HEAD_LINE];
         unsigned long long used = 0ULL;
-        char byte = '\0';
-        int read = 0;
-        while (EMBED_CALL(wire_byte, LspWireCtx, .reader = args->reader, .byte = &byte))
+        const int read = EMBED_CALL(wire_head_line, LspWireCtx, .reader = args->reader, .into = line, .length = &used,
+                                    .err_msg = args->err_msg);
+        if (read != 1)
         {
-            read = 1;
-            if (byte == '\n')
-            {
-                break;
-            }
-            line[used] = byte;
-            used += (used + 1ULL < sizeof(line)) ? 1ULL : 0ULL;
-        }
-        if (!read)
-        {
-            return 0;
+            return read;
         }
         while ((used > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
                                      .src = " \t\r", .cap = CLI_POOL_BYTES, .byte = line[used - 1ULL]}) != NULL))
         {
             used -= 1ULL;
         }
+        if ((used == 0ULL) && !has_length)
+        {
+            mmgr_line_put(args->err_msg, "the server sent a message whose head names no Content-Length, and it is refused");
+            return -1;
+        }
         if (used == 0ULL)
         {
-            return has_length;
+            if (*length > CLI_LSP_MESSAGE_MAX)
+            {
+                mmgr_line_put(args->err_msg, "the server asked to send a message of ");
+                mmgr_line_decimal(args->err_msg, *length, 1u);
+                mmgr_line_put(args->err_msg, " bytes, past the bound of ");
+                mmgr_line_decimal(args->err_msg, CLI_LSP_MESSAGE_MAX, 1u);
+                mmgr_line_put(args->err_msg, ", and it is refused");
+                return -1;
+            }
+            return 1;
         }
         static const char s_head[] = "Content-Length:";
         if ((used >= sizeof(s_head) - 1ULL) &&
@@ -250,59 +287,76 @@ EMBED_INLINE int wire_body_valid(const LspWireCtx *args)
                       .size = args->length_value, .out = &checked);
 }
 
+// the refusal of a body whose bytes are not JSON whole, or whose characters are not UTF-8 whole
+EMBED_INLINE void wire_body_refused(const LspWireCtx *args)
+{
+    mmgr_line_put(args->err_msg, "the server sent a message of ");
+    mmgr_line_decimal(args->err_msg, args->length_value, 1u);
+    mmgr_line_put(args->err_msg, " bytes that is not JSON whole, and it is refused");
+}
+
 char *cli_lsp_message_alloc(const CliLspReaderSizeCfg *args)
 {
-    unsigned long long *size = args->size;
-    for (;;)
+    unsigned long long length = 0ULL;
+    if (EMBED_CALL(wire_head_read, LspWireCtx, .reader = args->reader, .length = &length, .err_msg = args->err_msg) !=
+        1)
     {
-        unsigned long long length = 0ULL;
-        if (!EMBED_CALL(wire_head_read, LspWireCtx, .reader = args->reader, .length = &length))
-        {
-            return NULL;
-        }
-        // one byte past the body, and an empty body is a cell too; a body the cells cannot meet is passed over whole
-        char *const body = g_platform_guard->temporary_buf_alloc(length + 1ULL, args->owner);
-        if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = body, .size = length))
-        {
-            g_platform_guard->persistent_buf_release(body, args->owner);
-            return NULL;
-        }
-        if ((body != NULL) && EMBED_CALL(wire_body_valid, LspWireCtx, .body = body, .length_value = length))
-        {
-            body[length] = '\0';
-            *size = length;
-            return body;
-        }
-        g_platform_guard->persistent_buf_release(body, args->owner);
+        return NULL;
     }
+    // the ask granted: one byte past the body, and an empty body is a cell too
+    char *const body = g_platform_guard->temporary_buf_alloc(length + 1ULL, args->owner);
+    if (body == NULL)
+    {
+        mmgr_line_put(args->err_msg, "no cell of ");
+        mmgr_line_decimal(args->err_msg, length + 1ULL, 1u);
+        mmgr_line_put(args->err_msg, " bytes was free for the server's message, and it is refused");
+        return NULL;
+    }
+    if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = body, .size = length))
+    {
+        g_platform_guard->persistent_buf_release(body, args->owner);
+        return NULL;
+    }
+    if (!EMBED_CALL(wire_body_valid, LspWireCtx, .body = body, .length_value = length))
+    {
+        g_platform_guard->persistent_buf_release(body, args->owner);
+        EMBED_CALL(wire_body_refused, LspWireCtx, .length_value = length, .err_msg = args->err_msg);
+        return NULL;
+    }
+    body[length] = '\0';
+    *args->size = length;
+    return body;
 }
 
 int cli_lsp_read_message(const CliLspReaderCfg *args)
 {
     unsigned long long *size = args->size;
-    for (;;)
+    unsigned long long length = 0ULL;
+    if (EMBED_CALL(wire_head_read, LspWireCtx, .reader = args->reader, .length = &length, .err_msg = args->err_msg) !=
+        1)
     {
-        unsigned long long length = 0ULL;
-        if (!EMBED_CALL(wire_head_read, LspWireCtx, .reader = args->reader, .length = &length))
-        {
-            return 0;
-        }
-        if (length > args->capacity)
-        {
-            // a body larger than the capacity is passed over whole, and the next message read
-            if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = NULL, .size = length))
-            {
-                return 0;
-            }
-            continue;
-        }
-        if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = args->body_out, .size = length))
-        {
-            return 0;
-        }
-        *size = length;
-        return EMBED_CALL(wire_body_valid, LspWireCtx, .body = args->body_out, .length_value = length);
+        return 0;
     }
+    if (length > args->capacity)
+    {
+        mmgr_line_put(args->err_msg, "the server asked to send a message of ");
+        mmgr_line_decimal(args->err_msg, length, 1u);
+        mmgr_line_put(args->err_msg, " bytes, past the reader's bound of ");
+        mmgr_line_decimal(args->err_msg, args->capacity, 1u);
+        mmgr_line_put(args->err_msg, ", and it is refused");
+        return 0;
+    }
+    if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = args->body_out, .size = length))
+    {
+        return 0;
+    }
+    *size = length;
+    if (!EMBED_CALL(wire_body_valid, LspWireCtx, .body = args->body_out, .length_value = length))
+    {
+        EMBED_CALL(wire_body_refused, LspWireCtx, .length_value = length, .err_msg = args->err_msg);
+        return 0;
+    }
+    return 1;
 }
 
 // where a JSON value that starts at `at` ends

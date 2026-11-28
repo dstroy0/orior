@@ -187,6 +187,46 @@ static void plugins_languages_read(const CliJson *json, unsigned int server, Cli
     }
 }
 
+// The methods of the array `methods` of the server `server` in `json` into `names`, CLI_LSP_METHODS at most, and their
+// count into `count`. A server with no array takes no method. 1, or 0 with why given where the member is no array of
+// strings or it has more than CLI_LSP_METHODS
+static int plugins_methods_read(const CliJson *json, unsigned int server, const char **names, unsigned int *count,
+                                VerbaLinea *err_msg)
+{
+    const unsigned int methods = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = server, .name = "methods");
+    *count = 0u;
+    if (methods == CLI_JSON_NONE)
+    {
+        return 1;
+    }
+    if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = methods,
+                    .type = CFG_JSON_ARRAY))
+    {
+        mmgr_line_put(err_msg, "the methods of the plugin's server are no array");
+        return 0;
+    }
+    for (unsigned int item = json->node[methods].first; item != CLI_JSON_NONE; item = json->node[item].next)
+    {
+        const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = item, .length_pointer = NULL);
+        if (name == NULL)
+        {
+            mmgr_line_put(err_msg, "a method of the plugin's server is no string");
+            return 0;
+        }
+        if (*count == CLI_LSP_METHODS)
+        {
+            mmgr_line_put(err_msg, "the methods of the plugin's server are past the max of ");
+            mmgr_line_decimal(err_msg, CLI_LSP_METHODS, 1u);
+            return 0;
+        }
+        names[*count] = name;
+        *count += 1u;
+    }
+    return 1;
+}
+
 // The plugin's server started from its kept plugin.json, as cli_plugins_settings_of passes the plugin. Its toolchain
 // finds its program. Its first words come before the words of its `args`. The options take `{folder}` as
 // the program's folder
@@ -238,12 +278,15 @@ static void plugins_started(const CliEachPluginCfg *args)
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = plugin->id, .src = start->id, .cap = CLI_NAME_MAX_LEN});
     plugins_languages_read(json, server, plugin);
     plugin->sink = (start->sink != NULL) ? *start->sink : (CliServersSink){0};
+    const char *methods[CLI_LSP_METHODS];
+    unsigned int method_count = 0u;
+    const int methods_read = plugins_methods_read(json, server, methods, &method_count, start->err_msg);
     CliLsp *const lsp =
-        (!words->full && mmgr_line_ok(&optioned))
+        (methods_read && !words->full && mmgr_line_ok(&optioned))
             ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .err_msg = start->err_msg, .program = program,
                          .request = words->word_text, .count = words->count, .root = start->root, .options = options,
                          .length = optioned.at, .recv = plugins_recv, .context = plugin, .overseen = start->id,
-                         .overseen_role = CLI_OVERSEER_SERVER)
+                         .overseen_role = CLI_OVERSEER_SERVER, .methods = methods, .method_count = method_count)
             : NULL;
     plugin->lsp = lsp;
     plugin->used = (lsp != NULL);

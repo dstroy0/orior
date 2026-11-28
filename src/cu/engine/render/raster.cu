@@ -234,10 +234,10 @@ __device__ static unsigned long long device_volume_cell(const DeviceVolumeConfig
 /**
  * @brief Renders every alignment into the volume, one thread each.
  *
- * @note The value comes from the same device_sample the sheet kernel uses, since a channel means
- *       one thing across both. Only the cell mapping differs, and `error` carries the host's
- *       whole-render error into the parallel form: a thread whose alignment maps out of range
- *       sets it, and the host returns 0 without reading the staging buffer.
+ * @note The value comes from the same device_sample that the sheet kernel uses, because a channel
+ *       means one thing across both. Only the cell map differs. `error` carries the whole-render
+ *       error of the host into the parallel form. A thread whose alignment maps out of range sets
+ *       it, and the host returns 0 with no read of the staging buffer.
  */
 __global__ void render_volume(unsigned int *staging, int *error, DeviceVolumeConfig vconfig,
                               const unsigned char *corpus, unsigned long long corpus_len, const unsigned char *needle,
@@ -252,7 +252,7 @@ __global__ void render_volume(unsigned int *staging, int *error, DeviceVolumeCon
     }
 
     // device_sample reads only the channel and the gain from the configuration. The width, height
-    // and layout it is passed are the volume's and go unread.
+    // and layout that it gets are those of the volume, and go unread.
     DeviceConfig sample_config;
     sample_config.width = vconfig.width;
     sample_config.height = vconfig.height;

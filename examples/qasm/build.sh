@@ -103,6 +103,9 @@ qasm_build()
         "$DAEMON_DIRECTORY"/tessera_daemon_{state,admission,peers,main}.c || return 1
     OBJECTS+=("${SHARED_OBJECTS[@]:0:5}")
     DAEMON_OBJECTS=("${SHARED_OBJECTS[@]:2}")
+    # the client starts the system's daemon through the programs of the platform, which the program links
+    shared_objects_built c_words "${PLATFORM_PROGRAMS[@]}" || return 1
+    OBJECTS+=("${SHARED_OBJECTS[@]}")
     shared_objects_built cu_words "$OBSIGNATIO_CU"/obsignatio_{hash,seal}.cu || return 1
     SEAL_OBJECTS=("${SHARED_OBJECTS[@]}")
     OBJECTS+=("${SEAL_OBJECTS[@]}")

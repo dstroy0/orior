@@ -31,7 +31,8 @@ typedef struct
 // the lock its input is written under, and the writer of its input; under its lock, the next id, the requests waiting,
 // what it wrote to its errors, and its readers still reading, woken by its wake; what it reported it can do, in a
 // movable cell of its size given back with the server, and its bytes; its receiver; and its readers. Last are its name
-// for the overseer, empty for none, and whether a stop or a let-go is under way
+// for the overseer, empty for none, and whether a stop or a let-go is under way. Then the methods that its receiver
+// takes, in the order of memor.cmp, each name zero-filled to its width, and their count
 struct CliLsp
 {
     int reserved;
@@ -58,6 +59,8 @@ struct CliLsp
     char overseen[CLI_NAME_MAX_LEN];
     unsigned int overseen_role;
     int stopping;
+    char method[CLI_LSP_METHODS][CLI_LSP_METHOD_LEN];
+    unsigned int methods;
 };
 
 // the lock a server's number and references are counted under; each server is a cell of its own, taken as it starts and

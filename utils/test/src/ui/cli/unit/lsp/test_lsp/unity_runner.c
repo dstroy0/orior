@@ -21,6 +21,9 @@ extern void test_a_requests_answer_is_the_message_returned_its_result_ended_by_a
 extern void test_an_answers_cell_stays_allocated_until_the_caller_releases_it(void);
 extern void test_a_request_the_server_refuses_returns_nothing_and_records_its_reason(void);
 extern void test_a_message_is_read_by_its_length_and_the_next_after_it(void);
+extern void test_a_message_past_its_bound_is_refused_with_its_size_before_a_byte_of_it_is_read(void);
+extern void test_a_head_with_no_length_or_a_body_that_is_not_json_is_refused(void);
+extern void test_a_method_outside_the_servers_table_is_dropped_logged_and_refused_as_method_not_found(void);
 extern void test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other(void);
 
 
@@ -83,17 +86,20 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/lsp/test_lsp/test_lsp.c");
-  run_test(test_a_path_is_written_as_a_file_uri_its_characters_escaped, "test_a_path_is_written_as_a_file_uri_its_characters_escaped", 186);
-  run_test(test_a_uri_names_the_path_it_was_written_from, "test_a_uri_names_the_path_it_was_written_from", 199);
-  run_test(test_a_servers_end_is_known, "test_a_servers_end_is_known", 219);
-  run_test(test_what_an_ended_server_had_open_is_recorded, "test_what_an_ended_server_had_open_is_recorded", 226);
-  run_test(test_the_last_thing_an_ended_server_wrote_is_recorded, "test_the_last_thing_an_ended_server_wrote_is_recorded", 232);
-  run_test(test_a_file_open_stores_its_uri_in_a_cell_released_as_the_server_is, "test_a_file_open_stores_its_uri_in_a_cell_released_as_the_server_is", 238);
-  run_test(test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0, "test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0", 245);
-  run_test(test_an_answers_cell_stays_allocated_until_the_caller_releases_it, "test_an_answers_cell_stays_allocated_until_the_caller_releases_it", 263);
-  run_test(test_a_request_the_server_refuses_returns_nothing_and_records_its_reason, "test_a_request_the_server_refuses_returns_nothing_and_records_its_reason", 280);
-  run_test(test_a_message_is_read_by_its_length_and_the_next_after_it, "test_a_message_is_read_by_its_length_and_the_next_after_it", 297);
-  run_test(test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other, "test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other", 318);
+  run_test(test_a_path_is_written_as_a_file_uri_its_characters_escaped, "test_a_path_is_written_as_a_file_uri_its_characters_escaped", 214);
+  run_test(test_a_uri_names_the_path_it_was_written_from, "test_a_uri_names_the_path_it_was_written_from", 227);
+  run_test(test_a_servers_end_is_known, "test_a_servers_end_is_known", 247);
+  run_test(test_what_an_ended_server_had_open_is_recorded, "test_what_an_ended_server_had_open_is_recorded", 254);
+  run_test(test_the_last_thing_an_ended_server_wrote_is_recorded, "test_the_last_thing_an_ended_server_wrote_is_recorded", 260);
+  run_test(test_a_file_open_stores_its_uri_in_a_cell_released_as_the_server_is, "test_a_file_open_stores_its_uri_in_a_cell_released_as_the_server_is", 266);
+  run_test(test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0, "test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0", 273);
+  run_test(test_an_answers_cell_stays_allocated_until_the_caller_releases_it, "test_an_answers_cell_stays_allocated_until_the_caller_releases_it", 291);
+  run_test(test_a_request_the_server_refuses_returns_nothing_and_records_its_reason, "test_a_request_the_server_refuses_returns_nothing_and_records_its_reason", 308);
+  run_test(test_a_message_is_read_by_its_length_and_the_next_after_it, "test_a_message_is_read_by_its_length_and_the_next_after_it", 325);
+  run_test(test_a_message_past_its_bound_is_refused_with_its_size_before_a_byte_of_it_is_read, "test_a_message_past_its_bound_is_refused_with_its_size_before_a_byte_of_it_is_read", 367);
+  run_test(test_a_head_with_no_length_or_a_body_that_is_not_json_is_refused, "test_a_head_with_no_length_or_a_body_that_is_not_json_is_refused", 376);
+  run_test(test_a_method_outside_the_servers_table_is_dropped_logged_and_refused_as_method_not_found, "test_a_method_outside_the_servers_table_is_dropped_logged_and_refused_as_method_not_found", 385);
+  run_test(test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other, "test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other", 425);
 
   return UNITY_END();
 }

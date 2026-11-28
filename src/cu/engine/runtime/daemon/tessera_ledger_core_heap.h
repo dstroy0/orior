@@ -169,25 +169,56 @@ TESSERA_CORE unsigned long long tessera_core_unallocated(const TesseraJob *job)
     return (job->reservation > job->used) ? (job->reservation - job->used) : 0ULL;
 }
 
-TESSERA_CORE void tessera_core_device(TesseraLedger *ledger, unsigned long long capacity, unsigned long long in_use)
+// the headroom of a device index past the table: no room
+#define TESSERA_CORE_NO_DEVICE (-1LL)
+
+TESSERA_CORE void tessera_core_device(TesseraLedger *ledger, unsigned int device, unsigned long long capacity,
+                                      unsigned long long in_use)
 {
-    ledger->capacity = capacity;
-    ledger->in_use = in_use;
+    if (device < TESSERA_LEDGER_DEVICES)
+    {
+        ledger->capacity[device] = capacity;
+        ledger->in_use[device] = in_use;
+    }
 }
 
-TESSERA_CORE long long tessera_core_headroom(const TesseraLedger *ledger)
+// The room of a running job: its unallocated reservation, less what its running children drew on it. A child's
+// reservation counts the bytes it drew, and the parent's room then counts them no more
+TESSERA_CORE unsigned long long tessera_core_room(const TesseraLedger *ledger, const TesseraJob *job)
 {
+    unsigned long long drawn = 0ULL;
+    for (unsigned long long at = 0ULL; at < ledger->job_count; at += 1ULL)
+    {
+        const TesseraJob *const child = &ledger->jobs[at];
+        if ((child->state == TESSERA_JOB_RUNNING) && (child->request.parent == job->identity) &&
+            (job->identity != 0ULL))
+        {
+            drawn = tessera_core_sum(drawn, child->lent);
+        }
+    }
+    const unsigned long long unallocated = tessera_core_unallocated(job);
+    return (unallocated > drawn) ? (unallocated - drawn) : 0ULL;
+}
+
+// the device's capacity less its measured use and the room of the jobs that run on it
+TESSERA_CORE long long tessera_core_headroom(const TesseraLedger *ledger, unsigned int device)
+{
+    if (device >= TESSERA_LEDGER_DEVICES)
+    {
+        return TESSERA_CORE_NO_DEVICE;
+    }
     unsigned long long owed = 0ULL;
     for (unsigned long long at = 0ULL; at < ledger->job_count; at += 1ULL)
     {
-        if (ledger->jobs[at].state == TESSERA_JOB_RUNNING)
+        if ((ledger->jobs[at].state == TESSERA_JOB_RUNNING) && (ledger->jobs[at].request.device == device))
         {
-            owed = tessera_core_sum(owed, tessera_core_unallocated(&ledger->jobs[at]));
+            owed = tessera_core_sum(owed, tessera_core_room(ledger, &ledger->jobs[at]));
         }
     }
-    const unsigned long long taken = tessera_core_sum(ledger->in_use, owed);
+    const unsigned long long taken = tessera_core_sum(ledger->in_use[device], owed);
+    const unsigned long long capacity = ledger->capacity[device];
     // a device's bytes and every sum here stay below two to the sixty-third, and each difference is exact signed
-    return (taken <= ledger->capacity) ? (long long)(ledger->capacity - taken) : -(long long)(taken - ledger->capacity);
+    return (taken <= capacity) ? (long long)(capacity - taken) : -(long long)(taken - capacity);
 }
 
 TESSERA_CORE const TesseraHistory *tessera_core_history(const TesseraLedger *ledger, const EngineSignum *signum)
@@ -224,7 +255,8 @@ TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequ
                                      unsigned long long *identity, TesseraEvent *event)
 {
     *event = tessera_core_event(TESSERA_EVENT_NONE, 0ULL, 0ULL, 0ULL);
-    if ((request->declared == 0ULL) || (ledger->job_count >= ledger->job_capacity))
+    if ((request->declared == 0ULL) || (request->device >= TESSERA_LEDGER_DEVICES) ||
+        (ledger->job_count >= ledger->job_capacity))
     {
         return 0;
     }
@@ -243,6 +275,7 @@ TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequ
     job->expected_end = 0ULL;
     job->grace_until = over ? tessera_core_sum(now, request->grace_microseconds) : 0ULL;
     job->next_sweep = 0ULL;
+    job->lent = 0ULL;
     if (over && !tessera_core_heap_push(ledger, job->grace_until, job->identity, TESSERA_EVENT_LOST))
     {
         return 0;

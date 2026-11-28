@@ -2224,7 +2224,12 @@ int cli_servers_panels_step(void)
         EMBED_CALL(panels_view_send, PanelsCtx, .at = 0u);
     }
     const PanelsShown after = EMBED_CALL(panels_shown, PanelsCtx, .at = 0u);
-    return asked || (memor.cmp(&(MemoriaCfg){.src = &before, .other = &after, .bytes = sizeof(before)}) != 0);
+    // The step compares member by member. The padding of PanelsShown holds no set value, and a compare of its bytes can
+    // differ where no member changed
+    return asked || (before.hover_displayed != after.hover_displayed) || (before.hover_length != after.hover_length) ||
+           (before.hover_line != after.hover_line) || (before.hover_from != after.hover_from) ||
+           (before.hover_to != after.hover_to) || (before.completion_open != after.completion_open) ||
+           (before.signature_displayed != after.signature_displayed);
 }
 
 // the views' moments the panels take: each frame put in place, and each view about to close. A view opens in its

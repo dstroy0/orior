@@ -51,21 +51,32 @@ typedef struct
     unsigned int word;
 } BranchWordPlace;
 
-// A walker: a thread of its own walking one text at a time, what it runs, the line its steps' colors are written into,
-// taken once and emptied for each step, and whether it walks, under the lock
+// A walker:
+//
+// - `thread`: a thread of its own, which walks one text at a time
+// - `walking`: whether it walks, under the lock
 typedef struct
 {
     CliThread thread;
     int walking;
 } CliBranchWalker;
-// The runs of runs of lines passed on as they are written: whether a `{"from", "runs"}` is begun, how many lines' runs
-// it holds, whether a run of lines passed on with it was written before it, where they are written, the columns of
-// each line whose runs are passed on, 0 for every one, how many names the grammar's tokens take, the place of the
-// first a run that counts depth takes by its depth, 0 for a grammar that names none, the bytes of lines it colors yet,
-// CLI_DOC_ALL_BYTES where it colors every line asked, and the line after the last whose runs were written; whether the
-// text moved while it colored, and it colors no more; whether the lines whose runs are passed on are those it asks,
-// from `hand_from` to before `hand_to`, else those the page holds as each is put in; and the line it colors no further
-// than as it goes on past the lines asked. Its columns read as the text's as each line is put in, where it names them
+// The runs of runs of lines, passed on as the walk writes them:
+//
+// - `begun`: whether a `{"from", "runs"}` started
+// - `written`: how many runs of lines it holds
+// - `any`: whether the walk wrote a run of lines passed on with it before it
+// - `out`: where the walk writes them
+// - `columns`: the columns of each line whose runs go on, 0 for every one
+// - `names`: how many names the tokens of the grammar take. That is also the place of the first name that a run which
+//   counts depth takes by its depth. It is 0 for a grammar that names none.
+// - `bytes`: the bytes of lines that it still colors, CLI_DOC_ALL_BYTES where it colors every line asked
+// - `next`: the line after the last whose runs the walk wrote
+// - `stale`: whether the text moved while it colored, and then it colors no more
+// - `requested`: whether the lines whose runs go on are those that it asks, from `hand_from` to before `hand_to`. Else
+//   they are those that the page holds as each goes in.
+// - `high`: the line that it colors no further than, as it goes on past the lines asked
+//
+// Its columns read as those of the text as each line goes in, where it names them
 typedef struct
 {
     int begun;
@@ -82,13 +93,20 @@ typedef struct
     unsigned int hand_to;
     unsigned int high;
 } CliBranchRange;
+// the max names that a scope holds, and the bytes that their texts take
 #define CLI_DOC_SCOPE_NAMES 128u
 #define CLI_DOC_SCOPE_TEXT 4096u
-// The scope a line is in as the walk reads it: the depth of the regions open, the depth of the pairs open that
-// count it, and the names declared in the regions that a use of the name is named as, each its text's place among the
-// texts and its bytes, the name its declaration's run takes, the depth of the region it belongs to, and whether it
-// waits for that region to open, as a function's parameter waits for its body; how many, and the texts' bytes used; and
-// its place among the text's states, found again only where it moved since, CLI_DOC_NONE where it was not found
+// The scope that a line is in, as the walk reads it:
+//
+// - `depth`: the depth of the regions open
+// - `pairs`: the depth of the pairs open that count it
+// - `count`: how many names the regions declare that a use of the name takes its name from
+// - for each name: `text_at`, the place of its text among the texts, and `size`, its bytes. `named` is the name that
+//   the run of its declaration takes, and `belongs` the depth of the region that it belongs to. `waits` is whether it
+//   waits for that region to open, as the parameter of a function waits for its body.
+// - `used` and `text`: the bytes of the texts that it uses, and the texts
+// - `place`: its place among the states of the text, CLI_DOC_NONE where the walk did not find it
+// - `moved`: whether it moved since then, the only case where the walk finds it again
 typedef struct
 {
     unsigned int depth;
@@ -104,14 +122,23 @@ typedef struct
     unsigned int place;
     int moved;
 } CliBranchScope;
-// A bundle of lines as it is colored with no lock taken: the work it is written into; the scope the line colored next
-// is in, and whether the place among the text's states of the scope the line before it ended in is known; the names
-// the grammar's tokens take, and the roles of each, read as the lines were claimed, `roles_count` of them; the words of
-// what it found written; and whether the cells refused the capacity for them. What it finds on each line is a record of
-// words: how many runs, the line's regions, the bytes of the colorer's state the line ends in, and the bytes of the
-// scope it ends in, CLI_DOC_NONE for a scope with no depth, pairs or names, CLI_DOC_SCOPE_SAME for the one the line
-// before it ended in; then the runs' columns, their names as the walk names them, the colorer's state and the scope,
-// each of the two from a word of its own
+// A bundle of lines as the walk colors it, with no lock taken:
+//
+// - `named`, `found` and their capacities: the work that the walk writes it into
+// - `filled`: whether the work is full. The lines past the capacity go to the next bundle.
+// - `scope`: the scope that the line colored next is in
+// - `positioned`: whether the walk knows the place, among the states of the text, of the scope that the line before it
+//   ended in
+// - `names`, `roles` and `roles_count`: the names that the tokens of the grammar take, and the roles of each, read as
+//   the walk claimed the lines
+// - `used`: the words of what it found, written
+// - `refused`: whether the cells refused the capacity for them
+//
+// What it finds on each line is a record of words. It is how many runs, and the regions of the line. Then the bytes of
+// the state of the colorer that the line ends in, and the bytes of the scope that it ends in. The scope is CLI_DOC_NONE
+// for a scope with no depth, pairs or names, and CLI_DOC_SCOPE_SAME for the one that the line before it ended in. Then
+// come the columns of the runs, and their names as the walk names them. Last come the state of the colorer and the
+// scope, each of the two from a word of its own
 typedef struct
 {
     unsigned int *named;
@@ -127,13 +154,20 @@ typedef struct
     unsigned long long used;
     int refused;
 } CliBranchFinding;
-// root's place among a colored text's states, the first written; the max lines a step of the walk colors in a run, and
-// again after it, and the max bytes of lines it colors, the last line it colors maybe past them, and its colors are
-// passed on in steps, and the bytes of a coloring that colors every line asked; the lines colored at once where a
-// coloring stops at the first entered as before, and where it does not, CLI_DOC_STEP where its bytes reach no further;
-// the capacity a step's colors are written in, a state's longest text, the max states a text has and the places of
-// the run of the newest of them in its index, the bytes a coloring's capacity is written in, the share of what a
-// text's capacity for its states or its runs is taken for that it holds past it, and no line
+// the constants of a coloring:
+//
+// - CLI_DOC_ROOT: the place of root among the states of a colored text, the first written
+// - CLI_DOC_STEP: the max lines that a step of the walk colors in a run, and again after it
+// - CLI_DOC_STEP_BYTES: the max bytes of lines that it colors. The last line that it colors can pass them, and its
+//   colors go on in steps.
+// - CLI_DOC_ALL_BYTES: the bytes of a coloring that colors every line asked
+// - CLI_DOC_BATCH: the lines colored at once where a coloring stops at the first line entered as before
+// - CLI_DOC_RUN: the lines colored at once where it does not stop, and CLI_DOC_STEP where its bytes reach no further
+// - CLI_DOC_COLORS_CAPACITY: the capacity that the walk writes the colors of a coloring in
+// - CLI_DOC_STATE: the longest text of a state
+// - CLI_DOC_STATES_MAX: the max states that a text has
+// - CLI_DOC_STATE_RUN: the places of the run of the newest states in its index
+// - CLI_DOC_NONE: no line
 #define CLI_DOC_ROOT 0u
 #define CLI_DOC_STEP 256u
 #define CLI_DOC_STEP_BYTES 16384ULL
@@ -146,22 +180,22 @@ typedef struct
 #define CLI_DOC_STATE_RUN 256u
 #define CLI_DOC_NONE 0xffffffffu
 
-// what the walk saves of a line: how many runs it found and the column the line ends at, then the runs' columns and
-// their names
+// what the walk saves of a line: how many runs it found, and the column that the line ends at. Then the columns of the
+// runs, and their names
 #define CLI_DOC_RECORD_HEAD 2u
 
-// the max walkers; where the colors go, whether walkers walk them out, and how many may walk at once, the machine's
-// processors but one, one at the fewest; the walkers, and past them the walk a caller takes on its own thread; and the
-// lock the colors are passed on under, taken before the texts' lock is given back, and they go in the order they were
-// put in
+// the max walkers. Then where the colors go, and whether walkers walk them out. Then how many can walk at once: the
+// processors of the machine but one, and one at the fewest. Then the walkers, and past them the walk that a caller
+// takes on its own thread. Last, the lock that the colors go on under, taken before the walk gives back the lock of the
+// texts. The colors go in the order that they went in
 #define CLI_DOC_WALKERS 8u
 static CliDocColored s_colored;
 static int s_threaded;
 static unsigned int s_walkers_max;
 static CliBranchWalker s_walkers[CLI_DOC_WALKERS + 1u];
 
-// A cell of the temporary tier that a read over many lines takes once and reads each line into: the cell, NULL for
-// none, and its bytes. It grows by half again where a line needs more, and goes back as the read ends
+// A cell of the temporary tier that a read over many lines takes once, and reads each line into. It is the cell, NULL
+// for none, and its bytes. It grows by half again where a line needs more, and goes back as the read ends
 typedef struct
 {
     void *cell;
@@ -289,8 +323,8 @@ EMBED_INLINE const CarcerMovableEntry *branch_state_cell(const DocumentBranchCtx
     return cell;
 }
 
-// the state at the place `at` among the text's states copied into `text_out`, CLI_DOC_STATE bytes, ended by a NUL: its
-// length, 0 with an empty text where no state is there
+// the state at the place `at` among the states of the text, copied into `text_out`, CLI_DOC_STATE bytes, ended by a
+// NUL. The return is its length, 0 with an empty text where no state is there
 EMBED_INLINE unsigned long long branch_state_text(const DocumentBranchCtx *args)
 {
     args->text_out[0] = '\0';
@@ -399,7 +433,7 @@ EMBED_INLINE int branch_state_is(const DocumentBranchCtx *args)
 {
     const CarcerMovableEntry *const cell =
         EMBED_CALL(branch_state_cell, DocumentBranchCtx, .one_read = args->one_read, .at = args->at);
-    // the state's length is compared first, so a state the text only starts differs from it
+    // the call compares the length of the state first, so that a state that the text only starts differs from it
     return (cell != NULL) && (g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = cell}) == args->length) &&
            (g_platform_guard->movable_buf_compare(
                 &(CarcerMovableCfg){.cell = cell, .src = args->text, .bytes = args->length + 1ULL}) == 0);
@@ -424,8 +458,8 @@ static BranchStatePlace branch_index_place(const CliStoredText *one, unsigned in
     return place;
 }
 
-// the number of the state of `length` bytes of `text`, of the hash `hash`, CLI_DOC_NONE where the text has none: the
-// run first, then the order from the first place of the hash, which a binary search finds
+// the number of the state of `length` bytes of `text`, of the hash `hash`, CLI_DOC_NONE where the text has none. The
+// call looks in the run first, then in the order from the first place of the hash, which a binary search finds
 static unsigned int branch_index_found(const DocumentBranchCtx *args, unsigned int hash, unsigned long long length)
 {
     const CliStoredText *const one = args->one;
@@ -476,8 +510,9 @@ static unsigned int branch_index_found(const DocumentBranchCtx *args, unsigned i
     return CLI_DOC_NONE;
 }
 
-// the index's run, where it is full, sorted once and merged into the order from its end, through a cell of the
-// temporary tier that holds the order and the run: 1, or 0 where the cells cannot meet it
+// the run of the index, where it is full, sorted once and merged into the order from its end. The call does that
+// through a cell of the temporary tier that holds the order and the run. The return is 1, or 0 where the cells cannot
+// meet it
 static int branch_index_merged(CliStoredText *one)
 {
     if (one->state_run < CLI_DOC_STATE_RUN)
@@ -543,8 +578,8 @@ EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
     args->one->state_run += 1u;
 }
 
-// the index and the states' cells taken at their max where they are untaken: 1, or 0 where the cells cannot meet
-// them or the text holds CLI_DOC_STATES_MAX states
+// the index and the cells of the states, taken at their max where they are untaken. The return is 1, or 0 where the
+// cells cannot meet them or the text holds CLI_DOC_STATES_MAX states
 EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
 {
     if (args->one->state_indexed == 0u)
@@ -571,8 +606,9 @@ EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
     return (args->one->state_count + 1u) <= CLI_DOC_STATES_MAX;
 }
 
-// the place of the state `text` among the text's states, found by its hash, the place found last tried first, and
-// written after them where it is not there: root's place where the cells cannot meet it, the text's colors refused
+// the place of the state `text` among the states of the text, found by its hash, with the place found last tried
+// first. The call writes it after them where it is not there. The return is the place of root where the cells cannot
+// meet it, with the colors of the text refused
 static unsigned int branch_state(const DocumentBranchCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
@@ -598,8 +634,8 @@ static unsigned int branch_state(const DocumentBranchCtx *args)
         args->one->refused = 1;
         return CLI_DOC_ROOT;
     }
-    // the state in a cell of its own sized to its text, its identity written after the states' before it, its
-    // place the number of states before it
+    // the state in a cell of its own, with the size of its text. Its identity goes after those of the states before
+    // it, and its place is the number of states before it
     const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(length + 1ULL, g_cli_editor_owner);
     if (cell == NULL)
     {
@@ -705,9 +741,9 @@ EMBED_INLINE void branch_lines_write(const DocumentBranchCtx *args)
     g_platform_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
 }
 
-// the lines from `first` to `end` of a text read whole, `lines`, measured: the line after the last that `bytes` of
-// their units reach, one at the least, into `read`, and the bytes they take as UTF-8, each unit written as three bytes
-// at max and each line's NUL; under the lock
+// the lines from `first` to `end` of a text read whole, `lines`, measured. The call puts into `read` the line after
+// the last that `bytes` of their units reach, one at the least. Then the bytes that they take as UTF-8, with each unit
+// written as three bytes at max, and the NUL of each line. This runs under the lock
 EMBED_INLINE unsigned long long branch_lines_measure(const DocumentBranchCtx *args)
 {
     unsigned int *read = args->read;
@@ -727,17 +763,21 @@ EMBED_INLINE unsigned long long branch_lines_measure(const DocumentBranchCtx *ar
     return capacity;
 }
 
-// the mark a line's state carries the place of the scope it is in after, past the colorer's own state, the scope
-// written among the text's states once; the max names a scope holds and the bytes their texts take
+// the mark after which the state of a line carries the place of its scope, past the own state of the colorer. The
+// scope goes among the states of the text once
 #define CLI_DOC_SCOPE_MARK '\x1e'
 
-// a line's scope the one the line before it ended in, the words of a record before its runs, and the words a line's
-// state and scope are given capacity for, those of a line past them taken from the capacity of the lines after it
+// the constants of a found line:
+//
+// - CLI_DOC_FOUND_STATE: the words of capacity that the state and scope of a line get. Those of a line past them come
+//   from the capacity of the lines after it.
+// - CLI_DOC_SCOPE_SAME: the scope of a line where it is the one that the line before it ended in
+// - CLI_DOC_FOUND_HEAD: the words of a record before its runs
 #define CLI_DOC_FOUND_STATE 64ULL
 #define CLI_DOC_SCOPE_SAME 0xfffffffeu
 #define CLI_DOC_FOUND_HEAD 5u
 
-// a line's runs colored in the range: the range marked as having colored it, and the line it reached
+// the runs of a line colored in the range: the range marked as the one that colored it, and the line that it reached
 EMBED_INLINE void branch_runs_append(const DocumentBranchCtx *args)
 {
     *args->range->any = 1;
@@ -767,9 +807,10 @@ EMBED_INLINE unsigned int branch_line_runs(const DocumentBranchCtx *args)
     return line_runs;
 }
 
-// the words of the runs the lines of `one` save gathered in the order of their lines into a cell sized to them with
-// `more` words after them, in place of the cell they was in: 1, or 0 where the cells cannot meet it, the runs and
-// their places as they were. Both cells are taken before a line's place moves, so a refusal changes nothing
+// the words of the runs that the lines of `one` save, gathered in the order of their lines. They go into a cell with
+// their size, and `more` words after them. The cell takes the place of the cell that they were in. The return is 1, or
+// 0 where the cells cannot meet it, with the runs and their places as they were. The call takes both cells before the
+// place of a line moves, thus a refusal changes nothing
 EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one->lines;
@@ -785,8 +826,8 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
             saved += CLI_DOC_RECORD_HEAD + (2ULL * line_runs);
         }
     }
-    // the cell holds the runs and the words added twice over, so the next saves fill the room before the runs are
-    // gathered again
+    // the cell holds the runs and the words added twice over. Thus the next saves fill the room before the call
+    // gathers the runs again
     const unsigned long long capacity = 2ULL * (saved + args->more);
     if (capacity > 0xffffffffULL)
     {
@@ -889,8 +930,9 @@ EMBED_INLINE void branch_runs_save(const DocumentBranchCtx *args)
     args->one->run_used += (unsigned int)words;
 }
 
-// whether the line `line` of `one` saves runs it may hand on as they are: it is colored, saves runs, and was entered
-// in the state the line above it ends in, or from root where that line is not colored
+// whether the line `line` of `one` saves runs that it can hand on as they are. That is where the walk colored it, it
+// saves runs, and the walk entered it in the state that the line above it ends in. Or the walk entered it from root,
+// where the walk did not color that line
 EMBED_INLINE int branch_runs_existing(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one_read->lines;
@@ -935,9 +977,9 @@ static void branch_role_read(const CliNameEachCfg *args)
     }
 }
 
-// every name of the grammar of `one` its roles read off its segments and saved among the text's roles by its place,
-// and above them one more than how many names before it count the depth of a pair, once for the grammar, and a
-// coloring copies them as it claims its lines; under the lock
+// every name of the grammar of `one`, with its roles read from its segments and saved among the roles of the text by
+// its place. Above them goes one more than how many names before it count the depth of a pair, once for the grammar.
+// A coloring copies them as it claims its lines. This runs under the lock
 EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
 {
     const unsigned int names = (args->one->names != 0u) ? args->one->names : 1u;
@@ -947,7 +989,7 @@ EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
     }
     if (names != args->one->roles_capacity)
     {
-        // the roles are read anew over a cell sized to the names counted
+        // the call reads the roles again over a cell with the size of the names counted
         (void)g_platform_guard->movable_buf_release(args->one->roles, g_cli_editor_owner);
         args->one->roles =
             g_platform_guard->movable_buf_alloc((unsigned long long)names * sizeof(unsigned int), g_cli_editor_owner);
@@ -985,8 +1027,8 @@ EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
     args->one->roles_complete = 1;
 }
 
-// the roles the name at `name` among the names of `leaves` gives a run: those the text saved as the bundle's lines were
-// claimed, else read off its segments
+// the roles that the name at `name` among the names of `leaves` gives a run. They are those that the text saved as the
+// walk claimed the lines of the bundle, else read from its segments
 EMBED_INLINE unsigned int branch_roles(const DocumentBranchCtx *args)
 {
     unsigned int name = args->name;

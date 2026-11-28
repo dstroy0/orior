@@ -187,7 +187,8 @@ int layout_text(const ContainerLayout *layout, const char *name, const char *par
         }
         return 0;
     }
-    // {part} is all a name is in for. What a part is called belongs to the program and not to the format
+    // `{part}` is the only placeholder that a name holds. The name of a part belongs to the program, and not to the
+    // format
     const char *const is =
         EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = row->text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
                    .other = "{part}", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);

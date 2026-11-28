@@ -28,10 +28,16 @@ extern "C"
         TESSERA_EVENT_IDLE = 6
     } TesseraEventType;
 
-    // A job as it requests. `declared` is the bytes that the job says it will take. `located` is the bytes that its
-    // process already allocated on the device as it requests, measured by the daemon. That is its CUDA context, and
-    // whatever it kept from an earlier job. The whole declaration of the job is the two together, and the measured use
-    // of the device already counts the `located` bytes.
+// the max devices that one ledger gates: the host's processors, and every GPU of the system
+#define TESSERA_LEDGER_DEVICES 17u
+
+    // A job as it requests. `device` is the ledger's index of the device that it runs on. `declared` is the bytes the
+    // job states it will take there. `located` is the bytes its process already allocated on the device as it
+    // requests, as the daemon measures them. They hold its CUDA context and what it kept from an earlier job.
+    //
+    // The job's whole declaration is the two together, and the device's measured use already counts the located
+    // bytes. `parent` is the running job of an ancestor process on the same device, 0 for none. The job draws on that
+    // job's room first, since its work is a part of the parent's
     typedef struct
     {
         EngineSignum signum;
@@ -40,7 +46,9 @@ extern "C"
         unsigned long long sweep_microseconds;
         unsigned long long idle_microseconds;
         unsigned int override_budget;
+        unsigned int device;
         unsigned long long located;
+        unsigned long long parent;
     } TesseraJobRequest;
 
     typedef struct
@@ -57,6 +65,8 @@ extern "C"
         unsigned long long expected_end;
         unsigned long long grace_until;
         unsigned long long next_sweep;
+        // the part of its reservation that it drew on its parent's room, counted once while both run
+        unsigned long long lent;
     } TesseraJob;
 
     typedef struct
@@ -81,10 +91,12 @@ extern "C"
         unsigned long long measured;
     } TesseraEvent;
 
+    // The system's one ledger. It holds each device's capacity and measured use by its index, and every job of every
+    // device in one queue. Then it holds the tracked peaks and the deadlines
     typedef struct
     {
-        unsigned long long capacity;
-        unsigned long long in_use;
+        unsigned long long capacity[TESSERA_LEDGER_DEVICES];
+        unsigned long long in_use[TESSERA_LEDGER_DEVICES];
         TesseraJob *jobs;
         unsigned long long job_count;
         unsigned long long job_capacity;
@@ -99,7 +111,7 @@ extern "C"
         unsigned long long idle_microseconds;
     } TesseraLedger;
 
-// the max events that the answer to one call holds. An admit starts at max this many jobs in one call
+// the max events of the answer to one call: an admit starts at max this many jobs in one call
 #define TESSERA_CALL_EVENTS 16u
 
     // the ledger's decisions, each one call: the host daemon's ledger and the device's tessera (tessera_device.h) make
@@ -121,7 +133,7 @@ extern "C"
     // one call and what it reads:
     //
     // - the time, and the job that it names
-    // - the capacity and use of the device (DEVICE)
+    // - the device by its index, with its capacity and use (DEVICE), and the answer gives its headroom
     // - the bytes that the daemon measured a job to use (MEASURE)
     // - 1 where a job finished (RELEASE)
     // - the events that an admit can make, at max TESSERA_CALL_EVENTS (ADMIT)
@@ -131,6 +143,7 @@ extern "C"
         TesseraCallType type;
         unsigned long long now;
         unsigned long long identity;
+        unsigned int device;
         unsigned long long capacity;
         unsigned long long in_use;
         unsigned long long used;
@@ -161,9 +174,12 @@ extern "C"
 
     void tessera_ledger_close(TesseraLedger *ledger);
 
-    void tessera_ledger_device(TesseraLedger *ledger, unsigned long long capacity, unsigned long long in_use);
+    // the capacity and the measured use of the device at `device`
+    void tessera_ledger_device(TesseraLedger *ledger, unsigned int device, unsigned long long capacity,
+                               unsigned long long in_use);
 
-    long long tessera_ledger_headroom(const TesseraLedger *ledger);
+    // what stays for the device at `device` past its use and the unallocated reservations of its running jobs
+    long long tessera_ledger_headroom(const TesseraLedger *ledger, unsigned int device);
 
     int tessera_ledger_submit(TesseraLedger *ledger, const TesseraJobRequest *request, unsigned long long now,
                               unsigned long long *identity, TesseraEvent *event);

@@ -258,7 +258,7 @@ extern "C" long noise_clips_volume(const unsigned short *volume, const unsigned 
 // one bit an axis of a box, frames (0), z, y and x (3)
 #define NOISE_ROOT_AXIS(axis_) (1u << (axis_))
 
-// the axes each term's value is shared along
+// the axes along which each term shares its value
 static const unsigned int NOISE_ROOT_SHARED[NOISE_ROOT_TERMS] = {
     NOISE_ROOT_AXIS(3u), NOISE_ROOT_AXIS(2u), NOISE_ROOT_AXIS(2u) | NOISE_ROOT_AXIS(3u),
     NOISE_ROOT_AXIS(0u) | NOISE_ROOT_AXIS(1u), NOISE_ROOT_AXIS(1u)};

@@ -201,7 +201,7 @@ extern "C" unsigned long long body_overlap_bytes(unsigned long long voxels, unsi
 {
     const unsigned long long words = (voxels + 63ULL) / 64ULL;
     const unsigned long long chunks = (voxels + BODY_OVERLAP_CHUNK - 1ULL) / BODY_OVERLAP_CHUNK;
-    // the runs' room as reserve_overlap grows it: half again over what is requested
+    // the room of the runs as reserve_overlap grows it: half again over the request
     const unsigned long long capacity = (runs + 1ULL) + ((runs + 1ULL) / 2ULL);
     return (2ULL * overlap_paged(words * sizeof(unsigned long long), page)) +
            (2ULL * overlap_paged(voxels * sizeof(unsigned int), page)) +

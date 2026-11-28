@@ -42,9 +42,15 @@ typedef struct
     unsigned int compute_instance;
 } TesseraNvmlProcess;
 
+// the bytes of a UUID's text as NVML writes it, its terminator among them
+#define TESSERA_NVML_UUID_BYTES 96u
+
 typedef int (*TesseraNvmlInit)(void);
 typedef int (*TesseraNvmlShutdown)(void);
 typedef int (*TesseraNvmlHandle)(const char *uuid, void **device);
+typedef int (*TesseraNvmlCount)(unsigned int *count);
+typedef int (*TesseraNvmlHandleIndex)(unsigned int index, void **device);
+typedef int (*TesseraNvmlUuid)(void *device, char *uuid, unsigned int length);
 typedef int (*TesseraNvmlMemoryInfo)(void *device, TesseraNvmlMemory *memory);
 typedef int (*TesseraNvmlProcesses)(void *device, unsigned int *count, TesseraNvmlProcess *processes);
 
@@ -107,6 +113,88 @@ static void tessera_uuid_text(const unsigned char device[TESSERA_DEVICE_BYTES], 
         at += 2u;
     }
     text[at] = '\0';
+}
+
+// the sixteen bytes of the UUID text `text`, as `GPU-70fc945b-d257-...`, into `device`: 1, or 0 where the text holds
+// no thirty-two hex digits after its prefix
+static int tessera_uuid_bytes(const char *text, unsigned char device[TESSERA_DEVICE_BYTES])
+{
+    const char *walk = text + 4;
+    for (unsigned int half = 0u; half < (2u * TESSERA_DEVICE_BYTES); half += 1u)
+    {
+        walk = (walk[0] == '-') ? (walk + 1) : walk;
+        const char digit = walk[0];
+        const int decimal = (digit >= '0') && (digit <= '9');
+        const int lower = (digit >= 'a') && (digit <= 'f');
+        if (!decimal && !lower)
+        {
+            return 0;
+        }
+        // a hex digit's value is below sixteen
+        const unsigned int value = decimal ? (unsigned int)(digit - '0') : (unsigned int)(digit - 'a' + 10);
+        // each digit is one half of its byte, the high half first
+        device[half / 2u] = (unsigned char)(((half % 2u) == 0u) ? (value << 4u) : (device[half / 2u] | value));
+        walk += 1;
+    }
+    return 1;
+}
+
+unsigned int tessera_measure_devices(unsigned char (*devices)[TESSERA_DEVICE_BYTES], unsigned int capacity)
+{
+#if defined(_WIN32)
+    // the code stores the module handle as an opaque pointer, and converts it back where it uses it
+    void *const library = (void *)LoadLibraryA("nvml.dll");
+#else
+    void *const library = dlopen("libnvidia-ml.so.1", RTLD_NOW);
+#endif
+    if (library == NULL)
+    {
+        return 0u;
+    }
+    // the code converts each symbol back to the type that the library exports it with
+    const TesseraNvmlInit init = (TesseraNvmlInit)tessera_symbol(library, "nvmlInit_v2");
+    // the code converts each symbol back to the type that the library exports it with
+    const TesseraNvmlShutdown shutdown = (TesseraNvmlShutdown)tessera_symbol(library, "nvmlShutdown");
+    // the code converts each symbol back to the type that the library exports it with
+    const TesseraNvmlCount count_read = (TesseraNvmlCount)tessera_symbol(library, "nvmlDeviceGetCount_v2");
+    // the code converts each symbol back to the type that the library exports it with
+    const TesseraNvmlHandleIndex handle = (TesseraNvmlHandleIndex)tessera_symbol(library, "nvmlDeviceGetHandleByIndex_v2");
+    // the code converts each symbol back to the type that the library exports it with
+    const TesseraNvmlUuid uuid_read = (TesseraNvmlUuid)tessera_symbol(library, "nvmlDeviceGetUUID");
+    unsigned int count = 0u;
+    const int listed = (init != NULL) && (shutdown != NULL) && (count_read != NULL) && (handle != NULL) &&
+                       (uuid_read != NULL) && (init() == TESSERA_NVML_SUCCESS);
+    unsigned int found = 0u;
+    if (listed && (count_read(&count) == TESSERA_NVML_SUCCESS))
+    {
+        for (unsigned int index = 0u; (index < count) && (found < capacity); index += 1u)
+        {
+            void *device = NULL;
+            char uuid[TESSERA_NVML_UUID_BYTES];
+            if ((handle(index, &device) == TESSERA_NVML_SUCCESS) &&
+                (uuid_read(device, uuid, TESSERA_NVML_UUID_BYTES) == TESSERA_NVML_SUCCESS) &&
+                tessera_uuid_bytes(uuid, devices[found]))
+            {
+                found += 1u;
+            }
+        }
+    }
+    if (listed)
+    {
+        shutdown();
+    }
+#if defined(_WIN32)
+    // the code converts the stored module handle back to the type that the load gave it
+    FreeLibrary((HMODULE)library);
+#else
+    dlclose(library);
+#endif
+    return found;
+}
+
+void tessera_measure_luid_set(TesseraMeasure *measure, unsigned long long luid)
+{
+    measure->luid = luid;
 }
 
 int tessera_measure_reported(const TesseraMeasure *measure)
