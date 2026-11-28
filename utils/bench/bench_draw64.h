@@ -7,7 +7,7 @@
  *
  * @note The parameters are those of the standard: 312 words, a middle word of 156, and 31 low bits in the split. The
  *       matrix word is 0xb5026f5aa96619e9. The output shifts are 29, 17, 37 and 43 bits with their masks, and the seed
- *       step multiplies by 6364136223846793005. A seed thus gives the draws of std::mt19937_64 with that seed.
+ *       step multiplies by 6364136223846793005. A seed thus gives the draws of the standard's mt19937_64.
  */
 
 #ifndef BENCH_DRAW64_H

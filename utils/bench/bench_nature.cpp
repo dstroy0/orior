@@ -31,14 +31,13 @@
  */
 
 #include "bench_load_limit.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <vector>
 
 #include "bench_job_ring.h"
 
@@ -147,9 +146,12 @@ enum Removal
 /**
  * @brief Builds a byte stream of SHA256d digests indexed by nonce, with or without the nonce.
  *
- * @param[in] length  How many nonces, one byte each.
- * @param[in] removal How to take the nonce back out.
- * @return            The stream.
+ * @param[out] out     The stream, room for `length` bytes [BORROWS].
+ * @param[in]  length  How many nonces, one byte each.
+ * @param[in]  removal How to take the nonce back out.
+ * @param[in]  rounds  The rounds of the function.
+ * @param[in]  word    The word of the digest that gives the byte.
+ * @return             The bytes of the stream, `length`.
  * @note One byte per nonce, and not the whole digest. The output must line up against the input
  *       that produced it. With thirty-two bytes per nonce, the subtraction would have no single
  *       thing to subtract from.
@@ -162,7 +164,7 @@ enum Removal
  *       the purpose, and not an objection. The test asks whether the digest behaves as though it
  *       had, in either language.
  */
-std::vector<unsigned char> digest_stream(size_t length, Removal removal, unsigned rounds, unsigned word)
+size_t digest_stream(unsigned char *out, size_t length, Removal removal, unsigned rounds, unsigned word)
 {
     const uint8_t header[BITCOIN_HEADER_BYTES] = {
         0x01, 0x00, 0x00, 0x00, 0x81, 0xcd, 0x02, 0xab, 0x7e, 0x56, 0x9e, 0x8b, 0xcd, 0x93, 0x17, 0xe2,
@@ -181,7 +183,7 @@ std::vector<unsigned char> digest_stream(size_t length, Removal removal, unsigne
     const uint32_t nbits = ((uint32_t)header[72] << 24) | ((uint32_t)header[73] << 16) | ((uint32_t)header[74] << 8) |
                            (uint32_t)header[75];
 
-    std::vector<unsigned char> out(length, 0u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = out, .bytes = length, .val = 0);
     for (size_t nonce = 0u; nonce < length; nonce += 1u)
     {
         uint32_t block[SHA256_BLOCK_WORDS];
@@ -243,7 +245,7 @@ std::vector<unsigned char> digest_stream(size_t length, Removal removal, unsigne
             out[nonce] = digest_byte;
         }
     }
-    return out;
+    return length;
 }
 
 /** @brief What one corpus reported. */
@@ -287,10 +289,10 @@ Reading sweep(const unsigned char *seats, size_t length, unsigned workers)
     const double xor_baseline = baseline_of(marginal, (uint64_t)length, 0);
     const double add_baseline = baseline_of(marginal, (uint64_t)length, 1);
 
-    std::vector<double> by_xor(LAG_LIMIT + 1u, 0.0);
-    std::vector<double> by_add(LAG_LIMIT + 1u, 0.0);
+    double by_xor[LAG_LIMIT + 1u] = {0.0};
+    double by_add[LAG_LIMIT + 1u] = {0.0};
     const unsigned hands = workers;
-    LagShares shares = {seats, length, xor_baseline, add_baseline, by_xor.data(), by_add.data(), hands};
+    LagShares shares = {seats, length, xor_baseline, add_baseline, by_xor, by_add, hands};
 
     bench_jobs_run(
         [](void *context, unsigned slice) {
@@ -339,10 +341,9 @@ Reading sweep(const unsigned char *seats, size_t length, unsigned workers)
 }
 
 /** @brief Builds a sequence one language reads exactly and the other cannot. */
-std::vector<unsigned char> built_control(int additive, size_t length, unsigned period)
+size_t built_control(unsigned char *out, int additive, size_t length, unsigned period)
 {
-    std::vector<unsigned char> out;
-    out.reserve(length);
+    size_t made = 0u;
 
     unsigned char block[64];
     uint32_t state = 20260908u;
@@ -353,20 +354,24 @@ std::vector<unsigned char> built_control(int additive, size_t length, unsigned p
     }
 
     const unsigned char offset = 0x5au;
-    while (out.size() < length)
+    while (made < length)
     {
-        for (unsigned at = 0u; at < period; at += 1u)
+        for (unsigned at = 0u; (at < period) && (made < length); at += 1u)
         {
-            out.push_back(block[at]);
+            out[made] = block[at];
+            made += 1u;
         }
         for (unsigned at = 0u; at < period; at += 1u)
         {
             block[at] = (additive != 0) ? (unsigned char)(block[at] + offset) : (unsigned char)(block[at] ^ offset);
         }
     }
-    out.resize(length);
-    return out;
+    return made;
 }
+
+/** @brief The stream under read, and a second one that a shuffle or a copy fills, each SAMPLE_CAP bytes. */
+unsigned char g_stream[SAMPLE_CAP];
+unsigned char g_mixed[SAMPLE_CAP];
 
 } // namespace
 
@@ -388,7 +393,7 @@ int main(int argc, char **argv)
 
     printf("\n  %-34s %10s %10s %8s %8s %8s\n", "corpus", "xor", "add", "xor lag", "add lag", "which");
     printf("  %-34s %10s %10s %8s %8s %8s\n", "----------------------------------", "----------", "----------",
-                "--------", "--------", "--------");
+           "--------", "--------", "--------");
 
     // -------------------------------------------------------------------------------------
     // Does the analytic baseline actually equal a shuffle?
@@ -406,16 +411,17 @@ int main(int argc, char **argv)
         printf("\n  Checking the analytic baseline against an actual shuffle\n");
         printf("\n  %-28s %14s %14s %14s\n", "sequence", "mean diff", "spread", "in sigma");
         printf("  %-28s %14s %14s %14s\n", "----------------------------", "--------------", "--------------",
-                    "--------------");
+               "--------------");
 
         for (int which = 0; which < 2; which += 1)
         {
-            std::vector<unsigned char> body = built_control(which, 400000u, 8u);
+            unsigned char *const body = g_stream;
+            const size_t body_size = built_control(body, which, 400000u, 8u);
             // A corpus-like alphabet as well as the built one. The two differ in the relevant
             // way: sixteen byte values against 256.
             if (which == 1)
             {
-                for (size_t at = 0u; at < body.size(); at += 1u)
+                for (size_t at = 0u; at < body_size; at += 1u)
                 {
                     body[at] = (unsigned char)('a' + (body[at] % 26u));
                 }
@@ -423,7 +429,7 @@ int main(int argc, char **argv)
 
             uint64_t marginal[256];
             EMBED_CALL(memor.set, MemoriaCfg, .dst = marginal, .bytes = sizeof(marginal), .val = 0);
-            for (size_t at = 0u; at < body.size(); at += 1u)
+            for (size_t at = 0u; at < body_size; at += 1u)
             {
                 marginal[body[at]] += 1u;
             }
@@ -437,9 +443,11 @@ int main(int argc, char **argv)
 
             for (unsigned draw = 0u; draw < draws; draw += 1u)
             {
-                std::vector<unsigned char> mixed = body;
+                unsigned char *const mixed = g_mixed;
+                const size_t mixed_size = body_size;
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = mixed, .src = body, .bytes = body_size);
                 uint32_t state = 20260908u + (draw * 7919u);
-                for (size_t at = mixed.size() - 1u; at > 0u; at -= 1u)
+                for (size_t at = mixed_size - 1u; at > 0u; at -= 1u)
                 {
                     state = (state * 1103515245u) + 12345u;
                     const size_t swap = (size_t)((state >> 8) % (uint32_t)(at + 1u));
@@ -452,7 +460,7 @@ int main(int argc, char **argv)
                 uint64_t add_counts[256];
                 EMBED_CALL(memor.set, MemoriaCfg, .dst = xor_counts, .bytes = sizeof(xor_counts), .val = 0);
                 EMBED_CALL(memor.set, MemoriaCfg, .dst = add_counts, .bytes = sizeof(add_counts), .val = 0);
-                const size_t pairs = mixed.size() - 1u;
+                const size_t pairs = mixed_size - 1u;
                 for (size_t at = 0u; at < pairs; at += 1u)
                 {
                     xor_counts[mixed[at] ^ mixed[at + 1u]] += 1u;
@@ -460,9 +468,9 @@ int main(int argc, char **argv)
                 }
 
                 const double xor_gap =
-                    shortfall_of(xor_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)body.size(), 0);
+                    shortfall_of(xor_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)body_size, 0);
                 const double add_gap =
-                    shortfall_of(add_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)body.size(), 1);
+                    shortfall_of(add_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)body_size, 1);
                 differential[draw] = add_gap - xor_gap;
                 mean_differential += differential[draw];
             }
@@ -480,7 +488,7 @@ int main(int argc, char **argv)
             // error only bends it where the error differs between them. A shared error cancels out
             // of the difference and is harmless however large it is; a differential one does not.
             printf("  %-28s %14.6f %14.6f %14.2f\n", (which == 0) ? "16 byte values" : "26 byte values",
-                        mean_differential, spread, (spread > 0.0) ? (mean_differential / spread) : 0.0);
+                   mean_differential, spread, (spread > 0.0) ? (mean_differential / spread) : 0.0);
         }
         printf("\n  The first two columns are what a shuffled sequence reads against the\n");
         printf("  analytic baseline, per language, and both should be zero because a shuffle\n");
@@ -508,11 +516,12 @@ int main(int argc, char **argv)
     for (int additive = 0; additive < 2; additive += 1)
     {
         const unsigned designed = 8u;
-        const std::vector<unsigned char> made = built_control(additive, SAMPLE_CAP, designed);
+        unsigned char *const made = g_stream;
+        const size_t made_size = built_control(made, additive, SAMPLE_CAP, designed);
 
         uint64_t marginal[256];
         EMBED_CALL(memor.set, MemoriaCfg, .dst = marginal, .bytes = sizeof(marginal), .val = 0);
-        for (size_t at = 0u; at < made.size(); at += 1u)
+        for (size_t at = 0u; at < made_size; at += 1u)
         {
             marginal[made[at]] += 1u;
         }
@@ -521,22 +530,19 @@ int main(int argc, char **argv)
         uint64_t add_counts[256];
         EMBED_CALL(memor.set, MemoriaCfg, .dst = xor_counts, .bytes = sizeof(xor_counts), .val = 0);
         EMBED_CALL(memor.set, MemoriaCfg, .dst = add_counts, .bytes = sizeof(add_counts), .val = 0);
-        const size_t pairs = made.size() - designed;
+        const size_t pairs = made_size - designed;
         for (size_t at = 0u; at < pairs; at += 1u)
         {
             xor_counts[made[at] ^ made[at + designed]] += 1u;
             add_counts[(unsigned char)(made[at] - made[at + designed])] += 1u;
         }
 
-        const double at_xor =
-            shortfall_of(xor_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)made.size(), 0);
-        const double at_add =
-            shortfall_of(add_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)made.size(), 1);
+        const double at_xor = shortfall_of(xor_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)made_size, 0);
+        const double at_add = shortfall_of(add_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)made_size, 1);
 
         printf("  %-34s %10.4f %10.4f %8u %8u %8s\n",
-                    (additive != 0) ? "[built] add at its own lag" : "[built] xor at its own lag", at_xor, at_add,
-                    designed, designed,
-                    (at_xor > (at_add + 0.02)) ? "xor" : ((at_add > (at_xor + 0.02)) ? "add" : "level"));
+               (additive != 0) ? "[built] add at its own lag" : "[built] xor at its own lag", at_xor, at_add, designed,
+               designed, (at_xor > (at_add + 0.02)) ? "xor" : ((at_add > (at_xor + 0.02)) ? "add" : "level"));
     }
 
     // SHA256d against its own nonce, raw, and with the nonce taken back out in each language. A
@@ -548,13 +554,13 @@ int main(int argc, char **argv)
 
         for (unsigned which = 0u; which < 3u; which += 1u)
         {
-            const std::vector<unsigned char> stream = digest_stream(SAMPLE_CAP, removals[which], 64u, 7u);
-            const Reading found = sweep(stream.data(), stream.size(), workers);
-            printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", names[which], found.best_xor, found.best_add,
-                        found.xor_lag, found.add_lag,
-                        (found.best_xor > (found.best_add + 0.02))
-                            ? "xor"
-                            : ((found.best_add > (found.best_xor + 0.02)) ? "add" : "level"));
+            const size_t stream_size = digest_stream(g_stream, SAMPLE_CAP, removals[which], 64u, 7u);
+            const Reading found = sweep(g_stream, stream_size, workers);
+            printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", names[which], found.best_xor, found.best_add, found.xor_lag,
+                   found.add_lag,
+                   (found.best_xor > (found.best_add + 0.02))
+                       ? "xor"
+                       : ((found.best_add > (found.best_xor + 0.02)) ? "add" : "level"));
         }
 
         // Unwound, to find the round where the grip disappears. At the full function, everything
@@ -569,8 +575,8 @@ int main(int argc, char **argv)
             unsigned best_word = 0u;
             for (unsigned word = 0u; word < 8u; word += 1u)
             {
-                const std::vector<unsigned char> stream = digest_stream(SAMPLE_CAP, REMOVAL_NONE, rounds, word);
-                const Reading found = sweep(stream.data(), stream.size(), workers);
+                const size_t stream_size = digest_stream(g_stream, SAMPLE_CAP, REMOVAL_NONE, rounds, word);
+                const Reading found = sweep(g_stream, stream_size, workers);
                 if ((found.best_xor > best.best_xor) || (found.best_add > best.best_add))
                 {
                     if (found.best_xor > best.best_xor)
@@ -589,15 +595,16 @@ int main(int argc, char **argv)
             char label[44];
             snprintf(label, sizeof(label), "[sha] unwound to %2u rounds, w%u", rounds, best_word);
             printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label, best.best_xor, best.best_add, best.xor_lag,
-                        best.add_lag,
-                        (best.best_xor > (best.best_add + 0.02))
-                            ? "xor"
-                            : ((best.best_add > (best.best_xor + 0.02)) ? "add" : "level"));
+                   best.add_lag,
+                   (best.best_xor > (best.best_add + 0.02))
+                       ? "xor"
+                       : ((best.best_add > (best.best_xor + 0.02)) ? "add" : "level"));
         }
 
-        std::vector<unsigned char> mixed = digest_stream(SAMPLE_CAP, REMOVAL_NONE, 64u, 7u);
+        unsigned char *const mixed = g_mixed;
+        const size_t mixed_size = digest_stream(mixed, SAMPLE_CAP, REMOVAL_NONE, 64u, 7u);
         uint32_t state = 20260908u;
-        for (size_t at = mixed.size() - 1u; at > 0u; at -= 1u)
+        for (size_t at = mixed_size - 1u; at > 0u; at -= 1u)
         {
             state = (state * 1103515245u) + 12345u;
             const size_t swap = (size_t)((state >> 8) % (uint32_t)(at + 1u));
@@ -605,45 +612,46 @@ int main(int argc, char **argv)
             mixed[at] = mixed[swap];
             mixed[swap] = keep;
         }
-        const Reading shuffled = sweep(mixed.data(), mixed.size(), workers);
+        const Reading shuffled = sweep(mixed, mixed_size, workers);
         printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", "[sha] the same bytes shuffled", shuffled.best_xor,
-                    shuffled.best_add, shuffled.xor_lag, shuffled.add_lag, "floor");
+               shuffled.best_add, shuffled.xor_lag, shuffled.add_lag, "floor");
     }
 
     for (int at = 1; at < argc; at += 1)
     {
-        std::FILE *const handle = fopen(argv[at], "rb");
+        FILE *const handle = fopen(argv[at], "rb");
         if (handle == nullptr)
         {
             continue;
         }
-        std::vector<unsigned char> body(SAMPLE_CAP, 0u);
-        const size_t read = fread(body.data(), 1u, SAMPLE_CAP, handle);
+        unsigned char *const body = g_stream;
+        const size_t read = fread(body, 1u, SAMPLE_CAP, handle);
         fclose(handle);
         if (read < 100000u)
         {
             continue;
         }
-        body.resize(read);
 
-        std::string label(argv[at]);
-        const size_t slash = label.find_last_of("/\\");
-        if (slash != std::string::npos)
-        {
-            label = label.substr(slash + 1u);
-        }
-        const size_t dot = label.find_last_of('.');
-        if (dot != std::string::npos)
-        {
-            label = label.substr(0u, dot);
-        }
+        // the name of the file past its last folder, and before its last dot, 34 characters at most
+        const char *label = argv[at];
+        const size_t named = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = label, .cap = ~(size_t)0);
+        const char *const slash = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = label, .cap = named, .byte = '/');
+        const char *const backslash =
+            EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = label, .cap = named, .byte = '\\');
+        const char *const folder =
+            ((slash != nullptr) && ((backslash == nullptr) || (slash > backslash))) ? slash : backslash;
+        label = (folder != nullptr) ? folder + 1u : label;
+        const size_t rest = named - (size_t)(label - argv[at]);
+        const char *const dot = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = label, .cap = rest, .byte = '.');
+        const size_t kept = (dot != nullptr) ? (size_t)(dot - label) : rest;
+        const int shown = (int)((kept < 34u) ? kept : 34u);
 
-        const Reading found = sweep(body.data(), body.size(), workers);
-        printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label.substr(0u, 34u).c_str(), found.best_xor,
-                    found.best_add, found.xor_lag, found.add_lag,
-                    (found.best_xor > (found.best_add + 0.02))
-                        ? "xor"
-                        : ((found.best_add > (found.best_xor + 0.02)) ? "add" : "level"));
+        const Reading found = sweep(body, read, workers);
+        printf("  %-34.*s %10.4f %10.4f %8u %8u %8s\n", shown, label, found.best_xor, found.best_add, found.xor_lag,
+               found.add_lag,
+               (found.best_xor > (found.best_add + 0.02))
+                   ? "xor"
+                   : ((found.best_add > (found.best_xor + 0.02)) ? "add" : "level"));
     }
 
     printf("\n  The two built rows must come out lopsided in opposite directions. If they do\n");
