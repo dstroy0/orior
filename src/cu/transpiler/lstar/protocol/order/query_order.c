@@ -30,16 +30,18 @@ static void query_order_exact(OriorExactInteger *value, unsigned long long given
     value->sign = (given != 0ULL) ? 1 : 0;
 }
 
-// a run's cost multiplies two counts of 64 bits and takes one such product from another: four limbs represent every
-// term, and the exact calls below are given no width they can refuse
+// the cost of a run multiplies two counts of 64 bits, and takes one such product from another. Four limbs hold every
+// term, and the exact calls below get no width that they can refuse
 _Static_assert((unsigned long long)(ORIOR_EXACT_LIMBS) >= 4ULL, "a run's cost represents two 64-bit counts multiplied");
 
-// The links `covered` marks, each put `repeat` times, timed on a clock that turns over now and then and read finely by
-// counting. The run starts on a turn of the clock. When it ends, the reads of the clock word until its next turn are
-// counted, and so are the reads across the whole turn after that. The run's cost is the clock's advance from the turn
-// it started on to the turn after it ended, less the tail: the share of the following turn the counted reads cover.
-// That is spanned - tail * turn_span / turn_reads, retained as the rational it is, through `cost`. 1, or 0 where the
-// clock did not turn inside the order's turns at one of the three turns the run waits on
+// The links that `covered` marks, each put `repeat` times, timed on a clock that turns over now and then, and read
+// finely by a count. The run starts on a turn of the clock. When it ends, the call counts the reads of the clock word
+// until its next turn. It also counts the reads across the whole turn after that.
+//
+// The cost of the run is the advance of the clock from its start turn to the turn after it ended, less the tail. The
+// tail is the share of the next turn that the counted reads cover. That is `spanned - tail * turn_span / turn_reads`,
+// kept as the rational that it is, through `cost`. The return is 1, or 0 where the clock did not turn inside the turns
+// of the order. That is at one of the three turns that the run waits on
 static int query_order_run(const QueryOrder *order, const unsigned char *covered, QueryCost *cost)
 {
     unsigned long long waited = 0ULL;
@@ -95,8 +97,8 @@ int query_order_put(const QueryOrder *order, QueryCost *cost)
         return 0;
     }
     unsigned char covered[HADAMARD_ORDER_LINKS_MAX];
-    // Every pass's answer is retained as it came back. Nothing is summed away and nothing is cut to a least: the spread
-    // across passes is the noise floor, read and not set
+    // The call keeps the answer of every pass as it came back. It sums nothing away, and cuts nothing to a least. The
+    // spread across passes is the noise floor, read and not set
     for (unsigned int pass = 0u; pass < order->passes; pass += 1u)
     {
         for (unsigned int row = 0u; row < order->links; row += 1u)
