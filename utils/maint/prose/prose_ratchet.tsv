@@ -434,11 +434,10 @@ examples/source/4_measure/formal_layer.py	5
 examples/source/4_measure/layout_grid.py	3
 includes/exact_types/integers/exact_integer_hash.c	2
 includes/file_defs/kqr/kqr_record/kqr_internal.h	2
-includes/file_defs/krs/krs_write/head.h	1
 includes/platform/platform.h	2
 includes/platform/platform_pool.c	1
 includes/platform/posix/linux/linux_picker.c	1
-includes/platform/posix/linux/x11_window.c	3
+includes/platform/posix/linux/x11_window.c	2
 includes/platform/windows/windows_interface.c	1
 includes/platform/windows/windows_window.c	11
 includes/window/dialog.c	1
@@ -481,7 +480,6 @@ src/cu/engine/nbody/orior/orior.h	4
 src/cu/engine/nbody/orior/orior_field.c	2
 src/cu/engine/nbody/orior/orior_internal.h	3
 src/cu/engine/nbody/orior/orior_steer.c	3
-src/cu/engine/nbody/orior/orior_steer_count.c	1
 src/cu/engine/nbody/orior/scan.c	3
 src/cu/engine/render/orior_raster_internal.h	4
 src/cu/engine/render/raster.cu	2

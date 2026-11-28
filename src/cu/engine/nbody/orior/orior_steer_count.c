@@ -141,11 +141,11 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
 
     // Every probe reads within the needle, or the whole call gives an error. A probe whose origin
     // plus its stepped reach lands at or past needle_len would read `needle[offset]`, and
-    // `corpus[at + offset]`, out of bounds. The test orior_steer_probe_fits is the one that the
-    // sweep applies before it emits a probe. The call checks it here once, before the alignment
-    // loop, because a caller can give this public entry a probe that the sweep never made. A probe
-    // that does not fit gets 0, the error that a null probe array with a count that is not zero
-    // gets above.
+    // `corpus[at + offset]`, out of bounds. The sweep applies the same test,
+    // orior_steer_probe_fits, before it emits a probe. The call checks it here once, before the
+    // alignment loop, because a caller can give this public entry a probe that the sweep never
+    // made. A probe that does not fit gets 0, the error that a null probe array with a count that
+    // is not zero gets above.
     for (size_t index = 0u; index < count; index += 1u)
     {
         if (orior_steer_probe_fits(&probes[index], needle_len) == 0)
