@@ -45,7 +45,7 @@ unsigned long long scheduler_word(const unsigned char *bytes, unsigned int width
     return word;
 }
 
-// the scheduler's field beginning at `first`, `bits` wide, of the high word `high`
+// the field of the scheduler that starts at `first`, `bits` wide, of the high word `high`
 static unsigned int scheduler_field(unsigned long long high, unsigned int first, unsigned int bits)
 {
     return (unsigned int)((high >> (first - 64u)) & ((1ULL << bits) - 1ULL));
@@ -97,8 +97,8 @@ static int scheduler_predicates_only(const char *operation)
     return 0;
 }
 
-// 1 where the operation leaves the straight line: a branch, a call, a return, an exit or a wait on other lanes, past
-// which a reader is not looked for
+// 1 where the operation leaves the straight line: a branch, a call, a return, an exit or a wait on other lanes. The
+// call does not look for a reader past it
 static int scheduler_control(const char *operation)
 {
     static const char *const leaves[] = {"BRA",   "BRX",   "JMP",      "JMX", "CALL", "RET", "EXIT",  "BSSY",
@@ -115,8 +115,8 @@ static int scheduler_control(const char *operation)
     return 0;
 }
 
-// every register `text` names, R then digits, added to the instruction's reads; a register named with .64 adds the
-// one after it too, the second of its pair
+// every register that `text` names, R then digits, added to the reads of the instruction. A register named with
+// `.64` also adds the one after it, the second of its pair
 static void scheduler_reads(const char *text, SchedulerInstruction *instruction)
 {
     // each R, reached from the one before it
