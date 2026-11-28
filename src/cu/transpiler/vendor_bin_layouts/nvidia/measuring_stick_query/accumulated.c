@@ -6,11 +6,13 @@
 #include "memoria_operor/memoria_operor.h"
 #include "msq_internal.h"
 
-// The pieces, `count` of them, every one not set aside read as one raw run, each placed after the one before it: the
-// vendor reads them all at one start. Where it stops, the piece the stop lies in is set aside, STOPPED, and the run
-// read again without it, until it reads clean. The clean run's listing is `listing`, every line at its offset in that
-// run, and each piece's `start` its place in it. A stop at no address the run contains sets every piece left aside,
-// UNREAD, to be read alone. 1, or 0 where the vendor could not be run or the system gave no memory
+// The pieces, `count` of them, with every one not set aside read as one raw run, each placed after the one before it.
+// The vendor reads them all at one start. Where it stops, the call sets aside the piece that the stop lies in, STOPPED.
+// It reads the run again without it, until it reads clean.
+//
+// The listing of the clean run is `listing`, with every line at its offset in that run. The `start` of each piece is
+// its place in it. A stop at no address that the run holds sets every piece left aside, UNREAD, for a read alone. The
+// return is 1, or 0 where the vendor could not run or the system gave no memory
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = listing, .bytes = sizeof(*listing), .val = 0);
@@ -74,10 +76,12 @@ int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqL
     }
 }
 
-// The clean run's `listing` cut into each piece read in it, the lines from its start to its end, each line's offset
-// put as its offset in the piece: the reading of an encoding at a probe point the line at its start, none where the
-// vendor printed none there; a frame's listing a view of its own lines, read whole; a tail's registers that address
-// memory read off its lines
+// The `listing` of the clean run, cut into each piece read in it: the lines from its start to its end. The offset of
+// each line goes as its offset in the piece:
+//
+// - the reading of an encoding at a probe point is the line at its start, none where the vendor printed none there
+// - the listing of a frame is a view of its own lines, read whole
+// - the call reads from its lines the registers of a tail that address memory
 void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, MsqReading *readings, MsqFrame *frames,
                     MsqRegisters *addressed)
 {
