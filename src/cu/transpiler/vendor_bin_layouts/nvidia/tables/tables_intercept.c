@@ -1,16 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tables_intercept.c: every heap block the vendor's disassembler lets go, or still retains as it ends, and every copy
-// it makes, written out whole, so that the tables it unpacks for one architecture are read off them: the
-// instruction set, stored packed in one block, and the latencies, copied out of the buffer they are unpacked into
+// tables_intercept.c: every heap block that the disassembler of the vendor lets go, or still keeps as it ends, and
+// every copy that it makes, written out whole. Thus a reader can read from them the tables that it unpacks for one
+// architecture. They are the instruction set, stored packed in one block, and the latencies, copied out of the buffer
+// that it unpacks them into.
 //
-// Built as a shared library and loaded before the C library on Linux (LD_PRELOAD), it is in for malloc, calloc,
-// realloc, free and memcpy. It records each live block's size and writes a record to stdout as a block of at least
-// TABLES_LEAST bytes is freed, and for each such block still allocated as the program ends: a line `<ptr 0x0 size>`
-// with the block's address in hex and its byte count in decimal, then the block's `size` bytes. Each copy writes a
-// record the same way, `<dst src size>` and the bytes copied (orior_tables_funnel). The C library's own routines are
-// reached through dlsym, which allocates while they are found: those first allocations come off a static arena of its
-// own, never freed.
+// The build makes it a shared library, which Linux loads before the C library (LD_PRELOAD). It stands in for malloc,
+// calloc, realloc, free and memcpy, and records the size of each live block. It writes a record to stdout when the
+// program frees a block of at least TABLES_LEAST bytes. It also writes one for each such block that is live as the
+// program ends. The record is a line `<ptr 0x0 size>`, with the address of the block in hex and its byte count in
+// decimal. Then the `size` bytes of the block follow.
+//
+// Each copy writes a record in the same way, `<dst src size>` and the bytes copied (orior_tables_funnel). The file
+// reaches the own routines of the C library through dlsym, which allocates while it finds them. Those first
+// allocations come from a static arena of its own, never freed.
 #define _GNU_SOURCE
 #include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
@@ -41,7 +44,7 @@ static void *(*s_realloc)(void *, size_t);
 static void (*s_free)(void *);
 static void *(*s_memcpy)(void *restrict, const void *restrict, size_t);
 
-// 1 while a record is being written: a copy the writing makes is no copy of the program's
+// 1 while the file writes a record. A copy that the write makes is no copy of the program
 static int s_recording;
 
 static void tables_found(void)
@@ -127,7 +130,7 @@ static void tables_recorded(void *at, size_t size)
     s_blocks += 1u;
 }
 
-// the block at `at` taken off the tracked ones and written out: 1 where it was tracked
+// the block at `at`, taken off the tracked ones and written out. The return is 1 where the file tracked it
 static int tables_let_go(void *at)
 {
     for (unsigned int block = 0u; block < s_blocks; block += 1u)

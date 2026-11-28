@@ -618,7 +618,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.h	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_capture.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_funnel.c	4
-src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_intercept.c	9
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_read.c	4
 src/manifest.tsv	5
 src/sims/cu/engine/analysis/art/periodic_energy.h	1
