@@ -19,7 +19,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-// A message being written: its bytes, how many, and whether every one fit
+// A message that the call writes: its bytes, how many, and whether every one fit
 typedef struct
 {
     unsigned char *bytes;
@@ -93,7 +93,7 @@ typedef struct
 // how deep a value's types nest that this file passes over
 #define CLI_DBUS_DEPTH 32u
 
-// `size` bytes written whole to the bus: 1, or 0 where the connection is gone
+// `size` bytes written whole to the bus: 1, or 0 where the connection no longer exists
 EMBED_INLINE int dbus_send(const PosixPickerCtx *args)
 {
     unsigned long long size = args->size;
@@ -116,7 +116,8 @@ EMBED_INLINE int dbus_send(const PosixPickerCtx *args)
     return 1;
 }
 
-// `size` bytes read whole from the bus, waited for as long as it takes: 1, or 0 where the connection is gone
+// `size` bytes read whole from the bus. The call waits as long as it takes. The return is 1, or 0 where the connection
+// no longer exists
 EMBED_INLINE int dbus_receive(const PosixPickerCtx *args)
 {
     unsigned long long size = args->size;
@@ -171,7 +172,7 @@ EMBED_INLINE void dbus_u32(const PosixPickerCtx *args)
     EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = bytes, .size = sizeof(bytes));
 }
 
-// a 32-bit number written back at `at`, as an array's length is once its items are written
+// a 32-bit number written back at `at`, as the length of an array goes back after the call writes its items
 EMBED_INLINE void dbus_u32_at(const PosixPickerCtx *args)
 {
     if (args->message->fits)
@@ -221,9 +222,9 @@ EMBED_INLINE void dbus_field(const PosixPickerCtx *args)
     }
 }
 
-// a call's head written in `message`, over `capacity` bytes of `bytes`: its serial, the object, interface and member it
-// calls at `destination`, and its body's signature, empty for none; the place its body's length is written at once
-// known into `body_length_at`
+// the head of a call written in `message`, over `capacity` bytes of `bytes`. It holds its serial, and the object,
+// interface and member that it calls at `destination`. It holds the signature of its body, empty for none. The place
+// where the length of the body goes, after the call knows it, goes into `body_length_at`
 EMBED_INLINE void dbus_call_begin(const PosixPickerCtx *args)
 {
     CliDbusWritten *message = args->message;
@@ -250,13 +251,13 @@ EMBED_INLINE void dbus_call_begin(const PosixPickerCtx *args)
         EMBED_CALL(dbus_field, PosixPickerCtx, .message = message, .code = CLI_DBUS_SIGNATURE, .type_value = 'g',
                    .value_text = args->signature);
     }
-    // the fields' array is counted from where its items begin, aligned to 8 after the count
+    // the count of the array of fields starts where its items begin, aligned to 8 after the count
     EMBED_CALL(dbus_u32_at, PosixPickerCtx, .message = message, .at = fields_at,
                .value = (unsigned int)(message->at - ((fields_start + 7ULL) & ~7ULL)));
     EMBED_CALL(dbus_align, PosixPickerCtx, .message = message, .alignment = 8ULL);
 }
 
-// the call's body ended: its length written into its head, the head being `head` bytes
+// the body of the call ended: its length written into its head, which is `head` bytes
 EMBED_INLINE void dbus_call_end(const PosixPickerCtx *args)
 {
     // a body a message holds is below its capacity, which 32 bits count
@@ -317,8 +318,9 @@ static int dbus_type_pass(const PosixPickerCtx *args)
     return 1;
 }
 
-// a value of the one complete type at `*type` passed over in `size` bytes of `bytes` from `*at`, `depth` deep: the
-// type's end into `*type` and the value's into `*at`: 1, or 0 where the value does not fit or nests too deep
+// the call skips a value of the one complete type at `*type`, in `size` bytes of `bytes` from `*at`, `depth` deep. The
+// end of the type goes into `*type`, and the end of the value into `*at`. The return is 1, or 0 where the value does
+// not fit or nests too deep
 static int dbus_value_pass(const PosixPickerCtx *args)
 {
     unsigned long long *at = args->at_pointer;
@@ -406,8 +408,8 @@ static int dbus_value_pass(const PosixPickerCtx *args)
     return basic && (*at <= args->size);
 }
 
-// the next message the bus sends read into `capacity` bytes of `bytes`, its head's fields this file reads into
-// `message`: 1, or 0 where the connection is gone or the message does not fit
+// the next message that the bus sends, read into `capacity` bytes of `bytes`. The fields of its head that this file
+// reads go into `message`. The return is 1, or 0 where the connection no longer exists or the message does not fit
 static int dbus_message_read(const PosixPickerCtx *args)
 {
     CliDbusMessage *message = args->message_dbus_message_pointer;
@@ -459,8 +461,8 @@ static int dbus_message_read(const PosixPickerCtx *args)
     return 1;
 }
 
-// the reply to the call `serial` waited for, every other message passed over: 1 with it read into `message`, or 0
-// where an error came in its place or the connection is gone
+// the call waits for the reply to the call `serial`, and skips every other message. The return is 1 with the reply in
+// `message`, or 0 where an error came in its place or the connection no longer exists
 EMBED_INLINE int dbus_reply(const PosixPickerCtx *args)
 {
     for (;;)
@@ -500,9 +502,9 @@ EMBED_INLINE int dbus_body_string(const PosixPickerCtx *args)
     return mmgr_line_finish(&copied) != 0ULL;
 }
 
-// the session bus reached: the address DBUS_SESSION_BUS_ADDRESS names, a socket's path or an abstract name, else the
-// bus in the reader's runtime folder; the reader known to it by their own id and the connection begun: the socket, or
-// -1
+// the session bus reached: the address that DBUS_SESSION_BUS_ADDRESS names, a socket path or an abstract name. Else it
+// is the bus in the runtime folder of the reader. The call tells the bus the own id of the reader and starts the
+// connection. The return is the socket, or -1
 static int dbus_connect(void)
 {
     char address[512];
@@ -605,8 +607,8 @@ static int dbus_connect(void)
     return bus;
 }
 
-// the file URI `uri` made a path into `path`, sized for `capacity`, its host taken off and its escapes read: 1, or 0
-// where it is no file URI or does not fit
+// the file URI `uri` made a path in `path`, which has room for `capacity`, with its host taken off and its escapes
+// read. The return is 1, or 0 where it is no file URI or does not fit
 EMBED_INLINE int dbus_uri_path(const PosixPickerCtx *args)
 {
     if (!cellul.starts(&(CatenaFinitaCfg){.src = args->uri, .other = "file://", .cap = CLI_PATH_MAX_LEN}))
@@ -623,8 +625,8 @@ EMBED_INLINE int dbus_uri_path(const PosixPickerCtx *args)
     return mmgr_line_finish(&decoded) != 0ULL;
 }
 
-// the first file the Response signal's results name, `{"uris": [...]}`, made a path into `path`: 1, or 0 where the
-// reader cancelled or no file is named
+// the first file that the results of the Response signal name, `{"uris": [...]}`, made a path in `path`. The return
+// is 1, or 0 where the reader cancelled or the results name no file
 EMBED_INLINE int dbus_response_read(const PosixPickerCtx *args)
 {
     if ((args->message_dbus_message_pointer_other->body_size < 8ULL) ||
@@ -729,7 +731,7 @@ int cli_file_pick(const CliPathCapacityCtx *args)
         EMBED_CALL(dbus_signature, PosixPickerCtx, .message = &message, .signature = "b");
         EMBED_CALL(dbus_u32, PosixPickerCtx, .message = &message, .value = 1u);
     }
-    // the options' array is counted from where its entries begin
+    // the count of the array of options starts where its entries begin
     EMBED_CALL(dbus_u32_at, PosixPickerCtx, .message = &message, .at = options_at,
                .value = (unsigned int)(message.at - options_start));
     EMBED_CALL(dbus_call_end, PosixPickerCtx, .message = &message, .body_length_at_value = body_at, .head = head);
