@@ -8,8 +8,8 @@
 #include "memoria_operor/memoria_operor.h"
 #include "writings_internal.h"
 
-// every fitting form written into a cubin of its own, with the list, the cases and the forms beside them: 0, or 2
-// where nothing could be read or written
+// every form that fits, written into a cubin of its own, with the list, the cases and the forms beside them. The
+// return is 0, or 2 where the call could not read or write anything
 int writings_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder)
 {
     s_pattern_size = writings_file_read(pattern, s_pattern, sizeof(s_pattern));
@@ -87,9 +87,10 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
             continue;
         }
         fitting += 1u;
-        // A form containing a truth table is put with every value of it, its sources in order: a table over three
-        // inputs already contains every order of them. Any other form is put with every assignment of the two words and
-        // RZ to its register sources that gives both words, and with the first word alone where it reads one source
+        // The program puts a form that holds a truth table with every value of it, its sources in order. A table over
+        // three inputs already holds every order of them. It puts any other form with every assignment of the two words
+        // and RZ to its register sources that gives both words. It also puts it with the first word alone, where it
+        // reads one source
         const unsigned int table = writings_table(form);
         const unsigned int values = (table < form->operands) ? 256u : 1u;
         const unsigned int sources = writings_sources(form);
@@ -176,9 +177,9 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
     return 0;
 }
 
-// the answers `answers` contains, a line a cubin as interface_sass_run writes them, read into `answered`, which
-// contains s_cases words a cubin: s_ran set for each cubin that answered every case, and the counts of those that
-// answered and those the part refused through `ran` and `refused`
+// the answers that `answers` holds, one line for each cubin as interface_sass_run writes them, read into `answered`.
+// That holds s_cases words for each cubin. The call sets s_ran for each cubin that answered every case. It gives
+// the counts of those that answered, and of those that the part refused, through `ran` and `refused`
 void writings_answers_read(PlatformFile *answers, unsigned int count, unsigned int (*answered)[WRITINGS_CASES],
                            unsigned char *ran_one, unsigned int *ran, unsigned int *refused)
 {
@@ -298,9 +299,9 @@ int writings_load(const char *folder)
     return 1;
 }
 
-// The answers read back against every relation: the forms that give each relation's every case its word, written to
-// `record`. A relation no form gives in one instruction is one the part has no single instruction for, among the forms
-// the machine file contains. 0, or 2 where nothing could be read
+// The answers read back against every relation: the forms that give every case of each relation its word, written to
+// `record`. The part has no single instruction for a relation that no form gives in one instruction, among the forms
+// that the machine file holds. The return is 0, or 2 where the call could not read anything
 int writings_read(const char *folder, const char *record)
 {
     PlatformFile *const out = writings_load(folder) ? platform_file_open(record, "wb") : NULL;
