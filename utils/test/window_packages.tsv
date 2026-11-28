@@ -4,6 +4,7 @@ clang	clang	clang	clang	clang	clang	-	LLVM.LLVM
 cmake	cmake	cmake	cmake	cmake	cmake	cmake	Kitware.CMake
 ninja	ninja-build	ninja-build	ninja	ninja	ninja	ninja	Ninja-build.Ninja
 ar	binutils	binutils	binutils	binutils	binutils	-	LLVM.LLVM
+objcopy	binutils	binutils	binutils	binutils	binutils	-	-
 lld	lld	lld	lld	lld	lld	lld	LLVM.LLVM
 lld-link	-	-	-	-	-	-	LLVM.LLVM
 llvm-rc	-	-	-	-	-	-	LLVM.LLVM

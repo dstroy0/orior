@@ -1,6 +1,6 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# build_needs.sh: build.sh sources this file, with TOP, CC, AR and lld set. The function build_needs_met finds the
+# build_needs.sh: build.sh sources this file, with TOP, CC, AR, OBJCOPY and lld set. The function build_needs_met finds the
 # programs, headers and submodules that the build needs. When the machine does not have one, it gives the developer
 # a list and the command that installs each part. Then the build stops before it compiles a file.
 # utils/test/window_host_probe.sh finds the package manager and the X11 headers. utils/test/window_packages.tsv gives
@@ -46,6 +46,13 @@ build_needs_met() {
     if ! needs_found "$AR"; then
         names+=(ar); reasons+=("the archive of the objects that the bundler links")
     fi
+    case "$target" in
+        *windows* | *darwin*) ;;
+        *)
+            if ! needs_found "$OBJCOPY"; then
+                names+=(objcopy); reasons+=("the copy of the debug information of each program into a file next to it")
+            fi ;;
+    esac
     case "$target" in
         *windows*)
             if ! needs_found lld-link; then

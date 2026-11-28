@@ -74,17 +74,24 @@ def cmd_build_gui(a):
     log = os.path.join(BUILD, "gui_build.log")
     with open(log, "wb") as out:
         built = subprocess.run([harness_cli.bash(), os.path.join(ROOT, "ui", "cli", "build.sh"), "window"], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
-    # ui/cli/build_needs.sh starts each line of its list with "  needs:". The harness shows all of them.
+    return built_reported(log, built)
+
+
+def built_reported(log, built):
+    """The report of a run of ui/cli/build.sh from its log: 0 where it built, 1 where it did not.
+
+    ui/cli/build_needs.sh starts each line of its list with "  needs:", and the report shows all of them. A build
+    that stopped on the list shows the list alone, because the list tells what to do. A build that failed for another
+    reason also shows its errors. A note of the list, such as the note on lld, does not hide them.
+    """
     needs = grep(log, r"^  needs:", 60)
-    if built.returncode != 0:
-        if needs:
-            print("\n".join(needs))
-            return 1
-        print("\n".join(grep(log, r"^error", 5)))
-        print(tail(log, 3), end="")
-        return 1
     if needs:
         print("\n".join(needs))
+    if built.returncode != 0:
+        if not (needs and needs[-1].endswith("Then run the build again.")):
+            print("\n".join(grep(log, r"^error", 5)))
+            print(tail(log, 3), end="")
+        return 1
     print(tail(log, 1), end="")
     return 0
 
@@ -102,12 +109,7 @@ def cmd_build_cli(a):
     words = [harness_cli.bash(), os.path.join(ROOT, "ui", "cli", "build.sh")] + ([a.target] if a.target else [])
     with open(log, "wb") as out:
         built = subprocess.run(words, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
-    if built.returncode != 0:
-        print("\n".join(grep(log, r"^error", 5)))
-        print(tail(log, 3), end="")
-        return 1
-    print(tail(log, 1), end="")
-    return 0
+    return built_reported(log, built)
 
 
 def cmd_build_mmgr(a):
