@@ -174,7 +174,7 @@ const CycleTarget *cycle_target(int major, int minor, int lto, int report);
 #define CYCLE_PTX_HEADER_BYTES 512u
 
 // the header of PTX as this toolkit writes it for the device. The program asks NVRTC for it once in a process, with a
-// compile of an empty kernel to PTX. It caches the answer against the question. It is the one part of the rules of PTX
+// compile of an empty kernel to PTX. It caches the answer against the question. It is the only part of the rules of PTX
 // that the lane does not carry itself
 struct CyclePtxHeader
 {

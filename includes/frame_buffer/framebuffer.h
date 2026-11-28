@@ -32,9 +32,9 @@ typedef struct
 // the bytes a window `width` by `height` draws in one raster: the pitch of the width by the height, a word a pixel
 unsigned long long gui_framebuffer_bytes(const GuiFramebufferCfg *args);
 // the rasters made for a window `width` by `height`, over the `frames` ring of two segments and the `background` ring
-// of one. Each segment has `capacity` bytes, and the first framebuffer is the one to draw. The return is 1, or 0 with
-// nothing kept where there is no size or no ring or the window passes the capacity. The second call lets the rasters
-// go, and the caller gives back the rings. One at a time: the rings belong to the caller
+// of one. Each segment has `capacity` bytes, and the program draws into the first framebuffer. The return is 1, or 0
+// with nothing kept where there is no size or no ring or the window passes the capacity. The second call lets the
+// rasters go, and the caller gives back the rings. One at a time: the rings belong to the caller
 int gui_framebuffer_init(const GuiFramebufferRingsCfg *args);
 void gui_framebuffer_free(const GuiFramebufferRingsCfg *args);
 // whether the rasters have capacity for a window `width` by `height`. Then the rasters sized to it, with their pixels

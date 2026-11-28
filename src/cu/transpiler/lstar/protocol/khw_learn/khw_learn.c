@@ -17,7 +17,7 @@
 // that the kernel stores.
 //
 // The first question is the own relation of the kernel. It puts the kernel that the system accepted over every case of
-// each relation of the ladder. Every instruction of the kernel waits on all six barriers, and nothing else changes. It
+// each relation of the ladder. Every instruction of the kernel waits on all six barriers, with no other change. It
 // also times the launches of the one that answers, which gives the time that the part takes to run it. Every later
 // question comes from what that one answered.
 //

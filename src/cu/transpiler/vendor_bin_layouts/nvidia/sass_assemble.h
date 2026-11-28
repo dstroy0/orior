@@ -48,9 +48,9 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
                                  unsigned char *code, unsigned long long room);
 
 // The read back: the assembler run the other way through the same forms and fields. The form that matches an encoding
-// is the one whose bits are its own. That excludes the fields of its operands, its guard and the bits of the scheduler.
-// Of several, it is the one with the fewest bits left to its operands. Its text is the guard, the operation and each
-// operand, read from the field that the assembler writes it to. A label reads as the address that it lands on, and
+// is a form whose own bits it holds. That excludes the fields of its operands, its guard and the bits of the scheduler.
+// Of several, the match is the form with the fewest bits left to its operands. Its text is the guard, the operation and
+// each operand, read from the field that the assembler writes it to. A label reads as the address that it lands on, and
 // `address` is where the encoding lies.
 //
 // The return is 1, or 0 where no form matches it. Nothing here changes an encoding. The call reads an emitted

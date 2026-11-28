@@ -20,7 +20,7 @@
  * one value.
  *
  * WHY THIS AGREES WITH THE HOST BYTE FOR BYTE. Three properties bind it together. The value that a
- * thread computes is integer arithmetic on the same inputs, so no rounding can differ. The cell
+ * thread computes is integer arithmetic on the same inputs, thus no rounding can differ. The cell
  * that a thread targets comes from integer division and a permutation, and neither depends on
  * which thread runs. The reduction is a minimum or a max, both associative and commutative.
  *

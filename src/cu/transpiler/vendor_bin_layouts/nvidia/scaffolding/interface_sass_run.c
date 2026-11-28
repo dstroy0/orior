@@ -52,7 +52,7 @@
 static unsigned char s_image[SASS_RUN_CUBIN];
 static SassMachine s_machine;
 // the cases that the program runs every cubin over, and the answers that they give. Where the caller gives no cases
-// file, this is the one case of the probe
+// file, this is the single case of the probe
 static unsigned int s_cases[SASS_RUN_THREADS][SASS_RUN_IN_WORDS] = {{0xbu, 0x7u, 0x3u, 0x5u, 0x2u, 0x9u, 0x1u, 0x4u}};
 static unsigned int s_case_count = 1u;
 static unsigned int s_answers[SASS_RUN_THREADS][SASS_RUN_OUT_WORDS];

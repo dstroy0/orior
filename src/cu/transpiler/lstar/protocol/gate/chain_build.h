@@ -3,7 +3,7 @@
 #ifndef CHAIN_BUILD_H
 #define CHAIN_BUILD_H
 
-// Every arrangement of primitives that makes a relation.
+// Every arrangement of primitives that gives a relation.
 //
 // An operator is a chain, and a chain can take a new arrangement. A person who writes a compiler affords one
 // arrangement for each operator, because a person must write it. Nobody writes these. The program keeps every

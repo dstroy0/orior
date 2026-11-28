@@ -180,8 +180,8 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover);
 //
 // The questions of a ladder form carry one case, read at 0. The questions of a frame form carry FRAME_READ_AT + 1 cases
 // of its word pair, read at FRAME_READ_AT. That is the thread whose lane and block differ from each other and from 0.
-// The program turns a predicate form over each of its turn cases (khw_predicate_words), and `turning` is the one that
-// this stage carries
+// The program turns a predicate form over each of its turn cases (khw_predicate_words), and `turning` is the turn case
+// that this stage carries
 typedef struct
 {
     KhwAnswered *form;

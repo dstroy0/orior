@@ -11,7 +11,7 @@ unsigned int s_kernel_probe_place;
 
 // The kernel that the writer of the vendor reads from the container. The call gets it through the interface, and reads
 // it where the writer appends it in the run (orior_khw_machine_write, kernel mode; kernel_blob.h). The call reads the
-// run to its end before the writer runs. Thus the kernel that it reads is the one that the writer appends after.
+// run to its end before the writer runs. Thus it reads the kernel that the writer appends after.
 //
 // The call puts the places that the kernel holds into s_kernel_places, from the place where the least opening starts.
 // It puts the places before that one into s_opening_places, and the registers that a thread uses into s_registers. It

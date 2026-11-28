@@ -38,7 +38,7 @@ typedef struct
 // error that the display driver, the provider nvlddmkm, writes to the System log. The program reads it through the
 // event log reader of the system. It reaches that reader by name and by its own entry points, as it reaches the driver.
 //
-// The driver writes each Xid there, whether or not the program reaches its management layer. The ID of the event is
+// The driver writes each Xid there, whether the program reaches its management layer. The ID of the event is
 // its Xid, and its text is what the part did, as
 // `Graphics SM Warp Exception on (GPC 1, TPC 0, SM 0): Out Of Range Register`.
 //

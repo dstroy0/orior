@@ -15,7 +15,7 @@
 //
 // The host arranges once what belongs to the ruleset, the target and the header alone (asm_printer_ruleset_build). The
 // functions below arrange the records of the forms from the items. The device runs them (codegen_device.h), and the
-// host oracle runs them (asm_printer_host), so the two arrange them from one source
+// host oracle runs them (asm_printer_host), thus the two arrange them from one source
 
 #include "../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "codegen_core.h"

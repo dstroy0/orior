@@ -362,7 +362,7 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             at += 1u;
         }
         // a panic on the line, or one ruled on as the call read the answers. The call passes the account of the
-        // teacher where the line is open. The question that the carrier carried is the one that its ending answered.
+        // teacher where the line is open. The carrier carried the question that its ending answered.
         // Where it ended clean, it is the last that it answered, with its refusal. The call puts no question after it
         if ((run_channel_on_line() != 0ULL) || run_channel_panic_ruled())
         {

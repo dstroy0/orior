@@ -166,7 +166,7 @@ const unsigned int (*khw_frame_cases(unsigned int *count))[2]
     return s_frame_word;
 }
 
-// `low` and `high`, stalled the longest, with the yield bit after the stall clear. That is the one schedule with which
+// `low` and `high`, stalled the longest, with the yield bit after the stall clear. That is the only schedule with which
 // the gate lets through an instruction that no form encodes, and that the reader of the vendor takes. The call reads
 // the stall field once, as the .ksc of the part gives it
 void khw_frame_stalled(unsigned long long *low, unsigned long long *high)

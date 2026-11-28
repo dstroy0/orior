@@ -9,7 +9,7 @@ krs 1
 #
 # Memory is one array of words that the process holds, with the launch arranged in it as the device arranges
 # CycleCompiledLaunch. It has one write site and one read site, so that a part can hold it as a RAM. The bottom of each
-# clock writes the one word that a state names. It then reads the word asked for, and the one after it, into the
+# clock writes only the word that a state names. It then reads the word asked for, and the one after it, into the
 # registers that the next clock takes them from. Each read is a registered read, as a block RAM reads. While the unit
 # is idle, its ports load the memory and read it back.
 #

@@ -168,7 +168,7 @@ int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAns
 
 // The first round: the own relation of the kernel and the probe place, put together, because neither waits on the
 // answer of the other. The question of the kernel is the kernel that the system accepted, over the cases that
-// khw_union_written writes. Every instruction of it waits on all six barriers, and nothing else changes. The gate reads
+// khw_union_written writes. Every instruction of it waits on all six barriers, with no other change. The gate reads
 // its relation.
 //
 // Where the kernel listing names a probe place, that is the probe place, the answer of the part in its .ksc. The call

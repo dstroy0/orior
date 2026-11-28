@@ -103,7 +103,7 @@ static size_t field_number_classes(OriorSameAt same_in_field, const void *field,
     // The rarest class is the best probe that the steer has.
     //
     // The place of a class is the number of classes strictly rarer than it. The class index breaks
-    // ties, so the order is total and does not depend on the arrangement. THE TIE BREAK IS WHY TWO
+    // ties, thus the order is total and does not depend on the arrangement. THE TIE BREAK IS WHY TWO
     // POPULATIONS CANNOT SHARE AN ORDER. Two singletons tie, and the index decides. The indices
     // come from where the positions sat in the field that the call numbered. Number the two
     // together, and there is one index space and one answer.
