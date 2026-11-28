@@ -45,9 +45,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <string>
-#include <vector>
-
 // the scale every value is stored at, and the half of it one division takes
 #define SPHERICAL_SCALE_BITS 62u
 #define SPHERICAL_HALF_BITS 31u
@@ -56,13 +53,27 @@
 // the lanes, below 2^24
 #define SPHERICAL_LANE_BITS 24u
 
+// The program: its steps, `count` of them, and its fields' bits and offsets, `field_count` of them. The first build
+// takes no cell and counts them; the second fills the cells of the persistent tier taken at those counts. `full` 1
+// where the second build passed a count of the first
 typedef struct
 {
-    std::vector<EngineRecordStep> steps;
-    std::vector<unsigned int> field_bits;
-    std::vector<unsigned int> field_offset;
+    EngineRecordStep *steps;
+    unsigned int count;
+    unsigned int room;
+    unsigned int *field_bits;
+    unsigned int *field_offset;
+    unsigned int field_count;
+    unsigned int field_room;
     unsigned int shared_bits;
+    int full;
 } SphericalProgram;
+
+// the terms a series of the input holds at max, as the input's header bounds them
+#define SPHERICAL_TERMS 256u
+
+// the outputs of the program
+#define SPHERICAL_OUTPUTS 3u
 
 typedef struct
 {
@@ -70,32 +81,59 @@ typedef struct
     unsigned int im;
 } SphericalComplex;
 
+// a constant of the input: its magnitude's limbs, `limbs` of them in a cell of the persistent tier, its sign and its
+// width
 typedef struct
 {
-    std::vector<unsigned int> magnitude;
+    unsigned int *magnitude;
+    unsigned int limbs;
     long long sign;
     unsigned int bits;
 } SphericalConstant;
 
+// the stage: the program, its outputs and their names, the shared record and the records in cells of the temporary
+// tier, `shared_count` and `record_count` words
 typedef struct
 {
     SphericalProgram program;
-    std::vector<unsigned int> outputs;
-    std::vector<std::string> names;
-    std::vector<unsigned int> shared;
+    unsigned int outputs[SPHERICAL_OUTPUTS];
+    const char *names[SPHERICAL_OUTPUTS];
+    unsigned int output_count;
+    unsigned int *shared;
+    unsigned int shared_count;
     EngineRecordKey key;
     EngineRecordLayout layout;
     CycleRecord *record;
-    std::vector<unsigned int> records;
+    unsigned int *records;
+    unsigned long long record_count;
     int same;
 } SphericalStage;
 
 static unsigned int spherical_step(SphericalProgram *program, EngineRecordOperation operation, unsigned int left,
                                    unsigned int right)
 {
-    EngineRecordStep step = {operation, left, right, 0u};
-    program->steps.push_back(step);
-    return (unsigned int)program->steps.size() - 1u;
+    if (program->steps != NULL)
+    {
+        if (program->count >= program->room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->steps[program->count] = EngineRecordStep{operation, left, right, 0u};
+    }
+    program->count += 1u;
+    return program->count - 1u;
+}
+
+// the output `step` of the name `name` put at the end of the stage's outputs
+static void spherical_output(SphericalStage *stage, unsigned int step, const char *name)
+{
+    if (stage->output_count < SPHERICAL_OUTPUTS)
+    {
+        stage->outputs[stage->output_count] = step;
+        stage->names[stage->output_count] = name;
+        stage->output_count += 1u;
+    }
 }
 
 static unsigned int spherical_constant(SphericalProgram *program, unsigned long long value)
@@ -105,9 +143,18 @@ static unsigned int spherical_constant(SphericalProgram *program, unsigned long 
 
 static unsigned int spherical_field(SphericalProgram *program, unsigned int bits)
 {
-    const unsigned int field = (unsigned int)program->field_bits.size();
-    program->field_bits.push_back(bits);
-    program->field_offset.push_back(program->shared_bits);
+    const unsigned int field = program->field_count;
+    if (program->field_bits != NULL)
+    {
+        if (field >= program->field_room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->field_bits[field] = bits;
+        program->field_offset[field] = program->shared_bits;
+    }
+    program->field_count += 1u;
     program->shared_bits += bits;
     return field;
 }
@@ -168,10 +215,11 @@ static SphericalComplex spherical_cmul(SphericalProgram *program, SphericalCompl
 }
 
 // Horner's rule in x over the fields' constants, the first the constant term
-static unsigned int spherical_horner(SphericalProgram *program, unsigned int x, const std::vector<unsigned int> &fields)
+static unsigned int spherical_horner(SphericalProgram *program, unsigned int x, const unsigned int *fields,
+                                     unsigned int count)
 {
-    unsigned int acc = spherical_read(program, fields.back());
-    for (size_t k = fields.size() - 1u; k > 0u; k -= 1u)
+    unsigned int acc = spherical_read(program, fields[count - 1u]);
+    for (unsigned int k = count - 1u; k > 0u; k -= 1u)
     {
         acc = spherical_sum(program, spherical_scaled(program, acc, x), spherical_read(program, fields[k - 1u]));
     }
@@ -179,35 +227,38 @@ static unsigned int spherical_horner(SphericalProgram *program, unsigned int x, 
 }
 
 // cos(pi s) and sin(pi s) for s in [-1, 1)
-static SphericalComplex spherical_cis(SphericalProgram *program, unsigned int s, const std::vector<unsigned int> &cosine)
+static SphericalComplex spherical_cis(SphericalProgram *program, unsigned int s, const unsigned int *cosine,
+                                      unsigned int cos_terms)
 {
     SphericalComplex out;
-    out.re = spherical_horner(program, spherical_scaled(program, s, s), cosine);
+    out.re = spherical_horner(program, spherical_scaled(program, s, s), cosine, cos_terms);
     const unsigned int shifted = spherical_wrap(
         program, spherical_difference(program, s, spherical_constant(program, 1ull << (SPHERICAL_SCALE_BITS - 1u))),
         SPHERICAL_SCALE_BITS + 1u);
-    out.im = spherical_horner(program, spherical_scaled(program, shifted, shifted), cosine);
+    out.im = spherical_horner(program, spherical_scaled(program, shifted, shifted), cosine, cos_terms);
     return out;
 }
 
 // the program: fields U, u_unit, r_unit, 1 / pi, the artanh constants and the cos constants; outputs route one, and
 // route two's real and imaginary parts
-static void spherical_build(SphericalStage *stage, unsigned int artanh_terms, unsigned int cos_terms, unsigned int first_terms,
-                            unsigned int second_terms, unsigned int newton, const std::vector<unsigned int> &constant_bits)
+static void spherical_build(SphericalStage *stage, unsigned int artanh_terms, unsigned int cos_terms,
+                            unsigned int first_terms, unsigned int second_terms, unsigned int newton,
+                            const unsigned int *constant_bits)
 {
     SphericalProgram *const program = &stage->program;
     const unsigned int count_field = spherical_field(program, SPHERICAL_LANE_BITS + 2u);
     const unsigned int u_field = spherical_field(program, constant_bits[0]);
     const unsigned int r_field = spherical_field(program, constant_bits[1]);
     const unsigned int inv_pi_field = spherical_field(program, constant_bits[2]);
-    std::vector<unsigned int> artanh, cosine;
+    unsigned int artanh[SPHERICAL_TERMS];
+    unsigned int cosine[SPHERICAL_TERMS];
     for (unsigned int k = 0u; k < artanh_terms; k += 1u)
     {
-        artanh.push_back(spherical_field(program, constant_bits[3u + k]));
+        artanh[k] = spherical_field(program, constant_bits[3u + k]);
     }
     for (unsigned int k = 0u; k < cos_terms; k += 1u)
     {
-        cosine.push_back(spherical_field(program, constant_bits[3u + artanh_terms + k]));
+        cosine[k] = spherical_field(program, constant_bits[3u + artanh_terms + k]);
     }
     const unsigned int unit = spherical_constant(program, 1ull << SPHERICAL_SCALE_BITS);
     const unsigned int lane = spherical_step(program, ENGINE_RECORD_AND, spherical_step(program, ENGINE_RECORD_LANE, 0u, 0u),
@@ -252,7 +303,7 @@ static void spherical_build(SphericalStage *stage, unsigned int artanh_terms, un
     // ln(1 + u) = 2 artanh(y), y = u / (2 + u)
     const unsigned int y = spherical_step(program, ENGINE_RECORD_QUOTIENT, spherical_step(program, ENGINE_RECORD_PRODUCT, u, unit),
                                           spherical_sum(program, one_more, unit));
-    const unsigned int series = spherical_horner(program, spherical_scaled(program, y, y), artanh);
+    const unsigned int series = spherical_horner(program, spherical_scaled(program, y, y), artanh, artanh_terms);
     const unsigned int half_log = spherical_scaled(program, series, y);
     const unsigned int log = spherical_sum(program, half_log, half_log);
     // (1 + u)^(-1/2) by Newton's rule from 4/5
@@ -268,14 +319,11 @@ static void spherical_build(SphericalStage *stage, unsigned int artanh_terms, un
         program, spherical_difference(program, spherical_constant(program, 0ull),
                                       spherical_scaled(program, spherical_scaled(program, r, log), spherical_read(program, inv_pi_field))),
         SPHERICAL_SCALE_BITS + 1u);
-    const SphericalComplex around = spherical_cis(program, turn, cosine);
+    const SphericalComplex around = spherical_cis(program, turn, cosine, cos_terms);
     const SphericalComplex turned = spherical_cmul(program, around, second);
-    stage->outputs.push_back(spherical_wrap(program, first, SPHERICAL_SCALED_BITS));
-    stage->names.push_back("first");
-    stage->outputs.push_back(spherical_scaled(program, turned.re, root));
-    stage->names.push_back("second_re");
-    stage->outputs.push_back(spherical_scaled(program, turned.im, root));
-    stage->names.push_back("second_im");
+    spherical_output(stage, spherical_wrap(program, first, SPHERICAL_SCALED_BITS), "first");
+    spherical_output(stage, spherical_scaled(program, turned.re, root), "second_re");
+    spherical_output(stage, spherical_scaled(program, turned.im, root), "second_im");
 }
 
 static int spherical_word(FILE *in, long long *value)
@@ -287,11 +335,14 @@ static int spherical_read_constant(FILE *in, SphericalConstant *constant)
 {
     long long limbs = 0;
     int read = spherical_word(in, &limbs) && (limbs >= 0) && (limbs < 4096);
-    constant->magnitude.assign(read ? (size_t)limbs : 0u, 0u);
-    read = read && (fread(constant->magnitude.data(), sizeof(unsigned int), constant->magnitude.size(), in) ==
-                    constant->magnitude.size());
+    // the magnitude, a cell of the persistent tier at the count the input gives: the program reads it once and keeps it
+    constant->limbs = read ? (unsigned int)limbs : 0u;
+    constant->magnitude = (unsigned int *)platform_cell_cleared(
+        (constant->limbs != 0u) ? constant->limbs : 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    read = read && (constant->magnitude != NULL) &&
+           (fread(constant->magnitude, sizeof(unsigned int), constant->limbs, in) == constant->limbs);
     read = read && spherical_word(in, &constant->sign);
-    unsigned int width = 32u * (unsigned int)constant->magnitude.size();
+    unsigned int width = read ? (32u * constant->limbs) : 0u;
     while ((width > 0u) && (((constant->magnitude[(width - 1u) / 32u] >> ((width - 1u) % 32u)) & 1u) == 0u))
     {
         width -= 1u;
@@ -301,18 +352,25 @@ static int spherical_read_constant(FILE *in, SphericalConstant *constant)
 }
 
 // `bits` of a two's complement value, its magnitude's limbs given, positioned at `offset` of `record`
-static void spherical_put(unsigned int *record, unsigned int offset, unsigned int bits, const std::vector<unsigned int> &limbs,
-                          long long sign)
+static void spherical_put(unsigned int *record, unsigned int offset, unsigned int bits, const unsigned int *limbs,
+                          unsigned int limb_count, long long sign)
 {
-    std::vector<unsigned int> word((bits + 31u) / 32u + 1u, 0u);
-    for (size_t at = 0u; at < limbs.size() && at < word.size(); at += 1u)
+    // the value's words, a cell of the temporary tier at the width the field takes, that the call gives back
+    const unsigned int words = (bits + 31u) / 32u + 1u;
+    unsigned int *const word =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 1);
+    if (word == NULL)
+    {
+        return;
+    }
+    for (unsigned int at = 0u; (at < limb_count) && (at < words); at += 1u)
     {
         word[at] = limbs[at];
     }
     if (sign < 0)
     {
         unsigned long long carry = 1ull;
-        for (size_t at = 0u; at < word.size(); at += 1u)
+        for (unsigned int at = 0u; at < words; at += 1u)
         {
             carry += (unsigned long long)(~word[at] & 0xFFFFFFFFu);
             word[at] = (unsigned int)carry;
@@ -325,6 +383,7 @@ static void spherical_put(unsigned int *record, unsigned int offset, unsigned in
         const unsigned int value = (word[bit / 32u] >> (bit % 32u)) & 1u;
         record[to / 32u] = (record[to / 32u] & ~(1u << (to % 32u))) | (value << (to % 32u));
     }
+    platform_cell_released(word, platform_place_g_program_owner);
 }
 
 // imprints, arranges and loads the program, runs every lane, and checks the host's first `checked` records against the
@@ -333,39 +392,49 @@ static int spherical_sweep(SimResults *job, SphericalStage *stage, unsigned long
                            EngineError *error, int count, char **arguments)
 {
     SphericalProgram *const program = &stage->program;
-    const unsigned int fields = (unsigned int)program->field_bits.size();
-    const KeymathRecordRequest encode = {program->steps.data(), (unsigned int)program->steps.size(), program->field_bits.data(),
-                                         fields, 1u, stage->outputs.data(), (unsigned int)stage->outputs.size(), NULL, 0u,
-                                         &stage->key, error};
-    int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
+    const unsigned int fields = program->field_count;
+    const KeymathRecordRequest encode = {
+        program->steps, program->count, program->field_bits, fields, 1u, stage->outputs, stage->output_count, NULL, 0u,
+        &stage->key,    error};
+    int ok = (program->steps != NULL) && (stage->shared != NULL) && !program->full &&
+             (keymath_record_encode(&encode) != KEYMATH_ERROR);
     sim_check(job, ok, "keymath imprints the spherical program");
-    unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {(unsigned int)stage->shared.size(), 0u, 0u};
-    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout, error};
+    unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {stage->shared_count, 0u, 0u};
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset, fields, in_limbs,
+                                               1,           &stage->layout,        error};
     ok = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     sim_check(job, ok, "the scheduler positions the spherical program out");
     const unsigned int out_limbs = ok ? stage->layout.out_limbs : 0u;
-    const unsigned long long declared = (lanes * out_limbs + stage->shared.size()) * sizeof(unsigned int) + (64ull << 20u);
+    const unsigned long long declared =
+        (lanes * out_limbs + stage->shared_count) * sizeof(unsigned int) + (64ull << 20u);
     ok = ok && sim_job_submit(job, "exact_zeta_spherical", count, arguments, declared);
     ok = ok && (cycle_record_load(&stage->layout, &stage->record, error) != CYCLE_ERROR);
     sim_check(job, ok, "the spherical program loads onto the device");
     unsigned int *device_shared = NULL;
     unsigned int *device_out = NULL;
-    ok = ok && (cudaMalloc((void **)&device_shared, stage->shared.size() * sizeof(unsigned int)) == cudaSuccess) &&
+    ok = ok && (cudaMalloc((void **)&device_shared, stage->shared_count * sizeof(unsigned int)) == cudaSuccess) &&
          (cudaMalloc((void **)&device_out, lanes * out_limbs * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_shared, stage->shared.data(), stage->shared.size() * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-          cudaSuccess);
+         (cudaMemcpy(device_shared, stage->shared, stage->shared_count * sizeof(unsigned int),
+                     cudaMemcpyHostToDevice) == cudaSuccess);
     const CycleRecordRunRequest run = {stage->record, {device_shared, NULL, NULL}, {1ull, 0ull, 0ull}, NULL, lanes, device_out, error};
     ok = ok && (cycle_record_run(&run) == (long)lanes);
     sim_check(job, ok, "every lane of the grid runs on the device");
-    stage->records.assign((size_t)(ok ? lanes * out_limbs : 0ull), 0u);
-    ok = ok && (cudaMemcpy(stage->records.data(), device_out, stage->records.size() * sizeof(unsigned int),
-                           cudaMemcpyDeviceToHost) == cudaSuccess);
-    std::vector<unsigned int> host_out((size_t)(checked * out_limbs));
-    const CycleRecordHostRequest host = {&stage->layout, {stage->shared.data(), NULL, NULL}, {1ull, 0ull, 0ull}, NULL,
-                                         checked,        host_out.data(),                     error};
+    // the records and the host's records, cells of the temporary tier, each 0 before it fills
+    stage->record_count = ok ? (lanes * out_limbs) : 0ull;
+    stage->records = (unsigned int *)platform_cell_cleared((stage->record_count != 0ull) ? stage->record_count : 1ull,
+                                                           sizeof(unsigned int), platform_place_g_program_owner, 1);
+    unsigned int *const host_out =
+        (unsigned int *)platform_cell_cleared(((checked * out_limbs) != 0ull) ? (checked * out_limbs) : 1ull,
+                                              sizeof(unsigned int), platform_place_g_program_owner, 1);
+    ok = ok && (stage->records != NULL) && (host_out != NULL) &&
+         (cudaMemcpy(stage->records, device_out, stage->record_count * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
+          cudaSuccess);
+    const CycleRecordHostRequest host = {
+        &stage->layout, {stage->shared, NULL, NULL}, {1ull, 0ull, 0ull}, NULL, checked, host_out, error};
     stage->same = ok && (cycle_record_run_host(&host) == (long)checked) &&
-                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = stage->records.data(),
-                              .bytes = host_out.size() * sizeof(unsigned int)) == 0);
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = stage->records,
+                              .bytes = checked * out_limbs * sizeof(unsigned int)) == 0);
+    platform_cell_released(host_out, platform_place_g_program_owner);
     sim_check(job, stage->same, "the host's records equal the device's word for word");
     cudaFree(device_shared);
     cudaFree(device_out);
@@ -397,8 +466,13 @@ int program_main(int count, char **arguments)
     const unsigned long long checked = read ? (unsigned long long)header[1] : 0ull;
     const unsigned int artanh_terms = read ? (unsigned int)header[3] : 0u;
     const unsigned int cos_terms = read ? (unsigned int)header[4] : 0u;
-    std::vector<SphericalConstant> constants(read ? 3u + artanh_terms + cos_terms : 0u);
-    for (size_t k = 0u; read && (k < constants.size()); k += 1u)
+    // the constants, a cell of the persistent tier at the count the header gives: the program reads them once and keeps
+    // them to its end
+    const unsigned int constant_count = read ? (3u + artanh_terms + cos_terms) : 0u;
+    SphericalConstant *const constants = (SphericalConstant *)platform_cell_cleared(
+        (constant_count != 0u) ? constant_count : 1u, sizeof(SphericalConstant), platform_place_g_program_owner, 0);
+    read = read && (constants != NULL);
+    for (unsigned int k = 0u; read && (k < constant_count); k += 1u)
     {
         read = spherical_read_constant(in, &constants[k]);
     }
@@ -415,24 +489,54 @@ int program_main(int count, char **arguments)
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     SphericalStage stage;
-    stage.program.shared_bits = 0u;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage, .bytes = sizeof(stage), .val = 0);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage.key, .bytes = sizeof(stage.key), .val = 0);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage.layout, .bytes = sizeof(stage.layout), .val = 0);
     stage.record = NULL;
     stage.same = 0;
-    std::vector<unsigned int> bits;
-    for (size_t k = 0u; k < constants.size(); k += 1u)
+    unsigned int bits[3u + (2u * SPHERICAL_TERMS)];
+    for (unsigned int k = 0u; k < constant_count; k += 1u)
     {
-        bits.push_back(constants[k].bits);
+        bits[k] = constants[k].bits;
     }
+    // the first build counts the steps and the fields, the cells are taken at those counts, and the second fills them
     spherical_build(&stage, artanh_terms, cos_terms, (unsigned int)header[5], (unsigned int)header[6], (unsigned int)header[7], bits);
-    stage.shared.assign((stage.program.shared_bits + 31u) / 32u + 1u, 0u);
-    const std::vector<unsigned int> grid = {(unsigned int)header[2], 0u};
-    spherical_put(stage.shared.data(), stage.program.field_offset[0], stage.program.field_bits[0], grid, 1);
-    for (size_t k = 0u; k < constants.size(); k += 1u)
+    SphericalProgram *const program = &stage.program;
+    program->room = program->count;
+    program->field_room = program->field_count;
+    program->steps = (EngineRecordStep *)platform_cell_taken(
+        (unsigned long long)program->room * sizeof(EngineRecordStep), platform_place_g_program_owner, 0);
+    program->field_bits = (unsigned int *)platform_cell_taken(
+        (unsigned long long)program->field_room * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    program->field_offset = (unsigned int *)platform_cell_taken(
+        (unsigned long long)program->field_room * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    program->count = 0u;
+    program->field_count = 0u;
+    program->shared_bits = 0u;
+    stage.output_count = 0u;
+    const int taken = (program->steps != NULL) && (program->field_bits != NULL) && (program->field_offset != NULL);
+    if (taken)
     {
-        spherical_put(stage.shared.data(), stage.program.field_offset[1u + k], stage.program.field_bits[1u + k],
-                      constants[k].magnitude, constants[k].sign);
+        spherical_build(&stage, artanh_terms, cos_terms, (unsigned int)header[5], (unsigned int)header[6],
+                        (unsigned int)header[7], bits);
+    }
+    else
+    {
+        program->steps = NULL;
+    }
+    // the shared record, a cell of the temporary tier, 0 before it fills
+    stage.shared_count = (program->shared_bits + 31u) / 32u + 1u;
+    stage.shared = (unsigned int *)platform_cell_cleared(stage.shared_count, sizeof(unsigned int),
+                                                         platform_place_g_program_owner, 1);
+    const unsigned int grid[2] = {(unsigned int)header[2], 0u};
+    if (taken && (stage.shared != NULL) && !program->full)
+    {
+        spherical_put(stage.shared, program->field_offset[0], program->field_bits[0], grid, 2u, 1);
+        for (unsigned int k = 0u; k < constant_count; k += 1u)
+        {
+            spherical_put(stage.shared, program->field_offset[1u + k], program->field_bits[1u + k],
+                          constants[k].magnitude, constants[k].limbs, constants[k].sign);
+        }
     }
     int ok = spherical_sweep(&job, &stage, lanes, checked, &error, count, arguments);
 
@@ -441,10 +545,10 @@ int program_main(int count, char **arguments)
     {
         const unsigned int out_limbs = stage.layout.out_limbs;
         fprintf(out, "out_limbs %u\n", out_limbs);
-        for (size_t at = 0u; at < stage.outputs.size(); at += 1u)
+        for (unsigned int at = 0u; at < stage.output_count; at += 1u)
         {
             const DeviceRecordStep *const place = &stage.layout.step_table[stage.outputs[at]];
-            fprintf(out, "output %s %u %u\n", stage.names[at].c_str(), place->out_offset, place->out_bits);
+            fprintf(out, "output %s %u %u\n", stage.names[at], place->out_offset, place->out_bits);
         }
         for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
         {
@@ -464,5 +568,15 @@ int program_main(int count, char **arguments)
     }
     key_schedule_record_release(&stage.layout);
     keymath_record_release(&stage.key);
+    for (unsigned int k = 0u; k < constant_count; k += 1u)
+    {
+        platform_cell_released(constants[k].magnitude, platform_place_g_program_owner);
+    }
+    void *const cells[6] = {stage.records,       stage.shared,          program->steps,
+                            program->field_bits, program->field_offset, constants};
+    for (unsigned int each = 0u; each < 6u; each += 1u)
+    {
+        platform_cell_released(cells[each], platform_place_g_program_owner);
+    }
     return sim_close(&job, "exact_zeta_spherical");
 }
