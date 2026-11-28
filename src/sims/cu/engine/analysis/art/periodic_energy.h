@@ -159,8 +159,8 @@ static inline int energy_recover(SimResults *results, const long long *values, u
 {
     measurement->found = 0;
     measurement->period = 0ULL;
-    // a range below 2 has no period to test, and errors before the device is invoked (the phase count at range 0
-    // would wrap)
+    // a range below 2 has no period to test, and gives an error before the call starts the device. The phase count at
+    // range 0 would wrap
     if ((length < 4ULL) || (range < 2ULL))
     {
         return 0;
