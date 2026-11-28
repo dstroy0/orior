@@ -7,19 +7,20 @@
  */
 /**
  * @file scan.c
- * @brief The steering scan in portable C11, the reference every other scan arm is graded against.
+ * @brief The steering scan in portable C11, the reference that the tests grade every other scan arm
+ * against.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * ONE PRIMITIVE. Fixed at one needle offset, count the alignments still located whose corpus byte at
- * that offset equals the needle byte the level is testing. That is the operation a planner requests
- * of a scan engine, and it is the same question every wide arm answers faster.
+ * ONE PRIMITIVE. At one fixed needle offset, count the truthy alignments whose corpus byte at that
+ * offset equals the needle byte that the level tests. That is the operation that a planner requests of
+ * a scan engine. It is the same question that every wide arm answers faster.
  *
- * @note THE REFERENCE. This arm uses no intrinsic and no compiler extension. It builds anywhere a
+ * @note THE REFERENCE. This arm uses no intrinsic and no compiler extension. It builds anywhere that a
  *       C11 compiler runs, and every other scan arm returns the same count or has a defect. That is
- *       the contract OriorSteerEngine carries, the same one the exact arms carry in
- * includes/exact_types/integers/arm.h.
- * @note It counts a scan call and never a wide call. orior_steer_scan_calls and
- *       orior_steer_wide_calls are defined in orior_steer_count.c and declared in the header; a wide arm
+ *       the contract that OriorSteerEngine carries, the same one that the exact arms carry in
+ *       includes/exact_types/integers/arm.h.
+ * @note It counts a scan call, and never a wide call. orior_steer_count.c defines
+ *       orior_steer_scan_calls and orior_steer_wide_calls, and the header declares them. A wide arm
  *       counts both. Wide over total is the share served on the vector path.
  */
 
