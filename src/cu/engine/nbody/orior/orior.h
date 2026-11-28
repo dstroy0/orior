@@ -10,13 +10,13 @@
  * @brief The engine: the search, the steering that places its probes, and the scan underneath both.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * @note This is the kernel. Everything here is the thing being measured, and nothing here reads a
+ * @note This is the kernel. Everything here is the thing under measure, and nothing here reads a
  *       clock, builds a corpus or prints a row. Those belong to the driver.
  * @note ONE PRIMITIVE, WRITTEN ONCE. Every loop below tests whether `corpus[at + offset]` equals
- *       `needle[offset]` and counts the positions where it does. The search counts matches, the
+ *       `needle[offset]`, and counts the positions where it does. The search counts matches, the
  *       steering counts survivors, and the scan counts the same survivors wider. All three are in
- *       this file, and a reader looking for the engine opens one file and not a directory.
- * @note Every engine has the same signature and returns the same count, letting a driver call any
+ *       this file, and a reader who looks for the engine opens one file and not a folder.
+ * @note Every engine has the same signature and returns the same count. Thus a driver can call any
  *       of them through one pointer. Where two disagree, one of them has a defect. Nothing about
  *       the difference is a tradeoff.
  */
