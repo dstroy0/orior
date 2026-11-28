@@ -144,7 +144,7 @@ def as_objects(frames):
                     target = object_of.get((later, one["forward"]), -1)
                     if target >= 0:
                         went[target] += one["voxels"]
-            ranked = [target for target, _ in went.max_common()]
+            ranked = [target for target, _ in went.most_common()]
             forward = leader["object_link"] if (leader["object_links"] > 0) else (ranked[0] if ranked else -1)
             rows.append({
                 "leaf": identity,

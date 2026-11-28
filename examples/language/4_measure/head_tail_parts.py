@@ -51,7 +51,7 @@ def main():
             counts = collections.Counter(WORD.findall(handle.read().lower()))
 
         # A type seen once or twice carries no reliable rank, and the rare half is mostly those
-        ranked = [word for word, count in counts.max_common() if count >= FLOOR]
+        ranked = [word for word, count in counts.most_common() if count >= FLOOR]
         if len(ranked) < 8:
             continue
         cut = len(ranked) // 2

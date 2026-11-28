@@ -259,7 +259,7 @@ def inventory(text, marks):
     for symbol in text:
         if unicodedata.combining(symbol) and (symbol in marks):
             held[symbol] += 1
-    return [one for one, times in held.max_common()]
+    return [one for one, times in held.most_common()]
 
 
 def main():

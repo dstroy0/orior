@@ -65,7 +65,7 @@ def main():
     papers = collections.defaultdict(set)
     for one in rows:
         papers[one[2]].add(one[0])
-    for type, seen in count.max_common():
+    for type, seen in count.most_common():
         print("%5d  %3d papers  %s" % (seen, len(papers[type]), type))
     if len(sys.argv) > 1:
         for one in rows:

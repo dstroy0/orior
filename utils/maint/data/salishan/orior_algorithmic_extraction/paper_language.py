@@ -190,7 +190,7 @@ def named_in(path, front=FRONT):
     for name, aliases in NAMES:
         for one in aliases:
             counted[name] += text.count(one.casefold())
-    return [(name, times) for name, times in counted.max_common() if times]
+    return [(name, times) for name, times in counted.most_common() if times]
 
 
 def attribution(found):
@@ -231,7 +231,7 @@ def main():
         % (len(rows), len(rows) - unattributed, unattributed)
     )
     out.write("\n  %-22s %s\n" % ("language", "papers"))
-    for name, times in counted.max_common():
+    for name, times in counted.most_common():
         out.write("  %-22s %d\n" % (name, times))
 
     out.write(

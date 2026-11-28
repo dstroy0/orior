@@ -38,7 +38,7 @@ def main():
             continue
         with open(path, encoding="utf-8", errors="replace") as handle:
             counts = collections.Counter(WORD.findall(handle.read().lower()))
-        head = " ".join(word for word, _ in counts.max_common(DISPLAYED))
+        head = " ".join(word for word, _ in counts.most_common(DISPLAYED))
         out.write("%-30s %s\n" % (os.path.basename(path)[:-4], head))
 
     out.flush()

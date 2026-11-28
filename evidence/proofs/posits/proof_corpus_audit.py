@@ -96,7 +96,7 @@ def main():
                 notes.append("line wrapped at %d" % middle)
 
         counts = collections.Counter(WORD.findall(text.lower()))
-        top = {word for word, _ in counts.max_common(40)}
+        top = {word for word, _ in counts.most_common(40)}
         claimed = [key for key in NAMED if key in stem]
         if claimed:
             want = FINGERPRINTS[claimed[0]]

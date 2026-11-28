@@ -255,8 +255,8 @@ def rows(given=None):
             shares = collections.Counter(language_of(one[1]) for one in read
                                          if one[2] in FORM_TYPES and language_of(one[1]))
             total = sum(shares.values())
-            if total and shares.max_common(1)[0][1] >= 0.7 * total:
-                stated = shares.max_common(1)[0][0]
+            if total and shares.most_common(1)[0][1] >= 0.7 * total:
+                stated = shares.most_common(1)[0][0]
         for where, who, type, form, gloss in read:
             language, placed = language_of(who), "who"
             if language is None and type in FORM_TYPES:
@@ -301,5 +301,5 @@ if __name__ == "__main__":
         print("%-6s %-24s %-6s %6d" % (branch, language, placed, number))
     print("pairs of a segmentation and its gloss:", len(glossed_pairs(everything)))
     print("unplaced who values, form rows:", sum(unplaced.values()))
-    for who, number in unplaced.max_common(40):
+    for who, number in unplaced.most_common(40):
         print("   %5d %s" % (number, who))

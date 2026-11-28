@@ -97,7 +97,7 @@ def main():
         if why is None:
             retained.append((word, count))
         else:
-            pulled.append((forms[word].max_common(1)[0][0], count, why))
+            pulled.append((forms[word].most_common(1)[0][0], count, why))
 
     reference, total, _ = english_sift.english_reference()
     scored = [(english_sift.surprise(written, reference, total), written, count, why)
