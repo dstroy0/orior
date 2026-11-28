@@ -1,10 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// The root noise of an object's box. Each term the noise vector table names as shared is planted in turn at three
-// strengths over a scene containing one located body; the noise detector prices the body's box and every term's yank
-// through the tower and compression's coder and names the root, the term whose yank saves the max bits. The null
-// names none; a planted term is the root or there is none, never another term; at the strongest each is the root; and
-// every yank returns the box exactly.
+// The root noise of the box of an object. The sim plants in turn each term that the noise vector table names as shared,
+// at three strengths, over a scene that holds one still body. The noise detector prices the box of the body, and the
+// yank of every term, through the tower and the coder of compression. It names the root, the term whose yank saves the
+// most bits.
+//
+// The null names none. A planted term is the root, or there is none, and never another term. At the strongest, each is
+// the root, and every yank returns the box exactly.
 #include "../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sim_camera.h"
@@ -28,8 +30,8 @@
 
 #define ROOT_WIDTH 64ULL
 
-// an offset of 300 and 100 electrons at gain 1 with a read variance of 4: a background voxel's independent variance is
-// 104 and a body voxel's 404, and the offset confines the strongest planted term to the lane
+// an offset of 300, and 100 electrons at gain 1 with a read variance of 4. The independent variance of a background
+// voxel is 104, and that of a body voxel 404. The offset keeps the strongest planted term inside the lane
 #define ROOT_OFFSET 300ULL
 
 #define ROOT_BACKGROUND 100ULL
@@ -41,7 +43,7 @@
 
 static const unsigned long long ROOT_SQUARES[ROOT_STRENGTHS] = {64ULL, 256ULL, 1024ULL};
 
-// the object: one body located at the view's middle, 300 electrons over the radii 3, 7 and 7
+// the object: one still body at the middle of the view, 300 electrons over the radii 3, 7 and 7
 #define ROOT_BRIGHTNESS 300ULL
 
 // the null, then each term planted alone at each strength
@@ -57,8 +59,9 @@ static const unsigned long long ROOT_HIGH[4] = {ROOT_FRAMES, 14ULL, 48ULL, 48ULL
 // the terms by NOISE_ROOT_*, then none
 static const char *const ROOT_NAMES[NOISE_ROOT_TERMS + 1u] = {"rows", "columns", "planes", "pixels", "stacks", "none"};
 
-// The crystal's price of a lattice of ints: lifted through the tower and coded, the coder's bits. Each lattice is
-// copied to the device on its own; the tower's and the coder's pools are sized to the box's, the largest.
+// The price that the crystal gives a lattice of ints: lifted through the tower and coded, the bits of the coder. The
+// sim copies each lattice to the device on its own. The pools of the tower and of the coder have the size of those of
+// the box, the largest.
 static long root_cost(const int *values, const unsigned long long extent[4], unsigned long long *bits,
                       EngineError *error)
 {
@@ -115,9 +118,9 @@ static void root_camera(SimCamera *camera, unsigned int planted, unsigned long l
     camera->plane_square = (planted == NOISE_ROOT_PLANES) ? square : 0ULL;
 }
 
-// The terms the camera law does not draw, added on the host: a value for each camera pixel, (y, x), shared by every
-// frame and z plane, or a value for each frame and pixel, (t, y, x), shared by every z plane of the stack. Returns the
-// voxel-frames the sum left outside the lane, clamped at its ends.
+// The terms that the camera law does not draw, added on the host. That is a value for each camera pixel, (y, x),
+// shared by every frame and z plane. Or it is a value for each frame and pixel, (t, y, x), shared by every z plane of
+// the stack. The return is the voxel-frames that the sum left outside the lane, clamped at its ends.
 static unsigned long long root_plant(unsigned short *lanes, unsigned int planted, unsigned long long square)
 {
     const unsigned long long plane = ROOT_HEIGHT * ROOT_WIDTH;
@@ -134,7 +137,7 @@ static unsigned long long root_plant(unsigned short *lanes, unsigned int planted
                 const long long value = (long long)lanes[at] + sim_centerd(ROOT_KEY ^ purpose, counter, square);
                 clipped += ((value < 0LL) || (value > SIM_LANE_MAX)) ? 1ULL : 0ULL;
                 const long long clamped = (value < 0LL) ? 0LL : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
-                // the value is clamped to the u16 lane's range just above
+                // the call clamps the value to the range of the u16 lane just above
                 lanes[at] = (unsigned short)clamped;
                 at += 1ULL;
             }
@@ -317,8 +320,8 @@ int program_main(int argc, char **argv)
         }
         mmgr_line_put(line, "  ");
         mmgr_line_put_columns(line, ROOT_NAMES[measurement.root], 7u);
-        // a root saves more than 0 and less than the box's bits, which are a few million here: the box's bits
-        // convert to long long exactly and 1000 times the saving is far below 2^63
+        // a root saves more than 0 and less than the bits of the box, which are a few million here. The bits of the
+        // box convert to long long exactly, and 1000 times the bits saved is far below `2^63`
         const long long per_mille =
             (measurement.root < NOISE_ROOT_TERMS)
                 ? ((1000LL * measurement.saved[measurement.root]) / (long long)measurement.box_bits)
