@@ -123,8 +123,8 @@ static int sass_form_relocated(const SassForm *form, const SassPlace *places)
     return relocated;
 }
 
-// 1 where `form` is `other`'s operation and reads as a label an operand `other` reads as a number: a branch's distance
-// is read as the place it lands, which a number in the same bits does not specify
+// 1 where `form` is the operation of `other`, and reads as a label an operand that `other` reads as a number. The
+// distance of a branch reads as the place where it lands, which a number in the same bits does not tell
 static int sass_form_lands(const SassForm *form, const SassForm *other)
 {
     if ((other == NULL) ||
@@ -142,8 +142,8 @@ static int sass_form_lands(const SassForm *form, const SassForm *other)
     return lands;
 }
 
-// 1 where `named` is `plain` with modifiers added: the two share their name up to its first dot, and every modifier
-// `plain` carries `named` carries too, as IMAD.IADD carries IMAD's and IMAD.MOV.U32 carries IMAD.U32's
+// 1 where `named` is `plain` with modifiers added. The two share their name up to its first dot, and `named` carries
+// every modifier that `plain` carries. IMAD.IADD carries those of IMAD, and IMAD.MOV.U32 those of IMAD.U32
 static int sass_name_within(const char *plain, const char *named)
 {
     const size_t length =
@@ -173,12 +173,14 @@ static int sass_name_within(const char *plain, const char *named)
     return within;
 }
 
-// How `holder` is against `sibling` where `holder` takes its name from one value of an operand: a sibling carrying
-// the same encoding, with the same operation's name before its first dot, the same types and the same marks, is named
-// shorter, and the two forms' own values of an operand differ. -1 where the encoding's value there is not `holder`'s,
-// which names it away; 1 where every such value is `holder`'s, which names it; 0 where the two are no such pair.
-// IMAD.MOV and IMAD.IADD are IMAD with a multiplier of 0 and of 1, and IMAD.MOV is IMAD with RZ as the register it
-// multiplies by: an encoding with any other multiplier is IMAD's
+// How `holder` is against `sibling`, where `holder` takes its name from one value of an operand. A sibling that carries
+// the same encoding has a shorter name. It has the same operation name before its first dot, the same types and the
+// same marks. The own values of an operand of the two forms differ.
+//
+// The return is -1 where the value of the encoding there is not that of `holder`, which names it away. It is 1 where
+// every such value is that of `holder`, which names it, and 0 where the two are no such pair. IMAD.MOV and IMAD.IADD
+// are IMAD with a multiplier of 0 and of 1. IMAD.MOV is IMAD with RZ as the register that it multiplies by. An
+// encoding with any other multiplier belongs to IMAD
 static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling, unsigned long long low,
                              unsigned long long high)
 {
@@ -204,8 +206,9 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
         const unsigned long long theirs =
             sass_bits_read(other->low, other->high, field_other->first, field_other->bits);
         const unsigned long long given = sass_bits_read(low, high, field->first, field->bits);
-        // the value a name is taken from is a multiplier of 0 or 1, a number 0 or 1 or the register RZ; a register
-        // the two forms' encodings were seen with apart from that is the encoding's own and names nothing
+        // the value that a name comes from is a multiplier of 0 or 1, a number 0 or 1, or the register RZ. A register
+        // that the probe saw the encodings of the two forms with, apart from that, belongs to the encoding and names
+        // nothing
         const int naming = ((form->type[place] == SASS_OPERAND_IMMEDIATE) && (own <= 1ULL)) ||
                            ((form->type[place] == SASS_OPERAND_REGISTER) && (own == 255ULL));
         differs = differs || (naming && (own != theirs));
@@ -271,7 +274,8 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
                 continue;
             }
         }
-        // a holder past the max the reader weighs is refused and not dropped: the form it would have been is unknown
+        // the reader refuses, and does not drop, a holder past the max that it weighs, because the form that it would
+        // be is unknown
         if (found_count == SASS_HOLDERS)
         {
             {
@@ -307,7 +311,8 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
         const SassForm *const form = holder->form;
         const SassForm *const was = (found != NULL) ? found->form : NULL;
         const int relocated = sass_form_relocated(form, holder->places);
-        // a form a value names takes the encoding from the sibling it is named past, and retains it from that sibling
+        // a form that a value names takes the encoding from the sibling that its name passes, and keeps it from that
+        // sibling
         const int named = (found != NULL) && (sass_holder_named(holder, found, low, high) > 0);
         const int holder_named = (found != NULL) && (sass_holder_named(found, holder, low, high) > 0);
         const int fewer = (found == NULL) || named || (!holder_named && (holder->open < found->open));
