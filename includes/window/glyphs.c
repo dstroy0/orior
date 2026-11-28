@@ -113,8 +113,9 @@ int gui_glyphs_init(const GuiGlyphsCfg *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->glyphs, .val = 0, .bytes = sizeof(*args->glyphs)});
     args->glyphs->faces = args->faces;
-    // the outline, the cache's entries, the cells and the two orders of their keys lie in the block's tables part, one
-    // after another on word boundaries. An order holds the places of its cache, then its run and the room of its sort
+    // the outline, the entries of the cache, the cells and the two orders of their keys lie in the tables part of the
+    // block. They are one after another on word boundaries. An order holds the places of its cache, then its run and
+    // the room of its sort
     const unsigned long long contours_bytes = (sizeof(*args->glyphs->contours) + 7ULL) & ~7ULL;
     const unsigned long long entries_bytes = (GUI_GLYPH_CACHE_ENTRIES * sizeof(*args->glyphs->entry) + 7ULL) & ~7ULL;
     const unsigned long long cells_bytes = (GUI_CELL_CACHE_ENTRIES * sizeof(*args->glyphs->cell) + 7ULL) & ~7ULL;
@@ -512,8 +513,8 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
     {
         return &found->mask_bits;
     }
-    // the entry is made in this call's own record, and takes the next place of the cache when it is whole. The mask's
-    // ring can empty the cache as it is made
+    // the call makes the entry in its own record, and the entry takes the next place of the cache when it is whole.
+    // The ring of the mask can empty the cache while the call makes the entry
     GuiCachedGlyph made;
     memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
     GuiCachedGlyph *const entry = &made;
@@ -665,8 +666,8 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         *advance = found->advance;
         return found;
     }
-    // the cell is made in this call's own record, and takes the next place of the cells when it is whole. The lanes'
-    // ring can empty the cells as it is made
+    // the call makes the cell in its own record, and the cell takes the next place of the cells when it is whole.
+    // The ring of the lanes can empty the cells while the call makes the cell
     GuiGlyphCell made;
     memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
     GuiGlyphCell *const cell = &made;

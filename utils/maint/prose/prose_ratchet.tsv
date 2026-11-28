@@ -446,7 +446,6 @@ includes/file_defs/kcs/kcs.h	1
 includes/file_defs/kdm/kdm.c	2
 includes/file_defs/kernel_blob/forms_blob.h	2
 includes/file_defs/kfile_lines/kfile_lines.c	5
-includes/file_defs/khw/khw_machine_write/assembled.c	6
 includes/file_defs/khw/khw_machine_write/opening.h	2
 includes/file_defs/klq/query_trace.h	3
 includes/file_defs/kqr/kqr_merge.c	5
@@ -481,13 +480,11 @@ includes/formats/parquet/parquet_internal.h	4
 includes/frame_buffer/framebuffer.h	4
 includes/glass/glass.c	1
 includes/glass/glass.h	5
-includes/parsers/who.c	5
 includes/parsers/who.h	2
 includes/platform/platform.h	2
 includes/platform/platform_internal.h	3
 includes/platform/platform_pool.c	1
 includes/platform/posix/linux/linux_picker.c	1
-includes/platform/posix/linux/linux_processes.c	5
 includes/platform/posix/linux/tls_libssl.c	2
 includes/platform/posix/linux/x11_window.c	3
 includes/platform/posix/platform_posix.c	2
@@ -512,14 +509,11 @@ includes/window/controls.c	3
 includes/window/controls.h	2
 includes/window/dialog.c	3
 includes/window/dialog.h	4
-includes/window/glyphs.c	5
 includes/window/glyphs.h	2
 includes/window/ground.c	2
 includes/window/ground.h	4
 includes/window/lights.c	1
 includes/window/lights.h	3
-includes/window/panel.c	5
-includes/window/panel.h	5
 includes/window/scrollbar.c	4
 includes/window/top_menu.c	5
 includes/window/top_menu.h	4
