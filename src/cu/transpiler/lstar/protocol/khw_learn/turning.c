@@ -1,16 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// turning.c: the turning case of a ladder form: the first case of its relation whose readings in the register pass
+// turning.c: the turn case of a ladder form: the first case of its relation whose readings in the register pass
 // are apart
 #include "khw_learn_internal.h"
 
-// The turning case of the relation `anchor`, read swapped where `swapped`, into `word`, with the relation's answer to
-// it in `expected`: the first case of the relation, in the order the ladder orders them, whose two words differ, whose
-// answer differs from both, and whose answer to each word taken twice differs from the second word and from the
-// answer. The register pass reads a run three ways over this case, as the destination where it leaves the second word,
-// as the first source where it reads the second word twice, as the second where it reads the first twice: a case whose
-// readings coincide would place a run by a coincidence, and is passed over. 1, or 0 where the relation contains no such
-// case
+// The turn case of the relation `anchor`, read swapped where `swapped`, into `word`, with the answer of the relation
+// to it in `expected`. It is the first case of the relation, in the order of the ladder, whose two words differ, and
+// whose answer differs from both. Its answer to each word taken twice must also differ from the second word and from
+// the answer.
+//
+// The register pass reads a run three ways over this case. It is the destination where it leaves the second word, and
+// the first source where it reads the second word twice. It is the second where it reads the first twice. A case whose
+// readings agree would place a run by a coincidence, and the call passes over it. The return is 1, or 0 where the
+// relation holds no such case
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected)
 {
     for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
@@ -61,13 +63,14 @@ static int khw_predicate_matches(unsigned int anchor, int swapped, int signed_re
     return answered != 0u;
 }
 
-// The turning case `which` of a predicate form of the relation `anchor`, read swapped where `swapped` and signed where
-// `signed_read`, into `word`: the cases of the relation in the order the ladder orders them, each in its order and then
-// the other, each pair once, whose words differ and over which the relation is true in the form's reading, so that the
-// guarded store writes the second word. A turn that moves a word to another register shows only where that register
-// breaks the relation, which a case does for one word and not the other: the turns are put over every such case and
-// the bits any of them turned read as one. 1, or 0 where the relation contains fewer than `which` + 1 such cases or is
-// no predicate
+// The turn case `which` of a predicate form of the relation `anchor`, read swapped where `swapped` and signed where
+// `signed_read`, into `word`. The cases are those of the relation in the order of the ladder, each in its order and
+// then the other, each pair once. Their words differ, and the relation is true over them in the reading of the form,
+// so that the guarded store writes the second word.
+//
+// A turn that moves a word to another register shows only where that register breaks the relation. A case does that
+// for one word and not the other. The call puts the turns over every such case, and the bits that any of them turned
+// read as one. The return is 1, or 0 where the relation holds fewer than `which + 1` such cases or is no predicate
 int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsigned int which, unsigned int word[2])
 {
     if (!ladder_predicate(anchor))
@@ -115,9 +118,9 @@ int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsig
     return 0;
 }
 
-// 1 where `runs` runs with the places `place` carry every place of a relation's tuple of `words` words and its answer,
-// the places 0 to `words`: a form so placed writes its relation whole, and a word of the web can be written by it;
-// a form short of a place is a fragment the widening found, and writes none
+// 1 where `runs` runs with the places `place` carry every place of the tuple of a relation, of `words` words, and its
+// answer, the places 0 to `words`. A form placed so writes its relation whole, and it can write a word of the web. A
+// form short of a place is a fragment that the widening found, and writes none
 int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words)
 {
     for (unsigned int wanted = 0u; wanted <= words; wanted += 1u)
@@ -135,7 +138,7 @@ int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int 
     return 1;
 }
 
-// the field of `bit` among `fields`, the narrowest containing it, or `fields` where none does
+// the field of `bit` among `fields`, the narrowest that holds it, or `fields` where none does
 static unsigned int khw_field_of(unsigned int bit, unsigned int fields, const unsigned int *field_first,
                                  const unsigned int *field_bits)
 {
