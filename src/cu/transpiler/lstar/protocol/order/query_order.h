@@ -3,25 +3,27 @@
 #ifndef QUERY_ORDER_H
 #define QUERY_ORDER_H
 
-// The known order of queries put through the query protocol: links that are queries, costs read off a clock that is an
-// address, and every link's cost solved from the order's answers.
+// The known order of queries put through the query protocol: links that are queries, and costs read from a clock that
+// is an address. The program solves the cost of every link from the answers of the order.
 //
-// A link is one query, an address and a qualifier. Query r of the known order puts every link it covers, `repeat` times
-// over, between two reads of the clock, and its cost is the clock's advance across them. A clock that steps far less
-// often than a query takes reads a single query as a step or nothing, and `repeat` makes one query of the order
-// last many steps. The order's queries are put in turn, `passes` times over: a drift in the part's speed falls on
-// every query alike. Every pass's answers are retained, hadamard_order_solve gives every link's cost pass by pass, and
-// the spread across passes is the noise floor, read off the answers. hadamard_links_read determines whether the links
-// add or contend. Nothing here stores a floating point value.
+// A link is one query, an address and a qualifier. Query r of the known order puts every link that it covers, `repeat`
+// times over, between two reads of the clock. Its cost is the advance of the clock across them. A clock that steps far
+// less often than a query takes reads a single query as a step or nothing. Thus `repeat` makes one query of the order
+// last many steps.
+//
+// The program puts the queries of the order in turn, `passes` times over. Thus a drift in the speed of the part falls
+// on every query alike. It keeps the answers of every pass, and hadamard_order_solve gives the cost of every link pass
+// by pass. The spread across passes is the noise floor, read from the answers. The call hadamard_links_read finds
+// whether the links add or contend. Nothing here stores a floating point value.
 
 #include "../query/query_put.h"
 #include "hadamard_order.h"
 
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
 
-// A clock is anything that turns over, noisily, now and then: its turns frame a run, and the run is read finely by
-// counting reads of the clock between turns. A run's cost is the exact rational numerator / denominator in the clock
-// word's own count, and nothing divides it
+// A clock is any thing that turns over, noisily, now and then. Its turns frame a run, and the program reads the run
+// finely by a count of reads of the clock between turns. The cost of a run is the exact rational
+// `numerator / denominator` in the own count of the clock word, and nothing divides it
 typedef struct
 {
     OriorExactInteger numerator;
@@ -31,29 +33,30 @@ typedef struct
 // a known order of queries over links that are queries
 typedef struct
 {
-    // the links, `links` of them, a count a known order supports; each is put as it is, its bound left unread
+    // the links, `links` of them, a count that a known order supports. The program puts each as it is, and does not
+    // read its bound
     const Query *link;
     unsigned int links;
     // the address of a counter found by QUERY_ADVANCES, read before and after every query of the order
     unsigned long long clock;
-    // the max reads one wait for the clock's turn may take, as QUERY_ADVANCES takes its `turns`: a clock that does
-    // not turn inside them refuses the order
+    // the max reads that one wait for the turn of the clock can take, as QUERY_ADVANCES takes its `turns`. A clock that
+    // does not turn inside them refuses the order
     unsigned long long turns;
-    // how many times each covered link is put inside one query of the order
+    // how many times the program puts each covered link inside one query of the order
     unsigned long long repeat;
-    // how many times the whole order is put
+    // how many times the program puts the whole order
     unsigned int passes;
 } QueryOrder;
 
-// The order put, every pass's cost of every query into `cost`, pass by pass: cost[pass * links + row], which has room
-// for `order->passes` times `order->links` of them. 1, or 0 where the link count has no known order, no clock was
-// given, or the clock did not turn inside `order->turns` reads
+// The order, put, with the cost of every query in every pass into `cost`, pass by pass: `cost[pass * links + row]`. It
+// has room for `order->passes` times `order->links` of them. The return is 1, or 0 where the link count has no known
+// order, the caller gave no clock, or the clock did not turn inside `order->turns` reads
 int query_order_put(const QueryOrder *order, QueryCost *cost);
 
-// Every link's cost from one pass of the order's costs, exactly: link c costs numerator[c] / denominator, the
-// denominator one for every link of the pass and (links + 1) times every query's denominator multiplied together.
-// Two links of one pass compare by their numerators alone. 1, or 0 where the link count has no known order or the
-// exact width could not represent a term
+// The cost of every link from one pass of the costs of the order, exactly: link c costs `numerator[c] / denominator`.
+// The denominator is one for every link of the pass, and `(links + 1)` times the denominators of every query
+// multiplied together. Two links of one pass compare by their numerators alone. The return is 1, or 0 where the link
+// count has no known order, or the exact width could not hold a term
 int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteger *numerator,
                       OriorExactInteger *denominator);
 
