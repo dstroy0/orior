@@ -41,25 +41,76 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <vector>
-
 #define ARRIVAL_SCALE_BITS 62u
 #define ARRIVAL_WIDTH 64u
 #define ARRIVAL_SUM_LIMBS 4u
 #define ARRIVAL_CONSTANT_LIMBS 8u
 #define ARRIVAL_SHARED_LIMBS 2u
 
+// The program's steps and its outputs, each in one cell of the persistent tier at the count its build fixes, `count`
+// and `output_count` of them; `full` 1 where a step or an output passed its room
 typedef struct
 {
-    std::vector<EngineRecordStep> steps;
+    EngineRecordStep *steps;
+    unsigned int count;
+    unsigned int room;
+    unsigned int *outputs;
+    unsigned int output_count;
+    unsigned int output_room;
+    int full;
 } ArrivalProgram;
+
+// the program of B boundaries taken: 11 steps before the boundaries and 32 for each, 2 outputs for each and 4 after
+// them. 1, or 0 where the pool cannot meet a cell
+static int arrival_program_taken(ArrivalProgram *program, unsigned int floors)
+{
+    program->count = 0u;
+    program->output_count = 0u;
+    program->full = 0;
+    program->room = 11u + (32u * floors);
+    program->output_room = (2u * floors) + 4u;
+    program->steps = (EngineRecordStep *)platform_cell_taken(
+        (unsigned long long)program->room * sizeof(EngineRecordStep), platform_place_g_program_owner, 0);
+    program->outputs = (unsigned int *)platform_cell_taken(
+        (unsigned long long)program->output_room * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    return (program->steps != NULL) && (program->outputs != NULL);
+}
+
+static void arrival_program_released(ArrivalProgram *program)
+{
+    platform_cell_released(program->steps, platform_place_g_program_owner);
+    platform_cell_released(program->outputs, platform_place_g_program_owner);
+}
 
 static unsigned int arrival_step(ArrivalProgram *program, EngineRecordOperation operation, unsigned int left,
                                  unsigned int right, unsigned int member)
 {
-    EngineRecordStep step = {operation, left, right, member};
-    program->steps.push_back(step);
-    return (unsigned int)program->steps.size() - 1u;
+    if (program->count >= program->room)
+    {
+        program->full = 1;
+        return 0u;
+    }
+    program->steps[program->count] = EngineRecordStep{operation, left, right, member};
+    program->count += 1u;
+    return program->count - 1u;
+}
+
+// `step` put at the end of the program's outputs
+static void arrival_output(ArrivalProgram *program, unsigned int step)
+{
+    if (program->output_count >= program->output_room)
+    {
+        program->full = 1;
+        return;
+    }
+    program->outputs[program->output_count] = step;
+    program->output_count += 1u;
+}
+
+// a cell of `count` elements of `size` bytes, cleared, on the temporary tier, NULL where the pool cannot meet it
+static void *arrival_cleared(unsigned long long count, unsigned long long size)
+{
+    return platform_cell_cleared((count != 0ull) ? count : 1ull, size, platform_place_g_program_owner, 1);
 }
 
 // (re, im) times (c_re + i c_im), each product divided by S and wrapped to 64 bits
@@ -81,7 +132,7 @@ static void arrival_turn(ArrivalProgram *program, unsigned int *re, unsigned int
 // B boundaries. Fields 0 to 3 are the state, u and r, in member 0. Fields 4 to 7 are q, m^(-1/2) and m, in member 1.
 // Field 8 is n0, in member 2. The reading of boundary j is outputs[2j] and outputs[2j + 1]. The last u and r are
 // outputs[2B] and on.
-static void arrival_build(ArrivalProgram *program, unsigned int floors, std::vector<unsigned int> *outputs)
+static void arrival_build(ArrivalProgram *program, unsigned int floors)
 {
     unsigned int u_re = arrival_step(program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u, 0u);
     unsigned int u_im = arrival_step(program, ENGINE_RECORD_FIELD_SIGNED, 1u, 0u, 0u);
@@ -107,15 +158,15 @@ static void arrival_build(ArrivalProgram *program, unsigned int floors, std::vec
         const unsigned int weighted_im = arrival_step(program, ENGINE_RECORD_PRODUCT, amplitude, u_im, 0u);
         const unsigned int scaled_re = arrival_step(program, ENGINE_RECORD_QUOTIENT, weighted_re, scale, 0u);
         const unsigned int scaled_im = arrival_step(program, ENGINE_RECORD_QUOTIENT, weighted_im, scale, 0u);
-        outputs->push_back(arrival_step(program, ENGINE_RECORD_PRODUCT, scaled_re, below, 0u));
-        outputs->push_back(arrival_step(program, ENGINE_RECORD_PRODUCT, scaled_im, below, 0u));
+        arrival_output(program, arrival_step(program, ENGINE_RECORD_PRODUCT, scaled_re, below, 0u));
+        arrival_output(program, arrival_step(program, ENGINE_RECORD_PRODUCT, scaled_im, below, 0u));
         arrival_turn(program, &u_re, &u_im, r_re, r_im, scale);
         arrival_turn(program, &r_re, &r_im, q_re, q_im, scale);
     }
-    outputs->push_back(u_re);
-    outputs->push_back(u_im);
-    outputs->push_back(r_re);
-    outputs->push_back(r_im);
+    arrival_output(program, u_re);
+    arrival_output(program, u_im);
+    arrival_output(program, r_re);
+    arrival_output(program, r_im);
 }
 
 // `bits` of a two's complement value positioned into a record at `offset`
@@ -137,9 +188,9 @@ typedef struct
 } ArrivalLaid;
 
 // the program imprinted and arranged with the state fields at the given offsets and widths, member 0 `in_limbs` wide
-static int arrival_position(ArrivalProgram *program, std::vector<unsigned int> *outputs, const unsigned int state_bits[4],
-                       const unsigned int state_offset[4], unsigned int state_limbs, ArrivalLaid *positioned,
-                       EngineError *error)
+static int arrival_position(ArrivalProgram *program, const unsigned int state_bits[4],
+                            const unsigned int state_offset[4], unsigned int state_limbs, ArrivalLaid *positioned,
+                            EngineError *error)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = positioned, .bytes = sizeof(*positioned), .val = 0);
     unsigned int field_bits[9];
@@ -156,9 +207,9 @@ static int arrival_position(ArrivalProgram *program, std::vector<unsigned int> *
     }
     field_bits[8] = 64u;
     field_offset[8] = 0u;
-    const KeymathRecordRequest encode = {program->steps.data(), (unsigned int)program->steps.size(), field_bits, 9u, 3u,
-                                         outputs->data(),       (unsigned int)outputs->size(),      NULL,       0u,
-                                         &positioned->key,            error};
+    const KeymathRecordRequest encode = {
+        program->steps,   program->count, field_bits, 9u, 3u, program->outputs, program->output_count, NULL, 0u,
+        &positioned->key, error};
     if (keymath_record_encode(&encode) == KEYMATH_ERROR)
     {
         return 0;
@@ -200,8 +251,11 @@ int program_main(int count, char **arguments)
     const unsigned int floors = read ? (unsigned int)header[3] : 0u;
     const unsigned long long checked = read ? (unsigned long long)header[4] : 0ull;
     const unsigned long long group = read ? (unsigned long long)header[5] : 1ull;
-    std::vector<long long> seeds(read ? (size_t)(lanes * 7ull) : 0u);
-    read = read && (fread(seeds.data(), sizeof(long long), seeds.size(), in) == seeds.size());
+    // the seeds, a cell of the persistent tier: the program reads its input once and keeps it to its end
+    const unsigned long long seed_count = read ? (lanes * 7ull) : 0ull;
+    long long *const seeds = (long long *)platform_cell_taken(
+        ((seed_count != 0ull) ? seed_count : 1ull) * sizeof(long long), platform_place_g_program_owner, 0);
+    read = read && (seeds != NULL) && (fread(seeds, sizeof(long long), (size_t)seed_count, in) == seed_count);
     if (in != NULL)
     {
         fclose(in);
@@ -214,8 +268,12 @@ int program_main(int count, char **arguments)
 
     // arranged twice: once to learn where the state lands in the output, then with the state read from there
     ArrivalProgram program;
-    std::vector<unsigned int> outputs;
-    arrival_build(&program, floors, &outputs);
+    const int built = arrival_program_taken(&program, floors);
+    if (built)
+    {
+        arrival_build(&program, floors);
+    }
+    const unsigned int *const outputs = program.outputs;
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned int guess_bits[4] = {65u, 65u, 65u, 65u};
@@ -223,7 +281,7 @@ int program_main(int count, char **arguments)
     ArrivalLaid probe;
     ArrivalLaid positioned;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &positioned, .bytes = sizeof(positioned), .val = 0);
-    int ok = arrival_position(&program, &outputs, guess_bits, guess_offset, 9u, &probe, &error);
+    int ok = built && !program.full && arrival_position(&program, guess_bits, guess_offset, 9u, &probe, &error);
     sim_check(&job, ok, "keymath imprints the arrival program and the scheduler positions it out");
     unsigned int state_bits[4] = {0u, 0u, 0u, 0u};
     unsigned int state_offset[4] = {0u, 0u, 0u, 0u};
@@ -239,7 +297,7 @@ int program_main(int count, char **arguments)
         out_limbs = probe.layout.out_limbs;
         arrival_unlay(&probe);
     }
-    ok = ok && arrival_position(&program, &outputs, state_bits, state_offset, out_limbs, &positioned, &error);
+    ok = ok && arrival_position(&program, state_bits, state_offset, out_limbs, &positioned, &error);
     for (unsigned int at = 0u; ok && (at < 4u); at += 1u)
     {
         const DeviceRecordStep *const step = &positioned.layout.step_table[outputs[2u * floors + at]];
@@ -256,8 +314,19 @@ int program_main(int count, char **arguments)
     sim_check(&job, ok, "the arrival program loads onto the device");
 
     // the first sweep's state in the output's own layout, and every lane's constants
-    std::vector<unsigned int> state((size_t)(ok ? lanes * out_limbs : 0ull), 0u);
-    std::vector<unsigned int> constants((size_t)(ok ? lanes * ARRIVAL_CONSTANT_LIMBS : 0ull), 0u);
+    // and the sums of a boundary, both its parts, and the port check's records, cells of the temporary tier at their
+    // counts, each 0 before it fills, that the run gives back as it ends
+    const unsigned long long state_count = ok ? (lanes * out_limbs) : 0ull;
+    const unsigned long long constant_count = ok ? (lanes * ARRIVAL_CONSTANT_LIMBS) : 0ull;
+    const unsigned long long sum_count = (lanes / group) * ARRIVAL_SUM_LIMBS;
+    unsigned int *const state = (unsigned int *)arrival_cleared(state_count, sizeof(unsigned int));
+    unsigned int *const constants = (unsigned int *)arrival_cleared(constant_count, sizeof(unsigned int));
+    unsigned int *const sums = (unsigned int *)arrival_cleared(sum_count, sizeof(unsigned int));
+    unsigned int *const parts = (unsigned int *)arrival_cleared(2ull * sum_count, sizeof(unsigned int));
+    unsigned int *const host_out = (unsigned int *)arrival_cleared(checked * out_limbs, sizeof(unsigned int));
+    unsigned int *const device_out = (unsigned int *)arrival_cleared(checked * out_limbs, sizeof(unsigned int));
+    ok = ok && (state != NULL) && (constants != NULL) && (sums != NULL) && (parts != NULL) && (host_out != NULL) &&
+         (device_out != NULL);
     for (unsigned long long lane = 0ull; ok && (lane < lanes); lane += 1ull)
     {
         const long long *const seed = &seeds[(size_t)(lane * 7ull)];
@@ -275,14 +344,14 @@ int program_main(int count, char **arguments)
     unsigned int *device_state[2] = {NULL, NULL};
     unsigned int *device_constants = NULL;
     unsigned int *device_shared = NULL;
-    const size_t state_bytes = state.size() * sizeof(unsigned int);
+    const size_t state_bytes = (size_t)state_count * sizeof(unsigned int);
     ok = ok && (cudaMalloc((void **)&device_state[0], state_bytes) == cudaSuccess) &&
          (cudaMalloc((void **)&device_state[1], state_bytes) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_constants, constants.size() * sizeof(unsigned int)) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_constants, constant_count * sizeof(unsigned int)) == cudaSuccess) &&
          (cudaMalloc((void **)&device_shared, ARRIVAL_SHARED_LIMBS * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_state[0], state.data(), state_bytes, cudaMemcpyHostToDevice) == cudaSuccess) &&
-         (cudaMemcpy(device_constants, constants.data(), constants.size() * sizeof(unsigned int),
-                     cudaMemcpyHostToDevice) == cudaSuccess);
+         (cudaMemcpy(device_state[0], state, state_bytes, cudaMemcpyHostToDevice) == cudaSuccess) &&
+         (cudaMemcpy(device_constants, constants, constant_count * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
+          cudaSuccess);
     sim_check(&job, ok, "the seeds and the constants are stored on the device");
 
     FILE *out = ok ? fopen(arguments[2], "w") : NULL;
@@ -292,7 +361,6 @@ int program_main(int count, char **arguments)
         fprintf(out, "sum_limbs %u\n", ARRIVAL_SUM_LIMBS);
     }
     int same = 0;
-    std::vector<unsigned int> sums((size_t)((lanes / group) * ARRIVAL_SUM_LIMBS), 0u);
     for (unsigned int sweep = 0u; ok && (sweep < sweeps); sweep += 1u)
     {
         unsigned int shared[ARRIVAL_SHARED_LIMBS] = {0u, 0u};
@@ -308,28 +376,32 @@ int program_main(int count, char **arguments)
         if (ok && (sweep == 0u))
         {
             // the port check: the same program on the host, from the exact integer library, over the first K lanes
-            std::vector<unsigned int> host_out((size_t)(checked * out_limbs));
-            std::vector<unsigned int> device_out((size_t)(checked * out_limbs));
-            const CycleRecordHostRequest host = {&positioned.layout,  {state.data(), constants.data(), shared},
-                                                 {checked, checked, 1ull}, NULL, checked, host_out.data(), &error};
+            const CycleRecordHostRequest host = {&positioned.layout,
+                                                 {state, constants, shared},
+                                                 {checked, checked, 1ull},
+                                                 NULL,
+                                                 checked,
+                                                 host_out,
+                                                 &error};
             same = (cycle_record_run_host(&host) == (long)checked) &&
-                   (cudaMemcpy(device_out.data(), to, device_out.size() * sizeof(unsigned int),
-                               cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = device_out.data(),
-                               .bytes = device_out.size() * sizeof(unsigned int)) == 0);
+                   (cudaMemcpy(device_out, to, checked * out_limbs * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
+                    cudaSuccess) &&
+                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                               .bytes = checked * out_limbs * sizeof(unsigned int)) == 0);
         }
         for (unsigned int j = 0u; ok && (j < floors); j += 1u)
         {
             fprintf(out, "%llu", n0 + j);
-            std::vector<unsigned int> parts((size_t)(2u * sums.size()), 0u);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = parts, .bytes = (size_t)(2ull * sum_count * sizeof(unsigned int)),
+                       .val = 0);
             for (unsigned int part = 0u; ok && (part < 2u); part += 1u)
             {
                 const DeviceRecordStep *const step = &positioned.layout.step_table[outputs[2u * j + part]];
-                const CycleRecordSumRequest sum = {to,         lanes,     group, out_limbs, step->out_offset,
-                                                   step->out_bits, ARRIVAL_SUM_LIMBS, sums.data(), &error};
+                const CycleRecordSumRequest sum = {
+                    to, lanes, group, out_limbs, step->out_offset, step->out_bits, ARRIVAL_SUM_LIMBS, sums, &error};
                 ok = cycle_record_sum(&sum) != CYCLE_ERROR;
-                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &parts[part * sums.size()], .src = sums.data(),
-                           .bytes = sums.size() * sizeof(unsigned int));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &parts[part * sum_count], .src = sums,
+                           .bytes = (size_t)(sum_count * sizeof(unsigned int)));
             }
             for (unsigned long long run = 0ull; ok && (run < lanes / group); run += 1ull)
             {
@@ -337,7 +409,7 @@ int program_main(int count, char **arguments)
                 {
                     for (unsigned int limb = 0u; limb < ARRIVAL_SUM_LIMBS; limb += 1u)
                     {
-                        fprintf(out, " %x", parts[part * sums.size() + run * ARRIVAL_SUM_LIMBS + limb]);
+                        fprintf(out, " %x", parts[part * sum_count + run * ARRIVAL_SUM_LIMBS + limb]);
                     }
                 }
             }
@@ -361,5 +433,11 @@ int program_main(int count, char **arguments)
         cycle_record_release(record);
     }
     arrival_unlay(&positioned);
+    void *const cells[7] = {state, constants, sums, parts, host_out, device_out, seeds};
+    for (unsigned int each = 0u; each < 7u; each += 1u)
+    {
+        platform_cell_released(cells[each], platform_place_g_program_owner);
+    }
+    arrival_program_released(&program);
     return sim_close(&job, "exact_zeta_arrival");
 }
