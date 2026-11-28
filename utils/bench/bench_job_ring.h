@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /**
  * @file bench_job_ring.h
- * @brief The jobs of a bench on the scheduler of embedded_types: a ticket ring of jobs behind a set of turnstiles,
- *        and the host threads that pop them.
+ * @brief The jobs of a bench on the scheduler of embedded_types. The jobs are in a ticket ring behind a set of
+ *        turnstiles, and the host threads pop them.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * @note The grantor is the thread that calls bench_jobs_run. It takes a ticket for each job from its count, and grants
  *       and pushes the job inside a pass. Then host_threads_run starts the workers.
  * @note A worker takes the next ticket with one fetch-add, and pops that ticket inside a pass at its own address. A pop
  *       that lands gives the job, and the worker runs it. A worker that takes a ticket past the last job ends.
- * @note After every worker ends, the grantor drains the turnstiles and releases each slot. The next run then grants on
- *       the released words. The ticket count goes on across the runs, so no two live stamps share a ticket.
+ * @note After every worker ends, the grantor drains the turnstiles and releases each job. The next run then grants on
+ *       the released words. The ticket count goes on across the runs. No two live stamps share a ticket.
  * @note A run is one at a time. The ring, its turnstiles and its jobs are in one static record, zeros at rest.
  * @warning A run that the ring refuses writes its reason to the error stream and ends the program. A refused grant, a
  *          refused pop, a refused release and a thread that the system did not start each stop it.
@@ -34,10 +34,10 @@ extern "C"
 }
 #endif
 
-/** @brief The slots of the ring as a shift: 2^8 slots, and so 256 jobs in a run at max. */
+/** @brief The jobs of the ring as a shift: 2^8 jobs in a run at max. */
 #define BENCH_JOBS_SHIFT 8u
 
-/** @brief The jobs of a run at max, one slot to each job. */
+/** @brief The jobs of a run at max, one EmbedTicketRingSlot to each job. */
 #define BENCH_JOBS_MAX (1u << BENCH_JOBS_SHIFT)
 
 /** @brief The share of one job: the context of the run, and the index of the job from 0. */
@@ -51,13 +51,13 @@ typedef struct
     unsigned index;   /**< The index of the job in its run. */
 } BenchJob;
 
-/** @brief The job ring: its slots, the ring, its turnstiles, the jobs, and the tickets of the run. */
+/** @brief The job ring: the ring and its EmbedTicketRingSlot array, its turnstiles, the jobs, and the tickets. */
 typedef struct
 {
-    EmbedTicketRingSlot slots[BENCH_JOBS_MAX]; /**< The slots of the ring. */
-    EmbedTicketRing ring;                      /**< The ring over the slots. */
+    EmbedTicketRingSlot places[BENCH_JOBS_MAX]; /**< One EmbedTicketRingSlot to each job of the ring. */
+    EmbedTicketRing ring;                       /**< The ring over the EmbedTicketRingSlot array. */
     EmbedTurnstiles turnstiles;                /**< The turnstiles of each grant, push and pop. */
-    BenchJob jobs[BENCH_JOBS_MAX];             /**< The job of each slot. */
+    BenchJob jobs[BENCH_JOBS_MAX];             /**< The job of each EmbedTicketRingSlot. */
     embed_word epoch;                          /**< The epoch of each stamp of the run. */
     embed_word first_ticket;                   /**< The ticket of the first job of the run. */
     embed_word next_ticket;                    /**< The ticket of the first job of the next run. */
@@ -143,7 +143,7 @@ static inline void bench_jobs_run(BenchShare share, void *context, unsigned jobs
     {
         bench_jobs_refused("the jobs of a run are from 1 to BENCH_JOBS_MAX");
     }
-    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, &run->ring, run->slots, BENCH_JOBS_SHIFT);
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, &run->ring, run->places, BENCH_JOBS_SHIFT);
     // The epoch moves every 2^(EMBED_WORD_BITS / 2) ns, far past the life of a stamp of one run
     run->epoch = embed_clock_ns() >> (EMBED_WORD_BITS / 2u);
     run->first_ticket = run->next_ticket;
