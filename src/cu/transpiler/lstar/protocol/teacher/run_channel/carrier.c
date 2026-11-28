@@ -107,15 +107,15 @@ int run_channel_listed(const char *line, size_t length)
     return 1;
 }
 
-// the question's code and cases passed as the blobs `code_name` and `cases_name`, the cases a line each as the
-// carrier reads them: 1, or 0 where either was dumped
+// the code and cases of the question, passed as the blobs `code_name` and `cases_name`, with one line for each case as
+// the carrier reads them. The return is 1, or 0 where the run dumped either
 int run_channel_write(const RunQuestion *question, const char *code_name, const char *cases_name)
 {
     if (qry_member_append(code_name, question->code, question->code_size, QRY_ORDINARY) == 0)
     {
         return 0;
     }
-    // the text is sized for every case at its longest
+    // the text has room for every case at its longest
     VerbaLinea cases = {s_cases_text, sizeof(s_cases_text), 0ULL};
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
@@ -132,10 +132,12 @@ int run_channel_write(const RunQuestion *question, const char *code_name, const 
     return mmgr_line_ok(&cases) && (qry_member_append(cases_name, s_cases_text, cases.at, QRY_ORDINARY) != 0);
 }
 
-// The blob the carrier passed for `answers_name` after the round passed as `after`, read into `question`: the outcome
-// its first line names, each case's answer where it answered, and where the question is timed, the time the second
-// gives, its launches together and the least and the max one took. A blob of the name from before the round is an
-// older question's, and is none. A timed question the carrier gives no time for answered nothing worth reading
+// The blob that the carrier passed for `answers_name` after the round passed as `after`, read into `question`. It is
+// the outcome that its first line names, and the answer of each case where it answered. Where the question has a time,
+// it is the time that the second line gives. That is its launches together, and the least and the max that one took.
+//
+// A blob of the name from before the round belongs to an older question, and counts as none. A timed question that
+// the carrier gives no time for answered nothing worth a read
 void run_channel_read(RunQuestion *question, const char *answers_name, unsigned long long after)
 {
     question->outcome = RUN_NOTHING;
@@ -148,16 +150,16 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     unsigned long long sequence = 0ULL;
     if (!qry_member_blob(answers_name, &bytes, &size, &sequence) || (sequence < after) || (size == 0ULL))
     {
-        // a question the carrier ended the round before, after a launch that faulted the part or hung: carried by no
-        // one, stored nowhere, and put again once the conference ruled
+        // a question that the carrier ended the round before, after a launch that faulted the part or hung. No one
+        // carried it, nothing stored it, and the call puts it again after the conference ruled
         question->outcome = RUN_NO_CHANNEL;
         VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
         mmgr_line_put(&refused, "the carrier wrote no answer: it ended the round before it");
         mmgr_line_finish(&refused);
         return;
     }
-    // the first line, the answer; and after it, in any order, the lines the carrier adds: the registers it read off
-    // the part, and the time its launches took, which is read wherever it is
+    // the first line, the answer. After it, in any order, come the lines that the carrier adds. They are the registers
+    // that it read from the part, and the time that its launches took. The call reads that time wherever it is
     const unsigned char *const first_end =
         (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = bytes, .bytes = (size_t)size, .val = '\n');
     const size_t first_length = (first_end != NULL) ? (size_t)(first_end - bytes) : (size_t)size;
@@ -256,8 +258,8 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     question->outcome = RUN_ANSWERED;
 }
 
-// `question` passed as the next question of a dry run, its line added to the run's list, and read as gated: nothing
-// carries it and nothing answers it
+// `question` passed as the next question of a dry run, with its line added to the list of the run, and read as gated.
+// Nothing carries it, and nothing answers it
 void run_channel_dry_written(RunQuestion *question)
 {
     char code_name[RUN_NAME_MAX_LEN];
@@ -284,7 +286,7 @@ void run_channel_close(void)
     {
         run_channel_trace_line("run_channel: the dry run's list could not be passed to the run\n");
     }
-    // R written back where it changed and was read whole
+    // the call writes R back where it changed, and where the call read it whole
     if (s_record.changed && (s_record_path[0] != '\0') && !kqr_write(&s_record, s_record_path))
     {
         char message[RUN_PATH_MAX_LEN + 64u];
