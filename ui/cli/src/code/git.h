@@ -791,9 +791,13 @@ int cli_git_touch(const CliGitRootErrMsgCfg *args);
 
 #define CLI_GIT_LINE_COMMITS 65536u
 
-// A commit that last changed some line of a file: its id, author, when its author made it in seconds since 1970, and
-// subject; the file's path under the tree as the commit left it, and the commit before it with the path the file had
-// there, where there is one
+// A commit that last changed some line of a file:
+//
+// - `id`, `author` and `subject`: its id, its author and its subject
+// - `when`: when its author made it, in seconds since 1970
+// - `path` and `has_path`: the path of the file under the tree, as the commit left it
+// - `parent` and `has_parent`: the commit before it, where there is one
+// - `was` and `has_was`: the path that the file had in that commit
 typedef struct
 {
     unsigned int id;
@@ -808,8 +812,8 @@ typedef struct
     int has_was;
 } CliLineCommit;
 
-// The commit that last changed each line of a file: `line` stores, for each line, its commit's place in `commit`, or -1
-// for a line no commit contains yet
+// The commit that last changed each line of a file. For each line, `line` stores the place of its commit in `commit`,
+// or -1 for a line that no commit holds yet
 typedef struct
 {
     CliLineCommit commit[CLI_GIT_LINE_COMMITS];
@@ -819,20 +823,25 @@ typedef struct
     CliGitText text;
 } CliLineHistory;
 
-// the commit that last changed each line of `file` as `text`, `length` bytes, contains it, the file as the editor has
-// it, edits and all, a line the last commit does not contain being no commit's: 1, or 0 with why given (git_lines.c)
+// the commit that last changed each line of `file`, as `text` holds it, `length` bytes (git_lines.c). That is the file
+// as the editor has it, edits and all. A line that the last commit does not hold has no commit. The return is 1, or 0
+// with the reason
 int cli_git_line_history(const CliGitLengthCfg *args);
 
-// the folder a clone goes in where none is named, the reader's home, and the folder File, Open, Repository clones
-// into, one of orior's own, apart from the reader's, each into `folder`, sized for CLI_PATH_MAX_LEN: 1, or 0 where
-// there is none; `folder` made a repository, as git init does, a folder that is one already left as it is; the folder
-// a clone of `url` makes under `parent` into `folder`, the last part of the address without `.git`, as git itself
-// names it; and `url` cloned into `target`, a folder that is not there yet or is empty, each line of git's progress
-// passed to `progress_line` as it comes with whether the line is finished. Each 1, or 0 with why given (git_clone.c)
+// the folder that a clone goes in where the reader names none: the home of the reader. It goes into `folder`, sized for
+// CLI_PATH_MAX_LEN. The return is 1, or 0 where there is none (git_clone.c)
 int cli_git_clone_parent(const CliGitErrMsgFolderCfg *args);
+// the folder that File, Open, Repository clones into: an own folder of orior, apart from that of the reader. It goes
+// into `folder` in the same way, with the same return
 int cli_git_opened_parent(const CliGitErrMsgFolderCfg *args);
+// `folder` made a repository, as git init does. The call leaves a folder that is a repository already as it is. This
+// call and the two below each give 1, or 0 with the reason
 int cli_git_init(const CliGitOutCfg *args);
+// the folder that a clone of `url` makes under `parent`, into `folder`. That is the last part of the address with no
+// `.git`, as git itself names it
 int cli_git_clone_folder(const CliGitErrMsgFolderCfg *args);
+// `url` cloned into `target`, a folder that is not there yet or is empty. The call passes each line of the progress of
+// git to `progress_line` as it comes, with whether the line is whole
 int cli_git_clone(const CliGitErrMsgCfg *args);
 
 struct CliGitRootCfg
