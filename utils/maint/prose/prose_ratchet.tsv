@@ -517,7 +517,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ptx_target.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ruleset_read_one.cpp	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_widen_ask.sh	2
 src/sims/cu/engine/analysis/art/periodic_energy.h	1
 src/sims/cu/engine/analysis/floor_track/floor_track_floors.cu	1
 src/sims/cu/engine/analysis/knf_identity/knf_identity_internal.h	1

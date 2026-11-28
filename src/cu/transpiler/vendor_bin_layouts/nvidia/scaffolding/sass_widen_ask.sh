@@ -29,8 +29,8 @@ BINARY="$OUT/turned.bin"
 
 python "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_turn_bits.py" "$LOW" "$HIGH" "$BINARY" || exit 1
 
-# the disassembler refuses the whole batch where any one encoding is illegal, and names each it refused by its
-# address: those are dropped and the rest asked again, as sass_decode does
+# the disassembler refuses the whole batch where any one encoding is illegal, and names each that it refused by its
+# address. The script drops those, and asks the rest again, as sass_decode does
 if ! nvdisasm --binary "$ARCH" "$BINARY" >"$OUT/turned.out" 2>&1; then
     REFUSED="$(sed -n 's/.*at address 0x\([0-9a-f]*\).*/\1/p' "$OUT/turned.out" | sort -u | tr '\n' ',')"
     [ -n "$REFUSED" ] || {
