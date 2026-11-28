@@ -135,7 +135,7 @@ EMBED_INLINE void view_files_colored(const ViewFilesCtx *args)
         EMBED_CALL(view_files_uncolored, ViewFilesCtx, .path = args->path, .id = id, .why = &err_msg);
     }
     (void)EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = args->key,
-                     .grammar = grammar, .named = 0);
+                     .grammar = grammar);
 }
 
 int cli_view_file_open(const char *root, const char *path, unsigned int rows, unsigned int columns,

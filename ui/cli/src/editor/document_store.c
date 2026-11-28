@@ -448,7 +448,6 @@ EMBED_INLINE int stored_lines_init(const DocumentStoreCtx *args)
     }
     EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
     one->head_known = 0;
-    one->changes = 0ULL;
     one->paged = 0;
     one->whole = 1;
     one->regions_moved = 1;
@@ -480,7 +479,6 @@ static int page_locked(const CliDocumentKeyFromCfg *args)
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->paged = 1;
         one->whole = whole;
-        one->changes = 0ULL;
         one->head_known = 0;
         one->regions_moved = 1;
         // a line the page holds is one the pages count, which an unsigned int counts
@@ -621,7 +619,6 @@ static int paged_edit_locked(const CliDocumentOutCfg *args)
     if (written && (branch != NULL))
     {
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = branch);
-        branch->changes += args->count_u32;
         branch->regions_moved = 1;
         branch->refused = branch->refused || !carried;
         EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = branch);
@@ -992,7 +989,6 @@ static int edit_locked(const CliDocumentErrMsgCfg *args)
     EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
     // a coloring the cells or the grammar refused is tried again from the edit on
     one->refused = 0;
-    one->changes += args->count_u32;
     one->regions_moved = 1;
     EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
     return 1;

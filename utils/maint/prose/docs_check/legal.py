@@ -123,23 +123,42 @@ def comment_blocks(said):
     return spans
 
 
-def legal_blank(said, path=None, ledger=None):
-    """The same prose view with every comment block holding a legal line blanked out.
+# the SPDX line of a file of this tree: the three-way line names LicenseRef-Commercial and LicenseRef-Educational
+OWN_SPDX = re.compile(r"SPDX-License-Identifier:.*\bLicenseRef-")
 
-    Line numbers are preserved, the way every other view in this file preserves them. A finding
-    still names a line a reader can open.
+
+def legal_end(said, start, stop):
+    """Where the legal part of the block from `start` to `stop` ends: after the own SPDX line of the tree, else `stop`.
+
+    A file of this tree carries its copyright line and its three-way SPDX line. It puts its own description under
+    them, in the same comment form and with no blank. The description is prose of this project. A block with no own
+    SPDX line is a legal artifact whole, as a GPL grant is. Without this end, the legal block took the description of
+    every `//`, `#` and `--` file with it, and docs_check read no header of the tree.
+    """
+    for at in range(stop - 1, start - 1, -1):
+        if OWN_SPDX.search(said[at]):
+            return at + 1
+    return stop
+
+
+def legal_blank(said, path=None, ledger=None):
+    """The same prose view with the legal part of every comment block that holds a legal line blanked out.
+
+    The view keeps the line numbers, the way every other view in this file keeps them. A finding
+    still names a line a reader can open. The legal part ends after the own SPDX line of the tree, legal_end.
     """
     retained = list(said)
     for start, stop in comment_blocks(said):
         if not any(LEGAL.search(one) for one in retained[start:stop]):
             continue
+        end = legal_end(said, start, stop)
         if ledger is not None and path is not None:
             ledger.note(
                 "legal block",
                 "an SPDX or copyright block is a legal artifact and its wording is the "
                 "license's, not this project's",
-                "%s:%d-%d" % (path.replace("\\", "/"), start + 1, stop),
+                "%s:%d-%d" % (path.replace("\\", "/"), start + 1, end),
             )
-        for at in range(start, stop):
+        for at in range(start, end):
             retained[at] = ""
     return retained

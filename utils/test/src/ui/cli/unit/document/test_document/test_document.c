@@ -152,7 +152,7 @@ static void branch_run_result(void)
     (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "branch", .text = s_branch, .size = size,
                      .shape = &shape);
     s_branch_step[0] = EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "branch",
-                                  .grammar = "branch", .named = 1);
+                                  .grammar = "branch");
     cli_document_walk();
     s_branch_step[6] =
         EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "branch", .from = 100ull, .to = 110ull);
@@ -192,8 +192,7 @@ static void paged_run_result(void)
     }
     s_paged_step[1] =
         EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = "paged", .from = 350ull, .to = 361ull) &&
-        EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "paged", .grammar = "branch",
-                   .named = 1);
+        EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "paged", .grammar = "branch");
     cli_document_walk();
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "paged");
     EMBED_CALL(cli_pages.release, CliPagesCfg, .key = "paged");
@@ -629,7 +628,7 @@ void test_a_runs_compaction_the_cells_refuse_leaves_every_lines_runs_as_they_wer
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "compact", .text = s_compact,
                                 .size = text.at, .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "compact",
-                                .grammar = "branch", .named = 1));
+                                .grammar = "branch"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "compact", .from = 0ull,
                                 .to = DOCUMENT_COMPACT_LINES));
     cli_document_walk();
@@ -661,7 +660,7 @@ void test_a_runs_roles_say_whether_a_col_is_inside_a_comment(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "roles", .text = "x /* y */ z\n",
                                 .size = 12ull, .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "roles",
-                                .grammar = "branch", .named = 1));
+                                .grammar = "branch"));
     TEST_ASSERT_TRUE(
         EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "roles", .from = 0ull, .to = 1ull));
     cli_document_walk();
@@ -851,7 +850,7 @@ void test_the_states_of_deep_blocks_hold_through_the_merges_of_the_index(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "nest", .text = s_text,
                                 .size = size, .shape = &shape));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "nest",
-                                .grammar = "nest", .named = 1));
+                                .grammar = "nest"));
     cli_document_walk();
     (void)EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "nest", .from = 0ull,
                      .to = 4ull * DEPTH);
@@ -889,7 +888,7 @@ void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(voi
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = grammar,
                                 .err_msg = &err_msg));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "words",
-                                .grammar = grammar, .named = 1));
+                                .grammar = grammar));
     cli_document_walk();
     const unsigned long long held = mmgr_owner_in_use(g_cli_editor_owner);
     s_words_count = 0u;
