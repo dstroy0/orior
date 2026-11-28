@@ -25,8 +25,8 @@ static inline int loops_text_order(const char *left, const char *right, size_t c
     return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
 }
 
-// `from` into `into`, every register named `stem` ("R" or "UR") and a number made the one numbered 8, which the loop
-// does not retain. A stem following a character is part of another name and is copied as it is
+// `from` into `into`, with every register named `stem` ("R" or "UR") and a number made the one numbered 8, which the
+// loop does not keep. A stem after a character is part of another name, and the call copies it as it is
 static void sass_loop_rename(const char *from, const char *stem, char *into, size_t room)
 {
     const size_t stem_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR);
@@ -57,10 +57,10 @@ static void sass_loop_rename(const char *from, const char *stem, char *into, siz
     into[at] = '\0';
 }
 
-// one operand of a candidate, from its form's own operand `base` of `type` and `mark`: a register becomes R8 and a
-// uniform one UR8, an address retains its shape with its registers made R8, a predicate becomes the flag, a label the
-// loop's and a number the distance back to it. RZ, URZ and PT write nowhere and read nothing and are retained, and so
-// is any other operand, which the assembler takes by its text
+// one operand of a candidate, from the own operand `base` of its form, of `type` and `mark`. A register becomes R8,
+// and a uniform one UR8. An address keeps its shape, with its registers made R8. A predicate becomes the flag, a label
+// that of the loop, and a number the distance back to it. RZ, URZ and PT write nowhere and read nothing, and the call
+// keeps them. It keeps any other operand too, which the assembler takes by its text
 static void sass_loop_operand(const char *base, unsigned int type, unsigned int mark, char *operand, size_t room)
 {
     static const char *const s_marks[] = {"", "-", "~", "!"};
@@ -115,8 +115,8 @@ static void sass_loop_operand(const char *base, unsigned int type, unsigned int 
     }
 }
 
-// `form` written as the candidate in loop_back_if's place, guarded by the flag, into `text`: 1, or 0 where one of its
-// operands is a type the reader did not know, which no instruction of the form assembles from
+// `form` written as the candidate in the place of loop_back_if, guarded by the flag, into `text`. The return is 1, or 0
+// where one of its operands is a type that the reader did not know. No instruction of the form assembles from that
 static int sass_loop_candidate(const SassForm *form, char *text, size_t room)
 {
     SassInstructionParts base;
@@ -143,8 +143,8 @@ static int sass_loop_candidate(const SassForm *form, char *text, size_t room)
     return at < room;
 }
 
-// the candidate's cubin, queried.cubin, run over a case whose first word is `count`, and the first word it answered
-// through `word`: 1, or 0 where it did not run
+// the cubin of the candidate, queried.cubin, run over a case whose first word is `count`, with the first word that it
+// answered through `word`. The return is 1, or 0 where it did not run
 static int sass_loop_answer(SassProbe *probe, unsigned int count, unsigned int *word)
 {
     char path[1024];
@@ -197,7 +197,8 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
         if (!sass_loop_candidate(&machine->form[number], candidate, sizeof(candidate)) ||
             !sass_loop_written(probe, machine, s_was, candidate))
         {
-            // the candidate could not be written as the part's own code, a refusal before the part sees it
+            // the program could not write the candidate as the own code of the part, a refusal before the part
+            // sees it
             sass_class_count(SASS_CHANNEL_RUN, SASS_CLASS_ILLEGAL);
             continue;
         }
@@ -269,9 +270,9 @@ unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsi
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // The forms that came back, each timed over a long count and read at its least, since a run can only be lengthened
-    // by what else the host is doing; and each walked as the instruction that takes a loop back, which the part's
-    // answer checks. The cheapest is the part's loop_back_if
+    // The forms that came back, each timed over a long count and read at its least. The reason is that only the other
+    // work of the host can make a run longer. Each also goes as the instruction that takes a loop back, which the
+    // answer of the part checks. The cheapest is the loop_back_if of the part
     double cheapest = 0.0;
     double second = 0.0;
     double spread = 0.0;
