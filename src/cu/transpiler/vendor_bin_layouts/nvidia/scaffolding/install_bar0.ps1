@@ -1,11 +1,12 @@
-# Load the read-only BAR0 driver's service and point it at the card's register aperture. Run elevated. It finds BAR0
-# (the 16 MiB memory range Windows assigned the GPU) unless a base and size are given, writes them to the service's
-# Parameters, and starts the service. The driver maps that range read-only; nothing here or in it writes the part.
+# Load the service of the read-only BAR0 driver, and point it at the register aperture of the card. Run elevated. The
+# script finds BAR0 (the 16 MiB memory range that Windows assigned the GPU), unless the caller gives a base and size.
+# It writes them to the Parameters of the service, and starts the service. The driver maps that range read-only.
+# Nothing here or in it writes the part.
 #
 #   install_bar0.ps1 [-Sys <path to bar0_driver.sys>] [-Base <hex>] [-Size <hex>] [-Sign] [-Remove]
 #
-# -Sign self-signs the .sys with a test certificate and trusts it, for a machine in test-signing mode
-# (bcdedit /set testsigning on, then reboot). -Remove stops and deletes the service.
+# The option -Sign self-signs the .sys with a test certificate and trusts it, for a machine in the `testsigning` mode
+# (`bcdedit /set testsigning on`, then reboot). The option -Remove stops and deletes the service.
 param(
     [string]$Sys,
     [string]$Base,
@@ -41,9 +42,10 @@ if (-not (Test-Path $Sys)) {
 }
 $Sys = (Resolve-Path $Sys).Path
 
-# BAR0: the 16 MiB (0x1000000) register aperture Windows assigns the NVIDIA card, unless a base and size are given. Every
-# NVIDIA generation's register aperture is 16 MiB, which tells BAR0 apart from the card's larger framebuffer apertures:
-# the display adapter is found by vendor (10DE) and its 16 MiB memory range taken as BAR0
+# BAR0: the 16 MiB (0x1000000) register aperture that Windows assigns the NVIDIA card, unless the caller gives a base
+# and size. The register aperture of every NVIDIA generation is 16 MiB, which tells BAR0 apart from the larger
+# framebuffer apertures of the card. The script finds the display adapter by vendor (10DE), and takes its 16 MiB memory
+# range as BAR0
 if ($Base -and $Size) {
     $base = [uint64]$Base
     $size = [uint64]$Size
@@ -81,7 +83,8 @@ if ($Sign) {
         $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject `
             -CertStoreLocation Cert:\LocalMachine\My -KeyUsage DigitalSignature -KeySpec Signature
     }
-    # trusted as a root and as a publisher, a driver it signs loading in test-signing mode; imported once
+    # trusted as a root and as a publisher, so that a driver that it signs loads in the `testsigning` mode. The script
+    # imports it once
     foreach ($store in 'Root', 'TrustedPublisher') {
         $path = "Cert:\LocalMachine\$store"
         $have = Get-ChildItem $path | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
