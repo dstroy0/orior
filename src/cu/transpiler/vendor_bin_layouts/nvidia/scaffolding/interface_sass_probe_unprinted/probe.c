@@ -9,7 +9,8 @@
 
 SassMachine s_machine;
 
-// the runner, the folder a cubin is written into, the kernel and the pattern cubin's size, as main was given them
+// the runner, the folder that the probe writes a cubin into, the kernel and the size of the pattern cubin, as main got
+// them
 const char *s_runner;
 
 const char *s_folder;
@@ -24,7 +25,8 @@ char s_query_text[UNPRINTED_TEXT_BYTES];
 static char s_output[UNPRINTED_OUTPUT_BYTES];
 static unsigned int s_exits[UNPRINTED_EXITS];
 
-// `path` read whole into `bytes`, sized for `room` of them: how many were read, 0 where the file was not read
+// `path` read whole into `bytes`, sized for `room` of them. The return is how many the call read, 0 where the read
+// failed
 unsigned long long unprinted_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     PlatformFile *const file = platform_file_open(path, "rb");
@@ -179,8 +181,8 @@ void unprinted_place_write(unsigned char *code, unsigned int place, const Unprin
     unprinted_word_write(&code[(16u * place) + 8u], high);
 }
 
-// the cubin of `code` run on the part over the case: 1 with the four words it answered in `answered`, or 0 where the
-// cubin was not written or did not run, with how it ended in `ended`
+// the cubin of `code`, run on the part over the case. The return is 1 with the four words that it answered in
+// `answered`. It is 0 where the write or the run of the cubin failed, with how it ended in `ended`
 int unprinted_run(const unsigned char *code, unsigned long long code_size, unsigned int *answered, char *ended,
                   size_t room)
 {
@@ -211,10 +213,10 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
         }
         return 0;
     }
-    // the gate the carrier and the rest of the scaffolding share: a turned bit whose operation key transfers control or
-    // waits would loop or stall the part and take the display down with it, and is blocked from the part here, never
-    // passed to the driver. The register count is left open (UNPRINTED_REGISTERS), since which registers the part
-    // allots is one of the things this probe reads
+    // the gate that the carrier and the rest of the scaffolding share. A turned bit whose operation key transfers
+    // control or waits would loop or stall the part, and take the display down with it. The gate blocks it from the
+    // part here, and never passes it to the driver. The register count stays open (UNPRINTED_REGISTERS), because the
+    // registers that the part allots are one of the things that this probe reads
     unsigned long long value_at = 0ULL;
     if (cubin_safe_image(&s_machine, s_cubin, size, written.registers, &value_at) != CUBIN_SAFE)
     {
@@ -233,7 +235,7 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
         mmgr_line_put(&buffer_line, "/unprinted.out");
         (void)mmgr_line_finish(&buffer_line);
     }
-    // one case of eight words, none of the other seven zero, the case every question of the probe is tested over
+    // one case of eight words, none of the other seven zero, the case that every question of the probe tests over
     char *const command[] = {(char *)s_runner,   (char *)"run",      cubin,
                              (char *)"0000000b", (char *)"00000007", (char *)"00000003",
                              (char *)"00000005", (char *)"00000002", (char *)"00000009",
