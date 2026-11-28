@@ -82,16 +82,17 @@ int tessera_self_measure(unsigned long long luid, unsigned long long *used)
     (void)luid;
     return 0;
 #else
-    // the calling process's dedicated bytes on the adapter: the one whose LUID is given, or the only one there is
+    // the dedicated bytes of this process on the adapter: the adapter whose LUID the caller gives, or the only adapter
+    // there is
     void *library = dlopen("libdxcore.so", RTLD_NOW);
     library = (library != NULL) ? library : dlopen("/usr/lib/wsl/lib/libdxcore.so", RTLD_NOW);
     if (library == NULL)
     {
         return 0;
     }
-    // each symbol is converted back to the type it was exported with
+    // the call converts each symbol back to the type that it had when the library exported it
     const TesseraKmtEnumerate enumerate = (TesseraKmtEnumerate)dlsym(library, "D3DKMTEnumAdapters2");
-    // each symbol is converted back to the type it was exported with
+    // the call converts each symbol back to the type that it had when the library exported it
     const TesseraKmtQuery query = (TesseraKmtQuery)dlsym(library, "D3DKMTQueryVideoMemoryInfo");
     TesseraKmtAdapter adapters[TESSERA_SELF_ADAPTERS];
     EMBED_CALL(memor.set, MemoriaCfg, .dst = adapters, .bytes = sizeof(adapters), .val = 0);
@@ -133,7 +134,8 @@ int tessera_device_names_host(const unsigned char device[TESSERA_DEVICE_BYTES])
     return named == 0u;
 }
 
-// each core's logical processors as one mask, the first sixty-four processors only; returns how many cores were read
+// the logical processors of each core as one mask, the first sixty-four processors only. The return is how many cores
+// the call read
 static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_CORES])
 {
     unsigned int count = 0u;
@@ -142,7 +144,7 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
     GetLogicalProcessorInformationEx(RelationProcessorCore, NULL, &length);
     unsigned char *const bytes =
         (length != 0u) ? (unsigned char *)platform_cell_taken(length, platform_place_g_program_owner, 0) : NULL;
-    // the buffer is walked as the records it was filled with, each its own Size long
+    // the call walks the buffer as the records that filled it, each its own Size long
     if ((bytes == NULL) || !GetLogicalProcessorInformationEx(RelationProcessorCore,
                                                              (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)bytes, &length))
     {
@@ -186,7 +188,7 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
         char line[256];
         const int read = platform_file_text_read(line, sizeof(line), siblings) != NULL;
         platform_file_close(siblings);
-        // the mask is hex words split by commas, the highest processors first: shifting drops those past sixty-four
+        // the mask is hex words split by commas, the highest processors first. A shift drops those past sixty-four
         unsigned long long mask = 0ULL;
         for (const char *digit = line; read && (*digit != '\0'); digit += 1)
         {
