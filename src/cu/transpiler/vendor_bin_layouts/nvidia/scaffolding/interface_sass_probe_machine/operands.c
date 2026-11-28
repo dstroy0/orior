@@ -7,7 +7,7 @@
 #include "memoria_operor/memoria_operor.h"
 #include "probe_machine_internal.h"
 
-// the encodings one form is decoded with: itself, and the 128 that are one bit from it
+// the encodings that the call decodes one form with: itself, and the 128 that are one bit from it
 unsigned long long s_low[SASS_ENCODINGS];
 
 unsigned long long s_high[SASS_ENCODINGS];
@@ -38,10 +38,10 @@ static int sass_operation_root_same(const char *one, const char *other)
            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one, .other = other, .bytes = length) == 0);
 }
 
-// the immediate or predicate of `base` whose leaving the text gives `parts`, every other operand as it was, or the
-// operand count where no one of them does. A load's predicate leaves the text at PT under the same name, as
-// BPT.TRAP's code does at 0. An operand that leaves with the name, as IMAD.X's carry-in leaves with its .X and
-// BAR.SYNC's barrier with BAR.SYNCALL, is the operation's bit and not the operand's
+// the immediate or predicate of `base` whose exit from the text gives `parts`, with every other operand as it was. It
+// is the operand count where no one of them does. The predicate of a load leaves the text at PT under the same name,
+// as the code of BPT.TRAP does at 0. An operand that leaves with the name is a bit of the operation and not of the
+// operand. Examples are the carry-in of IMAD.X, which leaves with its .X, and the barrier of BAR.SYNC with BAR.SYNCALL
 static unsigned int sass_operand_dropped(const SassInstructionParts *base, const SassInstructionParts *parts)
 {
     const int named = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts->operation,
@@ -66,12 +66,15 @@ static unsigned int sass_operand_dropped(const SassInstructionParts *base, const
     return base->operands;
 }
 
-// The operand `text` changed against `base`, or the operand count where it changed none of them, more than one of
-// them, the guard, or the operation past its name's first part. The disassembler hides a field two ways, and both are
-// read as the operand's: a value that renames the operation, as IMAD's multiplier prints IMAD.MOV at 0, IMAD.IADD at 1
-// and IMAD past them, where the name up to its first dot, the count of operands and each one's type stay and one
-// operand's value moves; and a value that leaves an immediate or a predicate out of the text, as BPT.TRAP's code does
-// at 0 and a load's predicate at PT, where every other operand stays as it was
+// The operand that `text` changed against `base`. It is the operand count where the text changed none of them, or more
+// than one. The same is true where it changed the guard, or the operation past the first part of its name. The
+// disassembler hides a field in two ways, and the call reads both as fields of the operand:
+//
+// - a value that renames the operation, as the multiplier of IMAD prints IMAD.MOV at 0, IMAD.IADD at 1 and IMAD past
+//   them. The name up to its first dot, the count of operands and the type of each stay, and the value of one operand
+//   moves.
+// - a value that leaves an immediate or a predicate out of the text. The code of BPT.TRAP does that at 0, and the
+//   predicate of a load at PT. Every other operand stays as it was.
 unsigned int sass_operand_changed(const SassInstructionParts *base, const char *text)
 {
     SassInstructionParts parts;
@@ -94,8 +97,8 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = base->operation, .ci = EMBED_FALSE));
     unsigned int changed = base->operands;
     unsigned int count = 0u;
-    // operands that print one field twice, as BAR.SYNC R0, R0 prints its one register: each that moved carried the
-    // text the first did and moved to the text the first did
+    // operands that print one field twice, as BAR.SYNC R0, R0 prints its one register. Each that moved carried the text
+    // that the first did, and moved to the text that the first did
     int twins = 1;
     for (unsigned int place = 0u; place < base->operands; place += 1u)
     {
@@ -122,8 +125,8 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
     return ((count == 1u) || ((count > 1u) && twins)) ? changed : base->operands;
 }
 
-// the operand of `base` past `operand` that `text` moves as it moves `operand`, containing the same text before and
-// after, or the operand count where none does
+// the operand of `base` past `operand` that `text` moves as it moves `operand`, with the same text before and after.
+// It is the operand count where none does
 unsigned int sass_operand_twin(const SassInstructionParts *base, const char *text, unsigned int operand)
 {
     SassInstructionParts parts;
@@ -155,11 +158,12 @@ void sass_form_turned(const SassForm *form)
     }
 }
 
-// 1 where `text` is `base` under another name with one operand more at its end: the guard and the operation's name
-// before its first dot retained, the name past it changed, and every operand `base` prints still there, a mark aside,
-// since IMAD.X prints as ~R the register IMAD.IADD prints as -R. The same operation printing one operand more is
-// that operand at a value the text leaves out, as a load prints its predicate past PT, and the form carries it as its
-// own bits
+// 1 where `text` is `base` under another name, with one operand more at its end. The guard, and the name of the
+// operation before its first dot, stay. The name past it changes. Every operand that `base` prints is still there, a
+// mark aside: IMAD.X prints as ~R the register that IMAD.IADD prints as -R.
+//
+// Where the same operation prints one operand more, that is the operand at a value that the text leaves out. A load
+// prints its predicate so, past PT. The form carries it as its own bits
 static int sass_operand_gained(const SassInstructionParts *base, const char *text)
 {
     SassInstructionParts parts;
@@ -178,10 +182,11 @@ static int sass_operand_gained(const SassInstructionParts *base, const char *tex
     return same_base;
 }
 
-// The operand a form carries and does not print, its run stored as operand `base->operands`, one past those it prints.
-// A turned bit that adds one operand at the end and retains the rest names it, as bit 74 of IMAD.IADD does, which
-// prints IMAD.X with its carry-in predicate; that encoding's own bits turned over give the run of the operand it added.
-// The form takes the first such bit and one unprinted operand. 1, or 0 where the disassembler failed on the turned bits
+// The operand that a form carries and does not print, with its run stored as operand `base->operands`, one past those
+// that it prints. A turned bit that adds one operand at the end and keeps the rest names it. Bit 74 of IMAD.IADD does
+// that, and prints IMAD.X with its carry-in predicate. The own bits of that encoding, turned over, give the run of the
+// operand that it added. The form takes the first such bit and one unprinted operand. The return is 1, or 0 where the
+// disassembler failed on the turned bits
 int sass_form_unprinted(SassForm *form, const SassInstructionParts *base, const char *architecture, const char *folder,
                         unsigned int number)
 {
@@ -219,7 +224,7 @@ int sass_form_unprinted(SassForm *form, const SassInstructionParts *base, const 
     for (unsigned int bit = 0u; bit <= SASS_BITS; bit += 1u)
     {
         const int changes = (bit < SASS_BITS) && (sass_operand_changed(&with, s_texts[1u + bit]) == added);
-        // a run ends where the operand stops changing, and the two words never share one
+        // a run ends where the operand stops its change, and the two words never share one
         if (running && (!changes || (bit == 64u)) && (form->runs < SASS_MACHINE_RUNS))
         {
             form->run[form->runs].operand = added;
