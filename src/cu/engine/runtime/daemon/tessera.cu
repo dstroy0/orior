@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The device's tessera (tessera_device.h): the ledger's decisions made on the device by one thread, from the source
-// the host daemon's ledger makes them by (tessera_ledger_core.h).
+// The tessera of the device (tessera_device.h): the decisions of the ledger, made on the device by one thread. They
+// come from the source that the ledger of the host daemon uses for them (tessera_ledger_core.h).
 #include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "tessera_device.h"
@@ -14,8 +14,8 @@
 // the owner that the cells of the device's ledger in the pool of the device count to
 #define TESSERA_DEVICE_PLACE ((unsigned int)platform_place_g_engine_owner)
 
-// the calls from `first` made in order by one thread, each answered, until one the ledger's arrays cannot take:
-// `stopped` is that call, or `count` where every call was made
+// the calls from `first`, made in order by one thread, each answered, until one that the arrays of the ledger cannot
+// take. `stopped` is that call, or `count` where the thread made every call
 __global__ void tessera_device_run(TesseraLedger *ledger, const TesseraCall *calls, unsigned long long first,
                                    unsigned long long count, TesseraAnswer *answers, unsigned long long *stopped)
 {
@@ -134,8 +134,8 @@ int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsign
              tessera_job_crossed_out(&device->host_ledger, device->ledger, sizeof(TesseraLedger));
         if (ok && (reached < count))
         {
-            // the call at `reached` could add more than the ledger's arrays contain: each is grown to the max it can
-            // add, and the run goes on from that call, which the ledger then takes
+            // the call at `reached` could add more than the arrays of the ledger hold. The code grows each to the max
+            // that the call can add, and the run goes on from that call, which the ledger then takes
             ok = tessera_device_reserve(&device->host_ledger, calls[reached].type) &&
                  tessera_job_crossed_into(device->ledger, &device->host_ledger, sizeof(TesseraLedger));
         }
