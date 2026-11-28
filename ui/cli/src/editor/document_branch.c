@@ -771,7 +771,7 @@ EMBED_INLINE unsigned long long branch_lines_measure(const DocumentBranchCtx *ar
 //
 // - CLI_DOC_FOUND_STATE: the words of capacity that the state and scope of a line get. Those of a line past them come
 //   from the capacity of the lines after it.
-// - CLI_DOC_SCOPE_SAME: the scope of a line where it is the one that the line before it ended in
+// - CLI_DOC_SCOPE_SAME: the scope of a line, where it equals the scope that the line before it ended in
 // - CLI_DOC_FOUND_HEAD: the words of a record before its runs
 #define CLI_DOC_FOUND_STATE 64ULL
 #define CLI_DOC_SCOPE_SAME 0xfffffffeu
