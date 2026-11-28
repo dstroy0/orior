@@ -554,7 +554,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/instr
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/scheduler_internal.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ptx_target.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ruleset_read_one.cpp	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_target.h	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_turn_bits.py	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_widen_ask.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_capture.sh	2
