@@ -5,19 +5,21 @@
 //
 //     orior_cubin_listing <pattern> <kernel prefix> <architecture> <nvdisasm> <codes>
 //
-// <codes> is a blob of the run, a line a code: the path of a file of a kernel's encodings, its name
-// `<number>.bin`, the code of the kernel `<kernel prefix><number>` of the cubin at <pattern>. Each code is put into
-// that kernel's code section, its exits found by the pattern's own EXIT encoding, and the whole cubin read once. A
-// start of the disassembler costs far more than the codes it reads, and one start reads them all.
+// <codes> is a blob of the run, one line for each code. A line is the path of a file of the encodings of a kernel, with
+// its name `<number>.bin`. It is the code of the kernel `<kernel prefix><number>` of the cubin at <pattern>. The
+// program puts each code into the code section of that kernel, and finds its exits by the own EXIT encoding of the
+// pattern. It then reads the whole cubin once. A start of the disassembler costs far more than the codes that it
+// reads, and one start reads them all.
 //
-// The vendor reads nothing of a cubin it stops in. Where it stops, the codes are read as one raw run, which names the
-// address it stops at: that code is set aside and the run read again without it, until it reads clean, and the cubin
-// of the codes left is read once. Each code set aside is read alone as a raw run, as the vendor reads it, what it
-// prints its listing. A code its kernel is not in the pattern for is set aside too.
+// The vendor reads nothing of a cubin that it stops in. Where it stops, the program reads the codes as one raw run,
+// which names the address where it stops. The program sets that code aside, and reads the run again without it,
+// until it reads clean. It then reads the cubin of the codes that remain once. It reads each code set aside alone as a
+// raw run, as the vendor reads it, and what it prints is its listing. It also sets aside a code whose kernel is not in
+// the pattern.
 //
-// Each code's listing is passed to the run as `<number>.dis`: its instruction lines as the vendor prints the code read
-// alone (cubin_listing.h). Exit 0 where every code was read, 2 where the run, the pattern, a code or the disassembler
-// was not reached
+// The program passes the listing of each code to the run as `<number>.dis`: its instruction lines, as the vendor
+// prints the code read alone (cubin_listing.h). Exit 0 where the program read every code. Exit 2 where it did not
+// reach the run, the pattern, a code or the disassembler
 #include "cubin_listing.h"
 #include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine_note.h"
@@ -28,8 +30,8 @@
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../lstar/interface/interface.h"
 
-// one code of the list: its number, its kernel's name, its bytes and their size, its exits, and 1 where it is set
-// aside to be read alone
+// one code of the list: its number, the name of its kernel, its bytes and their size, and its exits. Then 1 where the
+// program sets it aside for a read alone
 typedef struct
 {
     char number[64];
@@ -47,8 +49,8 @@ static unsigned long long s_output_room = 0ULL;
 static unsigned long long s_output_size = 0ULL;
 static unsigned int s_starts = 0u;
 
-// The disassembler run over the stream at `path`, raw as `architecture` where it is not NULL, what it printed stored in
-// s_output: 0 where it ended clean, 1 where it did not, -1 where it could not be run
+// The disassembler, run over the stream at `path`, raw as `architecture` where that is not NULL. The call stores what
+// it printed in s_output. The return is 0 where it ended clean, 1 where it did not, and -1 where it could not run
 static int listing_read(const char *nvdisasm, const char *architecture, char *path)
 {
     char binary[] = "--binary";
@@ -121,9 +123,10 @@ static int listing_stopped_at(unsigned long long *address)
     return 0;
 }
 
-// the codes not set aside read as one raw run: each that stops the vendor set aside, and the run read again without it,
-// until it reads clean. 1, or 0 where the vendor could not be run, the run could not be passed, or it stopped at no
-// address it named, every code left then set aside
+// the codes not set aside, read as one raw run. The call sets aside each code that stops the vendor, and reads the run
+// again without it, until it reads clean. The return is 1, or 0 where the vendor could not run or the call could not
+// pass the run. The same is true where the vendor stopped at no address that it named. Then the call sets every code
+// that remains aside
 static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int count, const char *nvdisasm,
                                const char *architecture)
 {
@@ -210,8 +213,9 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
     return cleared;
 }
 
-// the cubin of every code not set aside written from the pattern and read once, its listing cut into each code's and
-// passed to the run: 1 where it read clean, 0 where it did not, nothing then passed
+// the cubin of every code not set aside, written from the pattern and read once. The call cuts its listing into the
+// listing of each code, and passes them to the run. The return is 1 where it read clean, and 0 where it did not, with
+// nothing passed
 static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int count, const unsigned char *pattern,
                               unsigned long long pattern_size, const char *nvdisasm)
 {
@@ -272,8 +276,8 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
     return read || (retained == 0u);
 }
 
-// the line of `list` at `*at` into `line`, which has room for `room`, `*at` moved past it: 1, or 0 where the list has
-// ended
+// the line of `list` at `*at` into `line`, which has room for `room`, with `*at` moved past it. The return is 1, or 0
+// at the end of the list
 static int listing_line(const unsigned char *list, unsigned long long size, unsigned long long *at, char *line,
                         size_t room)
 {
@@ -415,7 +419,7 @@ int program_main(int count, char **words)
         code->exit_count = (exit_known && (code->exits != NULL))
                                ? cubin_exits_find(code->code, code->size, exit_low, code->exits, room)
                                : 0u;
-        // a code whose kernel the pattern does not contain, or that contains no exit, is read alone
+        // the program reads alone a code whose kernel the pattern does not hold, or that holds no exit
         code->aside = !cubin_code_of(pattern, pattern_size, code->kernel, &offset, &size) || (code->exit_count == 0u);
     }
     s_output_room = ((unsigned long long)code_count * 65536ULL) + 16777216ULL;
@@ -424,15 +428,15 @@ int program_main(int count, char **words)
     {
         return 2;
     }
-    // the cubin read once; where the vendor stops in it, the codes that stop it found as one raw run and set aside, and
-    // the cubin of the rest read once more
+    // the cubin, read once. Where the vendor stops in it, the call finds the codes that stop it as one raw run, and
+    // sets them aside. It then reads the cubin of the rest once more
     int whole = listing_cubin_read(run, codes, code_count, pattern, pattern_size, nvdisasm);
     if (!whole)
     {
         whole = listing_raw_cleared(run, codes, code_count, nvdisasm, architecture) &&
                 listing_cubin_read(run, codes, code_count, pattern, pattern_size, nvdisasm);
     }
-    // where the cubin of the codes the raw run read clean still did not read, every code is read alone
+    // where the cubin of the codes that the raw run read clean still did not read, the call reads every code alone
     for (unsigned int one = 0u; !whole && (one < code_count); one += 1u)
     {
         codes[one].aside = 1;
