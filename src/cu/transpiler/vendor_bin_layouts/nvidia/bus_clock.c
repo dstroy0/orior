@@ -1,18 +1,23 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bus_clock.c: the timer register, found by querying. The ADVANCES qualifier put at each word of a span of the part's
-// register aperture, read through the BAR0 driver (scaffolding/mmio_read.h, the BAR0 driver), and the first register
-// that advances stored in the part's .ksc as the clock the query's cost is read off (query_put.h, Q1).
+// bus_clock.c: the timer register, found by a query. The program puts the ADVANCES qualifier at each word of a span of
+// the register aperture of the part, read through the BAR0 driver (scaffolding/mmio_read.h, the BAR0 driver). It
+// stores the first register that advances in the .ksc of the part, as the clock that the query reads its cost from
+// (query_put.h, Q1).
 //
 //     orior_bus_clock <ksc> <from> <words> <turns>
 //
-// Every number is read as hexadecimal. `from` is a byte offset into BAR0, `words` how many 32-bit words from
-// it are queried, four bytes apart, and `turns` how many reads ADVANCES puts at a word after its first before the word
-// reads as not advancing. Nothing is written to the part: the BAR0 driver reads alone. Each register queried is a line
-// of the run's blob clock.txt, `<offset> <bit> <step>`, the step the word moved by between the reads that differed; the
-// plan passed first, `clock <words>`. The first register that advances is written to the .ksc as `run answers <offset>
-// clock bus`, in place of the row before it, and the row let go recorded in the .krf beside it. Exit 0 where a clock
-// was found, 1 where none was in the span, 2 where the BAR0 driver was not reached or the words are not these.
+// The program reads every number as hexadecimal. `from` is a byte offset into BAR0, and `words` is how many 32-bit
+// words from it it queries, four bytes apart. `turns` is how many reads ADVANCES puts at a word after its first, before
+// the word reads as one that does not advance. The program writes nothing to the part, and the BAR0 driver only reads.
+//
+// Each register queried is a line of the blob clock.txt of the run, `<offset> <bit> <step>`. The step is how far the
+// word moved between the reads that differed. The program passes the plan first, `clock <words>`. It writes the first
+// register that advances to the .ksc as `run answers <offset> clock bus`, in place of the row before it. It records the
+// row that it let go in the .krf beside it.
+//
+// Exit 0 where the program found a clock, and 1 where none was in the span. Exit 2 where it did not reach the BAR0
+// driver, or the words are not these.
 #include "../../../../../includes/file_defs/krf/krf.h"
 #include "../../../../../includes/file_defs/ksc/ksc.h"
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
@@ -26,7 +31,7 @@
 #if defined(_WIN32)
 #include "scaffolding/mmio_read.h"
 
-// the max words one span queries, the lines of clock.txt stored in memory before they are passed
+// the max words that one span queries, the lines of clock.txt stored in memory before the program passes them
 #define BUS_CLOCK_WORDS_MAX 65536u
 
 static char s_lines[BUS_CLOCK_WORDS_MAX * 32u];
@@ -184,7 +189,7 @@ int program_main(int count, char **words)
         mmgr_line_put(&formed_line_2, "\n");
         (void)mmgr_line_finish(&formed_line_2);
         const int length = (int)formed_line_2.at;
-        // a line of three short numbers fits what is left of the room while the words are bounded
+        // a line of three short numbers fits the room that remains, while the words have a bound
         value_read += (length > 0) ? (unsigned long long)length : 0ULL;
         if (advanced && !found)
         {
