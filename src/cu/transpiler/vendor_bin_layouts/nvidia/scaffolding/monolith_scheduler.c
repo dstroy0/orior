@@ -1,28 +1,29 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// monolith_scheduler.c: the scheduler's bits NVIDIA's compiler writes, read off its cubins and gathered by operation.
-// No listing is read and no disassembler is run: each cubin's code sections are read from the ELF, each instruction is
-// named by our reader through the machine file, and its bits 105 to 127 are read through the fields the machine file
-// names (sass_machine.h).
+// monolith_scheduler.c: the scheduler bits that the compiler of NVIDIA writes, read from its cubins and gathered by
+// operation. The program reads no listing and runs no disassembler. It reads the code sections of each cubin from the
+// ELF, and our reader names each instruction through the machine file. The program reads its bits 105 to 127 through
+// the fields that the machine file names (sass_machine.h).
 //
 //     monolith_scheduler <machine file> <record> <cubin>...
 //
-// For each operation the record contains how often NVIDIA wrote it, the stalls it gave it, how often it set a write or
-// a read barrier and how often it waited, and two readings of what the scheduler's bits are for:
+// For each operation, the record holds how often NVIDIA wrote it and the stalls that it gave it. It holds how often it
+// set a write or a read barrier, and how often it waited. It also holds two readings of what the scheduler bits are
+// for:
 //
-// - where the operation sets no write barrier, the fewest cycles NVIDIA leaves between it and the first instruction
-//   that reads the register it writes, the stalls between them summed. That count is the soonest NVIDIA lets the result
-//   be read, and applies to the operation wherever it is written
-// - where the operation sets a write barrier, how often a wait on that barrier is between it and the first
-//   instruction that reads its register, against how often none does. A barrier counts its producers, and a wait on it
-//   blocks until every one of them is back: the wait may are at the reader or at any instruction before it
-// - where the operation sets none and a later instruction of the same operation sets one, waited on before the read:
-//   the earlier result is blocked behind the later one's barrier, the two coming back in the order they were put
+// - where the operation sets no write barrier, the fewest cycles that NVIDIA leaves between it and the first reader of
+//   its register. That is the sum of the stalls between them. That count is the soonest that NVIDIA lets a reader read
+//   the result. It applies to the operation wherever the compiler writes it.
+// - where the operation sets a write barrier, how often a wait on that barrier is between it and the first reader of
+//   its register. The record puts that against how often none is. A barrier counts its producers, and a wait on it
+//   blocks until every one of them is back. The wait can be at the reader, or at any instruction before it.
+// - where the operation sets none, and a later instruction of the same operation sets one, waited on before the read.
+//   Then the barrier of the later one blocks the earlier result, and the two come back in the order that they went.
 // - where the operation sets none, no later one blocks it, and an earlier instruction of the same operation sets one,
-//   waited on before the read: the result follows the earlier one's out of the same unit, and the fewest cycles NVIDIA
-//   leaves between that wait and the read
+//   waited on before the read. Then the result follows that of the earlier one out of the same unit. The record holds
+//   the fewest cycles that NVIDIA leaves between that wait and the read.
 //
-// and whether the machine file's form for the operation records the barrier NVIDIA writes.
+// and whether the form of the machine file for the operation records the barrier that NVIDIA writes.
 #include "monolith_scheduler/scheduler_internal.h"
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
