@@ -1,19 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_sass_probe_unprinted.c: bits the disassembler does not print, probed on the part. A question is a few
-// instructions put in place of the kernel's IADD3, one of them the instruction whose bits are turned. That instruction
-// is assembled through the machine file, every value of the field is written into its encoding in turn, and each
-// encoding is run on the part over one case. What the part answers for each value is recorded, against the answer the
-// printed text specifies. A value that answers as printed leaves the field without effect on this question; one that
-// answers otherwise, or does not run, is the part reading the field.
+// interface_sass_probe_unprinted.c: bits that the disassembler does not print, probed on the part. A question is a few
+// instructions put in place of the IADD3 of the kernel, one of them the instruction whose bits the probe turns. The
+// probe assembles that instruction through the machine file, and writes every value of the field into its encoding in
+// turn. It runs each encoding on the part over one case.
 //
-// No disassembler is invoked. The pattern cubin, the kernel's text and the runner are an earlier run's. The runner
-// loads a cubin and runs its kernel over one case of eight words.
+// The probe records what the part answers for each value, against the answer that the printed text gives. A value that
+// answers as printed leaves the field with no effect on this question. A value that answers in another way, or does
+// not run, shows that the part reads the field.
+//
+// The probe calls no disassembler. The pattern cubin, the text of the kernel and the runner come from an earlier run.
+// The runner loads a cubin, and runs its kernel over one case of eight words.
 //
 //     interface_sass_probe_unprinted <runner> <pattern cubin> <kernel text> <machine file> <folder> <record>
 //
-// The kernel's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
-// into. The kernel loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
+// The text of the kernel opens with the label of its section, `.text.<kernel>:`, which names the kernel that the probe
+// writes the cubin into. The kernel loads the first two words of the case into R0 and R7. It stores R7 as the first
+// word of the answer.
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
