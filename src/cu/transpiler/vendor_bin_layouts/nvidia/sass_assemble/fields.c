@@ -26,14 +26,14 @@ static const SassField s_constant_fields[] = {{40u, 14u, 4u, 0u}};
 
 static const SassField s_offset_fields[] = {{40u, 24u, 1u, 0u}};
 
-// The uniform register a memory operand reads its descriptor from, in the order an instruction fills them: bits 32 to
-// 37 where no other operand uses bit 32, as a load has it, else 64 to 69, as a store has it. A memory operand that
-// takes one is an address with a run of its own at bit 101, the bit that specifies whether the descriptor is printed:
-// set, desc[URn]; clear, term[URn]
+// The uniform register that a memory operand reads its descriptor from, in the order that an instruction fills them.
+// It is bits 32 to 37 where no other operand uses bit 32, as a load has it, else 64 to 69, as a store has it. A memory
+// operand that takes one is an address with a run of its own at bit 101. That bit tells whether the listing prints the
+// descriptor: set, desc[URn]; clear, term[URn]
 static const SassField s_descriptor_fields[] = {{32u, 6u, 1u, 0u}, {64u, 6u, 1u, 0u}};
 
-// `bits` of `value` written from bit `first` of the instruction, a bit at a time, since a branch's target begins in
-// the low word and ends in the high one
+// `bits` of `value` written from bit `first` of the instruction, a bit at a time. The target of a branch starts in the
+// low word and ends in the high one
 void sass_bits_write(unsigned long long *low, unsigned long long *high, unsigned int first, unsigned int bits,
                      unsigned long long value)
 {
@@ -46,9 +46,9 @@ void sass_bits_write(unsigned long long *low, unsigned long long *high, unsigned
     }
 }
 
-// The number a register, predicate or uniform register names: RZ is 255 and PT is 7. A name ending in .hi is the
-// high half of what it is written on (sass.krs), which for a register is the second register of a 64-bit pair, one
-// past the one it is named from; RZ has no second half, since a pair of zero words reads zero at both. The high half
+// The number that a register, predicate or uniform register names: RZ is 255 and PT is 7. A name that ends in .hi is
+// the high half of what it goes on (sass.krs). For a register, that is the second register of a 64-bit pair, one past
+// the register that it names. RZ has no second half, because a pair of zero words reads zero at both. The high half
 // of a number is its high word, which sass_operand_value takes
 unsigned long long sass_register_value(const char *text)
 {
@@ -67,8 +67,9 @@ unsigned long long sass_register_value(const char *text)
            (sass_high_half(text) ? 1ULL : 0ULL);
 }
 
-// the offset a constant names, c[bank][offset], and the bank through `bank`. The offset may be a sum, each term after
-// a +, as sass.krs writes a kernel's parameter at the target's base and the parameter's own place, c[0x0][0x160+8]
+// the offset that a constant names, c[bank][offset], and the bank through `bank`. The offset can be a sum, with each
+// term after a +. Thus sass.krs writes a parameter of a kernel at the base of the target plus the own place of the
+// parameter, c[0x0][0x160+8]
 unsigned long long sass_constant_value(const char *text, unsigned long long *bank)
 {
     const char *const first =
@@ -105,8 +106,8 @@ static unsigned long long sass_address_value(const char *text, unsigned long lon
     return (open != NULL) ? sass_register_value(open + 1) : 0ULL;
 }
 
-// the value the operand at `place` of `parts` carries, and the field it wants to sit in through `wanted`; 0 where the
-// assembler cannot turn it into a number, which leaves it to be matched by its text
+// the value that the operand at `place` of `parts` carries, and through `wanted` the field that it must sit in. The
+// return is 0 where the assembler cannot make a number of it, and then the assembler matches it by its text
 int sass_operand_value(const SassInstructionParts *parts, unsigned int place, unsigned long long address,
                        unsigned long long target, unsigned long long *value, unsigned long long *offset)
 {
@@ -120,9 +121,10 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
         *value = sass_register_value(text);
         return 1;
     case SASS_OPERAND_IMMEDIATE: {
-        // .hi is the high half of the thing it is written on, whatever that thing is (sass.krs): for a register it
-        // is the pair's second register, and for a number it is the number's high word. strtoull stops at the dot:
-        // so the stem is read and shifted; a negative number is shifted as the 64-bit word it is written into
+        // .hi is the high half of the thing that it goes on, whatever that thing is (sass.krs). For a register it is
+        // the second register of the pair, and for a number it is the high word of the number. The number reader
+        // (cellul.to_ulong_in) stops at the dot, thus the call reads the stem and shifts it. The call shifts a
+        // negative number as the 64-bit word that holds it
         const unsigned long long whole =
             (text[0] == '-') ? (unsigned long long)(-(long long)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
                                                                            .src = text + 1, .end = NULL, .base = 0))
@@ -171,10 +173,11 @@ static const SassField *sass_fields_of(unsigned int type, unsigned int *count)
     }
 }
 
-// the field of `type` that begins inside `run`, or NULL where the type takes none there. A run is the bits the probe
-// saw change one operand, being the field and whatever lies beside it that changes the same operand. A bit that
-// specifies what type the operand is, or the low bits of an offset the operation counts in wider units. A constant's
-// run may lie anywhere inside its field: a frame form's run is the bits its place moved, as a parameter's is 42 to 44
+// the field of `type` that starts inside `run`, or NULL where the type takes none there. A run is the bits that the
+// probe saw change one operand. It is the field, and the bits beside it that change the same operand, such as a bit
+// that sets the type of the operand. Another example is the low bits of an offset that the operation counts in wider
+// units. The run of a constant can lie anywhere inside its field. The run of a frame form is the bits that its place
+// moved, as the run of a parameter is 42 to 44
 static const SassField *sass_field_at(unsigned int type, const SassRun *run)
 {
     unsigned int count = 0u;
@@ -190,9 +193,9 @@ static const SassField *sass_field_at(unsigned int type, const SassRun *run)
     return found;
 }
 
-// the form's operands placed in the fields the probe's runs name: each operand takes the run that begins where a
-// field of its type begins, and an address takes the offset field beside its base register. 1 where every operand was
-// placed, else 0 and the operand that could not be
+// the operands of the form, put in the fields that the runs of the probe name. Each operand takes the run that starts
+// where a field of its type starts, and an address takes the offset field beside its base register. The return is 1
+// where the call put every operand, else 0 and the operand that it could not put
 int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unplaced)
 {
     SassInstructionParts base;
@@ -201,14 +204,15 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
     {
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &places[place], .bytes = sizeof(places[place]), .val = 0);
         const unsigned int type = form->type[place];
-        // a label that names a symbol and not a label of the text is a relocation: the field contains nothing and
-        // the loader fills it. The instruction is then checked against the one the form was seen with
+        // a label that names a symbol and not a label of the text is a relocation. The field holds nothing, and the
+        // loader fills it. The assembler then checks the instruction against the one that the probe saw the form with
         const char *const open = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = base.operand[place],
                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '(');
         const int relocated = (type == SASS_OPERAND_LABEL) && ((open == NULL) || (open[1] != '.'));
         if ((type == SASS_OPERAND_UNKNOWN) || (type == SASS_OPERAND_SYSTEM) || relocated)
         {
-            // a system register and anything else the assembler cannot count is checked against the base's own text
+            // the assembler checks a system register, and all else that it cannot count, against the own text of the
+            // base
             places[place].by_text = 1;
             continue;
         }
@@ -220,9 +224,9 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
             places[place].value.scale = SASS_BRANCH_STEP;
             continue;
         }
-        // A number in the bits a branch's distance sits in is that distance: the probe found its run beginning there
-        // and reaching into the high word. A run that begins there and ends inside the low word is a field of its own,
-        // as BPT.TRAP's code is, three bits from bit 34
+        // A number in the bits where the distance of a branch sits is that distance. The probe found its run, which
+        // starts there and goes into the high word. A run that starts there and ends inside the low word is a field of
+        // its own. The code of BPT.TRAP is such a field, three bits from bit 34
         int distance = 0;
         for (unsigned int number = 0u; (type == SASS_OPERAND_IMMEDIATE) && (number < form->runs); number += 1u)
         {
@@ -248,8 +252,8 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
             if (field != NULL)
             {
                 places[place].value = *field;
-                // a field contains no more bits than the run the probe saw change the operand; a constant's offset is
-                // written whole, its base and its place summed, in the whole of its field
+                // a field holds no more bits than the run that the probe saw change the operand. The call writes the
+                // offset of a constant whole, its base plus its place, in all of its field
                 const unsigned int room = (run->last - field->first) + 1u;
                 places[place].value.bits =
                     ((type == SASS_OPERAND_CONSTANT) || (room >= field->bits)) ? field->bits : room;
@@ -261,8 +265,8 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
                 places[place].has_offset = 1;
             }
         }
-        // a memory operand with a run of its own at the bit that shows the descriptor reads one, and its uniform
-        // register takes the first descriptor field no run of the form uses
+        // a memory operand with a run of its own at the bit that shows the descriptor reads one. Its uniform register
+        // takes the first descriptor field that no run of the form uses
         int displayed = 0;
         for (unsigned int number = 0u; (type == SASS_OPERAND_ADDRESS) && (number < form->runs); number += 1u)
         {
@@ -286,9 +290,10 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
                 places[place].has_descriptor = 1;
             }
         }
-        // Where no field of the operand's type begins inside a run of its own, the widest run the probe saw change the
-        // operand is its field, from the run's first bit and as long as the run: BPT.TRAP's code begins at bit 34,
-        // where no immediate field of the list above begins. An operand a field above places is placed there as it was
+        // Where no field of the operand type starts inside its own run, the widest run that the probe saw change the
+        // operand is its field. The field starts at the first bit of the run and is as long as the run. The
+        // code of BPT.TRAP starts at bit 34, where no immediate field of the list above starts. An operand that a field
+        // above puts stays where that field put it
         const int counted = (type == SASS_OPERAND_IMMEDIATE) || (type == SASS_OPERAND_REGISTER) ||
                             (type == SASS_OPERAND_PREDICATE) || (type == SASS_OPERAND_UNIFORM);
         const SassRun *widest = NULL;
@@ -321,14 +326,16 @@ static void sass_high_write(unsigned long long *high, unsigned int first, unsign
     *high = (*high & ~(mask << (first - 64u))) | ((value & mask) << (first - 64u));
 }
 
-// the scheduler's bits set so that every instruction waits for every one before it: a stall of the soonest its
-// operation's result is read, no reuse, and a wait on every barrier. A fixed result is back once that many cycles
-// pass, and an operation with no measured count stalls the longest. An instruction whose result comes back late has
-// to set a barrier for the wait to have anything to wait on, and a store has to set one for whatever writes its
-// operands next: which instructions those are is the operation's schedule (sass_operation_schedule), and a barrier the
-// form's own encoding sets is set too, except on an operation whose result is back in a measured count of cycles.
-// Nothing releases a barrier such an operation sets, and the next instruction's wait on all six never ends. A barrier
-// no instruction set is already at rest, and waiting on all six costs nothing where none was set
+// the bits of the scheduler, set so that every instruction waits for all the instructions before it. The stall is the
+// soonest read of the result of its operation, with no reuse, and a wait on every barrier. A fixed result is back
+// after that many cycles, and an operation with no measured count stalls the longest.
+//
+// An instruction whose result comes back late must set a barrier, so that the wait has a thing to wait on. A store must
+// set one for the next writer of its operands. The schedule of the operation tells which instructions those are
+// (sass_operation_schedule). The call also sets a barrier that the own encoding of the form sets, except on an
+// operation whose result has a measured cycle count. Nothing releases a barrier that such an operation sets, and the
+// wait of the next instruction on all six never ends. A barrier that no instruction set is already at rest, and a wait
+// on all six costs nothing where no instruction set one
 void sass_control_safe(const SassMachine *machine, const SassForm *form, unsigned long long *high)
 {
     unsigned int soonest = SASS_STALL_MAX_LEN;
