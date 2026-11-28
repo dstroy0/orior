@@ -1549,8 +1549,8 @@ EMBED_INLINE int branch_claims_any(const DocumentBranchCtx *args)
     return 0;
 }
 
-// the lines from `first` to before `end` of `one` claimed by a coloring under way: the claim's place among those of the
-// text, CLI_DOC_CLAIMS where every place is taken with none claimed
+// the lines from `first` to before `end` of `one`, claimed by a coloring under way. The return is the place of the
+// claim among those of the text, CLI_DOC_CLAIMS where every place is in use, with none claimed
 EMBED_INLINE unsigned int branch_claim_append(const DocumentBranchCtx *args)
 {
     for (unsigned int at = 0u; at < CLI_DOC_CLAIMS; at += 1u)
@@ -1577,16 +1577,11 @@ EMBED_INLINE void branch_claim_drop(const DocumentBranchCtx *args)
     EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
 }
 
-// what `finding` found on the lines from `first` put into `one` in turn, from the state `*entering` the first is
-// entered in and the place `place` among the text's states of the scope it is entered in: each line's state it is
-// entered in and the state it ends in, its regions, its runs saved, a paged text's where the page holds the line or the
-// range passes it on, and passed on where the range passes it on, each no further than the text's columns where the
-// range names them; where `stopping` is 1, stopped at the first line entered in the state it was entered in before,
-// `*stopped` set. The line after the last put; under the lock
-// the state a line ends in, of the record the bundle found for it at `record`, its colorer's state at `text`: the
-// colorer's with the place of its scope after the mark, the place read where the record writes the scope and else the
-// one `read` gives, saved back into `read`; the colorer's alone where the scope has no place or the two do not fit. The
-// state's place among the text's
+// the state that a line ends in, of the record that the bundle found for it at `record`, with the state of its colorer
+// at `text`. It is the state of the colorer, with the place of its scope after the mark. The call reads the place where
+// the record writes the scope, and else takes the one that `read` gives, and saves it back into `read`. It is the
+// state of the colorer alone where the scope has no place, or the two do not fit. The return is the place of the state
+// among those of the text
 EMBED_INLINE unsigned int branch_state_ended(const DocumentBranchCtx *args)
 {
     const unsigned int *const record = args->record;
@@ -1615,6 +1610,16 @@ EMBED_INLINE unsigned int branch_state_ended(const DocumentBranchCtx *args)
     return EMBED_CALL(branch_state, DocumentBranchCtx, .one = args->one, .text = state);
 }
 
+// what `finding` found on the lines from `first`, put into `one` in turn. The walk enters the first line in the state
+// `*entering`, and in the scope at the place `place` among the states of the text. For each line, the call puts:
+//
+// - the state that the walk entered it in, and the state that it ends in
+// - its regions, and its runs saved: those of a paged text where the page holds the line or the range passes it on
+// - the runs passed on, where the range passes it on, each no further than the columns of the text where the range
+//   names them
+//
+// Where `stopping` is 1, the call stops at the first line that the walk entered in the state that it entered it in
+// before, and sets `*stopped`. The return is the line after the last put. This runs under the lock
 EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
 {
     unsigned int *entering = args->entering;
@@ -1625,7 +1630,8 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
     args->range->columns = (args->range->columns != 0ULL) ? args->one->columns : 0ULL;
     const unsigned int *record = args->finding->found;
     const unsigned int *const last = record + args->finding->used;
-    // the words the bundle's records take at max, so the runs' cell is taken once for the bundle
+    // the words that the records of the bundle take at max, thus the call takes the cell of the runs once for the
+    // bundle
     unsigned long long more = 0ULL;
     for (const unsigned int *counted = record; counted < last;)
     {
@@ -1724,8 +1730,9 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
     return line;
 }
 
-// the state the line `first` is entered in, the text's at `entering`, copied into `text_out`, CLI_DOC_STATE bytes, cut
-// at its mark, and the scope at the place after the mark read into the finding's: whether the state was copied whole
+// the state that the walk enters the line `first` in, that of the text at `entering`, copied into `text_out`,
+// CLI_DOC_STATE bytes, cut at its mark. The call reads the scope at the place after the mark into that of the finding.
+// The return is whether it copied the state whole
 EMBED_INLINE int branch_state_entered(const DocumentBranchCtx *args)
 {
     char *const state = args->text_out;
@@ -1749,9 +1756,9 @@ EMBED_INLINE int branch_state_entered(const DocumentBranchCtx *args)
     return stated;
 }
 
-// the lines of `line_characters` from `first` to before `to` the range's bytes reach counted, one at the least, the
-// bytes spent taken from the range's where it counts them; their bytes, each with its newline, into `units_pointer`,
-// and the longest's into `max_pointer`
+// the lines of `line_characters` from `first` to before `to` that the bytes of the range reach, counted, one at the
+// least. The call takes the bytes spent from those of the range, where it counts them. It puts their bytes, each with
+// its newline, into `units_pointer`, and those of the longest into `max_pointer`
 EMBED_INLINE unsigned int branch_lines_spent(const DocumentBranchCtx *args)
 {
     const char **const line = args->line_characters;
@@ -1774,12 +1781,15 @@ EMBED_INLINE unsigned int branch_lines_spent(const DocumentBranchCtx *args)
     return spend;
 }
 
-// one bundle of the lines from `first` to before `to` of `one` colored from the state `*entering` the first is entered
-// in: no more than CLI_DOC_BATCH lines where `stopping` is 1, else CLI_DOC_RUN, CLI_DOC_STEP where the range's bytes
-// reach no further, and of those as many as its bytes reach, one at the least, those spent taken from them. The lines
-// are claimed under the lock, read and colored in `work` with it given back, and put in under it again, the text saved
-// across it by its caller; where the text moved meanwhile none is put in and the range is marked stale, and where the
-// grammar or the cells refused them none is and the text is marked refused. The line after the last put; under the lock
+// one bundle of the lines from `first` to before `to` of `one`, colored from the state `*entering` that the walk enters
+// the first in. That is no more than CLI_DOC_BATCH lines where `stopping` is 1, else CLI_DOC_RUN, or CLI_DOC_STEP where
+// the bytes of the range reach no further. Of those, it is as many as its bytes reach, one at the least, with those
+// spent taken from them.
+//
+// The call claims the lines under the lock, reads and colors them in `work` with the lock given back, and puts them in
+// under it again. Its caller saves the text across it. Where the text moved meanwhile, the call puts none in, and marks
+// the range stale. Where the grammar or the cells refused them, it puts none in, and marks the text refused. The return
+// is the line after the last put. This runs under the lock
 EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
 {
     unsigned int to = args->to;
@@ -1789,8 +1799,9 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
         max = (args->range->bytes != CLI_DOC_ALL_BYTES) ? CLI_DOC_STEP : CLI_DOC_RUN;
     }
     const unsigned int end = ((to - args->first) > max) ? (args->first + max) : to;
-    // what the bundle reads with the lock given back, copied as its lines are claimed: the text's serial, its key and
-    // its grammar's, whether it is paged and whether its last line ends it, and how many lines it counts
+    // what the bundle reads with the lock given back, copied as the call claims its lines. It is the serial of the
+    // text, its key, and the key of its grammar. Then whether it is a paged text, whether its last line ends it, and
+    // how many lines it counts
     const unsigned long long serial = args->one->serial;
     char key[CLI_NAME_MAX_LEN];
     char grammar[CLI_NAME_MAX_LEN];
@@ -1808,8 +1819,8 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
     finding.names = args->one->names;
     finding.used = 0ULL;
     finding.refused = 0;
-    // the state the first line is entered in, copied out, the colorer's own passed to it and the scope at the place
-    // after the mark read into the bundle
+    // the state that the walk enters the first line in, copied out. The call passes the own state of the colorer to
+    // it, and reads the scope at the place after the mark into the bundle
     char state[CLI_DOC_STATE];
     const int stated = EMBED_CALL(branch_state_entered, DocumentBranchCtx, .one_read = args->one,
                                   .entering = args->entering, .text_out = state, .finding_out = &finding);
@@ -1852,7 +1863,7 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
         unsigned long long inner_count = 0ULL;
         reserved = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = key, .from = args->first, .to = end,
                               .line = line, .count = &inner_count, .owner = g_cli_editor_owner);
-        // no more lines are read than were asked, which an unsigned int counts
+        // the call reads no more lines than the caller asked, which an unsigned int counts
         read = args->first + (unsigned int)inner_count;
     }
     line = (paged && (reserved == NULL)) ? NULL : line;
@@ -1862,9 +1873,9 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
     const unsigned int spend =
         EMBED_CALL(branch_lines_spent, DocumentBranchCtx, .line_characters = line, .first = args->first, .to = read,
                    .range = args->range, .units_pointer = &total, .max_pointer = &longest);
-    // the names of a line's runs, one run for each of its bytes at max, and the records: two words for each run, a
-    // record's head and CLI_DOC_FOUND_STATE words of its state for each line, and the words of one state and scope
-    // whole. The lines past them are the next bundle's
+    // the names of the runs of a line, one run for each of its bytes at max, and the records. That is two words for
+    // each run, the head of a record, and CLI_DOC_FOUND_STATE words of its state for each line. Then the words of one
+    // state and scope whole. The lines past them go to the next bundle
     finding.named_capacity = longest + 2ULL;
     finding.found_capacity = (2ULL * total) + ((unsigned long long)spend * (CLI_DOC_FOUND_HEAD + CLI_DOC_FOUND_STATE)) +
                              (CLI_DOC_STATE / 2ULL);
@@ -1882,7 +1893,8 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
         VerbaLinea last = {ended, sizeof(ended), 0ULL};
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-        // the lines are colored with the lock given back: the bundle reads only what it copied as it claimed them
+        // the call colors the lines with the lock given back, thus the bundle reads only what it copied as it claimed
+        // them
         cli_document_lock_give();
         colored =
             EMBED_CALL(cli_highlight_key.leaves, CliHighlightKeyCfg, .key = grammar, .state = stated ? state : "root",
@@ -1913,13 +1925,16 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
     return put;
 }
 
-// the lines from `from` to `to` of `one` colored, the first entered in the state the line above it ends in, root where
-// it is the first or the line above is not colored; where `stopping` is 1, stopped at the first entered in the state it
-// was entered in before, each line colored whole from left to right, and the lines those the range's bytes reach, the
-// last maybe past them, those spent taken from them, a bundle at a time in a work claimed for them. The runs of those
-// the range passes on passed on in it, each line's no further than the range's columns where it names them: the line
-// after the last colored. Under the lock, which it gives back as each bundle is colored, the text saved across it by
-// its caller
+// the lines from `from` to `to` of `one`, colored. The walk enters the first in the state that the line above it ends
+// in. It enters it from root where it is the first line, or where the walk did not color the line above. Where
+// `stopping` is 1, the walk stops at the first line that it entered in the state that it entered it in before.
+//
+// It colors each line whole from left to right. The lines are those that the bytes of the range reach, the last maybe
+// past them, with those spent taken from them. It colors one bundle at a time, in a work claimed for them.
+//
+// The call passes on in it the runs of those that the range passes on. Those of each line go no further than the
+// columns of the range, where it names them. The return is the line after the last colored. This runs under the lock,
+// which it gives back as it colors each bundle. Its caller saves the text across it
 EMBED_INLINE unsigned int branch_color(const DocumentBranchCtx *args)
 {
     unsigned int word_2 = 0u;
@@ -1946,8 +1961,8 @@ EMBED_INLINE unsigned int branch_color(const DocumentBranchCtx *args)
     return line;
 }
 
-// whether the line `line` of `one` is one to color: it is not colored, and where `yielding` is 1, as the walk yields,
-// no coloring under way claims it
+// whether the line `line` of `one` is one to color. The walk did not color it, and where `yielding` is 1, as the walk
+// yields, no coloring under way claims it
 EMBED_INLINE int branch_uncolored(const DocumentBranchCtx *args)
 {
     unsigned int begun = 0u;
@@ -1959,10 +1974,11 @@ EMBED_INLINE int branch_uncolored(const DocumentBranchCtx *args)
     return (begun == CLI_DOC_UNCOLORED) && !(args->yielding && branch_claim(args));
 }
 
-// the run of lines of `one` to color about `at`, below the walk's origin where `down` is 1: its first and the line
-// after its last into `first` and `end`, no more than CLI_DOC_STEP of them reaching from `at`, down or up, none outside
-// the lines from `low` to before `high` the walk colors, and where `yielding` is 1 none a coloring under way claims; a
-// run down whose line above ends in no known state reaching as far above as CLI_DOC_PREFIX lines to color reach
+// the run of lines of `one` to color about `at`, below the origin of the walk where `down` is 1. The call puts its
+// first line, and the line after its last, into `first` and `end`. That is no more than CLI_DOC_STEP of them that reach
+// from `at`, down or up. It is none outside the lines from `low` to before `high` that the walk colors. Where
+// `yielding` is 1, it is none that a coloring under way claims. A run down whose line above ends in no known state
+// reaches as far above as CLI_DOC_PREFIX lines to color reach
 EMBED_INLINE void branch_run_get(const DocumentBranchCtx *args)
 {
     unsigned int *first = args->first_pointer;
@@ -1995,8 +2011,8 @@ EMBED_INLINE void branch_run_get(const DocumentBranchCtx *args)
     *end = stop;
 }
 
-// the lines of `one` the walk colors, from `*low` to before `*high`: a paged text's those the page holds alone, the
-// first of them entered from root, and every line of any other
+// the lines of `one` that the walk colors, from `*low` to before `*high`. For a paged text, those are the lines that
+// the page holds alone, with the first of them entered from root. For any other text, they are every line
 EMBED_INLINE void branch_bounds(const DocumentBranchCtx *args)
 {
     unsigned int *low = args->low_pointer;
@@ -2020,9 +2036,10 @@ EMBED_INLINE void branch_bounds(const DocumentBranchCtx *args)
     }
 }
 
-// a run of lines passed on in `out` begun: their runs written as `{"from", "runs"}`, after a comma where `*any` is set,
-// and `*any` set where they are, each line's no further than `columns` characters where it is not 0, no more lines than
-// `bytes` reach, those the page holds passed on, and none colored past `high`
+// a run of lines passed on in `out`, begun. The call writes their runs as `{"from", "runs"}`, after a comma where
+// `*any` is not zero, and sets `*any` where they are. Each line goes no further than `columns` characters where that is
+// not 0. There are no more lines than `bytes` reach, those that the page holds go on, and the call colors none past
+// `high`
 EMBED_INLINE CliBranchRange branch_range_begin(const DocumentBranchCtx *args)
 {
     const CliBranchRange range = {
@@ -2031,11 +2048,13 @@ EMBED_INLINE CliBranchRange branch_range_begin(const DocumentBranchCtx *args)
     return range;
 }
 
-// the lines from `first` to `end` of `one` colored in `range` and the lines after them colored again until one is
-// entered in the state it was entered in before, no more than CLI_DOC_STEP of those and none past the range's last;
-// where its columns are not 0, the lines after them left to the walk unless `onward` is 1, as the walk's own step
-// colors them. Under the lock, which each bundle gives back as it is colored, the range marked stale where the text
-// moved
+// the lines from `first` to `end` of `one`, colored in `range`. The call colors the lines after them again until the
+// walk enters one in the state that it entered it in before. That is no more than CLI_DOC_STEP of those, and none past
+// the last of the range. Where its columns are not 0, the call leaves the lines after them to the walk, unless `onward`
+// is 1. The own step of the walk colors them.
+//
+// This runs under the lock, which each bundle gives back as the call colors it. The call marks the range stale where
+// the text moved
 EMBED_INLINE void branch_range_color(const DocumentBranchCtx *args)
 {
     const unsigned int line = EMBED_CALL(branch_color, DocumentBranchCtx, .one = args->one, .from = args->first,
@@ -2061,13 +2080,9 @@ EMBED_INLINE void branch_range_color(const DocumentBranchCtx *args)
     }
 }
 
-// one step of the walk of `one`: the run of lines to color nearest its origin colored, or where every line is colored
-// or claimed, the first entered in a state the line above does not end in colored again, written into `out` as
-// `{"key", "seq", "colors"}`, `*passed` set where it holds the runs of a line the page holds: 1 where it colored a
-// line, else 0. A paged text's lines are counted again first, and it is walked across the lines the page holds alone.
-// Under the lock, which it gives back as it colors, the text saved across it by its caller
-// the first line from `low` to before `high`, past `low` where it is not the text's first, entered in another state
-// than the one the line above it ends in and claimed by no work: CLI_DOC_NONE where none is
+// the first line from `low` to before `high`, past `low` where it is not the first of the text, that no work claims.
+// The walk entered it in another state than the one that the line above it ends in. The return is CLI_DOC_NONE where
+// none is
 EMBED_INLINE unsigned int branch_entered_astray(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one_read->lines;
@@ -2098,8 +2113,8 @@ EMBED_INLINE unsigned int branch_entered_astray(const DocumentBranchCtx *args)
 // whether the walk writes a telemetry line a step to the error stream, which the window turns on
 static int s_telemetry;
 
-// the walk's telemetry line: `walk <key> colored <first> <end> origin <origin>`, the lines of the text under the key
-// the step colored, from `low` to before `high`, and the line the walk spread out from
+// the telemetry line of the walk: `walk <key> colored <first> <end> origin <origin>`. It is the lines of the text under
+// the key that the step colored, from `low` to before `high`. Then the line that the walk spread out from
 EMBED_INLINE void branch_telemetry(const DocumentBranchCtx *args)
 {
     char text[CLI_ERR_MSG_MAX_LEN];
@@ -2127,6 +2142,13 @@ void cli_document_telemetry_off(void)
     s_telemetry = 0;
 }
 
+// one step of the walk of `one`. The call colors the run of lines to color nearest its origin. Where the walk colored
+// or claimed every line, it colors again the first line that does not start in the end state of the line above. It
+// writes that into `out` as `{"key", "seq", "colors"}`, and sets `*passed` where it holds the runs of a line that the
+// page holds. The return is 1 where it colored a line, else 0.
+//
+// The call counts the lines of a paged text again first, and walks it across the lines that the page holds alone. This
+// runs under the lock, which it gives back as it colors. Its caller saves the text across it
 EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
 {
     CliStoredText *one = args->one;
