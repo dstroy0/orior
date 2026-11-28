@@ -210,7 +210,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     frame.sweep_microseconds = submit->sweep_microseconds;
     frame.idle_microseconds = submit->idle_microseconds;
     // where no one measures a pid from outside, the process reports the bytes that it already allocated as it
-    // requests. A host job is on nothing, because the daemon counts the processors that it uses only after it runs
+    // requests. A host job is on nothing, because the processors that it uses count only after it runs
     unsigned long long located = 0ULL;
     if (!tessera_device_names_host(submit->device) && tessera_self_paravirtual() &&
         tessera_self_measure(submit->luid, &located))
