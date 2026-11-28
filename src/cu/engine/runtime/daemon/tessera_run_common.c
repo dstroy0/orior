@@ -82,7 +82,7 @@ int run_arguments(int count, char **arguments, RunRequest *request)
            !(is_child && request->child);
 }
 
-// this program's own path and its length, or 0 where it cannot be read whole
+// the own path of this program and its length, or 0 where the call cannot read it whole
 size_t run_own_path(char *path, size_t capacity)
 {
 #if defined(_WIN32)
@@ -90,7 +90,7 @@ size_t run_own_path(char *path, size_t capacity)
     const size_t length = (size_t)GetModuleFileNameA(NULL, path, (DWORD)capacity);
 #else
     const ssize_t read = readlink("/proc/self/exe", path, capacity - 1u);
-    // a failed read is -1, recorded as no length at all
+    // a failed read is -1, which the call records as no length at all
     const size_t length = (read > 0) ? (size_t)read : 0u;
 #endif
     if ((length == 0u) || (length >= capacity))
@@ -113,7 +113,7 @@ int run_daemon_path(char *path, size_t capacity)
         mmgr_line_put(&formed_line_1, named);
         (void)mmgr_line_finish(&formed_line_1);
         const int written = (int)formed_line_1.at;
-        // a non-negative length is compared whole against the capacity
+        // the call compares a length that is not negative whole against the capacity
         return (written > 0) && ((size_t)written < capacity);
     }
     size_t directory_length = run_own_path(path, capacity);
@@ -175,11 +175,12 @@ int run_path_joined(const char *first, const char *second, char *path, size_t ca
     mmgr_line_put(&formed_line_2, second);
     (void)mmgr_line_finish(&formed_line_2);
     const int written = (int)formed_line_2.at;
-    // a non-negative length is compared whole against the capacity
+    // the call compares a length that is not negative whole against the capacity
     return (written > 0) && ((size_t)written < capacity);
 }
 
-// a limit in milliseconds from the environment, in microseconds; the fallback where it is not set or not a count
+// a limit in milliseconds from the environment, in microseconds. The return is the fallback where the environment does
+// not set it, or it is not a count
 unsigned long long run_limit(const char *name, unsigned long long fallback)
 {
     char text_text[PLATFORM_ENVIRONMENT_BYTES];
@@ -221,7 +222,8 @@ static int run_record_fields(const char *line, char state[RUN_STATE_CAPACITY], u
     return (walk[0] == '\n') ? count : -1;
 }
 
-// a record file's line as its fields; -1 where the file cannot be read or its line is not whole
+// the line of a record file as its fields. The return is -1 where the read of the file fails, or its line is not
+// whole
 int run_record_read(const char *path, char state[RUN_STATE_CAPACITY], unsigned long long numbers[RUN_NUMBERS])
 {
     PlatformFile *const file = platform_file_open(path, "rb");
