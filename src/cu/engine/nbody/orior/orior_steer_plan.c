@@ -10,8 +10,8 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
                             int resume)
 {
     // A field of any symbol type supplies its own extents and its own validity, and the byte
-    // pointers go unread. Checked separately and not by casting the field into the byte
-    // pointers to satisfy a null test, which would pass the guard while meaning nothing.
+    // pointers go unread. The call checks it on its own, and does not cast the field into the byte
+    // pointers to satisfy a null test. That cast would pass the guard and mean nothing.
     if (any != NULL)
     {
         if ((offsets == NULL) || (survivors == NULL) || (count == 0u) || (any->same == NULL) ||
@@ -36,23 +36,25 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     if (survivors_length < alignments)
     {
         // FAILS CLOSED. The kernel allocates nothing. A buffer that does not reach the alignment
-        // count errors, and never worked around by planning on part of the field.
+        // count gives an error. The call never works around it with a plan on part of the field.
         return 0u;
     }
 
     const size_t stride = (sample_stride == 0u) ? 1u : sample_stride;
 
-    // Every alignment starts located and a probe can only ever take one down. That direction
-    // makes the descent safe to stop at any level: the set shrinks and never grows back.
+    // Every alignment starts truthy, and a probe can only take one down. That direction makes the
+    // descent safe to stop at any level: the set shrinks and never grows back.
     //
-    // ON RESUME THE SURVIVORS ARE THE INPUT AND ARE NOT RESET. A caller composes a recursive spawn by
-    // running one descent, then running the next over the survivors the last one left. The child
-    // reads only what the parent left located and its cost is the survivor count and not the whole
-    // field. The engine cannot check that an incoming survivor set is a valid superset of the true
-    // occurrences; that obligation is the caller's. It is satisfied when the set came from an earlier
-    // descent on this field. A lone survivor is still not an answer: it has passed only the probes
-    // placed so far, and the caller verifies it against the conditions not yet tested with a full
-    // compare before calling it found.
+    // ON RESUME THE SURVIVORS ARE THE INPUT, AND THE CALL DOES NOT RESET THEM. A caller composes a
+    // recursive spawn: it runs one descent, then runs the next over the survivors that the last one
+    // left. The child reads only what the parent left truthy, and its cost is the survivor count
+    // and not the whole field. The engine cannot check that a survivor set that comes in is a valid
+    // superset of the true occurrences. That obligation belongs to the caller. A set from an
+    // earlier descent on this field meets it.
+    //
+    // A lone survivor is still not an answer. It passed only the probes placed so far. The caller
+    // checks it against the conditions not yet tested, with a full compare, before it calls it
+    // found.
     if (resume == 0)
     {
         for (size_t at = 0u; at < alignments; at += 1u)
@@ -64,11 +66,11 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     size_t chosen[ORIOR_STEER_ANCHORS];
     size_t placed = 0u;
 
-    // THE BOUNDED DESCENT. One coarm per level, at max `count` levels, which the guard above bounds
-    // at or under ORIOR_STEER_ANCHORS. The corpus picks a level's offset and, through the destroy
-    // rule below, can end the descent early unless `force_full_depth` is set. The ceiling is decided
-    // before the program starts and this loop terminates for the same reason a for loop over a fixed
-    // array does.
+    // THE BOUNDED DESCENT. One coarm for each level, at max `count` levels, which the guard above
+    // bounds at or under ORIOR_STEER_ANCHORS. The corpus picks the offset of a level. Through the
+    // destroy rule below, it can end the descent early, unless `force_full_depth` is not zero. The
+    // program has the ceiling before it starts. This loop ends for the same reason that a for loop
+    // over a fixed array does.
     while (placed < count)
     {
         size_t best_offset = 0u;
@@ -115,17 +117,17 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
             break;
         }
 
-        // DESTROY WHAT DOES NOT PRUNE. A probe that leaves the truthy population exactly as it
-        // found it rejects nothing an earlier probe had not already rejected. Placing it would read
-        // a byte per alignment and buy none. The descent stops instead, and every level below it is
-        // destroyed with it. `placed` is returned. The caller learns how many probes survived
-        // and is never passed dead ones to evaluate.
+        // DESTROY WHAT DOES NOT PRUNE. A probe that leaves the truthy population as it found it
+        // rejects nothing that an earlier probe did not already reject. To place it would read a
+        // byte for each alignment and buy nothing. The descent stops, and destroys every level
+        // below it. The call returns `placed`. The caller learns how many probes survived, and
+        // never gets dead ones to evaluate.
         //
         // This is the general form of what orior_anchors_for does in one special case. That
-        // function returns a single anchor on a periodic corpus, because at a period every anchor
-        // tests the same congruence and the ones after the first are pure cost. Here the judgment
-        // is MEASURED per level against the field instead of inferred from a period, which also
-        // catches fields whose redundancy no period search would name.
+        // function returns a single anchor on a periodic corpus. At a period, every anchor tests
+        // the same congruence, and the ones after the first are pure cost. Here the call MEASURES
+        // the judgment for each level against the field, and does not infer it from a period. That
+        // also catches fields whose redundancy no period search would name.
         if ((force_full_depth == 0) && (best_located >= steer_truthy_total(survivors, alignments, stride)))
         {
             break;
@@ -150,9 +152,10 @@ size_t orior_steer_plan_recursive(const OriorSteerDescent *args)
         return 0u;
     }
 
-    // Reordering. `spawning` is 0 and the candidates are the offsets the caller already placed.
-    // force_full_depth is read from the argument even here: a caller checking that stopping equals
-    // continuing has to be able to force the reordering descent as well as the spawning one.
+    // The reorder case. `spawning` is 0, and the candidates are the offsets that the caller
+    // already placed. The call reads force_full_depth from the argument here too. A caller that
+    // checks that a stop equals a continue must be able to force the reorder descent, as well as
+    // the spawn descent.
     return steer_descend(args->offsets, args->count, args->corpus, args->corpus_len, args->needle, args->needle_len,
                          args->survivors, args->survivors_length, args->sample_stride, 0, args->force_full_depth,
                          args->any, args->resume);
@@ -165,7 +168,7 @@ size_t orior_steer_spawn_coarms(const OriorSteerDescent *args)
         return 0u;
     }
 
-    // Spawning. `spawning` is 1 and the candidates are every position in the needle.
+    // The spawn case. `spawning` is 1, and the candidates are every position in the needle.
     return steer_descend(args->offsets, args->count, args->corpus, args->corpus_len, args->needle, args->needle_len,
                          args->survivors, args->survivors_length, args->sample_stride, 1, args->force_full_depth,
                          args->any, args->resume);
@@ -187,14 +190,14 @@ int orior_steer_probe_fits(const OriorProbe *probe, size_t needle_len)
     }
     if (probe->step == 0u)
     {
-        // A line of length greater than one with no step reads one position repeatedly. That is an
-        // arm wearing an eye's shape. It errors here and never silently collapsed.
+        // A line of length greater than one with no step reads one position again and again. That
+        // is an arm in the shape of an eye. It gives an error here, and never collapses in silence.
         return 0;
     }
 
-    // The last position is origin + step*(length-1). Formed by division against the capacity actually
-    // left, which errors on a step and length whose product would wrap size_t instead of letting it
-    // wrap into a position that passes a bounds test.
+    // The last position is `origin + step*(length-1)`. The call forms it by division against the
+    // capacity that stays, which gives an error on a step and length whose product would wrap
+    // size_t. Else it would wrap into a position that passes a bounds test.
     const size_t range = needle_len - 1u - probe->origin;
     return ((probe->length - 1u) <= (range / probe->step)) ? 1 : 0;
 }
@@ -213,7 +216,7 @@ static int steer_probe_agrees(const uint8_t *corpus, const uint8_t *needle, cons
     return 1;
 }
 
-/** @brief Truthy alignments remaining if `probe` were placed, in the sampled population. */
+/** @brief Truthy alignments that stay if the call places `probe`, in the sampled population. */
 size_t steer_truthy_after_probe(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
                                 const uint8_t *alive, const OriorProbe *probe, size_t stride)
 {
