@@ -4,12 +4,15 @@
 #ifndef KEYMATH_CORE_AFFINE_H
 #define KEYMATH_CORE_AFFINE_H
 
-// keymath's record encoding as one source the host and the device both compile (engine_table.md item 11(a), the
-// compiler on the device): each step's term and width, read from its operation and its operands' in step order, and
-// each register's linear form, which narrows the width where it is tighter. The host's keymath_record_encode runs it
-// and arranges the key; the device runs it in one thread, since each step reads the steps before it. A linear form's
-// terms are stored in an arena the caller gives, each form a run of it. An arena too small for the forms is reported,
-// and the caller gives a larger one and runs the encoding again, which decides the same
+// the record encoding of keymath, as one source that the host and the device both compile (engine_table.md item
+// 11(a), the compiler on the device). It has the term and width of each step, read in step order from its operation
+// and from those of its operands. It has the linear form of each register, which narrows the width where it is
+// tighter.
+//
+// The keymath_record_encode of the host runs it, and arranges the key. The device runs it in one thread, because each
+// step reads the steps before it. The terms of a linear form go in an arena that the caller gives, each form a run of
+// it. The call reports an arena too small for the forms. The caller then gives a larger one and runs the encoding
+// again, which decides the same
 
 #include "../../engine_config.h"
 
@@ -21,8 +24,8 @@
 #define KEYMATH_CORE static inline
 #endif
 
-// a coefficient or constant of a linear form stays within this. A sum of two and the product by a constant are then
-// checked in one word before either is formed: two at the limit sum to 2^63, past a signed word
+// a coefficient or constant of a linear form stays within this. The call can then check a sum of two, and the product
+// by a constant, in one word before it forms either. Two at the limit sum to `2^63`, past a signed word
 #define KEYMATH_COEFFICIENT_MAX (1LL << 62)
 
 // the limbs a form's bound takes: an atom's register is at max 32 ENGINE_RECORD_LIMBS_MAX bits and a coefficient at
@@ -30,12 +33,12 @@
 // 2^(32 ENGINE_RECORD_LIMBS_MAX + 95)
 #define KEYMATH_BOUND_LIMBS (ENGINE_RECORD_LIMBS_MAX + 3u)
 
-// the terms an encode's first run gives each step's linear form, on the host and the device; a run that fills its
-// arena runs again with one twice the size, which decides the same
+// the terms that the first run of an encode gives the linear form of each step, on the host and the device. A run
+// that fills its arena runs again with one twice the size, which decides the same
 #define KEYMATH_ARENA_PER_STEP 8u
 
-// how an encode ends: every step succeeded; a step errored, or a step's table, or an output, the one at `at`; or the
-// arena too small for the forms
+// how an encode ends: every step succeeded, or a step, its table or an output gave an error, the one at `at`. Else the
+// arena was too small for the forms
 enum KeymathCoreEnd
 {
     KEYMATH_CORE_OK = 0,
@@ -52,11 +55,13 @@ struct KeymathCoreTerm
     long long coefficient;
 };
 
-// a register as a linear form: integer coefficients over atoms, each an earlier register the form does not open (a
-// field, or any register no sum, difference or product by a constant made), plus a constant. Every register has one;
-// an atom's is itself with coefficient 1. Its terms are `count` of the arena from `first`, ordered by atom. Its width
-// is read from the form (A16, Mathai and Thiang's bulk-boundary map read as a restriction on the dual side): |x| <= |c|
-// + sum |c_i| (2^(b_i) - 1) over the atoms' widths b_i
+// a register as a linear form: integer coefficients over atoms, plus a constant. Each atom is an earlier register that
+// the form does not open. That is a field, or a register that no sum, difference or constant product made. Every
+// register has one, and that of an atom is itself with coefficient 1.
+//
+// Its terms are `count` of the arena from `first`, in atom order. The call reads its width from the form, as
+// `|x| <= |c| + sum |c_i| (2^(b_i) - 1)` over the atom widths `b_i`. That is A16, the bulk-boundary map of Mathai and
+// Thiang read as a restriction on the dual side
 struct KeymathCoreAffine
 {
     long long constant;
@@ -64,7 +69,7 @@ struct KeymathCoreAffine
     unsigned long long count;
 };
 
-// the terms the forms are arranged in: `capacity` of them, `used` taken, and 1 in `full` once a form found no room
+// the terms that the forms go in: `capacity` of them, `used` taken, and 1 in `full` after a form found no room
 struct KeymathCoreArena
 {
     KeymathCoreTerm *terms;
@@ -73,9 +78,14 @@ struct KeymathCoreArena
     int full;
 };
 
-// an encode: its steps and the fields', members' and tables' sizes it reads, its outputs; each step's term, 1 where
-// its register is never negative, and its form, in step order; the arena; KEYMATH_BOUND_LIMBS words a form's bound is
-// summed in, the caller's, since they are past what a device thread's stack fits; and where it ended, and at what
+// an encode:
+//
+// - its steps, the sizes of the fields, members and tables that it reads, and its outputs
+// - the term of each step, 1 where its register is never negative, and its form, in step order
+// - the arena
+// - KEYMATH_BOUND_LIMBS words that the call sums the bound of a form in. They belong to the caller, because they are
+//   past what the stack of a device thread fits.
+// - where it ended, and at what
 struct KeymathCoreEncode
 {
     const EngineRecordStep *steps;
@@ -117,10 +127,13 @@ KEYMATH_CORE int keymath_core_record_reads(unsigned int operation)
            (operation == ENGINE_RECORD_XOR) || (operation == ENGINE_RECORD_AND);
 }
 
-// whether a step's register is never negative, read from its operation and its operands': a field read unsigned, a
-// constant, an absolute value, a gcd, a table's entry and the lane's number are never negative; so are a sum, product,
-// quotient, exact quotient or xor of two such, a remainder of one such (it carries the numerator's sign), an and with
-// one such, and a wrap that passes one such through unchanged
+// whether the register of a step is never negative, read from its operation and from those of its operands. These are
+// never negative:
+//
+// - a field read unsigned, a constant, an absolute value, a gcd, an entry of a table, and the number of the lane
+// - a sum, product, quotient, exact quotient or xor of two such
+// - a remainder of one such (it carries the sign of the numerator), and an and with one such
+// - a wrap that passes one such through with no change
 KEYMATH_CORE unsigned char keymath_core_never_negative(const EngineRecordStep *doing,
                                                        const unsigned char *never_negative, int wrap_passes)
 {
@@ -157,8 +170,8 @@ KEYMATH_CORE long long keymath_core_magnitude(long long value)
     return (value < 0LL) ? -value : value;
 }
 
-// left + right, each within KEYMATH_COEFFICIENT_MAX, into *sum; 0, and *sum 0, where the sum would pass it. The test
-// is made before the sum is formed, and each side of it stays within the limit: no word overflows
+// `left + right`, each within KEYMATH_COEFFICIENT_MAX, into `*sum`. It is 0, with `*sum` 0, where the sum would pass
+// it. The call tests before it forms the sum, and each side of the test stays within the limit: no word overflows
 KEYMATH_CORE int keymath_core_sum_fits(long long left, long long right, long long *sum)
 {
     const int fits =
@@ -181,8 +194,8 @@ KEYMATH_CORE int keymath_core_push(KeymathCoreArena *arena, unsigned int atom, l
     return 1;
 }
 
-// left + sign right, the terms merged by atom, arranged at the arena's end into *sum; 0 where a coefficient or the
-// constant would pass KEYMATH_COEFFICIENT_MAX or the arena is full
+// `left + sign right`, with the terms merged by atom, arranged at the end of the arena into `*sum`. It is 0 where a
+// coefficient or the constant would pass KEYMATH_COEFFICIENT_MAX, or the arena is full
 KEYMATH_CORE int keymath_core_affine_add(KeymathCoreArena *arena, const KeymathCoreAffine *left,
                                          const KeymathCoreAffine *right, long long sign, KeymathCoreAffine *sum)
 {
@@ -214,8 +227,8 @@ KEYMATH_CORE int keymath_core_affine_add(KeymathCoreArena *arena, const KeymathC
     return ok;
 }
 
-// the form times a constant, arranged at the arena's end into *scaled; 0 where a coefficient or the constant would pass
-// KEYMATH_COEFFICIENT_MAX or the arena is full
+// the form times a constant, arranged at the end of the arena into `*scaled`. It is 0 where a coefficient or the
+// constant would pass KEYMATH_COEFFICIENT_MAX, or the arena is full
 KEYMATH_CORE int keymath_core_affine_scale(KeymathCoreArena *arena, const KeymathCoreAffine *form, long long factor,
                                            KeymathCoreAffine *scaled)
 {
@@ -229,7 +242,7 @@ KEYMATH_CORE int keymath_core_affine_scale(KeymathCoreArena *arena, const Keymat
     {
         const KeymathCoreTerm term = arena->terms[form->first + at];
         ok = keymath_core_magnitude(term.coefficient) <= max;
-        // a coefficient past the limit is not multiplied, since its product can pass a signed word
+        // the call does not multiply a coefficient past the limit, because its product can pass a signed word
         if (ok)
         {
             ok = keymath_core_push(arena, term.atom, term.coefficient * factor);
