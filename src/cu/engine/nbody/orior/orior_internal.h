@@ -22,14 +22,17 @@
 #include "orior.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
-/* The dispatch rule in orior_steer_prefers_free compares 100 * total^2 against
- * 85 * distinct * sum(count^2) for a census whose total is a 64 bit count. The right side is below
- * 2^7 * 2^8 * 2^128 = 2^143: 85 is below 2^7, at max 256 symbols are distinct, and a sum of squared
- * counts is at max total^2. The narrowest power of two width containing 143 bits is 256, which is
- * 8 limbs. Narrower, the rule errors on a large enough corpus, and which engine a corpus is given
- * would change with the width. The engine errors on the width here instead. The exact integer on its
- * own builds and grades down to 1 limb. Written in the three forms exact_integer.h uses for its
- * asserts: static_assert for C++, _Static_assert for C11, and a negative array size before C11. */
+/* The dispatch rule in orior_steer_prefers_free compares `100 * total^2` against
+ * `85 * distinct * sum(count^2)`, for a census whose total is a 64 bit count. The right side is
+ * below `2^7 * 2^8 * 2^128 = 2^143`. 85 is below `2^7`, at max 256 symbols are distinct, and a sum
+ * of squared counts is at max `total^2`. The narrowest power of two width that holds 143 bits is
+ * 256, which is 8 limbs.
+ *
+ * Narrower, the rule gives an error on a large enough corpus, and the engine that a corpus gets would
+ * change with the width. Thus the engine gives an error on the width here. The exact integer on its own
+ * builds and grades down to 1 limb. The check has the three forms that exact_integer.h uses for its
+ * asserts. They are static_assert for C++, _Static_assert for C11, and a negative array size before
+ * C11. */
 #if defined(__cplusplus)
 static_assert(ORIOR_EXACT_BITS >= 256u, "the steering rule needs 143 bits; build the engine at 8 exact limbs or more");
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
