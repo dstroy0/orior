@@ -578,7 +578,6 @@ src/sims/cu/engine/analysis/root_universal/root_universal_program.cu	1
 src/sims/cu/sim_camera_scene.h	1
 src/sims/cu/sim_job.cu	3
 src/sims/cu/sim_rational.h	1
-src/sims/cu/transpiler/povm_state/povm_state_internal.h	4
 src/sims/cu/transpiler/povm_state/povm_state_main.cu	2
 src/sims/cu/transpiler/povm_state/povm_state_number.cu	2
 src/sims/cu/types/integers/ka_psi/ka_psi_value.cu	1
