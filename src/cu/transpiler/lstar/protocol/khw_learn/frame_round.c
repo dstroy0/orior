@@ -14,19 +14,19 @@ typedef struct
     unsigned int place;
 } KhwVariant;
 
-// the max immediates the retained places contain that an opening place is put with, each one apart
+// the max immediates that the kept places hold, to put an opening place with, each one apart
 #define KHW_FRAME_IMMEDIATES 8u
 
-// the max variants a place is put in: as it is, each operand run of the probe place's form and the guard, and each
-// of those with the constant bank's first word and with each immediate a retained place contains
+// the max variants that the call puts a place in: as it is, each operand run of the probe-place form, and the guard.
+// Then each of those with the first word of the constant bank, and with each immediate that a kept place holds
 #define KHW_VARIANTS_A_PLACE ((2u + KHW_FRAME_IMMEDIATES) * (KHW_RUNS + 2u))
 
 static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigned long long low,
                               unsigned long long high, unsigned int place);
 
-// what every variant of a place is set from: the fields the part's .ksc names, the guard and the immediate, which
-// the constant bank's operand lies in, the record's register, and the immediates the retained places contain, none of
-// them 0
+// what the call sets every variant of a place from. It has the fields that the .ksc of the part names: the guard, and
+// the immediate that the operand of the constant bank lies in. Then the register of the record, and the immediates that
+// the kept places hold, none of them 0
 typedef struct
 {
     int guarded;
@@ -41,16 +41,22 @@ typedef struct
     unsigned int known_immediates;
 } KhwFrameFields;
 
-// the variants of the place `place` containing `low` and `high` added to `variants`: as it is; with the field
-// containing each operand run of the probe place's own form `probed_form` set to the register the kernel stores, the
-// relation's first word's to the record's register; with its guard at every predicate where it contains another; and,
-// where the place is the opening's, `opening` not 0, each of those again with the field the .ksc names `immediate` set
-// to 0, the constant bank's first word, which the launch's block size is at, so that a place reading the bank
-// writes it to the register the record reads, and set to each immediate a retained place contains, so that a place
-// reading the bank reads what a retained place reads there, the count the launch passes the kernel among it. The
-// opening's places are the ones that read the launch's bank, and the kernel runs without them; a retained place's
-// immediate set to 0 writes a register a place after the probe place reads, a number or an address, and the part faults
-// on the address
+// the variants of the place `place`, which holds `low` and `high`, added to `variants`:
+//
+// - the place as it is
+// - with the field that holds each operand run of the own form of the probe place, `probed_form`, set to the register
+//   that the kernel stores. The field of the first word of the relation goes to the register of the record.
+// - with its guard at every predicate, where it holds another one
+//
+// Where the place belongs to the opening (`opening` not 0), each of those comes again in two more forms. One has the
+// field that the .ksc names `immediate` set to 0, the first word of the constant bank, where the block size of the
+// launch is. Thus a place that reads the bank writes it to the register that the record reads. The other has that
+// field set to each immediate that a kept place holds. Thus a place that reads the bank reads what a kept place reads
+// there, with the count that the launch passes the kernel among it.
+//
+// The places of the opening are the ones that read the bank of the launch, and the kernel runs without them. A kept
+// place with its immediate at 0 writes a register that a place after the probe place reads, a number or an address.
+// The part then faults on the address
 static void khw_place_varied(const KhwAnswered *probed_form, const KhwFrameFields *fields, unsigned long long low,
                              unsigned long long high, unsigned int place, int opening, KhwVariant *variants,
                              unsigned int *count)
@@ -106,9 +112,9 @@ static void khw_place_varied(const KhwAnswered *probed_form, const KhwFrameField
     }
 }
 
-// the immediates the retained places contain, read off the field the .ksc names `immediate` into `fields`: each not 0
-// and apart from those before it, the place a question is put at and the unreached places not read, at max
-// KHW_FRAME_IMMEDIATES
+// the immediates that the kept places hold, read from the field that the .ksc names `immediate` into `fields`. Each is
+// not 0, and apart from those before it. The call does not read the place where a question goes, or the unreached
+// places. At max KHW_FRAME_IMMEDIATES
 static void khw_known_immediates_read(KhwFrameFields *fields)
 {
     fields->known_immediates = 0u;
@@ -132,8 +138,8 @@ static void khw_known_immediates_read(KhwFrameFields *fields)
     }
 }
 
-// `low` and `high` from `place` added to `variants`, `*count` of them, where no variant of that place contains it
-// already; two places that are alike each retain their own, so that each place's first variant is its own as it
+// `low` and `high` from `place`, added to `variants`, `*count` of them, where no variant of that place holds it
+// already. Two places that are alike each keep their own, so that the first variant of each place is its own, as it
 // is
 static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigned long long low,
                               unsigned long long high, unsigned int place)
@@ -151,21 +157,29 @@ static void khw_variant_added(KhwVariant *variants, unsigned int *count, unsigne
     *count += 1u;
 }
 
-// The frame round: each place of the kernel, the probe place and the unreached ones apart, put at the probe place over
-// the frame's cases in its variants, every one pooled and carried as one round with nothing, the unreached encoding at
-// the probe place, which the candidates are read against. The places are the retained ones from the opening on and the
-// opening's own before it, which the part ran as well and which every question drops, numbered after the retained ones.
-// The variants (khw_place_varied): as it is; with the field of the instruction word that contains each operand run
-// of the probe place's own classified form `probed_form`, as the part's .ksc gives the fields, set to the register the
-// kernel stores, KHW_SECOND_REGISTER, the field of the relation's first word to the record's register instead, since a
-// load or a store reads that field as an address and the record's register contains one, and not put where the part's
-// .ksc names none; with its guard at PT where the guard field, as the part's .ksc gives it, contains another predicate;
-// and the opening's places alone each of those with the field the .ksc names `immediate` set to 0, where the constant
-// bank's operand lies and its first word is the launch's block size, and set to each immediate a retained place
-// contains, the kernel's own reads of the bank, the count's among them. A variant the working set contains already is
-// read no further, and the place's other variants are. The first variant of a place to answer a frame relation is
-// retained as a form of the working set, discovered where `discover` is not 0 and its fields queried where it is. The
-// count retained
+// The frame round. Each kernel place, except the probe place and the unreached ones, goes at the probe place over the
+// frame cases, in its variants. The call pools every one, and carries them as one round with nothing. Nothing is the
+// unreached encoding at the probe place, which the call reads the candidates against. The places are the kept ones from
+// the opening on, and the own places of the opening before them, numbered after the kept ones. The part ran those too,
+// and every question drops them.
+//
+// The variants (khw_place_varied):
+//
+// - the place as it is
+// - with the instruction-word field that holds each operand run of the classified probe-place form, `probed_form`. It
+//   goes to the register that the kernel stores, KHW_SECOND_REGISTER. The .ksc of the part gives the fields. The field
+//   of the first word of the relation goes to the register of the record instead. A load or a store reads that field as
+//   an address, and the register of the record holds one. The call does not put it where the .ksc of the part names
+//   none.
+// - with its guard at PT, where the guard field, as the .ksc of the part gives it, holds another predicate
+// - for the places of the opening alone, each of those with the field that the .ksc names `immediate` set to 0. That is
+//   where the operand of the constant bank lies, and its first word is the block size of the launch. The call also sets
+//   the field to each immediate that a kept place holds. Those are the reads of the bank by the kernel, with that of
+//   the count among them.
+//
+// The call reads no further a variant that the working set already holds, and reads the other variants of the place.
+// The first variant of a place to answer a frame relation stays as a form of the working set. Where `discover` is not
+// 0, it is a discovered form. Else the call queries its fields. The return is the count kept
 unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
 {
     static KhwVariant s_variants[2u * KHW_PLACES * KHW_VARIANTS_A_PLACE];
@@ -227,8 +241,8 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
         {
             continue;
         }
-        // a variant the working set contains already is read no further. The place's other variants are, each an
-        // encoding of its own, and the first of them to answer a relation is the place's form
+        // the call reads no further a variant that the working set already holds. It reads the other variants of the
+        // place, each an encoding of its own. The first of them to answer a relation is the form of the place
         if (khw_named_already(s_variants[at].low, s_variants[at].high))
         {
             continue;
