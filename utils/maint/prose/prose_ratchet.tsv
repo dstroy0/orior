@@ -511,7 +511,7 @@ includes/platform/windows/windows_processes.c	12
 includes/platform/windows/windows_system.c	1
 includes/platform/windows/windows_transfer.c	2
 includes/platform/windows/windows_watch.c	7
-includes/platform/windows/windows_window.c	60
+includes/platform/windows/windows_window.c	11
 includes/utf8/utf8.c	3
 includes/utf8/utf8.h	1
 includes/window/controls.c	3
