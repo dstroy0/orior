@@ -594,7 +594,6 @@ src/sims/cu/engine/analysis/period_power/period_power.cu	1
 src/sims/cu/engine/analysis/root_universal/root_universal_internal.h	1
 src/sims/cu/engine/analysis/root_universal/root_universal_main.cu	3
 src/sims/cu/engine/analysis/root_universal/root_universal_program.cu	1
-src/sims/cu/sim_camera_render.h	5
 src/sims/cu/sim_camera_scene.h	1
 src/sims/cu/sim_job.cu	3
 src/sims/cu/sim_rational.h	1
