@@ -506,7 +506,6 @@ src/cu/engine/rmc/codegen_output.cu	13
 src/cu/engine/rmc/codegen_rules.cu	3
 src/cu/engine/rmc/instruction_selection.h	2
 src/cu/engine/rmc/precepts.h	1
-src/cu/engine/rmc/prologue_epilogue.h	15
 src/cu/engine/rmc/scheduling.h	7
 src/cu/engine/rmc/schema_forms.h	4
 src/cu/engine/rmc/target.h	10

@@ -5,11 +5,13 @@
 
 #include "instruction_selection.h"
 
-// The lane's own forms, decided after every step from what the steps left in the lane: the max of each bank any step
-// took, whether any reads the tables, and which can leave the lane errored. Each is decided in the order the lane
-// writes them, the note, the lane's opening and its declarations, then its opening, its close, and where the body is
-// split, the schedule, then the body's opening and the lane's end, since a construct's scratch goes on from where each
-// bank is; they are arranged into the text in another order (code_generator.cu)
+// The own forms of the lane, decided after every step from what the steps left in the lane. That is the max of each
+// bank that any step took, whether any reads the tables, and which can leave the lane in error.
+//
+// The core decides each in the order that the lane writes them, because the scratch of a construct goes on from where
+// each bank is. The order is the note, the opening of the lane and its declarations, then its opening and its close.
+// Where the core splits the body, the schedule comes next, then the opening of the body and the end of the lane. The
+// core arranges them into the text in another order (code_generator.cu)
 
 // the program's note, which the assembly printer writes from the step count it stores and the target
 CODEGEN_CORE void codegen_note(MachineFunction *lane)
@@ -41,19 +43,25 @@ CODEGEN_CORE void codegen_declare(MachineFunction *lane, unsigned int atoms)
     codegen_instr1(lane, OPCODE_DECLARE_MEMBERS, codegen_number(ENGINE_RECORD_MEMBERS_MAX));
 }
 
-// a 64-bit field of the launch read into `to` from its offset: requested, then taken, as a language that clocks the
-// lane reads its memory a clock after it names the address
+// a 64-bit field of the launch read into `to` from its offset: requested, then taken. A language that clocks the lane
+// reads its memory a clock after it names the address
 CODEGEN_CORE void codegen_launch(MachineFunction *lane, MachineOperand to, unsigned int offset)
 {
     codegen_instr1(lane, OPCODE_LAUNCH_LOAD, codegen_number(offset));
     codegen_instr2(lane, OPCODE_LAUNCH_LOAD_WIDE, to, codegen_number(offset));
 }
 
-// the lane's opening: its launch and number, the record's words no put writes stored as 0, and each member's atom found
-// as the interpreter finds it, a lane whose atom lies past its member errored before any step; then the words a
-// error would leave unlaid stored as 0, the program's tables where `tables` is 1, and where the language contains the
-// file in shared memory, its `places` there and where its signs begin after them. `errors` is 1 for each step that can
-// leave the lane errored
+// the opening of the lane:
+//
+// - its launch and number
+// - the record words that no put writes, stored as 0
+// - the atom of each member, found as the interpreter finds it. A lane whose atom lies past its member goes in error
+//   before any step.
+// - the words that an error would leave unwritten, stored as 0
+// - the tables of the program, where `tables` is 1
+// - where the language holds the file in shared memory, its `places` there, and where its signs start after them
+//
+// `errors` is 1 for each step that can leave the lane in error
 CODEGEN_CORE void codegen_open(MachineFunction *lane, const unsigned int *errors, unsigned int tables,
                                unsigned int places)
 {
@@ -67,7 +75,7 @@ CODEGEN_CORE void codegen_open(MachineFunction *lane, const unsigned int *errors
     const MachineOperand indexed = codegen_physreg(PHYSREG_INDEXED);
     const MachineOperand one = codegen_physreg(PHYSREG_ONE);
     const MachineOperand ok = codegen_physreg(PHYSREG_OK);
-    // the opening's own 32- and 64-bit temporaries, the first of each bank, which no step has taken yet
+    // the own 32- and 64-bit temporaries of the opening, the first of each bank, which no step took yet
     const MachineOperand temporary = codegen_register(REGCLASS_TEMPORARY, 0u);
     const MachineOperand wide = codegen_register(REGCLASS_WIDE, 0u);
     // the launch's offsets are a few dozen bytes
@@ -76,7 +84,8 @@ CODEGEN_CORE void codegen_open(MachineFunction *lane, const unsigned int *errors
     codegen_instr1(lane, OPCODE_CAST_GLOBAL, record);
     codegen_instr3(lane, OPCODE_WIDE_MUL, wide, lane_number, codegen_immediate(4u * program->out_limbs));
     codegen_instr3(lane, OPCODE_WIDE_ADD, record, record, wide);
-    // a word no put writes is 0 on every lane, errored or not, and is stored before anything can error
+    // a word that no put writes is 0 on every lane, in error or not, and the lane stores it before anything can give
+    // an error
     for (unsigned int word = 0u; word < program->out_limbs; word += 1u)
     {
         if (program->put_last[word] == 0u)
@@ -116,8 +125,8 @@ CODEGEN_CORE void codegen_open(MachineFunction *lane, const unsigned int *errors
         codegen_instr3(lane, OPCODE_WIDE_ADD, address, address, wide);
     }
     codegen_instr1(lane, OPCODE_ERROR_OPEN_UNLESS, ok);
-    // a word whose first put comes at or after a step the lane can leave errored is 0 in the record until its last put
-    // stores it, and the error stores only the words it has in flight
+    // a word whose first put is at or after a step that can leave the lane in error is 0 in the record. It stays so
+    // until its last put stores it. The error stores only the words that it has in flight
     unsigned int error_first = program->step_count;
     for (unsigned int at = 0u; (at < program->step_count) && (error_first == program->step_count); at += 1u)
     {
@@ -157,10 +166,12 @@ CODEGEN_CORE void codegen_count_error(MachineFunction *lane)
     codegen_instr1(lane, OPCODE_GLOBAL_ADD_ATOMIC_WORD, wide);
 }
 
-// the lane's close. A lane that ran every step stored each record word as its last put wrote it, and returns. A
-// lane errored leaves its record as its puts wrote it before it ended, as the interpreter does: errored at the open,
-// every word the steps write is 0; errored at a step, it stores the words it has in flight, their first put before
-// that step and their last put that step or a later one. Every other word is already in the record, written or 0
+// the close of the lane. A lane that ran every step stored each record word as its last put wrote it, and returns. A
+// lane in error leaves its record as its puts wrote it before it ended, as the interpreter does. In error at the open,
+// every word that the steps write is 0. In error at a step, it stores the words that it has in flight. Their first put
+// is before that step, and their last put is that step or a later one.
+//
+// Every other word is already in the record, written or 0
 CODEGEN_CORE void codegen_close(MachineFunction *lane, const unsigned int *errors)
 {
     const IrProgram *const program = lane->program;
@@ -196,9 +207,9 @@ CODEGEN_CORE void codegen_close(MachineFunction *lane, const unsigned int *error
     }
 }
 
-// the body's opening: where it is split, the states it was split into, declared first; and the lane's end, its close
-// and the program resident around it, the kernel or the circuit that runs a launch's lanes, which the assembly printer
-// writes from the launch's layout (codegen_unit)
+// the opening of the body: where the core splits it, the states that it split it into, declared first. Then the end of
+// the lane: its close, and the program resident around it. That is the kernel or the circuit that runs the lanes of a
+// launch. The assembly printer writes it from the layout of the launch (codegen_unit)
 CODEGEN_CORE void codegen_body_open(MachineFunction *lane, int scheduled, unsigned int states)
 {
     if (scheduled != 0)
