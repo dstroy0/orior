@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tables_funnel.c: the vendor's two tables written out of a capture of its disassembler: the instruction set and
-// the latencies
+// tables_funnel.c: the two tables of the vendor, written out of a capture of its disassembler. They are the
+// instruction set and the latencies
 //
 //     orior_tables_funnel <capture> <instructions.txt> <latencies.txt>
 //
-// Exit 0 where both tables were written, 1 where the capture could not be read or a table could not be written, 2
-// where the capture contains no instruction archive that unpacks whole, 3 where it contains no copies of the latencies.
+// Exit 0 where the program wrote both tables, and 1 where it could not read the capture or write a table. Exit 2 where
+// the capture holds no instruction archive that unpacks whole, and 3 where it holds no copies of the latencies.
 #include "funnel.h"
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
