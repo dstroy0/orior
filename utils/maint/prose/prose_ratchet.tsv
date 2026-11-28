@@ -485,7 +485,6 @@ src/cu/engine/runtime/daemon/tessera_ledger_core_decide.h	3
 src/cu/engine/runtime/daemon/tessera_ledger_core_heap.h	1
 src/cu/engine/runtime/daemon/tessera_measure.h	2
 src/cu/engine/runtime/daemon/tessera_paths.c	2
-src/cu/engine/runtime/daemon/tessera_run_main.c	3
 src/cu/engine/runtime/daemon/tessera_run_posix.c	14
 src/cu/engine/runtime/daemon/tessera_run_windows.c	16
 src/cu/engine/runtime/device_pool/device_pool.cu	2
