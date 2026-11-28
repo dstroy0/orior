@@ -1,18 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tables_read.c: the vendor's instruction set read for the command line: each encoding given named by its class,
-// its constant operand's bank, byte offset and bytes read, and rule 13's verdict against a bank size; or the spans
-// of the constant address fields every class of the set uses, counted
+// tables_read.c: the instruction set of the vendor, read for the command line. The program names each encoding given by
+// its class, with the bank, byte offset and bytes read of its constant operand, and the verdict of rule 13 against a
+// bank size. Or the program counts the spans of the constant address fields that every class of the set uses
 //
 //     orior_tables_read <instructions.txt> class [--bank <size>] <low> <high>...
 //     orior_tables_read <instructions.txt> spans
 //
-// `class` prints one line an encoding, `<low> <high> <class> [bank <n> offset 0x<bytes> reads <bytes> <verdict>]`,
-// the verdict `gated` where rule 13 blocks the read against the bank of `--bank` bytes, `passes` where it does not,
-// and `unknown` where no size is given, the bank alone then checked against (cubin_safe/constant.c). `spans` prints
-// each distinct pair of a bank field's span and an offset field's span with the count of classes positioning their
-// constant operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as
-// above, and 1 where the instruction set could not be read
+// `class` prints one line for each encoding:
+// `<low> <high> <class> [bank <n> offset 0x<bytes> reads <bytes> <verdict>]`. The verdict is `gated` where rule 13
+// blocks the read against the bank of `--bank` bytes, and `passes` where it does not. It is `unknown` where the caller
+// gives no size, and the program then checks against the bank alone (cubin_safe/constant.c).
+//
+// `spans` prints each distinct pair of the span of a bank field and the span of an offset field. With it goes the count
+// of classes that put their constant operand so: `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where
+// the words are not as above, and 1 where the program could not read the instruction set
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "../cubin_safe.h"
