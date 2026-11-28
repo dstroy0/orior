@@ -31,12 +31,13 @@
 // the part gives a kernel's code
 #define FIELDS_REGISTERS 255u
 
-// the lines a form is run in: the instruction with its result moved to R8, the register the kernel stores as the
-// answer, and its source registers moved to R10 up. Each source register is set to a distinct value with a zero beside
-// it: turning a bit of a source's field reaches a register of another value and changes the answer. R6 stores the
-// case's second word, which the kernel leaves in R7. P0 to P6 are each set true or false by whether their number is an
-// odd count of one bits, as PT, P7, does: turning any one bit of a predicate field reaches a predicate of the other
-// value, and a predicate source or a guard changes the answer
+// the lines that a form runs in: the instruction with its result moved to R8, the register that the kernel stores as
+// the answer. Its source registers move to R10 up. Each source register gets a distinct value with a zero beside it.
+// Thus a turn of a bit of the field of a source reaches a register of another value, and changes the answer.
+//
+// R6 stores the second word of the case, which the kernel leaves in R7. Each of P0 to P6 goes true or false by whether
+// its number is an odd count of one bits, as PT, P7, does. Thus a turn of any one bit of a predicate field reaches a
+// predicate of the other value. Then a predicate source or a guard changes the answer
 #define FIELDS_LINES_HEAD                                                                                              \
     "MOV R10, 0xb\nMOV R11, RZ\nMOV R12, 0x7\nMOV R13, RZ\nMOV R14, 0x3\nMOV R15, RZ\n"                                \
     "MOV R16, 0x5\nMOV R17, RZ\nMOV R18, 0x2\nMOV R19, RZ\nMOV R20, 0x9\nMOV R21, RZ\n"                                \
@@ -46,15 +47,15 @@
     "IMAD.MOV.U32 R6, RZ, RZ, R7\n"
 #define FIELDS_LINES_TAIL "\nIMAD.MOV.U32 R7, RZ, RZ, R8\nSTG.E term[UR4][R4.64], R7"
 
-// the line after a form that sets a predicate, its first operand moved to P0: R8 takes R12's 0x7 where P0 is true and
-// R10's 0xb where it does not, which carries the predicate to the answer as one of two values
+// the line after a form that writes a predicate, with its first operand moved to P0. R8 takes the 0x7 of R12 where P0
+// is true, and the 0xb of R10 where it is not. That carries the predicate to the answer as one of two values
 #define FIELDS_LINES_PREDICATE "\nSEL R8, R12, R10, P0"
 
-// the registers a form's source operands are moved onto, in order, each set in the head above
+// the registers that the source operands of a form move onto, in order, each given its value in the head above
 #define FIELDS_SOURCES 6u
 
-// the register pair a global load's address is moved onto: the kernel leaves R2 and R3 containing the address of the
-// thread's case, which the head does not touch, and a load from it reads the case's words
+// the register pair that the address of a global load moves onto. The kernel leaves the address of the case of the
+// thread in R2 and R3, which the head does not touch. A load from it reads the words of the case
 #define FIELDS_LOAD_ADDRESS "R2"
 
 extern SassMachine s_machine;
