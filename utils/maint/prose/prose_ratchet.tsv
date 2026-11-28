@@ -599,7 +599,7 @@ ui/cli/src/command_line/catalog_internal.h	13
 ui/cli/src/command_line/catalog_jobs.c	5
 ui/cli/src/command_line/catalog_read.c	4
 ui/cli/src/command_line/catalog_scan.c	7
-ui/cli/src/command_line/cli_internal.h	38
+ui/cli/src/command_line/cli_internal.h	5
 ui/cli/src/command_line/command_line.c	1
 ui/cli/src/command_line/command_line.h	22
 ui/cli/src/command_line/command_line_bridge.c	1

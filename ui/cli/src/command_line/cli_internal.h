@@ -653,44 +653,51 @@ typedef struct
     PlatformThread started;
 } CliThread;
 
-// each thread that waits on the wake, woken; and a thread started on `thread`, let go to end on its own: 1, or 0 where
-// it could not start. An untimed wait has no form that reads the generation itself. That read comes after the test of
-// the waiter, and a wake between the two is lost to a sleep that no timer ends
+// each thread that waits on the wake, woken. An untimed wait has no form that reads the generation itself. That read
+// comes after the test of the waiter, and a sleep that no timer ends would lose a wake between the two
 void cli_wake_all(const CliWakeCtx *args);
-// the wake's generation, read before a waiter tests its condition; and a sleep until the generation moves off `seen`,
-// which no wake landing after that read can be lost to
+// the generation of the wake, read before a waiter tests its condition
 unsigned int cli_wake_read(const CliWakeCtx *args);
+// a sleep until the generation moves off `seen`. It loses no wake that lands after that read
 void cli_wake_wait_seen(const CliWakeCtx *args);
-// the same wait, given up once `milliseconds` have passed: 1 where it was woken, 0 where the time ran out
+// the same wait, given up after `milliseconds`. The return is 1 where something woke it, 0 where the time ran out
 int cli_wake_wait_for(const CliWakeCtx *args);
-// a sleep until the generation moves off `seen`, given up once `milliseconds` have passed: 1 where it moved, 0 where
+// a sleep until the generation moves off `seen`, given up after `milliseconds`. The return is 1 where it moved, 0 where
 // the time ran out
 int cli_wake_wait_seen_for(const CliWakeCtx *args);
 
-// what happened to a path the system reports: made or moved there, taken out or moved away, or written; and that the
-// system's record of changes ran over, and any file may have changed
+// what happened to a path that the system reports:
+//
+// - CLI_CHANGE_ADDED: made or moved there
+// - CLI_CHANGE_REMOVED: taken out or moved away
+// - CLI_CHANGE_MODIFIED: written
+// - CLI_CHANGE_LOST: the record of changes of the system ran over, and any file can have a change
 #define CLI_CHANGE_ADDED 0u
 #define CLI_CHANGE_REMOVED 1u
 #define CLI_CHANGE_MODIFIED 2u
 #define CLI_CHANGE_LOST 3u
 
-// a change the system reports: its path from the tree's top with forward slashes, empty where changes were lost, and
-// what happened to it
+// a change that the system reports: its path from the top of the tree with forward slashes, and what happened to it.
+// The path is empty where the record lost changes
 typedef void (*CliChangeFn)(const CliEachPathTypeCfg *args);
 
-// the folder `root` and all under it watched by the system, each change passed to `emit` on a thread of the watch's
-// own as it is made: 1, or 0 where the system cannot watch it, as off Windows; and the watch stopped, its thread
-// waited for (platform/windows_watch.c, platform/posix_watch.c)
+// the folder `root` and all under it, watched by the system (platform/windows_watch.c, platform/posix_watch.c). The
+// call passes each change to `emit` on an own thread of the watch, as it happens. The return is 1, or 0 where the
+// system cannot watch it, as off Windows
 int cli_watch_system_start(const CliRootContextCtx *args);
+// the watch stopped, with its thread waited for
 void cli_watch_system_stop(void);
-// the folder `folder` and all under it kept open as one of the program's own files from its start to its end, `changed`
-// called on the watch's own thread once a change rests: 1, or 0 where every watch is in use or the system refuses;
-// and every such watch stopped, each thread waited for (platform/folder_watch.c)
+// the folder `folder` and all under it, kept open as an own file of the program from its start to its end
+// (platform/folder_watch.c). The call calls `changed` on the own thread of the watch after a change rests. The return
+// is 1, or 0 where every watch is in use or the system refuses
 int cli_folder_watch_start(const CliFolderWatchCtx *args);
+// every such watch stopped, with each thread waited for
 void cli_folder_watch_stop(void);
+// a thread started on `thread`, let go to end on its own. The return is 1, or 0 where it could not start
 int cli_thread_start(const CliThreadCtx *args);
-// the calling thread put at `priority`, one of PLATFORM_PRIORITY_WORK and the rest (threads.c, through the platform). A
-// thread's id, the yield and the count of processors are the platform's (platform_internal.h, platform.h)
+// the thread that calls, put at `priority`, one of PLATFORM_PRIORITY_WORK and the rest (threads.c, through the
+// platform). The id of a thread, the yield and the count of processors come from the platform (platform_internal.h,
+// platform.h)
 void cli_priority_own(const CliWordsErrMsgCtx *args);
 
 // A connection over TCP: the system's handle of it, 0 for none
@@ -706,56 +713,67 @@ typedef struct
 
 #define CLI_SOCKET_FAILED (-1LL)
 
-// a connection made to `host`:`port`, its delay of small writes off; `size` bytes written whole; `size` bytes read
-// whole, 0 where the peer closed or the wait ran out; the wait of a read set, 0 for none; the connection ended both
-// ways, its handle retained, so that a thread reading it wakes to its end; and the connection let go. One thread may
-// read a connection while another writes it
+// a connection made to `host`:`port`, with its delay of small writes off. One thread can read a connection while
+// another writes it
 int cli_socket_connect(const CliErrMsgCtx *args);
+// `size` bytes written whole
 int cli_socket_write(const CliBytesSizeCtx *args);
+// `size` bytes read whole. The return is 0 where the peer closed or the wait ran out
 int cli_socket_read(const CliSizeBytesCtx *args);
 // what came, at max `capacity` bytes, read into `bytes`: its count, CLI_SOCKET_CLOSED where the peer closed,
 // CLI_SOCKET_WAITED where the wait ran out, CLI_SOCKET_FAILED where the read failed
 long long cli_socket_some(const CliCapacityCtx *args);
+// the wait of a read set, 0 for none
 void cli_socket_wait(const CliSockCtx *args);
 // the wait of a write set, 0 for none
 void cli_socket_write_wait(const CliSockCtx *args);
+// the connection ended both ways, with its handle kept, so that a thread that reads it wakes to its end
 void cli_socket_end(const CliSockCtx *args);
+// the connection let go
 void cli_socket_close(const CliErrMsgCtx *args);
-// a port on the loopback no one uses now into `port`: 1, or 0 with why given (platform/windows.c, platform/posix.c)
+// a port on the loopback that no one uses now, into `port`. The return is 1, or 0 with the reason (platform/windows.c,
+// platform/posix.c)
 int cli_port_free(const CliErrMsgPortCtx *args);
-// a connection made to the first address `host`:`port` names that takes it, each given up where it is not made
-// within `milliseconds`, its delay of small writes off: 1, or 0 with why given; the same with the microseconds finding
-// the addresses took into `resolved`; the microseconds a clock that only goes forward reads; a socket listening on a
-// port of the loopback no one used, the port into `port`: 1, or 0 with why given; and the next connection it takes,
-// waited for, into `peer`: 1, or 0 where it took none (platform/windows_connect.c, platform/posix_connect.c)
+// a connection made to the first address that `host`:`port` names that takes it, with its delay of small writes off
+// (platform/windows_connect.c, platform/posix_connect.c). The call gives up each address where the connection does not
+// come within `milliseconds`. The return is 1, or 0 with the reason
 int cli_socket_connected_within(const CliErrMsgCtx *args);
+// the same, with the microseconds that the search for the addresses took into `resolved`
 int cli_socket_connected_time(const CliErrMsgCtx *args);
+// the microseconds that a clock which only goes forward reads
 unsigned long long cli_clock_microseconds(void);
+// a socket that listens on a port of the loopback that no one used, with the port into `port`. The return is 1, or 0
+// with the reason
 int cli_socket_listening(const CliErrMsgPortCtx *args);
+// the next connection that it takes, waited for, into `peer`. The return is 1, or 0 where it took none
 int cli_socket_accept(const CliListenerCtx *args);
 
-// `size` bytes of the system's own randomness into `bytes`: 1, or 0 where it gave none; the folder the system uses to
-// pass files, into `folder`, sized for CLI_PATH_MAX_LEN, with no separator after it; an event a started process
-// inherits, made unsignaled, its handle, 0 where none was made and off Windows; the event signaled: 1, or 0 where it
-// could not be, and off Windows; and the event let go (platform/windows_system.c, platform/posix_system.c)
+// `size` bytes of the own randomness of the system, into `bytes`. The return is 1, or 0 where it gave none
+// (platform/windows_system.c, platform/posix_system.c)
 int cli_random_bytes(const CliSizeBytesCtx *args);
-// a folder made with every folder above it, readable by the reader alone, and a file written whole, made anew,
-// readable by the reader alone: each 1, or 0 where it could not be (platform/windows_system.c,
-// platform/posix_system.c)
+// a folder made with every folder above it, readable by the reader alone. The return is 1, or 0 where it could not be
+// (platform/windows_system.c, platform/posix_system.c)
 int cli_private_folder_init(const CliWordsErrMsgCtx *args);
+// a file written whole, made again, readable by the reader alone, with the same return
 int cli_private_file_write(const CliPathBytesCtx *args);
-// each process of the machine passed to `each`: its number, its program's name, and the line it was started with where
-// the system reports, else empty (platform/windows_processes.c, platform/posix_processes.c)
+// each process of the machine, passed to `each`: its number, the name of its program, and the line that it started
+// with. The line is empty where the system does not report it (platform/windows_processes.c,
+// platform/posix_processes.c)
 void cli_processes_each(const CliContextCtx *args);
-// whether the process `pid` still runs, as the system reports: on Windows its exit code is still active, on Linux /proc
-// lists it, and elsewhere, with no /proc to query, it is taken to run
+// whether the process `pid` still runs, as the system reports. On Windows, its exit code is still active. On Linux,
+// /proc lists it. Elsewhere, with no /proc to query, the call takes it as one that runs
 int cli_process_running(const CliPidCtx *args);
 
-// What a process holds in memory, in bytes: its working set, the memory only it uses that is in RAM, and its commit,
-// the private memory it has reserved whether in RAM or paged out; and when it started, in the system's own ticks, 0
-// where the system does not say. On Linux the working set is its private pages in RAM and the commit its anonymous
-// pages in RAM and swapped out; on macOS both are its physical footprint, as the system counts it against its limit.
-// `processor_us` is the processor time that the process used since its start, in microseconds, user and kernel together
+// What a process holds in memory, in bytes:
+//
+// - `working`: its working set, the memory that only it uses and that is in RAM
+// - `commit`: the private memory that it reserved, in RAM or paged out
+// - `started`: when it started, in the own ticks of the system, 0 where the system does not say
+// - `processor_us`: the processor time that the process used since its start, in microseconds, user and kernel
+//   together
+//
+// On Linux, the working set is its private pages in RAM, and the commit its anonymous pages in RAM and swapped out. On
+// macOS, both are its physical footprint, as the system counts it against its limit.
 typedef struct
 {
     unsigned long long working;
@@ -764,46 +782,65 @@ typedef struct
     unsigned long long processor_us;
 } CliProcessMemory;
 
-// what the process `pid` holds into `memory`: 1, or 0 where the system does not say; and the name of the program it
-// runs, its file's name without its folder or `.exe`, into `name`, sized for `capacity`: 1, or 0 where the system does
-// not say (platform/windows_processes.c, platform/posix_processes.c)
+// what the process `pid` holds, into `memory`. The return is 1, or 0 where the system does not say
+// (platform/windows_processes.c, platform/posix_processes.c)
 int cli_process_memory(const CliPidCtx *args);
+// the name of the program that it runs, the name of its file with no folder or `.exe`, into `name`, sized for
+// `capacity`. The return is 1, or 0 where the system does not say
 int cli_process_by_name(const CliCapacityPidCtx *args);
+// the folder that the system uses to pass files, into `folder`, sized for CLI_PATH_MAX_LEN, with no separator after it
+// (platform/windows_system.c, platform/posix_system.c)
 void cli_temp_folder(const CliFolderCtx *args);
+// an event that a started process inherits, made with no signal. The return is its handle, 0 where the call made none,
+// and off Windows
 unsigned long long cli_event_inheritable(void);
+// the event, signaled. The return is 1, or 0 where it could not be, and off Windows
 int cli_event_set(const CliEventCtx *args);
+// the event let go
 void cli_event_close(const CliEventCtx *args);
 
-// the tree (root.c): 1 where `folder` contains the engine's tree; the tree ORIOR_ROOT names, else the one found walking
-// up from the working folder or the program; a folder mounted beside the tree under a name it is given; a mount taken
-// away, or all; a path inside the tree or a mount, refused where it climbs out; a path written relative to the tree, a
-// whole path retained as it is
+// the tree (root.c). This one gives 1 where `folder` holds the tree of the engine
 int cli_is_tree_root(const CliWordsErrMsgCtx *args);
+// the tree at `path`, made a full path into `full`
 int cli_tree_at(const CliPathErrMsgFullCtx *args);
+// the tree that ORIOR_ROOT names, else the one found by a walk up from the working folder or the program
 int cli_tree_on_find(const CliTreeCtx *args);
+// a folder mounted beside the tree, under a name that it gets
 int cli_mount(const CliPathErrMsgNameCtx *args);
+// a mount taken away
 void cli_unmount(const CliErrMsgNameCtx *args);
+// every mount taken away
 void cli_unmounted_all(void);
+// the mounts
 CliMounts cli_mounts(void);
+// a path inside the tree or a mount, refused where it climbs out
 int cli_inside(const CliRootCtx *args);
+// a path made full: inside the tree or a mount, else a whole path as it is
 void cli_full(const CliRootCtx *args);
+// a path written relative to the tree, or to the mount that holds it
 void cli_relative(const CliPathRootCtx *args);
-// the folder above `path` into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where `path` is a root or a bare name
-// and has none
+// the folder above `path`, into `out`, sized for CLI_PATH_MAX_LEN. The return is 1, or 0 where `path` is a root or a
+// bare name, and has none
 int cli_path_parent(const CliPathOutTypeCtx *args);
 
-// orior's own folder (home.c): the folder, its plugins, the reader's stylesheet, menus and languages; each made where
-// it is not there; and a file or a folder opened as the system opens it
+// the own folder of orior (home.c)
 int cli_home_folder(const CliFolderCtx *args);
+// the folder of its plugins
 int cli_home_plugins(const CliFolderCtx *args);
+// the stylesheet of the reader
 int cli_home_user_css(const CliPathErrMsgTypeCtx *args);
+// the menus of the reader
 int cli_home_menus(const CliPathErrMsgTypeCtx *args);
+// the languages of the reader
 int cli_home_languages(const CliFolderCtx *args);
+// the menus, made where they are not there
 int cli_home_ensure_menus(const CliPathErrMsgTypeCtx *args);
+// the stylesheet, made where it is not there
 int cli_home_ensure_user_css(const CliPathErrMsgTypeCtx *args);
-// the settings file at `path_out` made, an empty object, its folder with it, where it is not there: 1, or 0 with why
-// given (home.c)
+// the settings file at `path_out`, made as an empty object with its folder, where it is not there. The return is 1, or
+// 0 with the reason (home.c)
 int cli_settings_ensure(const CliPathErrMsgTypeCtx *args);
+// a file or a folder, opened as the system opens it
 int cli_home_reveal(const CliPathErrMsgNameCtx *args);
 
 struct CliWordsCtx
