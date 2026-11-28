@@ -455,7 +455,6 @@ src/cu/engine/analysis/noise_detector/noise_detector_halves.cu	1
 src/cu/engine/analysis/noise_detector/noise_detector_ladder.cu	1
 src/cu/engine/analysis/noise_detector/noise_detector_root.cu	2
 src/cu/engine/analysis/residual/residual.cu	2
-src/cu/engine/analysis/shift_agreement/shift_agreement.h	2
 src/cu/engine/analysis/unit_sweep/unit_sweep.h	1
 src/cu/engine/engine_config_requests.h	1
 src/cu/engine/nbody/body_overlap/body_overlap.cu	1
