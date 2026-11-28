@@ -106,8 +106,8 @@ int run_channel_carried(RunQuestion *question)
     command[words + 4u] = place_text;
     words += 5u;
     // an untimed question with no shape of its own goes to the carrier with the words that it always had. A timed one
-    // also has its count of launches after. One with a shape has its count of launches, 0 where the question has no
-    // time count, and its shape
+    // also has its count of launches after. One with a shape has its count of launches, 0 where the question times no
+    // launches, and its shape
     const int shaped = (question->threads != 0u) || (question->blocks != 0u);
     if ((question->launches != 0u) || shaped)
     {
