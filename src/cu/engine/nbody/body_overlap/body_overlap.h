@@ -37,8 +37,8 @@ extern "C"
         const unsigned int *lag_peaks;
         const int *lag_steps;
         unsigned int lag_count;
-        // where not NULL, the runs the device sweep counted: each chunk's stretches of voxels whose two labels stay
-        // the same, which body_overlap_run stores on the device as pairs and lengths
+        // where not NULL, the runs that the device sweep counted. They are the stretches of voxels of each chunk
+        // whose two labels stay the same, which body_overlap_run stores on the device as pairs and lengths
         unsigned long long *runs;
     } BodyOverlapRequest;
 
@@ -48,9 +48,9 @@ extern "C"
 
     BODY_OVERLAP_EXPORT long body_overlap_run_on_device(const BodyOverlapRequest *args);
 
-    // the device bytes body_overlap_run allocates over `voxels` with room for `runs` runs: both frames' labels and sign
-    // words, each chunk's count and offset, and the runs' pairs and lengths, each allocation in whole pages of `page`
-    // bytes
+    // the device bytes that body_overlap_run allocates over `voxels` with room for `runs` runs. They are the labels and
+    // sign words of both frames, the count and offset of each chunk, and the pairs and lengths of the runs. Each
+    // allocation is in whole pages of `page` bytes
     BODY_OVERLAP_EXPORT unsigned long long body_overlap_bytes(unsigned long long voxels, unsigned long long runs,
                                                               unsigned long long page);
 

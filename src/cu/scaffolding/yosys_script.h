@@ -3,8 +3,9 @@
 #ifndef YOSYS_SCRIPT_H
 #define YOSYS_SCRIPT_H
 
-// Yosys's synthesis of a lane GHDL wrote as Verilog, as a script its ruleset yosys.krs writes: which passes run is the
-// ruleset's, not the caller's. It writes no lane: program() is always empty, and synthesis() writes the script
+// The synthesis by Yosys of a lane that GHDL wrote as Verilog, as a script that its ruleset yosys.krs writes. The
+// ruleset decides which passes run, not the caller. It writes no lane: the call program() is always empty, and the
+// call synthesis() writes the script
 
 #include "../engine/rmc/target.h"
 
@@ -17,8 +18,9 @@ class YosysScript : public Target
                 unsigned int *places, unsigned int *live) override;
 
     // The script that reads `source`, synthesizes it from the module `top` and measures it, onto `script`. Where
-    // `memories` is not empty, the script writes the coarse netlist's statistics to the log `memories` before the fine
-    // stage. 1 where it wrote the script; 0 where the ruleset is not read or writes it broken
+    // `memories` is not empty, the script writes the statistics of the coarse netlist to the log `memories` before the
+    // fine stage. The return is 1 where it wrote the script, and 0 where the read of the ruleset failed or the ruleset
+    // writes it broken
     int synthesis(const char *source, const char *top, const char *memories, PlatformText *script);
 };
 

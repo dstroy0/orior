@@ -49,8 +49,8 @@ static int seed_seen(unsigned long long key, unsigned long long modifiers)
     return 0;
 }
 
-// the instruction `low` and `high` recorded as a seed where none of its key and modifiers is seen yet: 1, or 0 where
-// there was no memory for it
+// the instruction `low` and `high`, recorded as a seed where the call did not see its key or any of its modifiers yet.
+// The return is 1, or 0 where there was no memory for it
 static int seed_accepted(unsigned long long low, unsigned long long high, int modifiers)
 {
     const unsigned long long key = low & ((1ULL << SEED_KEY_BITS) - 1ULL);

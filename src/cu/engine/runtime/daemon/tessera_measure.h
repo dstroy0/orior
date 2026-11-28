@@ -28,8 +28,8 @@ extern "C"
     // 1 where the daemon measures no pid from outside (WSL): each job's process reports its own bytes instead
     int tessera_measure_reported(const TesseraMeasure *measure);
 
-    // 1 for the host's processors: the capacity is the processors jobs are given, and the daemon counts their use from
-    // what its running jobs report
+    // 1 for the processors of the host. The capacity is the processors that jobs get, and the daemon counts their use
+    // from what its jobs that run report
     int tessera_measure_host(const TesseraMeasure *measure);
 
     int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity, unsigned long long *in_use);

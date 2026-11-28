@@ -22,9 +22,9 @@ extern "C"
         const unsigned int *field_offset;
         unsigned int fields;
         const unsigned int *in_limbs;
-        // When set, a register is freed once no later step reads it, and a long chain runs within the
-        // file's ENGINE_RECORD_LIMBS_MAX limbs. When clear, every step uses its own register for the
-        // whole run, the layout the proven programs were measured against.
+        // Where `reuse` is not zero, the schedule frees a register after no later step reads it. Thus a long chain runs
+        // within the ENGINE_RECORD_LIMBS_MAX limbs of the file. Else, every step uses its own register for the
+        // whole run, the layout that the measures of the proven programs used.
         int reuse;
         EngineRecordLayout *layout;
         EngineError *error;

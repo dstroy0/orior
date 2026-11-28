@@ -13,9 +13,9 @@
 // the bytes of the form's text at max
 #define READ_ONE_TEXT_BYTES (1ULL << 24u)
 
-// The scratch a writing takes, each bank's registers numbered from 0 as the lane's would be: the temporaries R100 up,
-// the 64-bit temporaries R120 up and the predicates P0 up, numbers no argument here is likely to carry. 0 for a bank
-// it does not know
+// The scratch that a writing takes, with the registers of each bank numbered from 0, as those of the lane would be.
+// They are the temporaries R100 up, the 64-bit temporaries R120 up and the predicates P0 up, numbers that no argument
+// here is likely to carry. The return is 0 for a bank that it does not know
 static int read_one_scratch(void *context, const char *bank, VerbaLinea *name)
 {
     (void)context;

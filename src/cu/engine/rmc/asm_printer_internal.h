@@ -49,7 +49,7 @@ int asm_printer_memory_size(AsmPrinterMemory *memory, AsmPrinterCoreBuild *build
 
 void asm_printer_memory_ended(AsmPrinterMemory *memory);
 
-// the steps the first build is given; a build left full runs again with twice as many
+// the steps that the first build gets. A build left full runs again with twice as many
 #define ASM_PRINTER_STEP_CAPACITY 1024u
 
 // What a finished build arranged, its memory in host memory, stored in `text_rules`: the lists and the program's steps,

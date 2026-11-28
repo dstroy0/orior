@@ -1,9 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The host daemon's ledger: each decision is tessera_ledger_core.h's, the source the device's tessera runs too. Before
-// a decision that can add a job, a tracked peak or a deadline, the ledger grows each array to the max the decision can
-// add. An array that does not grow is left to the core, which errors where it needs the array.
+// The ledger of the host daemon. Each decision comes from tessera_ledger_core.h, the source that the tessera of the
+// device runs too. Before a decision that can add a job, a tracked peak or a deadline, the ledger grows each array. It
+// grows it to the max that the decision can add. The ledger leaves an array that does not grow to the core, which gives
+// an error where it needs the array.
 #include "tessera_ledger.h"
 #include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"

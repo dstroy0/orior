@@ -418,11 +418,13 @@ int sass_machine_write(const SassMachine *machine, const char *path)
     VerbaLinea file = {s_file_bytes, sizeof(s_file_bytes), 0ULL};
     mmgr_line_put(&file, "forms 2" SASS_LINE_END);
     mmgr_line_put(&file,
-                  "# The part's instructions as the cell's probes read them back: one line a form, an operation "
-                  "and" SASS_LINE_END
-                  "# the type and mark of each printed operand, with the encoding the form was first seen with "
-                  "and" SASS_LINE_END "# the instruction it was seen as. The format is the comment at the head of "
-                  "sass_machine.h." SASS_LINE_END);
+                  "# The instructions of the part as the probes of the cell read them back, one line for each form. "
+                  "A" SASS_LINE_END
+                  "# line holds an operation, and the type and mark of each printed operand. Then it holds the "
+                  "encoding" SASS_LINE_END
+                  "# that the probe first saw the form with, and the instruction that it saw it as. The format is "
+                  "the" SASS_LINE_END
+                  "# comment at the head of sass_machine.h." SASS_LINE_END);
     mmgr_line_put(&file, "part ");
     mmgr_line_put(&file, machine->part);
     mmgr_line_put(&file, SASS_LINE_END);

@@ -9,8 +9,8 @@
 
 #include <stdio.h>
 
-// what bounds the sections a container may contain. It is not the format's to state: a format specifies where things
-// are, and this specifies how many of them the write will carry at once
+// what bounds the sections that a container can hold. The format does not say it: a format says where things are,
+// and this says how many of them the write will carry at once
 #define CONTAINER_SECTIONS 16384u
 
 // every place this reads or writes, taken out of the layout once
@@ -31,8 +31,8 @@ typedef struct
     unsigned long long attribute_header, attribute_format_value, attribute_registers, attribute_exits;
 } Places;
 
-// a part of the container as this stores it: where it was, its type, the bytes it takes now and how many, and where
-// it goes
+// a part of the container as this stores it: where it was, and its type. Then the bytes that it takes now and how many,
+// and where it goes
 typedef struct
 {
     unsigned long long was_at;

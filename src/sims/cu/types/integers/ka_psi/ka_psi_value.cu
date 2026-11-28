@@ -149,7 +149,8 @@ static int psi_dominates(SimRational head, SimRational tail, unsigned long long 
     return orior_exact_compare(&left, &right) > 0;
 }
 
-// the exact sign of sum c_j . base^-e_j: the leading terms are folded in until they outweigh any tail the rest can make
+// the exact sign of `sum c_j * base^-e_j`. The call folds in the leading terms until they outweigh any tail that the
+// rest can make
 int psi_value_sign(const PsiValue *value, unsigned long long base)
 {
     unsigned int lead = 0u;

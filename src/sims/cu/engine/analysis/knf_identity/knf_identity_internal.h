@@ -34,8 +34,8 @@
 
 #define KNF_FLIPS 8192u
 
-// the controls' identified count over n volumes at 1/(draws + 1) each may exceed n p by 5 sqrt(n p), this squared over
-// n p: the binomial's spread is sqrt(n p (1 - p)). At 19 draws the tolerance is 5.13 of it
+// the identified count of the controls over n volumes at `1/(draws + 1)` each can pass `n p` by `5 sqrt(n p)`, this
+// squared over `n p`. The spread of the binomial is `sqrt(n p (1 - p))`. At 19 draws, the tolerance is 5.13 of it
 #define KNF_RANGE_SQUARED 25ULL
 
 #define KNF_BOX_FIELDS 6u

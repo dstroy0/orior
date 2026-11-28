@@ -12,9 +12,9 @@
 
 #include <stdlib.h>
 
-// the run's tables of the accounts the overseer receives, the conferences it convenes and the lessons it teaches, each
-// row naming its conference by the number of the question's identity in the table of texts (accounts.oracle.tsv,
-// conferences.oracle.tsv, lessons.oracle.tsv)
+// the tables of the run for the accounts that the overseer receives, the conferences that it calls, and the lessons
+// that it teaches. Each row names its conference by the number of the identity of the question in the table of texts.
+// See accounts.oracle.tsv, conferences.oracle.tsv and lessons.oracle.tsv
 #define OVERSEER_ACCOUNTS_TABLE "accounts"
 
 #define OVERSEER_CONFERENCES_TABLE "conferences"
@@ -35,7 +35,8 @@
 
 #define OVERSEER_CLAUSE_MAX_LEN 512u
 
-// one lesson: the cause it was taught by, the carrier it applies at, `*` at every carrier, and the stand-in as written
+// one lesson: the cause that taught it, and the carrier that it applies at, with `*` at every carrier. Then the
+// stand-in as written
 typedef struct
 {
     unsigned int cause;

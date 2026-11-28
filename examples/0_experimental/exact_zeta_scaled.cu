@@ -991,43 +991,28 @@ static void scaled_turing_build(ScaledStage *stage, unsigned int lane_bits, unsi
     scaled_output(stage, "between_count", scaled_step(program, ENGINE_RECORD_PRODUCT, between, changed, 0u), 0);
 }
 
-// a magnitude's limbs moved `shift` bits up, zeros below
-static std::vector<unsigned int> scaled_shifted(const std::vector<unsigned int> &limbs, unsigned int shift)
+// `bits` of a two's complement value, its magnitude's `count` limbs given, positioned into the record at `offset`. The
+// code takes the complement of each limb as the bits reach it, with the carry of the limb before
+static void scaled_put(unsigned int *record, unsigned int offset, unsigned int bits, const unsigned int *limbs,
+                       unsigned int count, long long sign)
 {
-    std::vector<unsigned int> out(limbs.size() + shift / 32u + 1u, 0u);
-    for (size_t at = 0u; at < limbs.size(); at += 1u)
-    {
-        const unsigned long long moved = (unsigned long long)limbs[at] << (shift % 32u);
-        out[at + shift / 32u] |= (unsigned int)moved;
-        out[at + shift / 32u + 1u] |= (unsigned int)(moved >> 32u);
-    }
-    return out;
-}
-
-// `bits` of a two's complement value, its magnitude's limbs given, positioned into the record at `offset`
-static void scaled_put(unsigned int *record, unsigned int offset, unsigned int bits,
-                       const std::vector<unsigned int> &limbs, long long sign)
-{
-    std::vector<unsigned int> word((bits + 31u) / 32u + 1u, 0u);
-    for (size_t at = 0u; at < limbs.size() && at < word.size(); at += 1u)
-    {
-        word[at] = limbs[at];
-    }
-    if (sign < 0)
-    {
-        unsigned long long carry = 1ull;
-        for (size_t at = 0u; at < word.size(); at += 1u)
-        {
-            const unsigned int flipped = ~word[at];
-            carry += (unsigned long long)flipped;
-            word[at] = (unsigned int)carry;
-            carry >>= 32u;
-        }
-    }
+    unsigned long long carry = 1ull;
+    unsigned int word = 0u;
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
+        if ((bit % 32u) == 0u)
+        {
+            const unsigned int at = bit / 32u;
+            word = (at < count) ? limbs[at] : 0u;
+            if (sign < 0)
+            {
+                carry += (unsigned long long)(unsigned int)~word;
+                word = (unsigned int)carry;
+                carry >>= 32u;
+            }
+        }
         const unsigned int to = offset + bit;
-        const unsigned int value = (word[bit / 32u] >> (bit % 32u)) & 1u;
+        const unsigned int value = (word >> (bit % 32u)) & 1u;
         record[to / 32u] = (record[to / 32u] & ~(1u << (to % 32u))) | (value << (to % 32u));
     }
 }
@@ -1038,10 +1023,15 @@ static void scaled_open_shared(ScaledStage *stage)
     stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
 }
 
-// a whole number off the device: its magnitude's limbs, least significant first, and its sign
+// The limbs of a whole number off the device at max. The widest is a d of the curves at 1024 coefficients a curve,
+// about 27200 bits. A wider value stops the program with its width
+#define SCALED_WIDE_LIMBS 1024u
+
+// a whole number off the device: its magnitude's `count` limbs, least significant first, and its sign
 typedef struct
 {
-    std::vector<unsigned int> limbs;
+    unsigned int limbs[SCALED_WIDE_LIMBS];
+    unsigned int count;
     long long sign;
 } ScaledWide;
 
@@ -1058,14 +1048,15 @@ static void scaled_pole_records(ScaledStage *stage, const ScaledWide &first, con
     {
         std::vector<unsigned int> record(limbs + 1u, 0u);
         scaled_put(record.data(), program->field_offset[SCALED_POLE_FIRST], program->field_bits[SCALED_POLE_FIRST],
-                   first.limbs, first.sign);
+                   first.limbs, first.count, first.sign);
         for (unsigned int k = 0u; k < 4u; k += 1u)
         {
+            const ScaledWide *const value = &values[4u * n + k];
             scaled_put(record.data(), program->field_offset[SCALED_POLE_LN_LOW + k],
-                       program->field_bits[SCALED_POLE_LN_LOW + k], values[4u * n + k].limbs, values[4u * n + k].sign);
+                       program->field_bits[SCALED_POLE_LN_LOW + k], value->limbs, value->count, value->sign);
         }
         scaled_put(record.data(), program->field_offset[SCALED_POLE_BOUND], program->field_bits[SCALED_POLE_BOUND],
-                   bound.limbs, bound.sign);
+                   bound.limbs, bound.count, bound.sign);
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &stage->shared[n * limbs], .src = record.data(),
                    .bytes = limbs * sizeof(unsigned int));
     }
@@ -1349,15 +1340,27 @@ static ScaledWide scaled_wide_small(long long value)
 {
     ScaledWide out;
     const unsigned long long magnitude = (value < 0) ? (unsigned long long)(-value) : (unsigned long long)value;
-    out.limbs = {(unsigned int)magnitude, (unsigned int)(magnitude >> 32u)};
+    out.limbs[0] = (unsigned int)magnitude;
+    out.limbs[1] = (unsigned int)(magnitude >> 32u);
+    out.count = 2u;
     out.sign = (value > 0) - (value < 0);
     return out;
 }
 
-// `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign
+// `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign. A value wider than
+// SCALED_WIDE_LIMBS limbs stops the program with its width
 static ScaledWide scaled_wide_at(const unsigned int *words, unsigned int offset, unsigned int bits)
 {
-    std::vector<unsigned int> value((bits + 31u) / 32u, 0u);
+    ScaledWide out;
+    out.count = (bits + 31u) / 32u;
+    if (out.count > SCALED_WIDE_LIMBS)
+    {
+        fprintf(stderr, "  exact_zeta_scaled: a value of %u bits passes the %u limbs of a whole number\n", bits,
+                SCALED_WIDE_LIMBS);
+        exit(1);
+    }
+    unsigned int *const value = out.limbs;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = value, .bytes = out.count * sizeof(unsigned int), .val = 0);
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
@@ -1371,17 +1374,15 @@ static ScaledWide scaled_wide_at(const unsigned int *words, unsigned int offset,
     if (negative != 0u)
     {
         unsigned long long carry = 1ull;
-        for (size_t at = 0u; at < value.size(); at += 1u)
+        for (unsigned int at = 0u; at < out.count; at += 1u)
         {
             carry += (unsigned long long)(unsigned int)~value[at];
             value[at] = (unsigned int)carry;
             carry >>= 32u;
         }
     }
-    ScaledWide out;
-    out.limbs = value;
     int any = 0;
-    for (size_t at = 0u; at < value.size(); at += 1u)
+    for (unsigned int at = 0u; at < out.count; at += 1u)
     {
         any = any || (value[at] != 0u);
     }
@@ -1407,7 +1408,7 @@ static ScaledWide scaled_wide_sum(const ScaledStage *stage, unsigned int which, 
 // the signed width that represents a value
 static unsigned int scaled_wide_width(const ScaledWide &value)
 {
-    unsigned int width = 32u * (unsigned int)value.limbs.size();
+    unsigned int width = 32u * value.count;
     while ((width > 0u) && (((value.limbs[(width - 1u) / 32u] >> ((width - 1u) % 32u)) & 1u) == 0u))
     {
         width -= 1u;
@@ -1418,8 +1419,8 @@ static unsigned int scaled_wide_width(const ScaledWide &value)
 // the low 64 bits of a value's magnitude, with its sign: a count, an index or a lattice's width read off the device
 static long long scaled_wide_word(const ScaledWide &value)
 {
-    const unsigned long long low = (value.limbs.empty() ? 0ull : value.limbs[0]) |
-                                   ((value.limbs.size() > 1u ? (unsigned long long)value.limbs[1] : 0ull) << 32u);
+    const unsigned long long low = ((value.count == 0u) ? 0ull : value.limbs[0]) |
+                                   (((value.count > 1u) ? (unsigned long long)value.limbs[1] : 0ull) << 32u);
     return (value.sign < 0) ? -(long long)low : (long long)low;
 }
 
@@ -1458,8 +1459,9 @@ static ScaledTable scaled_table(const std::vector<std::vector<ScaledWide>> &rows
         std::vector<unsigned int> record(table.limbs + 1u, 0u);
         for (size_t column = 0u; column < columns; column += 1u)
         {
-            scaled_put(record.data(), table.offset[column], table.bits[column], rows[row][column].limbs,
-                       rows[row][column].sign);
+            const ScaledWide *const value = &rows[row][column];
+            scaled_put(record.data(), table.offset[column], table.bits[column], value->limbs, value->count,
+                       value->sign);
         }
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &table.words[row * table.limbs], .src = record.data(),
                    .bytes = table.limbs * sizeof(unsigned int));
@@ -3204,7 +3206,7 @@ typedef struct
 static void scaled_put_wide(ScaledStage *stage, unsigned int field, const ScaledWide &value)
 {
     scaled_put(stage->shared.data(), stage->program.field_offset[field], stage->program.field_bits[field], value.limbs,
-               value.sign);
+               value.count, value.sign);
 }
 
 // one cell, every stage arranged and then swept, and Turing's count from the device's sums
@@ -3258,7 +3260,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     }
     const unsigned int verdict_bits = scaled_wide_width(cell.verdict);
 
-    const std::vector<unsigned int> one_limb(1u, 1u);
+    const unsigned int one_limb[1] = {1u};
     // the remainder: the curves of Gabcke, or by Euler-Maclaurin C at each point. Its tail goes in after the code
     // computes theta
     ScaledStage curve_stage;
@@ -3277,7 +3279,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         });
         scaled_open_shared(&curve_stage);
         scaled_put(curve_stage.shared.data(), curve_stage.program.field_offset[0], curve_stage.program.field_bits[0],
-                   one_limb, ((nu - 1ull) % 2ull) ? -1 : 1);
+                   one_limb, 1u, ((nu - 1ull) % 2ull) ? -1 : 1);
         scaled_put_wide(&curve_stage, 1u, cell.first);
         unsigned int field = 2u;
         for (unsigned int n = 0u; n < curves; n += 1u)

@@ -165,8 +165,8 @@ int root_lift_crystal(SimResults *results, const RootVolume *volume, const Tower
     return ok;
 }
 
-// the full crystal path: lift with the edges, code, wipe the retained coefficients so only the stream carries
-// them, decode, lower with the same edges, and compare the rebuilt lanes with the rendered ones
+// the full crystal path: lift with the edges, code, and wipe the kept coefficients so that only the stream carries
+// them. Then decode, lower with the same edges, and compare the rebuilt lanes with the rendered ones
 int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *edges, unsigned int edge_count,
                       int *crystal, unsigned long long *bits, int *exact)
 {
