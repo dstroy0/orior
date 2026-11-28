@@ -522,7 +522,7 @@ src/cu/engine/rmc/lowering_primitives.h	17
 src/cu/engine/rmc/machine_ir_builder.h	17
 src/cu/engine/rmc/machine_ir_types.h	21
 src/cu/engine/rmc/precept_value.h	17
-src/cu/engine/rmc/precepts.h	33
+src/cu/engine/rmc/precepts.h	1
 src/cu/engine/rmc/prologue_epilogue.h	15
 src/cu/engine/rmc/scheduling.h	7
 src/cu/engine/rmc/schema_forms.h	4
