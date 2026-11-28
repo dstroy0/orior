@@ -41,8 +41,8 @@ static int sass_all_digits(const char *text, size_t at)
     return (at != first) && (text[at] == '\0');
 }
 
-// 1 where `text` ends in the .hi a ruleset writes for the second register of a 64-bit pair. A ruleset names a
-// register by its number alone, and the pair beginning at R14 has no other way to name R15 (sass.krs)
+// 1 where `text` ends in the .hi that a ruleset writes for the second register of a 64-bit pair. A ruleset names a
+// register by its number alone, and the pair that starts at R14 has no other way to name R15 (sass.krs)
 int sass_high_half(const char *text)
 {
     const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
@@ -57,7 +57,7 @@ static unsigned int sass_operand_type(const char *text)
     {
         return SASS_OPERAND_UNKNOWN;
     }
-    // the second register of a pair is a register, and is classified by the one it is named from
+    // the second register of a pair is a register, and takes the class of the one that its name comes from
     if (sass_high_half(text))
     {
         char stem[SASS_MACHINE_TOKEN];
@@ -97,9 +97,9 @@ static unsigned int sass_operand_type(const char *text)
     {
         return SASS_OPERAND_CONSTANT;
     }
-    // an address, and an address that names the uniform register its memory descriptor is read from: desc[URn]
-    // where the instruction's bit 101 is set, as the disassembler prints it, and term[URn] where it is clear and the
-    // field still contains the register
+    // an address, and an address that names the uniform register that its memory descriptor comes from. It is
+    // `desc[URn]` where bit 101 of the instruction is on, as the disassembler prints it. It is `term[URn]` where that
+    // bit is clear and the field still holds the register
     if ((text[0] == '[') ||
         (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "desc[",
                     .ci = EMBED_FALSE)) ||
@@ -116,9 +116,9 @@ static unsigned int sass_operand_type(const char *text)
     {
         return SASS_OPERAND_IMMEDIATE;
     }
-    // a number, with its sign where it carries one. A listing prints these in hex and a ruleset writes them in
-    // decimal, and a negative decimal is a number the same as a negative hex: reading the digits from index 0 would
-    // put the sign among them and leave -1 as nothing the reader knows
+    // a number, with its sign where it carries one. A listing prints these in hex, and a ruleset writes them in
+    // decimal. A negative decimal is a number, the same as a negative hex. A read of the digits from index 0 would
+    // put the sign among them, and leave -1 as nothing that the reader knows
     if (((text[0] == '-') && (text[1] == '0') && (text[2] == 'x')) || sass_all_digits(text, 0u) ||
         ((text[0] == '-') && sass_all_digits(text, 1u)))
     {
@@ -200,9 +200,9 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
     }
 }
 
-// 1 where the two contain the same operation and the same type and mark at every operand, and the same text at every
-// operand the assembler cannot turn into a number: a system register is named, not counted, and two instructions that
-// name different ones are two forms, each with the encoding it was seen with
+// 1 where the two hold the same operation, and the same type and mark at every operand. They must also hold the same
+// text at every operand that the assembler cannot turn into a number. A system register has a name, not a count. Two
+// instructions that name different ones are two forms, each with the encoding that the probe saw it with
 int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
 {
     int same = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = form->operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,

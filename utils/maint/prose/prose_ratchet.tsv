@@ -598,7 +598,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/sass_assemble_internal
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/sass_machine_internal.h	3
-src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	10
+src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_nvidia.tsv	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/build_bar0.ps1	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cu_target.h	4
