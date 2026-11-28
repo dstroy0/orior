@@ -391,7 +391,11 @@ def prose_only(path, lines, ledger=None):
             # line number of a finding stays the line a reader opens. The block test above reads a
             # trailing /* */ block.
             cut = code.index("//")
-            retained.append(line[cut:])
+            tail = line[cut:]
+            # A plain trailing // comment is a note on its own line of code, as a ///< comment is. It takes the
+            # member mark. The STE stage then reads it as an item of its own, and not as one paragraph with the
+            # notes of the next lines.
+            retained.append(tail if tail.startswith(("///<", "//!<")) else "///<" + tail[2:])
         else:
             retained.append("")
     return legal_blank(quieted(retained), path, ledger)
