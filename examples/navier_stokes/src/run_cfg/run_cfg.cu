@@ -109,47 +109,33 @@ int run_cfg_count(const RunCfg *cfg, const char *path, unsigned long long *value
     return (at != 0u) && cfg_json_unsigned(cfg->text, &cfg->tokens[at], value);
 }
 
-int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRational> *values)
+int run_cfg_rationals(const RunCfg *cfg, const char *path, SimRational **values, unsigned int *count)
 {
+    *values = NULL;
+    *count = 0u;
     const unsigned int at = run_cfg_find(cfg, path);
     if ((at == 0u) || (cfg->tokens[at].type != CFG_JSON_ARRAY) || (cfg->tokens[at].count == 0u))
     {
         return 0;
     }
-    values->clear();
-    unsigned int element = at + 1u;
-    for (unsigned int index = 0u; index < cfg->tokens[at].count; index += 1u)
-    {
-        SimRational value;
-        if (run_cfg_decimal(cfg, element, &value) == 0)
-        {
-            return 0;
-        }
-        values->push_back(value);
-        element = cfg->tokens[element].next;
-    }
-    return 1;
-}
-
-int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values)
-{
-    const unsigned int at = run_cfg_find(cfg, path);
-    if ((at == 0u) || (cfg->tokens[at].type != CFG_JSON_ARRAY) || (cfg->tokens[at].count == 0u))
+    SimRational *const list = (SimRational *)platform_cell_taken(
+        (unsigned long long)cfg->tokens[at].count * sizeof(SimRational), platform_place_g_program_owner, 0);
+    if (list == NULL)
     {
         return 0;
     }
-    values->clear();
     unsigned int element = at + 1u;
     for (unsigned int index = 0u; index < cfg->tokens[at].count; index += 1u)
     {
-        unsigned long long value = 0ull;
-        if (cfg_json_unsigned(cfg->text, &cfg->tokens[element], &value) == 0)
+        if (run_cfg_decimal(cfg, element, &list[index]) == 0)
         {
+            platform_cell_released(list, platform_place_g_program_owner);
             return 0;
         }
-        values->push_back(value);
         element = cfg->tokens[element].next;
     }
+    *values = list;
+    *count = cfg->tokens[at].count;
     return 1;
 }
 

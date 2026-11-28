@@ -3,7 +3,7 @@
 // core_radius_weights.cu: the orders, their rule and the carry on the device (core_radius_weights.h)
 #include "core_radius_weights.h"
 
-#include <algorithm>
+#include "../../../../includes/platform/platform.h"
 
 SimRational core_radius_number(long long numerator, long long denominator)
 {
@@ -30,76 +30,154 @@ SimRational core_radius_max(SimRational left, SimRational right)
     return (sim_rational_sign(sim_rational_difference(left, right)) >= 0) ? left : right;
 }
 
-SimRational core_radius_norm(const std::vector<SimRational> &weights, SimRational rho)
+// 1 where the pool could not meet a cell of a sequence, or a write passed a sequence's room
+static int s_core_radius_unmet;
+
+int core_radius_unmet(void)
+{
+    return s_core_radius_unmet;
+}
+
+void core_radius_taken(CoreRadiusWeights *weights, unsigned int room, int ephemeral)
+{
+    weights->count = 0u;
+    weights->room = 0u;
+    weights->value = NULL;
+    if (room == 0u)
+    {
+        return;
+    }
+    weights->value = (SimRational *)platform_cell_taken((unsigned long long)room * sizeof(SimRational),
+                                                        platform_place_g_program_owner, ephemeral);
+    s_core_radius_unmet |= (weights->value == NULL) ? 1 : 0;
+    weights->room = (weights->value != NULL) ? room : 0u;
+}
+
+void core_radius_released(CoreRadiusWeights *weights)
+{
+    platform_cell_released(weights->value, platform_place_g_program_owner);
+    weights->value = NULL;
+    weights->count = 0u;
+    weights->room = 0u;
+}
+
+void core_radius_kept(const CoreRadiusWeights *from, CoreRadiusWeights *to)
+{
+    core_radius_taken(to, from->count, 0);
+    for (unsigned int m = 0u; m < to->room; m += 1u)
+    {
+        to->value[m] = from->value[m];
+    }
+    to->count = to->room;
+}
+
+void core_radius_pushed(CoreRadiusWeights *weights, SimRational value)
+{
+    if (weights->count >= weights->room)
+    {
+        s_core_radius_unmet = 1;
+        return;
+    }
+    weights->value[weights->count] = value;
+    weights->count += 1u;
+}
+
+void core_radius_replaced(CoreRadiusWeights *into, CoreRadiusWeights *made)
+{
+    core_radius_released(into);
+    *into = *made;
+    made->value = NULL;
+    made->count = 0u;
+    made->room = 0u;
+}
+
+// `add` summed into `into`, and the cell of `add` given back
+static void core_radius_sum_into(CoreRadiusWeights *into, CoreRadiusWeights *add)
+{
+    CoreRadiusWeights made;
+    core_radius_sum(into, add, &made);
+    core_radius_replaced(into, &made);
+    core_radius_released(add);
+}
+
+SimRational core_radius_norm(const CoreRadiusWeights *weights, SimRational rho)
 {
     SimRational sum = core_radius_number(0ll, 1ll);
     SimRational power = core_radius_number(1ll, 1ll);
-    for (const SimRational &weight : weights)
+    for (unsigned int m = 0u; m < weights->count; m += 1u)
     {
-        sum = core_radius_plus(sum, core_radius_times(sim_rational_absolute(weight), power));
+        sum = core_radius_plus(sum, core_radius_times(sim_rational_absolute(weights->value[m]), power));
         power = core_radius_times(power, rho);
     }
     return sum;
 }
 
-void core_radius_add(CoreRadiusWeights *into, size_t m, SimRational value)
+void core_radius_add(CoreRadiusWeights *into, unsigned int m, SimRational value)
 {
-    if (into->size() <= m)
+    if (m >= into->room)
     {
-        into->resize(m + 1u, core_radius_number(0ll, 1ll));
+        s_core_radius_unmet = 1;
+        return;
     }
-    (*into)[m] = core_radius_plus((*into)[m], value);
+    while (into->count <= m)
+    {
+        into->value[into->count] = core_radius_number(0ll, 1ll);
+        into->count += 1u;
+    }
+    into->value[m] = core_radius_plus(into->value[m], value);
 }
 
-CoreRadiusWeights core_radius_sum(const CoreRadiusWeights &left, const CoreRadiusWeights &right)
+void core_radius_sum(const CoreRadiusWeights *left, const CoreRadiusWeights *right, CoreRadiusWeights *out)
 {
-    CoreRadiusWeights sum = left;
-    for (size_t m = 0u; m < right.size(); m += 1u)
+    core_radius_taken(out, (left->count > right->count) ? left->count : right->count, 1);
+    for (unsigned int m = 0u; (m < left->count) && (m < out->room); m += 1u)
     {
-        core_radius_add(&sum, m, right[m]);
+        out->value[m] = left->value[m];
     }
-    return sum;
+    out->count = (left->count < out->room) ? left->count : out->room;
+    for (unsigned int m = 0u; m < right->count; m += 1u)
+    {
+        core_radius_add(out, m, right->value[m]);
+    }
 }
 
-CoreRadiusWeights core_radius_scaled(const CoreRadiusWeights &weights, SimRational factor)
+void core_radius_scaled(const CoreRadiusWeights *weights, SimRational factor, CoreRadiusWeights *out)
 {
-    CoreRadiusWeights scaled;
-    for (const SimRational &weight : weights)
+    core_radius_taken(out, weights->count, 1);
+    for (unsigned int m = 0u; m < out->room; m += 1u)
     {
-        scaled.push_back(core_radius_times(weight, factor));
+        out->value[m] = core_radius_times(weights->value[m], factor);
     }
-    return scaled;
+    out->count = out->room;
 }
 
-CoreRadiusWeights core_radius_eta(const CoreRadiusWeights &weights)
+void core_radius_eta(const CoreRadiusWeights *weights, CoreRadiusWeights *out)
 {
     const SimRational half = core_radius_number(1ll, 2ll);
-    CoreRadiusWeights eta;
-    for (size_t m = 0u; m < weights.size(); m += 1u)
+    core_radius_taken(out, (weights->count != 0u) ? (weights->count + 1u) : 0u, 1);
+    for (unsigned int m = 0u; m < weights->count; m += 1u)
     {
         if (m == 0u)
         {
-            core_radius_add(&eta, 1u, weights[0]);
+            core_radius_add(out, 1u, weights->value[0]);
         }
         else
         {
-            core_radius_add(&eta, m + 1u, core_radius_times(half, weights[m]));
-            core_radius_add(&eta, m - 1u, core_radius_times(half, weights[m]));
+            core_radius_add(out, m + 1u, core_radius_times(half, weights->value[m]));
+            core_radius_add(out, m - 1u, core_radius_times(half, weights->value[m]));
         }
     }
-    return eta;
 }
 
-CoreRadiusWeights core_radius_second(const CoreRadiusWeights &weights)
+void core_radius_second(const CoreRadiusWeights *weights, CoreRadiusWeights *out)
 {
     const SimRational half = core_radius_number(1ll, 2ll);
-    CoreRadiusWeights second;
-    for (size_t m = 0u; m < weights.size(); m += 1u)
+    core_radius_taken(out, (weights->count != 0u) ? (weights->count + 2u) : 0u, 1);
+    for (unsigned int m = 0u; m < weights->count; m += 1u)
     {
-        core_radius_add(&second, m + 2u, core_radius_times(half, weights[m]));
-        core_radius_add(&second, (m >= 2u) ? m - 2u : 2u - m, core_radius_times(half, weights[m]));
+        core_radius_add(out, m + 2u, core_radius_times(half, weights->value[m]));
+        core_radius_add(out, (m >= 2u) ? m - 2u : 2u - m, core_radius_times(half, weights->value[m]));
     }
-    return second;
 }
 
 SimRational core_radius_half_square(const CoreRadiusScale *scale)
@@ -107,112 +185,224 @@ SimRational core_radius_half_square(const CoreRadiusScale *scale)
     return core_radius_times(core_radius_times(scale->cut, scale->cut), core_radius_number(1ll, 2ll));
 }
 
-CoreRadiusWeights core_radius_l(const CoreRadiusWeights &weights, const CoreRadiusScale *scale, SimRational s)
+// `weights` times `constant` and its second times `second_factor`, summed: the shape of L and d
+static void core_radius_two_terms(const CoreRadiusWeights *weights, SimRational constant, SimRational second_factor,
+                                  CoreRadiusWeights *out)
+{
+    CoreRadiusWeights plain;
+    CoreRadiusWeights second;
+    CoreRadiusWeights second_scaled;
+    core_radius_scaled(weights, constant, &plain);
+    core_radius_second(weights, &second);
+    core_radius_scaled(&second, second_factor, &second_scaled);
+    core_radius_sum(&plain, &second_scaled, out);
+    core_radius_released(&plain);
+    core_radius_released(&second);
+    core_radius_released(&second_scaled);
+}
+
+void core_radius_l(const CoreRadiusWeights *weights, const CoreRadiusScale *scale, SimRational s,
+                   CoreRadiusWeights *out)
 {
     const SimRational h_square = core_radius_times(core_radius_times(scale->h, scale->cut), scale->cut);
-    return core_radius_sum(core_radius_scaled(weights, sim_rational_difference(core_radius_number(1ll, 1ll), h_square)),
-                           core_radius_scaled(core_radius_second(weights), core_radius_times(s, h_square)));
+    core_radius_two_terms(weights, sim_rational_difference(core_radius_number(1ll, 1ll), h_square),
+                          core_radius_times(s, h_square), out);
 }
 
-CoreRadiusWeights core_radius_d(const CoreRadiusWeights &weights, const CoreRadiusScale *scale, SimRational s)
+void core_radius_d(const CoreRadiusWeights *weights, const CoreRadiusScale *scale, SimRational s,
+                   CoreRadiusWeights *out)
 {
     const SimRational half_square = core_radius_half_square(scale);
-    return core_radius_sum(core_radius_scaled(weights, sim_rational_difference(core_radius_number(1ll, 1ll), half_square)),
-                           core_radius_scaled(core_radius_second(weights), core_radius_times(s, half_square)));
+    core_radius_two_terms(weights, sim_rational_difference(core_radius_number(1ll, 1ll), half_square),
+                          core_radius_times(s, half_square), out);
 }
 
-CoreRadiusWeights core_radius_eta_square(const CoreRadiusWeights &weights, const CoreRadiusScale *scale)
+void core_radius_eta_square(const CoreRadiusWeights *weights, const CoreRadiusScale *scale, CoreRadiusWeights *out)
 {
-    return core_radius_scaled(core_radius_sum(weights, core_radius_second(weights)), core_radius_half_square(scale));
+    CoreRadiusWeights second;
+    CoreRadiusWeights sum;
+    core_radius_second(weights, &second);
+    core_radius_sum(weights, &second, &sum);
+    core_radius_scaled(&sum, core_radius_half_square(scale), out);
+    core_radius_released(&second);
+    core_radius_released(&sum);
 }
 
-CoreRadiusWeights core_radius_slope(const CoreRadiusWeights &weights)
+void core_radius_slope(const CoreRadiusWeights *weights, CoreRadiusWeights *out)
 {
-    CoreRadiusWeights slope;
-    if (weights.size() < 2u)
+    core_radius_taken(out, (weights->count >= 2u) ? (weights->count - 1u) : 0u, 1);
+    if (out->room == 0u)
     {
-        return slope;
+        return;
     }
-    slope.resize(weights.size() - 1u, core_radius_number(0ll, 1ll));
+    for (unsigned int j = 0u; j < out->room; j += 1u)
+    {
+        out->value[j] = core_radius_number(0ll, 1ll);
+    }
+    out->count = out->room;
     SimRational running[2] = {core_radius_number(0ll, 1ll), core_radius_number(0ll, 1ll)};
-    for (size_t m = weights.size() - 1u; m >= 1u; m -= 1u)
+    for (unsigned int m = weights->count - 1u; m >= 1u; m -= 1u)
     {
-        running[m & 1u] = core_radius_plus(running[m & 1u], core_radius_times(core_radius_number(2ll * (long long)m, 1ll), weights[m]));
-        const size_t j = m - 1u;
-        slope[j] = (j == 0u) ? core_radius_times(core_radius_number(1ll, 2ll), running[m & 1u]) : running[m & 1u];
+        running[m & 1u] = core_radius_plus(
+            running[m & 1u], core_radius_times(core_radius_number(2ll * (long long)m, 1ll), weights->value[m]));
+        const unsigned int j = m - 1u;
+        out->value[j] = (j == 0u) ? core_radius_times(core_radius_number(1ll, 2ll), running[m & 1u]) : running[m & 1u];
     }
-    return slope;
 }
 
-CoreRadiusWeights core_radius_feet_slope(const CoreRadiusWeights &weights, SimRational s)
+void core_radius_feet_slope(const CoreRadiusWeights *weights, SimRational s, CoreRadiusWeights *out)
 {
-    CoreRadiusWeights slope;
-    for (size_t m = 1u; m < weights.size(); m += 1u)
+    core_radius_taken(out, (weights->count >= 2u) ? (weights->count + 1u) : 0u, 1);
+    for (unsigned int m = 1u; m < weights->count; m += 1u)
     {
-        const SimRational half = core_radius_times(core_radius_number((long long)m, 2ll), weights[m]);
-        core_radius_add(&slope, m - 1u, half);
-        core_radius_add(&slope, m + 1u, core_radius_times(s, half));
+        const SimRational half = core_radius_times(core_radius_number((long long)m, 2ll), weights->value[m]);
+        core_radius_add(out, m - 1u, half);
+        core_radius_add(out, m + 1u, core_radius_times(s, half));
     }
-    return slope;
 }
 
-CoreRadiusWeights core_radius_product(const CoreRadiusWeights &left, const CoreRadiusWeights &right)
+void core_radius_product(const CoreRadiusWeights *left, const CoreRadiusWeights *right, CoreRadiusWeights *out)
 {
     const SimRational half = core_radius_number(1ll, 2ll);
-    CoreRadiusWeights product;
-    for (size_t m = 0u; m < left.size(); m += 1u)
+    core_radius_taken(out, ((left->count != 0u) && (right->count != 0u)) ? (left->count + right->count - 1u) : 0u, 1);
+    for (unsigned int m = 0u; m < left->count; m += 1u)
     {
-        if (sim_rational_sign(left[m]) == 0)
+        if (sim_rational_sign(left->value[m]) == 0)
         {
             continue;
         }
-        for (size_t n = 0u; n < right.size(); n += 1u)
+        for (unsigned int n = 0u; n < right->count; n += 1u)
         {
-            const SimRational part = core_radius_times(half, core_radius_times(left[m], right[n]));
-            core_radius_add(&product, m + n, part);
-            core_radius_add(&product, (m >= n) ? m - n : n - m, part);
+            const SimRational part = core_radius_times(half, core_radius_times(left->value[m], right->value[n]));
+            core_radius_add(out, m + n, part);
+            core_radius_add(out, (m >= n) ? m - n : n - m, part);
         }
     }
-    return product;
 }
 
-CoreRadiusWeights core_radius_d_slope(const CoreRadiusWeights &weights, const CoreRadiusScale *scale, SimRational s)
+void core_radius_d_slope(const CoreRadiusWeights *weights, const CoreRadiusScale *scale, SimRational s,
+                         CoreRadiusWeights *out)
 {
-    CoreRadiusWeights slope = core_radius_feet_slope(weights, s);
+    CoreRadiusWeights slope;
+    core_radius_feet_slope(weights, s, &slope);
     const SimRational rest = sim_rational_difference(core_radius_number(1ll, 1ll), core_radius_times(scale->cut, scale->cut));
     if (sim_rational_sign(rest) != 0)
     {
-        const CoreRadiusWeights plain = core_radius_slope(weights);
-        slope = core_radius_sum(slope, core_radius_scaled(core_radius_sum(plain, core_radius_second(plain)), core_radius_times(rest, core_radius_number(1ll, 2ll))));
+        CoreRadiusWeights plain;
+        CoreRadiusWeights second;
+        CoreRadiusWeights both;
+        CoreRadiusWeights rest_part;
+        core_radius_slope(weights, &plain);
+        core_radius_second(&plain, &second);
+        core_radius_sum(&plain, &second, &both);
+        core_radius_scaled(&both, core_radius_times(rest, core_radius_number(1ll, 2ll)), &rest_part);
+        core_radius_sum_into(&slope, &rest_part);
+        core_radius_released(&plain);
+        core_radius_released(&second);
+        core_radius_released(&both);
     }
-    return core_radius_scaled(slope, sim_rational_reciprocal(scale->cut));
+    core_radius_scaled(&slope, sim_rational_reciprocal(scale->cut), out);
+    core_radius_released(&slope);
 }
 
-CoreRadiusWeights core_radius_cut_weights(const std::vector<SimRational> &weights, SimRational cut)
+void core_radius_cut_weights(const CoreRadiusWeights *weights, SimRational cut, CoreRadiusWeights *out)
 {
-    CoreRadiusWeights cut_weights;
-    CoreRadiusWeights before;
-    CoreRadiusWeights current = {core_radius_number(1ll, 1ll)};
+    *out = CoreRadiusWeights{NULL, 0u, 0u};
+    CoreRadiusWeights before = {NULL, 0u, 0u};
+    CoreRadiusWeights current;
+    core_radius_taken(&current, 1u, 1);
+    core_radius_pushed(&current, core_radius_number(1ll, 1ll));
     const SimRational twice = core_radius_times(core_radius_number(2ll, 1ll), cut);
-    for (size_t m = 0u; m < weights.size(); m += 1u)
+    for (unsigned int m = 0u; m < weights->count; m += 1u)
     {
-        cut_weights = core_radius_sum(cut_weights, core_radius_scaled(current, weights[m]));
-        const CoreRadiusWeights next = (m == 0u) ? core_radius_scaled(core_radius_eta(current), cut)
-                                                 : core_radius_sum(core_radius_scaled(core_radius_eta(current), twice), core_radius_scaled(before, core_radius_number(-1ll, 1ll)));
-        before = current;
+        CoreRadiusWeights term;
+        core_radius_scaled(&current, weights->value[m], &term);
+        core_radius_sum_into(out, &term);
+        CoreRadiusWeights eta;
+        CoreRadiusWeights next;
+        core_radius_eta(&current, &eta);
+        if (m == 0u)
+        {
+            core_radius_scaled(&eta, cut, &next);
+        }
+        else
+        {
+            CoreRadiusWeights eta_twice;
+            CoreRadiusWeights before_turned;
+            core_radius_scaled(&eta, twice, &eta_twice);
+            core_radius_scaled(&before, core_radius_number(-1ll, 1ll), &before_turned);
+            core_radius_sum(&eta_twice, &before_turned, &next);
+            core_radius_released(&eta_twice);
+            core_radius_released(&before_turned);
+        }
+        core_radius_released(&eta);
+        core_radius_replaced(&before, &current);
         current = next;
     }
-    return cut_weights;
+    core_radius_released(&before);
+    core_radius_released(&current);
 }
 
-CoreRadiusWeights core_radius_turned_weights(const CoreRadiusWeights &g, SimRational c, unsigned int j, const CoreRadiusScale *scale, SimRational s)
+void core_radius_turned_weights(const CoreRadiusWeights *g, SimRational c, unsigned int j, const CoreRadiusScale *scale,
+                                SimRational s, CoreRadiusWeights *out)
 {
     const SimRational order_j = core_radius_number((long long)j, 1ll);
     const SimRational eta_turn = core_radius_times(s, core_radius_plus(c, core_radius_times(core_radius_number(2ll, 1ll), order_j)));
-    CoreRadiusWeights turned = core_radius_scaled(core_radius_eta(core_radius_l(g, scale, s)), core_radius_times(eta_turn, scale->cut));
-    turned = core_radius_sum(turned, core_radius_l(core_radius_d_slope(g, scale, s), scale, s));
+    CoreRadiusWeights l;
+    CoreRadiusWeights l_eta;
+    core_radius_l(g, scale, s, &l);
+    core_radius_eta(&l, &l_eta);
+    core_radius_scaled(&l_eta, core_radius_times(eta_turn, scale->cut), out);
+    core_radius_released(&l);
+    core_radius_released(&l_eta);
+    CoreRadiusWeights d_slope;
+    CoreRadiusWeights l_d_slope;
+    core_radius_d_slope(g, scale, s, &d_slope);
+    core_radius_l(&d_slope, scale, s, &l_d_slope);
+    core_radius_sum_into(out, &l_d_slope);
+    core_radius_released(&d_slope);
     const SimRational eight_h_j = core_radius_times(core_radius_times(core_radius_number(8ll, 1ll), scale->h), order_j);
-    return core_radius_sum(turned, core_radius_scaled(core_radius_eta(core_radius_d(g, scale, s)), core_radius_times(eight_h_j, scale->cut)));
+    CoreRadiusWeights d;
+    CoreRadiusWeights d_eta;
+    CoreRadiusWeights d_part;
+    core_radius_d(g, scale, s, &d);
+    core_radius_eta(&d, &d_eta);
+    core_radius_scaled(&d_eta, core_radius_times(eight_h_j, scale->cut), &d_part);
+    core_radius_sum_into(out, &d_part);
+    core_radius_released(&d);
+    core_radius_released(&d_eta);
+}
+
+void core_radius_orders_taken(CoreRadiusOrders *orders, unsigned int room)
+{
+    CoreRadiusWeights **const fields[4] = {&orders->f, &orders->g, &orders->q, &orders->inflow};
+    for (unsigned int field = 0u; field < 4u; field += 1u)
+    {
+        *fields[field] = (CoreRadiusWeights *)platform_cell_cleared(room, sizeof(CoreRadiusWeights),
+                                                                    platform_place_g_program_owner, 0);
+        s_core_radius_unmet |= (*fields[field] == NULL) ? 1 : 0;
+    }
+    const int whole = (orders->f != NULL) && (orders->g != NULL) && (orders->q != NULL) && (orders->inflow != NULL);
+    orders->count = 0u;
+    orders->inflow_count = 0u;
+    orders->room = whole ? room : 0u;
+}
+
+void core_radius_orders_released(CoreRadiusOrders *orders)
+{
+    CoreRadiusWeights **const fields[4] = {&orders->f, &orders->g, &orders->q, &orders->inflow};
+    for (unsigned int field = 0u; field < 4u; field += 1u)
+    {
+        for (unsigned int k = 0u; (*fields[field] != NULL) && (k < orders->room); k += 1u)
+        {
+            core_radius_released(&(*fields[field])[k]);
+        }
+        platform_cell_released(*fields[field], platform_place_g_program_owner);
+        *fields[field] = NULL;
+    }
+    orders->count = 0u;
+    orders->inflow_count = 0u;
+    orders->room = 0u;
 }
 
 SimRational core_radius_up(SimRational value, const OriorExactInteger *unit)
@@ -253,9 +443,9 @@ SimRational core_radius_down(SimRational value, const OriorExactInteger *unit)
 
 void core_radius_round_up(CoreRadiusWeights *weights, const OriorExactInteger *unit)
 {
-    for (SimRational &weight : *weights)
+    for (unsigned int m = 0u; m < weights->count; m += 1u)
     {
-        weight = core_radius_up(weight, unit);
+        weights->value[m] = core_radius_up(weights->value[m], unit);
     }
 }
 
@@ -395,10 +585,19 @@ void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsi
     device->lengths_device = NULL;
     device->primes_device = NULL;
     device->sums = NULL;
-    device->lengths.assign((size_t)CORE_RADIUS_TYPES * orders, 0u);
+    // the host's lengths, primes and inverses, each a cell sized at its count, the lengths and the inverses all 0
+    const unsigned long long lengths_count = (unsigned long long)CORE_RADIUS_TYPES * orders;
+    device->lengths =
+        (uint32_t *)platform_cell_cleared(lengths_count, sizeof(uint32_t), platform_place_g_program_owner, 0);
+    device->primes =
+        (uint32_t *)platform_cell_cleared(primes_count, sizeof(uint32_t), platform_place_g_program_owner, 0);
+    device->inverse = (uint32_t *)platform_cell_cleared((unsigned long long)primes_count * primes_count,
+                                                        sizeof(uint32_t), platform_place_g_program_owner, 0);
+    const int host = (device->lengths != NULL) && (device->primes != NULL) && (device->inverse != NULL);
+    s_core_radius_unmet |= host ? 0 : 1;
     // the largest primes below 2^31, each tested by trial division
-    device->primes.clear();
-    for (uint32_t candidate = 0x7FFFFFFFu; device->primes.size() < primes_count; candidate -= 2u)
+    unsigned int found = 0u;
+    for (uint32_t candidate = 0x7FFFFFFFu; host && (found < primes_count); candidate -= 2u)
     {
         int prime = 1;
         for (uint32_t divisor = 3u; (unsigned long long)divisor * divisor <= candidate; divisor += 2u)
@@ -411,11 +610,11 @@ void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsi
         }
         if (prime)
         {
-            device->primes.push_back(candidate);
+            device->primes[found] = candidate;
+            found += 1u;
         }
     }
-    device->inverse.assign((size_t)primes_count * primes_count, 0u);
-    for (unsigned int t = 0u; t < primes_count; t += 1u)
+    for (unsigned int t = 0u; host && (t < primes_count); t += 1u)
     {
         for (unsigned int s = 0u; s < t; s += 1u)
         {
@@ -427,16 +626,16 @@ void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsi
     int count = 0;
     const size_t residue_bytes = (size_t)CORE_RADIUS_TYPES * orders * primes_count * modes * sizeof(uint32_t);
     const size_t sum_bytes = (size_t)CORE_RADIUS_SUMS * primes_count * modes * sizeof(uint32_t);
-    device->available =
-        (cudaGetDeviceCount(&count) == cudaSuccess) && (count > 0) &&
-        (cudaMalloc((void **)&device->residues, residue_bytes) == cudaSuccess) &&
-        (cudaMemset(device->residues, 0, residue_bytes) == cudaSuccess) &&
-        (cudaMalloc((void **)&device->lengths_device, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
-        (cudaMemset(device->lengths_device, 0, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
-        (cudaMalloc((void **)&device->primes_device, primes_count * sizeof(uint32_t)) == cudaSuccess) &&
-        (cudaMemcpy(device->primes_device, device->primes.data(), primes_count * sizeof(uint32_t),
-                    cudaMemcpyHostToDevice) == cudaSuccess) &&
-        (cudaMalloc((void **)&device->sums, sum_bytes) == cudaSuccess);
+    const size_t lengths_bytes = (size_t)lengths_count * sizeof(uint32_t);
+    device->available = host && (cudaGetDeviceCount(&count) == cudaSuccess) && (count > 0) &&
+                        (cudaMalloc((void **)&device->residues, residue_bytes) == cudaSuccess) &&
+                        (cudaMemset(device->residues, 0, residue_bytes) == cudaSuccess) &&
+                        (cudaMalloc((void **)&device->lengths_device, lengths_bytes) == cudaSuccess) &&
+                        (cudaMemset(device->lengths_device, 0, lengths_bytes) == cudaSuccess) &&
+                        (cudaMalloc((void **)&device->primes_device, primes_count * sizeof(uint32_t)) == cudaSuccess) &&
+                        (cudaMemcpy(device->primes_device, device->primes, primes_count * sizeof(uint32_t),
+                                    cudaMemcpyHostToDevice) == cudaSuccess) &&
+                        (cudaMalloc((void **)&device->sums, sum_bytes) == cudaSuccess);
 }
 
 void core_radius_device_close(CoreRadiusDevice *device)
@@ -445,21 +644,37 @@ void core_radius_device_close(CoreRadiusDevice *device)
     cudaFree(device->lengths_device);
     cudaFree(device->primes_device);
     cudaFree(device->sums);
+    platform_cell_released(device->lengths, platform_place_g_program_owner);
+    platform_cell_released(device->primes, platform_place_g_program_owner);
+    platform_cell_released(device->inverse, platform_place_g_program_owner);
+    device->lengths = NULL;
+    device->primes = NULL;
+    device->inverse = NULL;
 }
 
-void core_radius_device_put(CoreRadiusDevice *device, unsigned int type, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit)
+void core_radius_device_put(CoreRadiusDevice *device, unsigned int type, unsigned int k,
+                            const CoreRadiusWeights *weights, const OriorExactInteger *unit)
 {
     if (!device->available)
     {
         return;
     }
-    if ((k >= device->orders) || (weights.size() > device->modes))
+    if ((k >= device->orders) || (weights->count > device->modes))
     {
         device->available = 0;
         return;
     }
-    std::vector<uint32_t> residues((size_t)device->primes_count * device->modes, 0u);
-    for (size_t m = 0u; m < weights.size(); m += 1u)
+    // the residues of one order, every prime's modes, in a cell of the temporary tier that the call gives back
+    const unsigned long long residues_count = (unsigned long long)device->primes_count * device->modes;
+    uint32_t *const residues =
+        (uint32_t *)platform_cell_cleared(residues_count, sizeof(uint32_t), platform_place_g_program_owner, 1);
+    if (residues == NULL)
+    {
+        s_core_radius_unmet = 1;
+        device->available = 0;
+        return;
+    }
+    for (unsigned int m = 0u; m < weights->count; m += 1u)
     {
         OriorExactInteger scaled;
         OriorExactInteger whole;
@@ -467,15 +682,18 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int type, unsigne
         OriorExactInteger zero;
         sim_exact_unsigned(&zero, 0ull);
         // c 2^bits, whole where c is a multiple of 2^-bits and at least 0
-        const int read = (orior_exact_multiply(&weights[m].numerator, unit, &scaled) == ORIOR_EXACT_OK) &&
-                         (orior_exact_divide(&scaled, &weights[m].denominator, &whole, &remainder) == ORIOR_EXACT_OK) &&
-                         (orior_exact_compare(&remainder, &zero) == 0) && (sim_rational_sign(weights[m]) >= 0);
+        const int read =
+            (orior_exact_multiply(&weights->value[m].numerator, unit, &scaled) == ORIOR_EXACT_OK) &&
+            (orior_exact_divide(&scaled, &weights->value[m].denominator, &whole, &remainder) == ORIOR_EXACT_OK) &&
+            (orior_exact_compare(&remainder, &zero) == 0) && (sim_rational_sign(weights->value[m]) >= 0);
         if (!read)
         {
             device->available = 0;
+            platform_cell_released(residues, platform_place_g_program_owner);
             return;
         }
-        device->widest = std::max(device->widest, core_radius_bits(&whole));
+        const unsigned int bits = core_radius_bits(&whole);
+        device->widest = (bits > device->widest) ? bits : device->widest;
         const unsigned long long used = sim_exact_limbs_used(&whole);
         for (unsigned int t = 0u; t < device->primes_count; t += 1u)
         {
@@ -491,18 +709,20 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int type, unsigne
     }
     const size_t at = (size_t)type * device->orders + k;
     // a length is at max the device's modes, which fit 32 bits
-    device->lengths[at] = (uint32_t)weights.size();
-    device->available = (cudaMemcpy(device->residues + at * device->primes_count * device->modes, residues.data(),
-                                    residues.size() * sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess) &&
-                        (cudaMemcpy(device->lengths_device + at, &device->lengths[at], sizeof(uint32_t),
-                                    cudaMemcpyHostToDevice) == cudaSuccess);
+    device->lengths[at] = (uint32_t)weights->count;
+    device->available =
+        (cudaMemcpy(device->residues + at * device->primes_count * device->modes, residues,
+                    (size_t)residues_count * sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess) &&
+        (cudaMemcpy(device->lengths_device + at, &device->lengths[at], sizeof(uint32_t), cudaMemcpyHostToDevice) ==
+         cudaSuccess);
+    platform_cell_released(residues, platform_place_g_program_owner);
 }
 
 void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const OriorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS])
 {
     for (unsigned int sum = 0u; sum < CORE_RADIUS_SUMS; sum += 1u)
     {
-        sums[sum].clear();
+        sums[sum] = CoreRadiusWeights{NULL, 0u, 0u};
     }
     if (!device->available)
     {
@@ -525,7 +745,7 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Ori
                 count += 2ull * left * right;
                 if ((left > 0u) && (right > 0u))
                 {
-                    modes = std::max(modes, left + right - 1u);
+                    modes = (left + right - 1u > modes) ? (left + right - 1u) : modes;
                 }
             }
         }
@@ -543,21 +763,31 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Ori
     const dim3 grid((modes + CORE_RADIUS_THREADS - 1u) / CORE_RADIUS_THREADS, device->primes_count, CORE_RADIUS_SUMS);
     core_radius_device_kernel<<<grid, CORE_RADIUS_THREADS>>>(device->residues, device->lengths_device, device->primes_device, device->primes_count, device->orders,
                                                              device->modes, k, device->sums);
-    std::vector<uint32_t> residues((size_t)CORE_RADIUS_SUMS * device->primes_count * device->modes);
-    device->available = (cudaGetLastError() == cudaSuccess) &&
-                        (cudaMemcpy(residues.data(), device->sums, residues.size() * sizeof(uint32_t),
+    // the sums' residues and one sum's mixed radix digits, in cells of the temporary tier that the call gives back
+    const unsigned long long residues_count =
+        (unsigned long long)CORE_RADIUS_SUMS * device->primes_count * device->modes;
+    uint32_t *const residues =
+        (uint32_t *)platform_cell_taken(residues_count * sizeof(uint32_t), platform_place_g_program_owner, 1);
+    unsigned long long *const digits = (unsigned long long *)platform_cell_taken(
+        (unsigned long long)device->primes_count * sizeof(unsigned long long), platform_place_g_program_owner, 1);
+    s_core_radius_unmet |= ((residues == NULL) || (digits == NULL)) ? 1 : 0;
+    device->available = (residues != NULL) && (digits != NULL) && (cudaGetLastError() == cudaSuccess) &&
+                        (cudaMemcpy(residues, device->sums, (size_t)residues_count * sizeof(uint32_t),
                                     cudaMemcpyDeviceToHost) == cudaSuccess);
     if (!device->available)
     {
+        platform_cell_released(residues, platform_place_g_program_owner);
+        platform_cell_released(digits, platform_place_g_program_owner);
         return;
     }
     // 2^(2 bits + 1)
     OriorExactInteger square;
     OriorExactInteger scale;
-    sim_rational_status_check((orior_exact_multiply(unit, unit, &square) == ORIOR_EXACT_OK) && sim_exact_scaled(&square, 2ull, &scale));
-    std::vector<unsigned long long> digits(device->primes_count);
+    sim_rational_status_check((orior_exact_multiply(unit, unit, &square) == ORIOR_EXACT_OK) &&
+                              sim_exact_scaled(&square, 2ull, &scale));
     for (unsigned int sum = 0u; sum < CORE_RADIUS_SUMS; sum += 1u)
     {
+        core_radius_taken(&sums[sum], modes, 1);
         for (unsigned int n = 0u; n < modes; n += 1u)
         {
             // Garner: x = d_0 + p_0 (d_1 + p_1 (d_2 + ...)), d_t below p_t
@@ -584,17 +814,74 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Ori
             value.numerator = whole;
             value.denominator = scale;
             sim_rational_settle(&value);
-            sums[sum].push_back(value);
+            core_radius_pushed(&sums[sum], value);
         }
-        while (!sums[sum].empty() && (sim_rational_sign(sums[sum].back()) == 0))
+        while ((sums[sum].count != 0u) && (sim_rational_sign(sums[sum].value[sums[sum].count - 1u]) == 0))
         {
-            sums[sum].pop_back();
+            sums[sum].count -= 1u;
         }
+    }
+    platform_cell_released(residues, platform_place_g_program_owner);
+    platform_cell_released(digits, platform_place_g_program_owner);
+}
+
+// `weights` given a copy on the persistent tier in `kept`, its own cell given back
+static void core_radius_kept_from(CoreRadiusWeights *weights, CoreRadiusWeights *kept)
+{
+    core_radius_kept(weights, kept);
+    core_radius_released(weights);
+}
+
+// the plain part of the spin and the along of an order. It is `weights` times L, its slope's eta times L times d, and
+// its eta^2 times 8 h k D. `first` is the factor of `weights` times L
+static void core_radius_plain_part(const CoreRadiusWeights *weights, SimRational first, SimRational d_eight,
+                                   const CoreRadiusScale *scale, SimRational s, CoreRadiusWeights *out)
+{
+    CoreRadiusWeights l;
+    core_radius_l(weights, scale, s, &l);
+    core_radius_scaled(&l, first, out);
+    core_radius_released(&l);
+    CoreRadiusWeights slope;
+    CoreRadiusWeights slope_l;
+    CoreRadiusWeights slope_eta;
+    CoreRadiusWeights slope_part;
+    core_radius_slope(weights, &slope);
+    core_radius_l(&slope, scale, s, &slope_l);
+    core_radius_eta(&slope_l, &slope_eta);
+    core_radius_scaled(&slope_eta, scale->d, &slope_part);
+    core_radius_sum_into(out, &slope_part);
+    core_radius_released(&slope);
+    core_radius_released(&slope_l);
+    core_radius_released(&slope_eta);
+    CoreRadiusWeights eta_square;
+    CoreRadiusWeights eta_part;
+    core_radius_eta_square(weights, scale, &eta_square);
+    core_radius_scaled(&eta_square, d_eight, &eta_part);
+    core_radius_sum_into(out, &eta_part);
+    core_radius_released(&eta_square);
+}
+
+// the product of `left` and `right`, times `factor` where `scaled` is 1, which the call adds into `into`
+static void core_radius_product_into(CoreRadiusWeights *into, const CoreRadiusWeights *left,
+                                     const CoreRadiusWeights *right, int scaled, SimRational factor)
+{
+    CoreRadiusWeights product;
+    core_radius_product(left, right, &product);
+    if (scaled)
+    {
+        CoreRadiusWeights product_scaled;
+        core_radius_scaled(&product, factor, &product_scaled);
+        core_radius_released(&product);
+        core_radius_sum_into(into, &product_scaled);
+    }
+    else
+    {
+        core_radius_sum_into(into, &product);
     }
 }
 
 void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const OriorExactInteger *unit,
-                               CoreRadiusDevice *device, CoreRadiusOrders *orders)
+                        CoreRadiusDevice *device, CoreRadiusOrders *orders)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -602,20 +889,34 @@ void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned in
     const SimRational angular_c = core_radius_plus(two, core_radius_times(two, scale->h));
     const SimRational along_c = core_radius_times(two, scale->a);
     const SimRational pressure_c = core_radius_times(core_radius_number(4ll, 1ll), scale->a);
-    std::vector<CoreRadiusWeights> &f = orders->f;
-    std::vector<CoreRadiusWeights> &g = orders->g;
-    std::vector<CoreRadiusWeights> &q = orders->q;
-    std::vector<CoreRadiusWeights> &inflow = orders->inflow;
-    inflow.clear();
-    std::vector<CoreRadiusWeights> angular_turned;
-    std::vector<CoreRadiusWeights> along_turned;
-    for (unsigned int k = 0u; k <= order; k += 1u)
+    CoreRadiusWeights *const f = orders->f;
+    CoreRadiusWeights *const g = orders->g;
+    CoreRadiusWeights *const q = orders->q;
+    CoreRadiusWeights *const inflow = orders->inflow;
+    for (unsigned int k = 0u; k < orders->inflow_count; k += 1u)
+    {
+        core_radius_released(&inflow[k]);
+    }
+    orders->inflow_count = 0u;
+    // the Z parts of each order to `order`, in cells of the temporary tier that the call gives back before it returns
+    CoreRadiusWeights *const angular_turned = (CoreRadiusWeights *)platform_cell_cleared(
+        (unsigned long long)order + 1ull, sizeof(CoreRadiusWeights), platform_place_g_program_owner, 1);
+    CoreRadiusWeights *const along_turned = (CoreRadiusWeights *)platform_cell_cleared(
+        (unsigned long long)order + 1ull, sizeof(CoreRadiusWeights), platform_place_g_program_owner, 1);
+    // the orders hold order + 2 orders of each field, and the inflow order + 1
+    const int room =
+        (angular_turned != NULL) && (along_turned != NULL) && (orders->room >= order + 2u) && (orders->count != 0u);
+    s_core_radius_unmet |= room ? 0 : 1;
+    for (unsigned int k = 0u; room && (k <= order); k += 1u)
     {
         const SimRational order_k = core_radius_number((long long)k, 1ll);
         const SimRational next = core_radius_plus(order_k, one);
-        along_turned.push_back(core_radius_turned_weights(g[k], along_c, k, scale, s));
-        inflow.push_back(core_radius_scaled(along_turned[k], core_radius_times(s, sim_rational_reciprocal(next))));
-        angular_turned.push_back(core_radius_turned_weights(f[k], angular_c, k, scale, s));
+        core_radius_turned_weights(&g[k], along_c, k, scale, s, &along_turned[k]);
+        CoreRadiusWeights inflow_made;
+        core_radius_scaled(&along_turned[k], core_radius_times(s, sim_rational_reciprocal(next)), &inflow_made);
+        core_radius_kept_from(&inflow_made, &inflow[k]);
+        orders->inflow_count = k + 1u;
+        core_radius_turned_weights(&f[k], angular_c, k, scale, s, &angular_turned[k]);
         if (unit != NULL)
         {
             core_radius_round_up(&along_turned[k], unit);
@@ -625,31 +926,31 @@ void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned in
         const int on_device = (device != NULL) && (unit != NULL);
         if (on_device)
         {
-            core_radius_device_put(device, CORE_RADIUS_SPIN_WEIGHTS, k, f[k], unit);
-            core_radius_device_put(device, CORE_RADIUS_ALONG_WEIGHTS, k, g[k], unit);
-            core_radius_device_put(device, CORE_RADIUS_INFLOW_WEIGHTS, k, inflow[k], unit);
-            core_radius_device_put(device, CORE_RADIUS_ANGULAR_TURNED, k, angular_turned[k], unit);
-            core_radius_device_put(device, CORE_RADIUS_ALONG_TURNED, k, along_turned[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_SPIN_WEIGHTS, k, &f[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_ALONG_WEIGHTS, k, &g[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_INFLOW_WEIGHTS, k, &inflow[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_ANGULAR_TURNED, k, &angular_turned[k], unit);
+            core_radius_device_put(device, CORE_RADIUS_ALONG_TURNED, k, &along_turned[k], unit);
         }
-        if (k + 1u < f.size())
+        if (k + 1u < orders->count)
         {
             continue;
         }
         const SimRational d_eight = core_radius_times(core_radius_times(eight_h, order_k), scale->d);
-        CoreRadiusWeights spin = core_radius_scaled(core_radius_l(f[k], scale, s), core_radius_plus(next, scale->h));
-        spin = core_radius_sum(spin, core_radius_scaled(core_radius_eta(core_radius_l(core_radius_slope(f[k]), scale, s)), scale->d));
-        spin = core_radius_sum(spin, core_radius_scaled(core_radius_eta_square(f[k], scale), d_eight));
-        CoreRadiusWeights along = core_radius_scaled(core_radius_l(g[k], scale, s), core_radius_plus(order_k, scale->a));
-        along = core_radius_sum(along, core_radius_scaled(core_radius_eta(core_radius_l(core_radius_slope(g[k]), scale, s)), scale->d));
-        along = core_radius_sum(along, core_radius_scaled(core_radius_eta_square(g[k], scale), d_eight));
-        along = core_radius_sum(along, core_radius_turned_weights(q[k], pressure_c, k, scale, s));
-        CoreRadiusWeights square;
+        CoreRadiusWeights spin;
+        core_radius_plain_part(&f[k], core_radius_plus(next, scale->h), d_eight, scale, s, &spin);
+        CoreRadiusWeights along;
+        core_radius_plain_part(&g[k], core_radius_plus(order_k, scale->a), d_eight, scale, s, &along);
+        CoreRadiusWeights pressure_turned;
+        core_radius_turned_weights(&q[k], pressure_c, k, scale, s, &pressure_turned);
+        core_radius_sum_into(&along, &pressure_turned);
+        CoreRadiusWeights square = {NULL, 0u, 0u};
         if (on_device)
         {
             CoreRadiusWeights sums[CORE_RADIUS_SUMS];
             core_radius_device_sums(device, k, unit, sums);
-            spin = core_radius_sum(spin, sums[0]);
-            along = core_radius_sum(along, sums[1]);
+            core_radius_sum_into(&spin, &sums[0]);
+            core_radius_sum_into(&along, &sums[1]);
             square = sums[2];
         }
         else
@@ -658,32 +959,61 @@ void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned in
             {
                 const unsigned int j = k - i;
                 const SimRational rest = core_radius_number((long long)j, 1ll);
-                spin = core_radius_sum(spin, core_radius_scaled(core_radius_product(inflow[i], f[j]), core_radius_plus(rest, one)));
-                spin = core_radius_sum(spin, core_radius_product(g[i], angular_turned[j]));
-                along = core_radius_sum(along, core_radius_scaled(core_radius_product(inflow[i], g[j]), rest));
-                along = core_radius_sum(along, core_radius_product(g[i], along_turned[j]));
-                square = core_radius_sum(square, core_radius_product(f[i], f[j]));
+                core_radius_product_into(&spin, &inflow[i], &f[j], 1, core_radius_plus(rest, one));
+                core_radius_product_into(&spin, &g[i], &angular_turned[j], 0, one);
+                core_radius_product_into(&along, &inflow[i], &g[j], 1, rest);
+                core_radius_product_into(&along, &g[i], &along_turned[j], 0, one);
+                core_radius_product_into(&square, &f[i], &f[j], 0, one);
             }
         }
-        f.push_back(core_radius_scaled(spin, sim_rational_reciprocal(core_radius_times(core_radius_times(two, next), core_radius_plus(next, one)))));
-        g.push_back(core_radius_scaled(along, sim_rational_reciprocal(core_radius_times(two, core_radius_times(next, next)))));
-        q.push_back(core_radius_scaled(core_radius_l(core_radius_l(square, scale, s), scale, s), sim_rational_reciprocal(next)));
+        const unsigned int at = orders->count;
+        CoreRadiusWeights made;
+        core_radius_scaled(
+            &spin,
+            sim_rational_reciprocal(core_radius_times(core_radius_times(two, next), core_radius_plus(next, one))),
+            &made);
+        core_radius_kept_from(&made, &f[at]);
+        core_radius_scaled(&along, sim_rational_reciprocal(core_radius_times(two, core_radius_times(next, next))),
+                           &made);
+        core_radius_kept_from(&made, &g[at]);
+        CoreRadiusWeights square_l;
+        CoreRadiusWeights square_ll;
+        core_radius_l(&square, scale, s, &square_l);
+        core_radius_l(&square_l, scale, s, &square_ll);
+        core_radius_scaled(&square_ll, sim_rational_reciprocal(next), &made);
+        core_radius_kept_from(&made, &q[at]);
+        core_radius_released(&square_l);
+        core_radius_released(&square_ll);
+        orders->count = at + 1u;
         if (unit != NULL)
         {
-            core_radius_round_up(&f.back(), unit);
-            core_radius_round_up(&g.back(), unit);
-            core_radius_round_up(&q.back(), unit);
+            core_radius_round_up(&f[at], unit);
+            core_radius_round_up(&g[at], unit);
+            core_radius_round_up(&q[at], unit);
         }
+        core_radius_released(&spin);
+        core_radius_released(&along);
+        core_radius_released(&square);
     }
+    for (unsigned int k = 0u; (angular_turned != NULL) && (k <= order); k += 1u)
+    {
+        core_radius_released(&angular_turned[k]);
+    }
+    for (unsigned int k = 0u; (along_turned != NULL) && (k <= order); k += 1u)
+    {
+        core_radius_released(&along_turned[k]);
+    }
+    platform_cell_released(angular_turned, platform_place_g_program_owner);
+    platform_cell_released(along_turned, platform_place_g_program_owner);
 }
 
-int core_radius_same(const CoreRadiusWeights &left, const CoreRadiusWeights &right)
+int core_radius_same(const CoreRadiusWeights *left, const CoreRadiusWeights *right)
 {
-    const size_t length = std::max(left.size(), right.size());
-    for (size_t m = 0u; m < length; m += 1u)
+    const unsigned int length = (left->count > right->count) ? left->count : right->count;
+    for (unsigned int m = 0u; m < length; m += 1u)
     {
-        const SimRational one = (m < left.size()) ? left[m] : core_radius_number(0ll, 1ll);
-        const SimRational other = (m < right.size()) ? right[m] : core_radius_number(0ll, 1ll);
+        const SimRational one = (m < left->count) ? left->value[m] : core_radius_number(0ll, 1ll);
+        const SimRational other = (m < right->count) ? right->value[m] : core_radius_number(0ll, 1ll);
         if (sim_rational_sign(sim_rational_difference(one, other)) != 0)
         {
             return 0;
@@ -692,66 +1022,67 @@ int core_radius_same(const CoreRadiusWeights &left, const CoreRadiusWeights &rig
     return 1;
 }
 
-SimRational core_radius_value(const CoreRadiusWeights &weights, SimRational xi)
+SimRational core_radius_value(const CoreRadiusWeights *weights, SimRational xi)
 {
     SimRational after = core_radius_number(0ll, 1ll);
     SimRational later = core_radius_number(0ll, 1ll);
     const SimRational twice = core_radius_times(core_radius_number(2ll, 1ll), xi);
-    for (size_t m = weights.size(); m > 1u; m -= 1u)
+    for (unsigned int m = weights->count; m > 1u; m -= 1u)
     {
-        const SimRational current = sim_rational_difference(core_radius_plus(weights[m - 1u], core_radius_times(twice, after)), later);
+        const SimRational current =
+            sim_rational_difference(core_radius_plus(weights->value[m - 1u], core_radius_times(twice, after)), later);
         later = after;
         after = current;
     }
-    const SimRational first = weights.empty() ? core_radius_number(0ll, 1ll) : weights[0];
+    const SimRational first = (weights->count == 0u) ? core_radius_number(0ll, 1ll) : weights->value[0];
     return sim_rational_difference(core_radius_plus(first, core_radius_times(xi, after)), later);
 }
 
-void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &angular, const CoreRadiusWeights &axial,
-                                const CoreRadiusWeights &pressure, unsigned int order, SimRational s, CoreRadiusOrders *orders)
+// the magnitudes of `weights`, or the weights themselves where `exact` is 1, as a copy on the persistent tier in `kept`
+static void core_radius_kept_signed(const CoreRadiusWeights *weights, int exact, CoreRadiusWeights *kept)
+{
+    core_radius_taken(kept, weights->count, 0);
+    for (unsigned int m = 0u; m < kept->room; m += 1u)
+    {
+        core_radius_pushed(kept, exact ? weights->value[m] : sim_rational_absolute(weights->value[m]));
+    }
+}
+
+void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights *angular, const CoreRadiusWeights *axial,
+                         const CoreRadiusWeights *pressure, unsigned int order, SimRational s, CoreRadiusOrders *orders)
 {
     const int exact = sim_rational_sign(s) < 0;
-    const CoreRadiusWeights data[3] = {core_radius_cut_weights(angular, scale->cut), core_radius_cut_weights(axial, scale->cut),
-                                       core_radius_cut_weights(pressure, scale->cut)};
-    std::vector<CoreRadiusWeights> *const fields[3] = {&orders->f, &orders->g, &orders->q};
-    for (unsigned int field = 0u; field < 3u; field += 1u)
+    core_radius_orders_taken(orders, order + 2u);
+    const CoreRadiusWeights *const given[3] = {angular, axial, pressure};
+    CoreRadiusWeights *const fields[3] = {orders->f, orders->g, orders->q};
+    for (unsigned int field = 0u; (orders->room != 0u) && (field < 3u); field += 1u)
     {
-        *fields[field] = {CoreRadiusWeights()};
-        for (const SimRational &weight : data[field])
-        {
-            (*fields[field])[0].push_back(exact ? weight : sim_rational_absolute(weight));
-        }
+        CoreRadiusWeights data;
+        core_radius_cut_weights(given[field], scale->cut, &data);
+        core_radius_kept_signed(&data, exact, &fields[field][0]);
+        core_radius_released(&data);
     }
+    orders->count = (orders->room != 0u) ? 1u : 0u;
     core_radius_extend(scale, s, order, NULL, NULL, orders);
 }
 
-void core_radius_continued(const CoreRadiusScale *scale, const CoreRadiusOrders *exact, unsigned int order, unsigned int last,
-                                  const OriorExactInteger *unit, CoreRadiusDevice *device, CoreRadiusOrders *continued)
+void core_radius_continued(const CoreRadiusScale *scale, const CoreRadiusOrders *exact, unsigned int order,
+                           unsigned int last, const OriorExactInteger *unit, CoreRadiusDevice *device,
+                           CoreRadiusOrders *continued)
 {
-    continued->f.clear();
-    continued->g.clear();
-    continued->q.clear();
-    for (unsigned int k = 0u; k <= order; k += 1u)
+    core_radius_orders_taken(continued, last + 2u);
+    const int given = (continued->room != 0u) && (exact->count > order) && (last >= order);
+    s_core_radius_unmet |= given ? 0 : 1;
+    for (unsigned int k = 0u; given && (k <= order); k += 1u)
     {
-        continued->f.push_back(CoreRadiusWeights());
-        continued->g.push_back(CoreRadiusWeights());
-        continued->q.push_back(CoreRadiusWeights());
-        for (const SimRational &weight : exact->f[k])
-        {
-            continued->f[k].push_back(sim_rational_absolute(weight));
-        }
-        for (const SimRational &weight : exact->g[k])
-        {
-            continued->g[k].push_back(sim_rational_absolute(weight));
-        }
-        for (const SimRational &weight : exact->q[k])
-        {
-            continued->q[k].push_back(sim_rational_absolute(weight));
-        }
+        core_radius_kept_signed(&exact->f[k], 0, &continued->f[k]);
+        core_radius_kept_signed(&exact->g[k], 0, &continued->g[k]);
+        core_radius_kept_signed(&exact->q[k], 0, &continued->q[k]);
         // the exact orders' magnitudes rounded up as they enter the carry, every weight it reads a multiple of 1 / unit
         core_radius_round_up(&continued->f[k], unit);
         core_radius_round_up(&continued->g[k], unit);
         core_radius_round_up(&continued->q[k], unit);
     }
+    continued->count = given ? (order + 1u) : 0u;
     core_radius_extend(scale, core_radius_number(1ll, 1ll), last, unit, device, continued);
 }

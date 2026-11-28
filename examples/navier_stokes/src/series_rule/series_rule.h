@@ -16,13 +16,17 @@
 // added over the higher power of L. An expression is 0 exactly when every factor's polynomial is 0: a polynomial in
 // k that is 0 at every order past a bound, or in i and k at every point of a sum, is the polynomial 0.
 // Every operand of a product is an expression the operations build from entries at k, 0 at every negative order.
+//
+// A polynomial and an expression are each one cell of the temporary tier. A polynomial has its terms sorted by their
+// powers. An expression has its parts sorted by their keys, and the polynomial of each part is a cell of its own. A
+// call that gives one writes it into `out`, which may be one of its operands, and gives back the cells that were in
+// `out`. The caller gives back the result with series_rule_polynomial_released or series_rule_released.
+//
+// A call fills its result unsorted at a count that its operands bound. Then it sorts the result once, and adds the
+// terms or the parts of one key in the order they came.
 
 #include "sim_rational.h"
-
-#include <array>
-#include <map>
-#include <string>
-#include <vector>
+#include "verba_scribo/verba_linea.h"
 
 // the variables of a factor, in the order its powers are stored
 typedef enum
@@ -34,10 +38,26 @@ typedef enum
     SERIES_RULE_VARIABLES = 4
 } SeriesRuleVariable;
 
-typedef std::array<unsigned int, SERIES_RULE_VARIABLES> SeriesRulePower;
+// the powers of a term, one for each variable
+typedef struct
+{
+    unsigned int at[SERIES_RULE_VARIABLES];
+} SeriesRulePower;
 
-// a polynomial in eta, h, k and i, every coefficient not 0
-typedef std::map<SeriesRulePower, SimRational> SeriesRulePolynomial;
+// a term of a polynomial: its powers and its coefficient, not 0
+typedef struct
+{
+    SeriesRulePower power;
+    SimRational value;
+} SeriesRuleTerm;
+
+// a polynomial in eta, h, k and i, its terms sorted by their powers, every coefficient not 0
+typedef struct
+{
+    SeriesRuleTerm *term;
+    unsigned int count;
+    unsigned int room;
+} SeriesRulePolynomial;
 
 // a polynomial over L^power
 typedef struct
@@ -62,63 +82,83 @@ typedef struct
     SeriesRuleEntry second;
 } SeriesRuleKey;
 
-struct SeriesRuleKeyOrder
+// a part of an expression: its key and its factor
+typedef struct
 {
-    bool operator()(const SeriesRuleKey &left, const SeriesRuleKey &right) const;
-};
+    SeriesRuleKey key;
+    SeriesRuleFactor factor;
+} SeriesRulePart;
 
-typedef std::map<SeriesRuleKey, SeriesRuleFactor, SeriesRuleKeyOrder> SeriesRule;
+// an expression, its parts sorted by their keys
+typedef struct
+{
+    SeriesRulePart *part;
+    unsigned int count;
+    unsigned int room;
+} SeriesRule;
+
+// an empty polynomial and an empty expression, with no cell
+#define SERIES_RULE_NONE {NULL, 0u, 0u}
+
+// the cells of a polynomial or an expression given back, and it empty
+void series_rule_polynomial_released(SeriesRulePolynomial *polynomial);
+void series_rule_released(SeriesRule *rule);
 
 // the polynomial c, the variable alone, and their sum, difference and product
-SeriesRulePolynomial series_rule_constant(SimRational value);
-SeriesRulePolynomial series_rule_variable(SeriesRuleVariable variable);
-SeriesRulePolynomial series_rule_polynomial_sum(const SeriesRulePolynomial &left, const SeriesRulePolynomial &right);
-SeriesRulePolynomial series_rule_polynomial_difference(const SeriesRulePolynomial &left, const SeriesRulePolynomial &right);
-SeriesRulePolynomial series_rule_polynomial_product(const SeriesRulePolynomial &left, const SeriesRulePolynomial &right);
+void series_rule_constant(SimRational value, SeriesRulePolynomial *out);
+void series_rule_variable(SeriesRuleVariable variable, SeriesRulePolynomial *out);
+void series_rule_polynomial_sum(const SeriesRulePolynomial *left, const SeriesRulePolynomial *right,
+                                SeriesRulePolynomial *out);
+void series_rule_polynomial_difference(const SeriesRulePolynomial *left, const SeriesRulePolynomial *right,
+                                       SeriesRulePolynomial *out);
+void series_rule_polynomial_product(const SeriesRulePolynomial *left, const SeriesRulePolynomial *right,
+                                    SeriesRulePolynomial *out);
 
 // the field's entry at k, and the part `factor` L^-power times the entry at k + shift
-SeriesRule series_rule_entry(unsigned int field);
-SeriesRule series_rule_part(const SeriesRulePolynomial &factor, unsigned int power, unsigned int field, int shift,
-                            unsigned int slope);
+void series_rule_entry(unsigned int field, SeriesRule *out);
+void series_rule_part(const SeriesRulePolynomial *factor, unsigned int power, unsigned int field, int shift,
+                      unsigned int slope, SeriesRule *out);
 
 // the Cauchy product sum_i factor L^-power (first at i) (second at k + shift - i)
-SeriesRule series_rule_cauchy(const SeriesRulePolynomial &factor, unsigned int power, unsigned int first,
-                              unsigned int first_slope, unsigned int second, unsigned int second_slope, int shift);
+void series_rule_cauchy(const SeriesRulePolynomial *factor, unsigned int power, unsigned int first,
+                        unsigned int first_slope, unsigned int second, unsigned int second_slope, int shift,
+                        SeriesRule *out);
 
-SeriesRule series_rule_sum(const SeriesRule &left, const SeriesRule &right);
-SeriesRule series_rule_difference(const SeriesRule &left, const SeriesRule &right);
+void series_rule_sum(const SeriesRule *left, const SeriesRule *right, SeriesRule *out);
+void series_rule_difference(const SeriesRule *left, const SeriesRule *right, SeriesRule *out);
 
 // every factor times `factor` L^-power, the factor a polynomial in eta, h and k
-SeriesRule series_rule_scaled(const SeriesRule &rule, const SeriesRulePolynomial &factor, unsigned int power);
+void series_rule_scaled(const SeriesRule *rule, const SeriesRulePolynomial *factor, unsigned int power,
+                        SeriesRule *out);
 
 // k -> k + shift
-SeriesRule series_rule_shift(const SeriesRule &rule, int shift);
+void series_rule_shift(const SeriesRule *rule, int shift, SeriesRule *out);
 
 // the entries at k of X f, f_X and X f_X
-SeriesRule series_rule_times_x(const SeriesRule &rule);
-SeriesRule series_rule_slope_x(const SeriesRule &rule);
-SeriesRule series_rule_euler(const SeriesRule &rule);
+void series_rule_times_x(const SeriesRule *rule, SeriesRule *out);
+void series_rule_slope_x(const SeriesRule *rule, SeriesRule *out);
+void series_rule_euler(const SeriesRule *rule, SeriesRule *out);
 
 // the entry at k of the product of two series, each an expression of single entries
-SeriesRule series_rule_product(const SeriesRule &left, const SeriesRule &right);
+void series_rule_product(const SeriesRule *left, const SeriesRule *right, SeriesRule *out);
 
 // d/deta of every entry and factor
-SeriesRule series_rule_slope_eta(const SeriesRule &rule);
+void series_rule_slope_eta(const SeriesRule *rule, SeriesRule *out);
 
 // 1 where every factor is 0
-int series_rule_zero(const SeriesRule &rule);
+int series_rule_zero(const SeriesRule *rule);
 
 // the parity in eta of every part, the fields' parities given, each 1 for even and -1 for odd: 1 where every part is
 // even, -1 where every part is odd, 0 where the parts differ or the rule is 0
-int series_rule_parity(const SeriesRule &rule, const std::vector<int> &parities);
+int series_rule_parity(const SeriesRule *rule, const int *parities);
 
-// the expression as text, each field by its name
-std::string series_rule_text(const SeriesRule &rule, const std::vector<std::string> &names);
+// the expression as text after the bytes of `line`, each field by its name in `names`, one part to a line
+void series_rule_text(const SeriesRule *rule, const char *const *names, VerbaLinea *line);
 
 // the parts the expression contains
-size_t series_rule_parts(const SeriesRule &rule);
+unsigned int series_rule_parts(const SeriesRule *rule);
 
-// 1 where a value in this module outgrew the build's width
+// 1 where a value in this module outgrew the build's width, or the pool did not meet a cell of an expression
 int series_rule_short(void);
 
 #endif

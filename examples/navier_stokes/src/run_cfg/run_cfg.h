@@ -8,16 +8,12 @@
 
 #include "cfg_json.h"
 
-#include <string>
-#include <vector>
-
 // the room of a text member as the cfg reads it, with its end
 #define RUN_CFG_TEXT_ROOM 4096u
 
 // A cfg that the process reads once. Its text is in one cell of the process: `size` bytes and a 0 after them. Its
 // tokens are in one cell, `token_room` of them, the count that the text can hold. The process keeps both for the life
-// of the run. A decimal value is
-// a JSON string, "0.0010016", read exactly as a rational; a count is a JSON number.
+// of the run. A decimal value is a JSON string, "0.0010016", read exactly as a rational; a count is a JSON number.
 typedef struct
 {
     char *text;
@@ -38,11 +34,12 @@ int run_cfg_rational(const RunCfg *cfg, const char *path, SimRational *value);
 // the whole number at `path`: 1, or 0 where it is absent or does not read
 int run_cfg_count(const RunCfg *cfg, const char *path, unsigned long long *value);
 
-// the array of decimal strings at `path` read exactly: 1, or 0 where it is absent, empty or an element does not read
-int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRational> *values);
+// The array of decimal strings at `path`, read exactly into one cell of the persistent tier at its count. The cell
+// goes into `values`, and its count goes into `count`. The return is 1, or 0 where the array is absent or empty or an
+// element does not read. The call then gives the cell back. The process reads its cfg once and keeps the cell for the
+// run.
+int run_cfg_rationals(const RunCfg *cfg, const char *path, SimRational **values, unsigned int *count);
 
-// the array of whole numbers at `path`: 1, or 0 where it is absent, empty or an element does not read
-int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values);
 
 // the text member at `path` into `value`, which has room for `room` bytes with its end: 1, or 0 where it is absent,
 // empty or longer than the room

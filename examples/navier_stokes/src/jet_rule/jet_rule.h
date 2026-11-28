@@ -18,12 +18,15 @@
 // expression is 0 exactly when, multiplied by L to the highest power of L^-1 it contains, every coefficient is 0: L
 // L^-1 = 1 and eta^2 = 1 - d are the only relations among the factors, and the powers of X, d and 2 with distinct
 // exponents are independent.
+//
+// An expression is one cell of the temporary tier, its terms sorted by their products. A call that gives one writes it
+// into `out`, which may be one of its operands. The call gives back the cell that was in `out`. The caller gives back
+// the result with jet_rule_released. A call fills its result unsorted at a count that its operands bound, sorts it once and
+// adds the terms of one product. A product is a fixed record of at max JET_RULE_FACTORS factors, and a product past it
+// is a refusal that jet_rule_short reports.
 
 #include "sim_rational.h"
-
-#include <map>
-#include <string>
-#include <vector>
+#include "verba_scribo/verba_linea.h"
 
 // a factor's place and its exponent a + b h, a and b stored as whole numerators over whole denominators
 typedef struct
@@ -35,14 +38,33 @@ typedef struct
     long long b_denominator;
 } JetRuleFactor;
 
-typedef std::vector<JetRuleFactor> JetRuleMonomial;
+// the factors a product holds at max, one to each place
+#define JET_RULE_FACTORS 24u
 
-struct JetRuleMonomialOrder
+// a product, its factors sorted by their places
+typedef struct
 {
-    bool operator()(const JetRuleMonomial &left, const JetRuleMonomial &right) const;
-};
+    JetRuleFactor factor[JET_RULE_FACTORS];
+    unsigned int count;
+} JetRuleMonomial;
 
-typedef std::map<JetRuleMonomial, SimRational, JetRuleMonomialOrder> JetRule;
+// a term: its product and its coefficient, not 0
+typedef struct
+{
+    JetRuleMonomial monomial;
+    SimRational value;
+} JetRuleTerm;
+
+// an expression, its terms sorted by their products
+typedef struct
+{
+    JetRuleTerm *term;
+    unsigned int count;
+    unsigned int room;
+} JetRule;
+
+// an empty expression, with no cell
+#define JET_RULE_NONE {NULL, 0u, 0u}
 
 // the bases a power may be taken of
 typedef enum
@@ -52,49 +74,54 @@ typedef enum
     JET_RULE_BASE_TWO = 2
 } JetRuleBase;
 
-JetRule jet_rule_number(long long numerator, long long denominator);
-JetRule jet_rule_rational(SimRational value);
-JetRule jet_rule_eta(void);
-JetRule jet_rule_h(void);
-JetRule jet_rule_over_l(void);
+// the cell of an expression given back, and it empty
+void jet_rule_released(JetRule *rule);
+
+void jet_rule_number(long long numerator, long long denominator, JetRule *out);
+void jet_rule_rational(SimRational value, JetRule *out);
+void jet_rule_eta(JetRule *out);
+void jet_rule_h(JetRule *out);
+void jet_rule_over_l(JetRule *out);
 
 // base^(a + b h)
-JetRule jet_rule_power(JetRuleBase base, long long a_numerator, long long a_denominator, long long b_numerator,
-                       long long b_denominator);
+void jet_rule_power(JetRuleBase base, long long a_numerator, long long a_denominator, long long b_numerator,
+                    long long b_denominator, JetRule *out);
 
 // a constant stored by name, its derivatives 0
-JetRule jet_rule_constant(const char *name);
+void jet_rule_constant(const char *name, JetRule *out);
 
 // the stored function `name` of X and eta, a new one where none is stored by that name, and its derivative
 // d^a/dX^a d^b/deta^b
 unsigned int jet_rule_function(const char *name);
-JetRule jet_rule_slope(unsigned int function, unsigned int a, unsigned int b);
+void jet_rule_slope(unsigned int function, unsigned int a, unsigned int b, JetRule *out);
 
 // Kummer's w of z = X / (2 d), its derivative of order n in z
-JetRule jet_rule_w(unsigned int n);
+void jet_rule_w(unsigned int n, JetRule *out);
 
-// d^order f / dX^order = `value` for the stored function, `value` containing only derivatives of lower order in X of it
-void jet_rule_relate(unsigned int function, unsigned int order, const JetRule &value);
+// d^order f / dX^order = `value` for the stored function, where `value` has only derivatives of lower order in X of
+// it. The function keeps a copy of `value` on the persistent tier for the run, which reads the relation to its end
+void jet_rule_relate(unsigned int function, unsigned int order, const JetRule *value);
 
-JetRule jet_rule_sum(const JetRule &left, const JetRule &right);
-JetRule jet_rule_difference(const JetRule &left, const JetRule &right);
-JetRule jet_rule_product(const JetRule &left, const JetRule &right);
-JetRule jet_rule_scaled(const JetRule &rule, SimRational factor);
+void jet_rule_sum(const JetRule *left, const JetRule *right, JetRule *out);
+void jet_rule_difference(const JetRule *left, const JetRule *right, JetRule *out);
+void jet_rule_product(const JetRule *left, const JetRule *right, JetRule *out);
+void jet_rule_scaled(const JetRule *rule, SimRational factor, JetRule *out);
 
 // d/dX and d/deta
-JetRule jet_rule_x(const JetRule &rule);
-JetRule jet_rule_slope_eta(const JetRule &rule);
+void jet_rule_x(const JetRule *rule, JetRule *out);
+void jet_rule_slope_eta(const JetRule *rule, JetRule *out);
 
 // 1 where the expression is 0
-int jet_rule_zero(const JetRule &rule);
+int jet_rule_zero(const JetRule *rule);
 
-// the expression as text
-std::string jet_rule_text(const JetRule &rule);
+// the expression as text after the bytes of `line`, one term to a line
+void jet_rule_text(const JetRule *rule, VerbaLinea *line);
 
 // the products the expression contains
-size_t jet_rule_terms(const JetRule &rule);
+unsigned int jet_rule_terms(const JetRule *rule);
 
-// 1 where a value in this module outgrew the build's width or an exponent passed a word
+// 1 where a value in this module outgrew the build's width or an exponent passed a word. Also 1 where a product passed
+// its factors, a table passed its bound, or the pool did not meet a cell of an expression
 int jet_rule_short(void);
 
 #endif
