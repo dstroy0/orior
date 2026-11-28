@@ -4,14 +4,18 @@
 #ifndef FLOOR_MATCH_INTERNAL_H
 #define FLOOR_MATCH_INTERNAL_H
 
-// Finding x on a's floor 2 for less than half of a. a is one camera-law frame of n samples. The engine's tower lifts
-// it, and floor 2 is the approximation after two levels: the 16^3 corner, m = n / 64 values, read from the engine by
-// lowering that corner as its own tower and checked against the host's own two-level lifting. Floor 2's values are positioned
-// out once as 16 bit planes. A query x then reads no value at all: the positions containing x are the and, over the
-// planes, of each plane where x's bit is 1 and its complement where it is 0, 32 positions a word, and a word stops
-// being read once its mask is empty. Every match set is checked against the host's scan of floor 2, for values on floor
-// 2 and values not on it, and every query's reads are counted against n / 2. The index is built once: the lift reads
-// a's n samples and the planes floor 2's m values, and every query after reads only plane words.
+// A search for x on the floor 2 of a, for less than half of a. The frame a is one camera-law frame of n samples. The
+// tower of the engine lifts it, and floor 2 is the approximation after two levels: the `16^3` corner, `m = n / 64`
+// values. The sim reads it from the engine by a lowering of that corner as its own tower. It checks it against the own
+// two-level lift of the host.
+//
+// The sim arranges the values of floor 2 once as 16 bit planes. A query x then reads no value at all. The positions
+// that hold x are the and, over the planes, of each plane where the x bit is 1, and its complement where it is 0. That
+// is 32 positions for each word, and the read of a word stops after its mask is empty.
+//
+// The sim checks every match set against the scan of floor 2 by the host, for values on floor 2 and values not on it.
+// It counts the reads of every query against `n / 2`. It builds the index once: the lift reads the n samples of a, and
+// the planes read the m values of floor 2. Every query after reads only plane words.
 #include "sim_camera.h"
 
 #include "../../../../../cu/engine/analysis/tower/tower.h"
@@ -57,8 +61,8 @@ static_assert((MATCH_FLOOR_VALUES % MATCH_WORD_BITS) == 0ULL, "floor 2 fills who
 
 static_assert((MATCH_FLOOR_VALUES % MATCH_THREADS) == 0ULL, "the plane kernel's blocks are whole warps");
 
-// what the sim puts on the device at once: the frame, the tower's two retained coefficient arrays, floor 2, the planes,
-// the queries, and each query's match word and reads for every plane word
+// what the sim puts on the device at once: the frame, the two kept coefficient arrays of the tower, floor 2, and the
+// planes. Then the queries, and the match word and reads of each query for every plane word
 #define MATCH_DECLARED                                                                                                 \
     ((MATCH_SAMPLES * sizeof(unsigned short)) + (2ULL * MATCH_SAMPLES * sizeof(int)) +                                 \
      (MATCH_FLOOR_VALUES * sizeof(unsigned short)) + (MATCH_BITS * MATCH_WORDS * sizeof(unsigned int)) +               \
