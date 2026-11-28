@@ -478,7 +478,6 @@ src/cu/engine/nbody/orior/scan.c	3
 src/cu/engine/render/orior_raster_internal.h	4
 src/cu/engine/render/raster.cu	2
 src/cu/engine/render/raster_entry.cu	3
-src/cu/engine/rmc/asm_printer_core_program.h	6
 src/cu/engine/rmc/asm_printer_internal.h	1
 src/cu/engine/rmc/asm_printer_layout.cu	5
 src/cu/engine/rmc/codegen_device.h	1
