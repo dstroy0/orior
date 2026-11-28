@@ -3,20 +3,25 @@
 #ifndef CODEGEN_CORE_H
 #define CODEGEN_CORE_H
 
-// The register lane's decisions, as one source the host and the device both compile (engine_table.md item 11(a),
-// the code generator on the device). For each step it decides which forms of the language's ruleset the step is written
-// in and with which arguments. It decides the lane's declarations, opening, close and resident, and the schedule of
-// its body into states; it writes nothing. An argument is a register of a bank by its number, a register the lane uses
-// throughout, or a number. The forms it decides are the same on any language, and the ruleset writes them
-// (code_generator.cu on the host, the assembly printer on the device, asm_printer.h). What a step decides from outside
-// itself is arranged before any step is decided, and steps are decided apart and in any order: each record word's first
-// and last put, each atom word's first reader, and the loop number each step begins at. A step writes its forms into a
-// sink, or counts them where the sink has room for none. A device decides a lane in two passes, a count and a write, a
-// thread a step. The lane's own forms come after every step, from what the steps left: the scratch a construct takes
-// goes on from where the last step left each bank.
+// The decisions of the register lane, as one source that the host and the device both compile. That is
+// engine_table.md item 11(a), the code generator on the device. For each step, it decides which forms of the ruleset
+// of the language the step goes in, and with which arguments. It decides the declarations, opening, close and resident
+// of the lane, and the schedule of its body into states. It writes nothing.
 //
-// The host and the device write one lane's text from this header, form for form and argument for argument
-// (engine_table.md item 11(a) checks the two against each other).
+// An argument is a register of a bank by its number, a register that the lane uses throughout, or a number. The forms
+// that it decides are the same on any language. The ruleset writes them: code_generator.cu on the host, and the
+// assembly printer on the device (asm_printer.h).
+//
+// The code arranges what a step decides from outside itself before the first step decides. That is the first and last
+// put of each record word, the first reader of each atom word, and the start loop of each step. Then the
+// steps decide apart, and in any order.
+//
+// A step writes its forms into a sink, or counts them where the sink has room for none. A device decides a lane in two
+// passes, a count and a write, with one thread for each step. The own forms of the lane come after every step, from
+// what the steps left. The scratch that a construct takes goes on from where the last step left each bank.
+//
+// The host and the device write the text of one lane from this header, form for form and argument for argument.
+// The check of engine_table.md item 11(a) puts the two against each other.
 
 #include "instruction_selection.h"
 #include "lowering.h"
