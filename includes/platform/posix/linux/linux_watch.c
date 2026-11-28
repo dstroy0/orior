@@ -19,16 +19,16 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 
-// the max watches one inotify gives out before it is opened anew, as its numbers only rise; the bytes of their names;
-// the bytes of the system's answer; and what is watched
+// the max watches that one inotify gives out before the watch opens a new one, because its numbers only rise. Then the
+// bytes of their names, the bytes of the answer of the system, and the events that the watch asks for
 #define CLI_INOTIFY_FOLDERS (1u << 16u)
 #define CLI_INOTIFY_NAMES (1u << 20u)
 #define CLI_INOTIFY_ANSWER (64u * 1024u)
 #define CLI_INOTIFY_MASK                                                                                               \
     (IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_MODIFY | IN_CLOSE_WRITE | IN_ONLYDIR | IN_DONT_FOLLOW)
 
-// One folder watched, under the number the system gave its watch: its closest parent's number, 0 at the tree's top, and
-// where its name starts among the names
+// One folder watched, under the number that the system gave its watch. It holds the number of its closest parent, 0
+// at the top of the tree, and where its name starts among the names
 typedef struct
 {
     unsigned int parent;
@@ -36,8 +36,8 @@ typedef struct
     int used;
 } CliInotifyFolder;
 
-// The watch: the tree's folder, the system's inotify and the stop, the folders under their numbers and their names, who
-// is notified, the thread, and whether it runs and has ended
+// The watch: the folder of the tree, the inotify of the system and the stop, and the folders under their numbers with
+// their names. It also holds whom the watch tells, the thread, and whether it runs or ended
 typedef struct
 {
     char root[CLI_PATH_MAX_LEN];
@@ -94,8 +94,9 @@ EMBED_INLINE void inotify_path(const PosixWatchCtx *args)
     (void)mmgr_line_finish(&line);
 }
 
-// the folder `name` under the folder `parent`, `path` from the tree's top, watched: its number, or 0 where it is gone
-// or the system refuses; `refused` raised where this inotify's numbers or names are spent, or the system's watches are
+// the folder `name` under the folder `parent`, `path` from the top of the tree, watched. The return is its number, or
+// 0 where the folder no longer exists or the system refuses. `refused` goes up where this inotify has no numbers or
+// names left, or where the system has no watches left (ENOSPC)
 EMBED_INLINE unsigned int inotify_watch(const PosixWatchCtx *args)
 {
     char full[CLI_PATH_MAX_LEN];
@@ -123,13 +124,13 @@ EMBED_INLINE unsigned int inotify_watch(const PosixWatchCtx *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = s_watch.names + s_watch.names_used, .src = args->name, .bytes = (embed_word)length});
     s_watch.folder[at] = (CliInotifyFolder){args->parent, s_watch.names_used, 1};
-    // the names' bytes are bounded by CLI_INOTIFY_NAMES, which an unsigned int counts
+    // CLI_INOTIFY_NAMES bounds the bytes of the names, which an unsigned int counts
     s_watch.names_used += (unsigned int)length;
     return at;
 }
 
-// whether the watch goes into the folder at `path` from the tree's top: git's own for its index, HEAD, refs and rules
-// alone; otherwise one a walk goes into that git does not ignore
+// whether the watch goes into the folder at `path` from the top of the tree. In the own folder of git, it goes in only
+// for the index, HEAD, refs and rules. Else it goes into a folder that a walk goes into and that git does not ignore
 EMBED_INLINE int inotify_goes_into(const PosixWatchCtx *args)
 {
     const char *path = args->path;
@@ -149,7 +150,7 @@ EMBED_INLINE int inotify_goes_into(const PosixWatchCtx *args)
     {
         return 1;
     }
-    // a folder the tree does not contain: an empty one, one made since it was listed, or one git ignores
+    // a folder that the tree does not contain: an empty one, one made after the list, or one that git ignores
     char inside[CLI_PATH_MAX_LEN];
     VerbaLinea line = {inside, sizeof(inside), 0ULL};
     mmgr_line_put(&line, path);
@@ -158,8 +159,8 @@ EMBED_INLINE int inotify_goes_into(const PosixWatchCtx *args)
            EMBED_CALL(cli_files_root_path.track, CliFilesRootPathCfg, .root = s_watch.root, .path = inside);
 }
 
-// A walk of folders: those still to look in, each by its number, the folder looked in, and whether each file found is
-// reported, as it is of a folder come in after the tree was listed
+// A walk of folders: those still to look in, each by its number, and the folder looked in. Also whether the walk
+// reports each file found, as it does for a folder that came in after the list of the tree
 typedef struct
 {
     unsigned int *pending;
@@ -199,7 +200,8 @@ static void inotify_walk_each(const CliEachNameIsFolderCfg *args)
     }
 }
 
-// the folder watched under `first` walked, each folder under it watched, each file reported where `reported` is set
+// the folder watched under `first`, walked. The call watches each folder under it, and reports each file where
+// `reported` is 1
 EMBED_INLINE void inotify_walk(const PosixWatchCtx *args)
 {
     CliInotifyWalk walk = {
@@ -342,8 +344,8 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
     }
 }
 
-// the system's answers read and each record reported, until the stop is set; this inotify's numbers or names spent, a
-// new one is opened and the changes between the two are lost
+// the answers of the system, read, and each record reported, until the stop goes up. Where this inotify has no
+// numbers or names left, the watch opens a new one, and it loses the changes between the two
 static void inotify_read(void *context)
 {
     (void)context;
@@ -393,8 +395,8 @@ int cli_watch_system_start(const CliRootContextCtx *args)
         return 0;
     }
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
-    // the folders and their names are the reader thread's tables, so they are fixed outside the pool, where they
-    // punch no hole in the persistent tier
+    // the folders and their names are the tables of the reader thread. Thus they stay fixed outside the pool, where
+    // they punch no hole in the persistent tier
     static CliInotifyFolder s_folders[CLI_INOTIFY_FOLDERS];
     static char s_names[CLI_INOTIFY_NAMES];
     s_watch.folder_max = CLI_INOTIFY_FOLDERS;
