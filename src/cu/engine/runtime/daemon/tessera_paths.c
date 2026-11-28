@@ -63,8 +63,8 @@ int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char
     VerbaLinea line = {path, capacity, 0ULL};
 #if defined(_WIN32)
     mmgr_line_put(&line, s_tessera_pipe);
-    // a runtime named apart (a test's) is a pipe of its own, as it is a folder of its own on Linux; a backslash, which
-    // a pipe's name may not contain past its prefix, is written as '_'
+    // a runtime named apart (that of a test) is a pipe of its own, as it is a folder of its own on Linux. The call
+    // writes a backslash as '_', because the name of a pipe must not hold one past its prefix
     char runtime_text[PLATFORM_ENVIRONMENT_BYTES];
     const char *const runtime = tessera_environment("TESSERA_RUNTIME", runtime_text);
     for (const char *walk = runtime; (walk != NULL) && (*walk != '\0'); walk += 1)

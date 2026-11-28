@@ -475,7 +475,6 @@ src/cu/engine/runtime/daemon/tessera_daemon_main.c	1
 src/cu/engine/runtime/daemon/tessera_ledger.c	2
 src/cu/engine/runtime/daemon/tessera_ledger_core_heap.h	1
 src/cu/engine/runtime/daemon/tessera_measure.h	2
-src/cu/engine/runtime/daemon/tessera_paths.c	2
 src/cu/engine/runtime/daemon/tessera_run_posix.c	14
 src/cu/engine/runtime/daemon/tessera_run_windows.c	16
 src/cu/scaffolding/c_target.h	1
