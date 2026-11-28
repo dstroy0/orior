@@ -9,8 +9,8 @@
 // how many registers a thread of the kernel uses, read with the kernel
 unsigned int s_registers;
 
-// the kernel, the question's code written from it, how many places it contains, the place the probe is at, and the
-// encoding its unreached places contain
+// the kernel, the code of the question written from it, and how many places it holds. Then the place of the probe, and
+// the encoding that its unreached places hold
 unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 
 unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
@@ -21,22 +21,22 @@ unsigned int s_probe_place;
 unsigned long long s_unreached_low;
 unsigned long long s_unreached_high;
 
-// the path the file is written to, the part named in it, the container layout and the vendor's table the vendor's
-// writer is passed, and the vendor's writer itself
+// the path that the program writes the file to, and the part named in it. Then the container layout and the table of
+// the vendor that the writer of the vendor gets, and the writer of the vendor itself
 const char *s_path;
 
 const char *s_part;
 const char *s_layout;
 const char *s_mnemonics;
 
-// the instruction word's layout, the fields the part's .ksc is given (sass_nvidia.tsv), and the .ksc beside the
-// machine file, where the part's answers to the walks are stored
+// the layout of the instruction word, and the fields that the .ksc of the part gets (sass_nvidia.tsv). Then the .ksc
+// beside the machine file, which stores the answers of the part to the walks
 const char *s_fields;
 
 char s_ksc_path[1024];
 const char *s_machine_writer;
 
-// one question, how many the run put, and the launches the question is timed over, 0 where it is untimed
+// one question, how many the run put, and the launches that the program times the question over, 0 for none
 RunQuestion s_question;
 
 unsigned long long s_query_count;
@@ -106,10 +106,12 @@ int khw_store_is_guarded(void)
     return s_store_guarded;
 }
 
-// the kernel into `code`, as the part accepted it, the store after the probe guarded by P0 where the question is a
-// predicate one: it then stores the probe's second word where the probe's predicate is true and leaves the record's
-// fill word where it does not, and P0 is false at the probe for every lane that reached it. The carrier makes every
-// instruction wait on all six barriers before the part sees it; nothing of the scheduler's own word is set here (P9)
+// the kernel into `code`, as the part accepted it. Where the question is a predicate one, P0 guards the store after the
+// probe. The store then writes the second word of the probe where the predicate of the probe is true. Where it is not,
+// the store leaves the fill word of the record. P0 is false at the probe for every lane that reached it.
+//
+// The carrier makes every instruction wait on all six barriers before the part sees it. The call sets nothing of the
+// own word of the scheduler here (P9)
 void khw_kernel_put(unsigned char *code)
 {
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = code, .src = s_kernel_text,
@@ -138,10 +140,10 @@ void khw_kernel_put(unsigned char *code)
     khw_word_write(store, 8u, high);
 }
 
-// The question's code, into `code`: the kernel with `low` and `high` at `place`. The probe place the question names is
-// sent to the carrier, which there makes the probe wait on all six barriers, stall the longest and use no barrier; a
-// form the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it
-// located (P9, cubin_safe.h)
+// The code of the question, into `code`: the kernel with `low` and `high` at `place`. The carrier gets the probe place
+// that the question names. There, it makes the probe wait on all six barriers, stall the longest and use no barrier. A
+// form that the part did not name then waits on all. The wait after a barrier that nothing releases never ends (P9,
+// cubin_safe.h)
 void khw_code_put(unsigned char *code, unsigned int place, unsigned long long low, unsigned long long high)
 {
     khw_kernel_put(code);
@@ -149,11 +151,10 @@ void khw_code_put(unsigned char *code, unsigned int place, unsigned long long lo
     khw_word_write(&code[place * KHW_INSTRUCTION], 8u, high);
 }
 
-// The question in s_code put over `count` cases, each case's two words from `word`, the carrier making the probe at
-
-// `kernel_place` conservative (RUN_PLACE_NONE where the code contains no probe place), and each answer into `answered`.
-// 1 where the part answered every case, 0 where it refused the question, the gate blocked it from the part or nothing
-// carried it
+// The question in s_code, put over `count` cases, with the two words of each case from `word`. The carrier makes the
+// probe at `kernel_place` conservative, RUN_PLACE_NONE where the code holds no probe place. Each answer goes into
+// `answered`. The return is 1 where the part answered every case. It is 0 where the part refused the question, the
+// gate blocked it from the part, or nothing carried it
 int khw_question_put(const unsigned int word[][2], unsigned int count, unsigned int kernel_place,
                      unsigned long long *answered)
 {
@@ -185,9 +186,9 @@ int khw_question_put(const unsigned int word[][2], unsigned int count, unsigned 
     return 1;
 }
 
-// A question added to the round being written: the kernel with `low` and `high` at `place`, or the kernel as it is
-// where `place` is past its places, over `count` cases from `word`, settling one entry. Its place in the round, or
-// SCHEDULER_ROUND_MAX where the round is full
+// A question added to the round that the call now writes: the kernel with `low` and `high` at `place`. Where `place`
+// is past its places, it is the kernel as it is. It goes over `count` cases from `word`, and settles one entry. The
+// return is its place in the round, or SCHEDULER_ROUND_MAX where the round is full
 unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned long long high,
                         const unsigned int word[][2], unsigned int count)
 {
@@ -210,8 +211,8 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
     question->code_size = (unsigned long long)s_kernel_places * KHW_INSTRUCTION;
     question->registers = s_registers;
     question->cases = count;
-    // the kernel put whole names the probe point the kernel listing gives, as every question does. Only a kernel whose
-    // listing names none, before its probe point is found, names none
+    // the whole kernel names the probe point that the kernel listing gives, as every question does. Only a kernel
+    // whose listing names none, before the program finds its probe point, names none
     question->place = (place < s_kernel_places)                  ? place
                       : (s_kernel_probe_place < s_kernel_places) ? s_kernel_probe_place
                                                                  : RUN_PLACE_NONE;
@@ -226,8 +227,9 @@ unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned lon
     return at;
 }
 
-// a round's line printed: how many questions it put, and the seconds its airlock and its carrier took, read off the
-// channel's clocks against the readings `airlock_before` and `carried_before` taken before it
+// the line of a round, printed. It has how many questions the round put, and the seconds that its airlock and its
+// carrier took. The call reads them from the clocks of the channel against `airlock_before` and `carried_before`,
+// which the program read before the round
 void khw_round_printed(unsigned int count, const unsigned long long before[4])
 {
     unsigned long long now[4] = {0ULL, 0ULL, 0ULL, 0ULL};
@@ -252,8 +254,9 @@ void khw_round_printed(unsigned int count, const unsigned long long before[4])
     platform_line_flushed();
 }
 
-// The plan of a pass passed to the run as the pass starts, the blob `plan.txt`, one line `<pass> <questions>`: the
-// count of questions the pass is to put, an upper bound a reader of the run's tap takes the pass's progress against
+// The plan of a pass, passed to the run as the pass starts, the blob `plan.txt`. It is one line, `<pass> <questions>`:
+// the count of questions that the pass will put. That is an upper bound, and a reader of the tap of the run measures
+// the progress of the pass against it
 void khw_plan_passed(const char *pass, unsigned long long questions)
 {
     char line[128];
@@ -285,7 +288,8 @@ void khw_plan_passed(const char *pass, unsigned long long questions)
 // in its place once they are
 void khw_round_carried(void)
 {
-    // a stopped run carries no round: reported once, and every round after is stopped by the channel with that reason
+    // a stopped run carries no round. The call reports it once, and the channel stops every round after it with that
+    // reason
     static int s_stop_traced = 0;
     if (run_channel_panic_ruled() && !s_stop_traced)
     {
@@ -329,8 +333,8 @@ unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int wor
     return found;
 }
 
-// the host's answer of `candidate` to the case of words `word`: a predicate relation's as the guarded store reads it,
-// the second word where the relation is true and the record's fill word where it does not
+// the answer of the host for `candidate` to the case of words `word`. For a predicate relation, it is as the guarded
+// store reads it. It is the second word where the relation is true, and the fill word of the record where it is not
 unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned int *word)
 {
     const unsigned int read[2] = {(candidate->swapped != 0) ? word[1] : word[0],
@@ -351,9 +355,9 @@ unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned 
     return answered;
 }
 
-// The cases a relation is read over, written once: every two-word case of every relation of the ladder that is no
-// measure, in both orders, each once; and the candidates, each such relation, its words read in order or swapped, and
-// read signed beside plain where a case of it reads two ways
+// The cases that the program reads a relation over, written once. They are every two-word case of every relation of
+// the ladder that is no measure, in both orders, each once. Then come the candidates: each such relation, with its
+// words read in order or swapped. Where a case of it reads two ways, the program reads it signed beside plain
 unsigned int s_union_word[GATE_CASES][2];
 
 unsigned int s_union_cases;
