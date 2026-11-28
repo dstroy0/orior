@@ -2,29 +2,34 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "sass_target.h"
 
-// the lane as SASS: sass.krs, how SASS is written, then sm_86.krs and sm_86.kdm, the part's operations and its
-// registers, which a cubin writer assembles, its header the listing's own opening
+// the lane as SASS: sass.krs, how to write SASS, then sm_86.krs and sm_86.kdm, the operations of the part and its
+// registers. A cubin writer assembles them, and the header is the own opening of the listing
 SassTarget::SassTarget(void) : CodeGenerator("sass.krs")
 {
 }
 
-// R0 through R235. A kernel's code names R0 through R252 (sm_86.ksc, the part's answer), of which sm_86.kdm pins the
-// top for the lane's own: R240 up are its fixed registers, R238 and R239 are the launch the lane was called with, which
-// launch_open moves there and launch_load_wide reads every parameter through, R237 is the file's scratch and R236
-// contains sign_base. A lane whose banks reach R236 is refused, in place of writing over what those contain. This is
-// the file's count and not what a lane can take and stay fast: an SM has 65536 registers and runs 1536 threads. 42 a
-// thread is full occupancy and every one past that costs residency
+// R0 through R235. The code of a kernel names R0 through R252 (sm_86.ksc, the answer of the part). The file sm_86.kdm
+// pins the top of those for the own use of the lane:
+//
+// - R240 up are its fixed registers.
+// - R238 and R239 are the launch of the call to the lane. launch_open moves it there, and launch_load_wide reads every
+//   parameter through it.
+// - R237 is the scratch of the file, and R236 holds sign_base.
+//
+// The program refuses a lane whose banks reach R236, and does not write over what those hold. This is the count of
+// the file, and not what a lane can take and stay fast. An SM has 65536 registers and runs 1536 threads. 42 for each
+// thread is full occupancy, and every one past that costs residency
 unsigned int SassTarget::register_file_size(void) const
 {
     return 236u;
 }
 
-// The resident reaches SASS already built. ptx.krs stores it as PTX that runs, the part's own compiler turns that
-// into SASS that runs, and a program is put together by writing the lane into that cubin's cycle_lane, leaving
-// cycle_program as the compiler wrote it (verified on the part: every instruction of the resident but the empty lane's
-// own comes through a lane going in).
-// sass.krs gives program_unit as an error for that reason, and the form is left out here in place of being called
-// for
+// The resident reaches SASS already built. The file ptx.krs stores it as PTX that runs, and the own compiler of the
+// part turns that into SASS that runs. The program builds a program with a write of the lane into the cycle_lane of
+// that cubin. It leaves cycle_program as the compiler wrote it. A check on the part showed that every instruction of
+// the resident comes through, except the own instructions of the empty lane.
+//
+// For that reason, sass.krs gives program_unit as an error. This file leaves the form out, and does not call for it
 int SassTarget::program_unit_written(void) const
 {
     return 0;
