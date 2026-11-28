@@ -16,14 +16,14 @@ extern "C"
 // reads a slice as it would read an allocation of its own
 #define DEVICE_POOL_SLICE_ALIGN 256ULL
 
-// the device's allocation page: the driver maps allocations in whole pages, small ones sharing a page. A pool is one
-// allocation, rounded to the page once
+// the allocation page of the device. The driver maps allocations in whole pages, and small ones share a page. A pool
+// is one allocation, rounded to the page once
 #define DEVICE_POOL_PAGE_BYTES (2ULL << 20u)
 
-    // A job's device buffers as one allocation. A plan arranges each buffer as a slice whose offset is the running
-    // total rounded up to DEVICE_POOL_SLICE_ALIGN. The pool's size is known before any device work: the slices' sum,
-    // rounded up to the page once, the size the job declares. A plan whose sum would pass 2^62 bytes is spoiled,
-    // and no pool is reserved from it.
+    // The device buffers of a job as one allocation. A plan arranges each buffer as a slice whose offset is the total
+    // so far, rounded up to DEVICE_POOL_SLICE_ALIGN. The plan gives the size of the pool before any device work. It is
+    // the sum of the slices, rounded up to the page once, the size that the job declares. A plan whose sum would pass
+    // `2^62` bytes gets `spoiled`, and the call reserves no pool from it.
     typedef struct
     {
         unsigned long long bytes;
@@ -31,8 +31,8 @@ extern "C"
         int spoiled;
     } DevicePoolPlan;
 
-    // The allocated pool: `bytes` from `base`, of which `used` are taken. Slices are taken in the plan's order, each at
-    // the offset the plan gave it, and a take past the pool errors.
+    // The allocated pool: `bytes` from `base`, of which `used` are in use. The calls take slices in the order of the
+    // plan, each at the offset that the plan gave it. A take past the pool gives an error.
     typedef struct
     {
         unsigned char *base;
@@ -53,9 +53,9 @@ extern "C"
         EngineError *error;
     } DevicePoolReserveRequest;
 
-    // allocates the plan's pool as one allocation of device_pool_plan_bytes, with nothing taken yet; a plan of no bytes
-    // allocates an empty pool and allocates nothing. The pool is written and never read. A pool already allocated is
-    // released first.
+    // allocates the pool of the plan as one allocation of device_pool_plan_bytes, with nothing taken yet. A plan of no
+    // bytes makes an empty pool, and allocates nothing. The call writes the pool, and never reads it. It releases a
+    // pool that is already allocated first.
     long device_pool_reserve(const DevicePoolReserveRequest *request);
 
     typedef struct
@@ -66,8 +66,8 @@ extern "C"
         EngineError *error;
     } DevicePoolTakeRequest;
 
-    // takes the next slice of `bytes` at the next 256-byte offset; a slice past the pool errors and nothing is
-    // taken
+    // takes the next slice of `bytes` at the next 256-byte offset. A slice past the pool gives an error, and the call
+    // takes nothing
     long device_pool_take(const DevicePoolTakeRequest *request);
 
     // every slice given back at once, the pool still allocated

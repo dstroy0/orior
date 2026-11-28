@@ -515,7 +515,6 @@ src/cu/engine/runtime/daemon/tessera_run_main.c	3
 src/cu/engine/runtime/daemon/tessera_run_posix.c	14
 src/cu/engine/runtime/daemon/tessera_run_windows.c	16
 src/cu/engine/runtime/device_pool/device_pool.cu	2
-src/cu/engine/runtime/device_pool/device_pool.h	9
 src/cu/scaffolding/c_target.h	1
 src/cu/scaffolding/record_vhdl_bench.vhd	2
 src/cu/scaffolding/record_vhdl_test.cpp	5
