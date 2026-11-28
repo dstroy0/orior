@@ -10,29 +10,30 @@
  * @brief The steering scan under AVX2, thirty-two alignments per compare.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * WHY THIS SHAPE VECTORIZES AT ALL. Every hot loop in the steering engine tests the same question:
- * fixed at one needle offset, does `corpus[at + offset]` equal `needle[offset]`, for consecutive
- * `at`. The needle byte is fixed across the whole sweep. It broadcasts once. The corpus side is a
- * sliding window read at unit stride. That is one wide load against one broadcast register, and it
+ * WHY THIS SHAPE VECTORIZES AT ALL. Every hot loop in the steering engine tests the same question.
+ * At one fixed needle offset, does `corpus[at + offset]` equal `needle[offset]`, for consecutive
+ * `at`? The needle byte stays the same across the whole sweep, and it broadcasts once. The corpus
+ * side is a window that moves at unit stride, thus one wide load against one broadcast register. It
  * answers thirty-two alignments in the instruction where the portable arm answers one.
  *
- * The survivor mask enters the same way. An alignment already refuted contributes nothing. The
- * count is a population count over the AND of two masks: where the corpus agrees, and where the
- * alignment was still located.
+ * The survivor mask enters in the same way. An alignment already refuted adds nothing. The count is
+ * a population count over the AND of two masks: where the corpus agrees, and where the alignment
+ * was still truthy.
  *
- * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. There
- * is no tolerance, no reordering that changes an answer, and no fast path that is right the majority of the
- * time: the value is an integer count of alignments and the two arms agree exactly or one is wrong.
- * That is the contract includes/exact_types/integers/arm.h states for the exact arms and it is retained here for the
- * same reason.
+ * WHAT THIS ARM MUST NOT DO. It returns the count of the portable arm, or it has a defect. There is
+ * no tolerance, no reordering that changes an answer, and no fast path that is right most of the
+ * time. The value is an integer count of alignments, and the two arms agree exactly or one is
+ * wrong. That is the contract that includes/exact_types/integers/arm.h states for the exact arms.
+ * This arm keeps it for the same reason.
  *
- * @note Queries the processor at run time and not the build. A binary compiled with AVX2 available
- *       still runs on machines without it, and calling in would raise an illegal instruction.
- * @note Two detection paths, both arms of the gate defined. MSVC has no __builtin_cpu_supports and
- *       takes __cpuidex; GCC and Clang have the builtin.
- * @note The tail below thirty-two is finished scalar and not masked. A masked tail costs more to
- *       get right than it saves at this width, and the scalar remainder is the same code the
- *       portable arm runs.
+ * @note Queries the processor at run time, and not the build. A binary compiled with AVX2
+ *       available still runs on machines without it, and a call in would raise an illegal
+ *       instruction.
+ * @note Two detection paths, with both arms of the gate defined. MSVC has no
+ *       __builtin_cpu_supports and takes __cpuidex. GCC and Clang have the builtin.
+ * @note The tail below thirty-two finishes scalar, and not masked. A masked tail costs more to make
+ *       right than it saves at this width. The scalar remainder is the same code that the portable
+ *       arm runs.
  */
 
 #include "orior.h"
@@ -99,8 +100,9 @@ static int steer_avx2_present(void)
 size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                       size_t offset)
 {
-    /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
+    /* Counted before the argument check. A caller that passes nothing still records that this arm
+     * was the one requested. The claim that the counters carry is which arm RAN, and not what it
+     * returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -116,16 +118,16 @@ size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, c
 
     for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
     {
-        /* Unaligned loads. The corpus window starts at an arbitrary offset and forcing
-         * alignment would mean copying, which costs more than the load does. */
+        /* Unaligned loads. The corpus window starts at an arbitrary offset, and a forced alignment
+         * would need a copy, which costs more than the load does. */
         const __m256i window = _mm256_loadu_si256((const __m256i *)(corpus + at + offset));
         const __m256i located_bytes = _mm256_loadu_si256((const __m256i *)(alive + at));
 
         const __m256i agrees = _mm256_cmpeq_epi8(window, broadcast);
 
-        /* An alive flag is zero or non-zero. The mask of alignments still located is the
-         * complement of "equals zero". Testing against zero and complementing instead of testing
-         * against one retains this correct if a caller ever stores a flag other than one. */
+        /* An alive flag is zero or not zero. The mask of alignments that are still truthy is the
+         * complement of "equals zero". A test against zero and a complement, and not against one,
+         * keeps this correct if a caller ever stores a flag other than one. */
         const __m256i refuted = _mm256_cmpeq_epi8(located_bytes, zero);
         const __m256i alive_mask = _mm256_andnot_si256(refuted, _mm256_set1_epi8((char)0xFF));
 
