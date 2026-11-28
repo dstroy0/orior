@@ -7,31 +7,33 @@
  */
 /**
  * @file scan_sve.c
- * @brief The steering scan under SVE, at whatever vector length the part turns out to have.
+ * @brief The steering scan under SVE, at whatever vector length the part has.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION AVX2 ANSWERS, WITHOUT A FIXED WIDTH. Fixed at one needle offset, does
- * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
- * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
- * alignments still located. SVE answers a vector's worth of those per compare, and the vector is
- * as wide as the part.
+ * THE SAME QUESTION THAT AVX2 ANSWERS, WITH NO FIXED WIDTH. At one fixed needle offset, does
+ * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`? The needle byte broadcasts
+ * once, and the corpus side is a window that moves at unit stride. The survivor mask enters as the
+ * alignments that are still truthy. SVE answers one vector of those for each compare, and the
+ * vector is as wide as the part.
  *
- * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
- * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract OriorSteerEngine carries, the same one the exact arms carry in includes/exact_types/integers/arm.h.
+ * WHAT THIS ARM MUST NOT DO. It returns the count of the portable arm, or it has a defect. The
+ * value is an integer count of alignments, and the two arms agree exactly or one is wrong. That
+ * is the contract that OriorSteerEngine carries, the same one that the exact arms carry in
+ * includes/exact_types/integers/arm.h.
  *
  * @note No part in this project has SVE. The Raspberry Pi 5 is a Cortex-A76, NEON only. This arm
- *       has never been run. It is compiled for armv8.2-a+sve and its emitted instructions are read by
- *       utils/maint/engine/verify_arm_asm.sh, which confirms the predicated forms. That rules out a scalar
- *       fallback. It states nothing about behavior, and the name reads sve-unrun for that reason.
- * @note SVE has no fixed vector length. svcntb() answers how many byte lanes this part carries and
- *       the loop is written around a predicate. No lane count appears here and the tail needs no
- *       separate scalar loop: svwhilelt_b8 covers only the lanes that exist and the count comes from
- *       svcntp_b8 over the surviving predicate.
- * @note Detection reads the hardware capability word Linux exposes, never executing an SVE
- *       instruction to see whether it faults. There is no cpuid on ARM: a part's features come from
- *       the kernel, and on anything other than Linux this arm reports itself absent instead of
- *       guessing.
+ *       never ran. The build compiles it for armv8.2-a+sve, and
+ *       utils/maint/engine/verify_arm_asm.sh reads its emitted instructions. That script confirms
+ *       the predicated forms, which rules out a scalar fallback. It states nothing about behavior,
+ *       thus the name reads sve-unrun.
+ * @note SVE has no fixed vector length. svcntb() answers how many byte lanes this part carries, and
+ *       the loop goes around a predicate. No lane count appears here, and the tail needs no
+ *       separate scalar loop. The call svwhilelt_b8 covers only the lanes that exist, and the count
+ *       comes from svcntp_b8 over the survivor predicate.
+ * @note The test reads the hardware capability word that Linux exposes, and never runs an SVE
+ *       instruction to see whether it faults. There is no cpuid on ARM: the features of a part come
+ *       from the kernel. On any system but Linux, this arm reports itself absent, and does not
+ *       guess.
  */
 
 #include "orior.h"
@@ -53,7 +55,7 @@
 /**
  * @brief Whether this part carries SVE.
  *
- * @return 1 where the kernel reports SVE, 0 where it does not or cannot be queried.
+ * @return 1 where the kernel reports SVE, 0 where it does not, or the call cannot query it.
  */
 static int steer_sve_present(void)
 {
@@ -67,8 +69,9 @@ static int steer_sve_present(void)
 size_t orior_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                      size_t offset)
 {
-    /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
+    /* Counted before the argument check. A caller that passes nothing still records that this arm
+     * was the one requested. The claim that the counters carry is which arm RAN, and not what it
+     * returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -90,9 +93,9 @@ size_t orior_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, co
 
         const svbool_t agrees = svcmpeq_n_u8(live, window, wanted);
 
-        /* An alive flag is zero or non-zero. The located lanes are the ones not equal to zero.
-         * Testing this way and not against one retains it correct if a caller ever stores a flag
-         * other than one. */
+        /* An alive flag is zero or not zero. The alive lanes are the ones not equal to zero. A test
+         * in this way, and not against one, keeps it correct if a caller ever stores a flag other
+         * than one. */
         const svbool_t alive_mask = svcmpne_n_u8(live, located_bytes, 0u);
 
         located += (uint64_t)svcntp_b8(live, svand_b_z(live, agrees, alive_mask));
