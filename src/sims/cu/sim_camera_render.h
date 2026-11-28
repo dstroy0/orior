@@ -60,7 +60,7 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
                                                       unsigned long long voxel, unsigned long long pixel,
                                                       unsigned long long electrons)
 {
-    // the light's electrons and the dark's are drawn together, before the gain
+    // the call draws the electrons of the light and those of the dark together, before the gain
     const unsigned long long charge = electrons + camera->dark;
     // an electron count is far below 2^62, the signal's bound in every scene here
     long long collected = (long long)charge;
@@ -128,9 +128,10 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
            (long long)sim_offset_pattern(camera, pixel) + gained + read;
 }
 
-// The terms a camera shares across voxels or carries across frames: an offset drawn per frame for each row, column
-// and plane, flicker octaves each sustained for 2^o frames, and spikes at a rational rate. Each is 0 unless its field
-// is set. With none of them set, a camera draws what it drew before they existed.
+// The terms that a camera shares across voxels or carries across frames. They are an offset drawn per frame for each
+// row, column and plane, and flicker octaves that each last for `2^o` frames. Then spikes at a rational rate. Each term
+// adds nothing unless its field is not zero. Where all the fields are 0, a camera draws what it drew before they
+// existed.
 static inline __host__ __device__ long long sim_shared(const SimCamera *camera, const SimScene *scene,
                                                        unsigned long long frame, const long long *place,
                                                        unsigned long long voxel, unsigned long long counter)
@@ -154,7 +155,7 @@ static inline __host__ __device__ long long sim_shared(const SimCamera *camera, 
     }
     for (unsigned int octave = 0u; (camera->flicker_square != 0ULL) && (octave < camera->flicker_octaves); octave += 1u)
     {
-        // octave o's draw is sustained for 2^o frames: its counter changes only when frame >> o does
+        // the draw of octave o lasts for `2^o` frames. Its counter changes only when `frame >> o` does
         const unsigned long long index =
             ((((voxel * camera->flicker_octaves) + octave) * scene->frames) + (frame >> octave));
         shared += sim_centerd(camera->key ^ SIM_FLICKER_PURPOSE, index, camera->flicker_square);
@@ -199,7 +200,7 @@ static __global__ void sim_render_kernel(SimScene scene, SimCamera camera, unsig
         atomicAdd(clipped, 1ULL);
     }
     const long long clamped = (value < 0LL) ? 0LL : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
-    // the value is clamped to the u16 lane's range just above
+    // the call clamps the value to the range of the u16 lane just above
     lanes[index] = (unsigned short)clamped;
     if (truth == NULL)
     {

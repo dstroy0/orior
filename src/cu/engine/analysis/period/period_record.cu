@@ -96,8 +96,8 @@ static int period_program_load(const ExactRecordProgram *built, unsigned int mem
            (cycle_record_load(&program->layout, &program->record, error) != CYCLE_ERROR);
 }
 
-// [the voxel equals the voxel a lag on, and the pair is where the axis's usable length contains it]: the lane's
-// place along the axis is its quotient by the stride, modulo the extent
+// [the voxel equals the voxel one lag on, and the pair is where the usable length of the axis holds it]. The place of
+// the lane along the axis is its quotient by the stride, modulo the extent
 static int period_make_agree(PeriodRecordResident *resident, EngineError *error)
 {
     ExactRecordProgram built;
@@ -127,8 +127,8 @@ static int period_make_agree(PeriodRecordResident *resident, EngineError *error)
     return ok;
 }
 
-// period_round: the 32-bit word (half xor key) times the first multiplier, xor itself shifted down 15, times the
-// second, xor itself shifted down 13, each product limited to its low 32 bits
+// period_round: the 32-bit word `(half xor key)` times the first multiplier, xor itself shifted down 15. Then that
+// times the second, xor itself shifted down 13, with each product limited to its low 32 bits
 static unsigned int period_record_round(ExactRecordProgram *built, unsigned int half, unsigned int key)
 {
     const unsigned int first = exact_record_constant(built, PERIOD_RECORD_MIX_FIRST);
@@ -142,8 +142,8 @@ static unsigned int period_record_round(ExactRecordProgram *built, unsigned int 
                              exact_record_quotient(built, mixed, exact_record_power_two(built, 13u)), 0u);
 }
 
-// lane l of a line-major sweep is at step j = l mod n of line q = l / n; its voxel is
-// ((q / stride) n + j) stride + q mod stride, and its key is period_line_random of (q, j) under the four keys
+// lane l of a line-major sweep is at step `j = l mod n` of line `q = l / n`. Its voxel is
+// `((q / stride) n + j) stride + q mod stride`, and its key is period_line_random of `(q, j)` under the four keys
 static int period_make_key(PeriodRecordResident *resident, EngineError *error)
 {
     ExactRecordProgram built;
@@ -189,7 +189,7 @@ static int period_make_key(PeriodRecordResident *resident, EngineError *error)
 }
 
 // one field of member 0, `bits` wide at `offset`, written out: the place through the order, or the voxel through the
-// places. A field read as a magnitude below 2^31 is written in 32 bits, one limb a record
+// places. The call writes a field that reads as a magnitude below `2^31` in 32 bits, one limb for each record
 static int period_make_read(unsigned int bits, unsigned int in_limbs_0, PeriodProgram *program, EngineError *error)
 {
     ExactRecordProgram built;
@@ -316,9 +316,9 @@ extern "C" void period_record_release(void)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
 }
 
-// the agreement of one axis at every lag, of `data` positioned with `stride` along the axis: lag L sweeps the lanes
-// that have a voxel L strides on, the program writes 1 where the pair agrees and the place along the axis is usable,
-// and the sum of those is the count
+// the agreement of one axis at every lag, of `data` arranged with `stride` along the axis. Lag L sweeps the lanes that
+// have a voxel L strides on. The program writes 1 where the pair agrees and the place along the axis is usable. The
+// sum of those is the count
 static int period_record_agreement(const unsigned int *data, unsigned long long voxels, unsigned int stride,
                                    unsigned int extent, unsigned long long *same, EngineError *error)
 {
@@ -341,7 +341,8 @@ static int period_record_agreement(const unsigned int *data, unsigned long long 
         sweep.bodies[1] = lanes;
         sweep.bodies[2] = 1ULL;
         sweep.count = lanes;
-        // the agreement's records take the keyed records' room, which no step reads while the agreement is counted
+        // the records of the agreement take the room of the keyed records, which no step reads while the program
+        // counts the agreement
         sweep.device_out = resident->keyed;
         sweep.error = error;
         unsigned int sum[2] = {0u, 0u};
@@ -353,9 +354,10 @@ static int period_record_agreement(const unsigned int *data, unsigned long long 
     return ok;
 }
 
-// one axis's null on the record machine: each voxel keyed in line-major order, each line sorted by its keys, the
-// order's places gathered, and the voxels gathered through them, so that the shuffled lattice runs line by line with
-// stride 1. Its agreement along the axis and the strongest peak it reaches give the draw's height
+// the null of one axis on the record machine. The program keys each voxel in line-major order, and sorts each line by
+// its keys. It gathers the places of the order, and gathers the voxels through them. Thus the shuffled lattice runs
+// line by line with stride 1. Its agreement along the axis, and the strongest peak that it reaches, give the height of
+// the draw
 static int period_record_null(const PeriodRequest *request, const PeriodLattice *lattice, unsigned long long counter,
                               unsigned int axis, unsigned long long *same, PeriodMargin *height, EngineError *error)
 {
@@ -485,7 +487,7 @@ extern "C" long period_record_read(const PeriodRequest *request)
     if (ok != 0)
     {
         const unsigned long long needed = (voxels + PERIOD_THREADS - 1ULL) / PERIOD_THREADS;
-        // the block count is bounded below the record machine's block limit, far below 2^31
+        // the block count has a bound below the block limit of the record machine, far below `2^31`
         const unsigned int blocks = (unsigned int)((needed < 4096ULL) ? needed : 4096ULL);
         period_histogram_kernel<<<blocks, PERIOD_THREADS>>>(request->device_lanes, voxels, resident->histogram);
         ok = PERIOD_STATUS_CHECK(cudaGetLastError(), resident->histogram, error) &&

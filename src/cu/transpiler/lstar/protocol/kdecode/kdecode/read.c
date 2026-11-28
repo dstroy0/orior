@@ -19,8 +19,8 @@ KrepFile s_file;
 static char s_displayed_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 VerbaLinea s_displayed = {s_displayed_bytes, sizeof(s_displayed_bytes), 0ULL};
 
-// what s_displayed contains passed on and emptied: to the run as KDECODE_DISPLAYED where this process is a member of
-// one, and where it is a member of none, written to the standard error where `failure` is 1 and to the standard output
+// what s_displayed holds, passed on and emptied. It goes to the run as KDECODE_DISPLAYED where this process is a member
+// of one. Where it is a member of none, it goes to the standard error where `failure` is 1, and to the standard output
 // where 0
 static void kdecode_displayed_given(int failure)
 {
@@ -60,9 +60,9 @@ void kdecode_failure_passed(void)
     kdecode_displayed_given(1);
 }
 
-// the records of `file` from `from`, `count` of them or every one past it where `count` is 0, a line each: raw, its
-// code and its numbers in hex, where `raw`; and where not, each who named and every other record with its code, its
-// numbers and the texts it names by number after it
+// the records of `file` from `from`, `count` of them, or every one past it where `count` is 0, one line each. Where
+// `raw`, each line is its code and its numbers in hex. Where not, the call names each who. It gives every other record
+// with its code, its numbers, and after it the texts that it names by number
 void kdecode_records(const KrepFile *file, int raw, unsigned int from, unsigned int count)
 {
     const unsigned int past =
@@ -307,8 +307,8 @@ static int kdecode_name_is(const char *name, unsigned int name_length, const cha
            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = name, .other = text, .bytes = name_length) == 0);
 }
 
-// an oracle the run contains stored, `size` bytes at `bytes` under its name, in place of an earlier blob of the name:
-// the blobs come in the order of their sequences, and the latest is retained
+// an oracle that the run holds, stored as `size` bytes at `bytes` under its name, in place of an earlier blob of the
+// name. The blobs come in the order of their sequences, and the call keeps the latest
 static void kdecode_content_stored(KdecodeRun *run, const char *name, unsigned int name_length,
                                    const unsigned char *bytes, unsigned long long size)
 {
@@ -328,9 +328,12 @@ static void kdecode_content_stored(KdecodeRun *run, const char *name, unsigned i
     run->content_count += (place == run->content_count) ? 1u : 0u;
 }
 
-// one blob of the run, passed by kdecode_table in the order of the sequences: its sequence and name recorded; an oracle
-// and a text of the run's table of texts recorded; and where it is of the table requested, a k-file's head and text
-// recorded and a row of the range recorded, each where it is in the mapped run
+// one blob of the run, passed by kdecode_table in the order of the sequences. The call records, each where it is in
+// the mapped run:
+//
+// - its sequence and name
+// - an oracle, and a text of the table of texts of the run
+// - where it is of the table requested, the head and text of a k-file, and a row of the range
 void kdecode_blob(void *context, const char *name, unsigned int name_length, unsigned long long sequence,
                   const unsigned char *bytes, unsigned long long size)
 {
@@ -396,9 +399,9 @@ void kdecode_blob(void *context, const char *name, unsigned int name_length, uns
     run->rows += 1u;
 }
 
-// the oracle at `path` from the top of the tree read into `oracle` as kdecode_oracle_parsed reads it: the one the run
-// read stores, the latest blob of its name, or where it stores none, the tree's, read from the top of the tree where
-// orior_kdecode is. 1, or 0 where neither could be read
+// the oracle at `path` from the top of the tree, read into `oracle` as kdecode_oracle_parsed reads it. It is the
+// oracle that the run read stores, the latest blob of its name. Where the run stores none, it is that of the tree, read
+// from the top of the tree where orior_kdecode is. The return is 1, or 0 where the call could read neither
 int kdecode_oracle_read(const KdecodeRun *run, const char *path, KdecodeOracle *oracle, int codes_only)
 {
     for (size_t at = 0u; at < run->content_count; at += 1u)

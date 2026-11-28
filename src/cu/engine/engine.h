@@ -69,18 +69,22 @@ extern "C"
 
     long engine_residual(const EngineResidualRequest *request, const unsigned int **device_residual);
 
-    // the fewest limbs that represent the request's residual and its sign; a request past ENGINE_RESIDUAL_LIMBS is
-    // refused
+    // the fewest limbs that hold the residual of the request and its sign. The call refuses a request past
+    // ENGINE_RESIDUAL_LIMBS
     unsigned long long engine_residual_limbs(const EngineResidualRequest *request);
 
-    // the device bytes engine_residual allocates for the request: its lanes, its residual in the request's limbs, the
-    // check where it is proved, and the unit sweep's planes where the sweep runs
+    // the device bytes that engine_residual allocates for the request: its lanes, and its residual in the limbs of the
+    // request. Then the check where the engine proves it, and the planes of the unit sweep where the sweep runs
     unsigned long long engine_residual_bytes(const EngineResidualRequest *request);
 
-    // frees what the engine allocates on the device between calls: the residual's lanes, residual and key, the planes'
-    // residual, the unit sweep's planes, the max tree's buffers, the tower's and compression's pools, and the cycle's
-    // run and sum scratch. A job calls it before it releases, with body_overlap_release where it ran an overlap, and
-    // allocates no device bytes of its own after
+    // frees what the engine allocates on the device between calls:
+    //
+    // - the lanes, residual and key of the residual, and the residual of the planes
+    // - the planes of the unit sweep, and the buffers of the max tree
+    // - the pools of the tower and of compression, and the run and sum scratch of the cycle
+    //
+    // A job calls it before it releases, with body_overlap_release where it ran an overlap. It allocates no device
+    // bytes of its own after
     void engine_resident_release(void);
 
     typedef struct
@@ -209,9 +213,9 @@ extern "C"
 
     long engine_source_lanes(const char *source, const char *sample, unsigned long long *lanes, EngineError *error);
 
-    // starts reading the sample's span of an archive source on a thread of its own, the span the next read of that
-    // sample requests. One span is buffered at a time, and requesting another lets the last one go. A source that is
-    // not an archive, or a sample it does not contain, is an error and allocates nothing
+    // starts to read the span of the sample of an archive source on a thread of its own. It is the span that the next
+    // read of that sample requests. The buffer holds one span at a time, and a request for another lets the last one
+    // go. A source that is not an archive, or a sample that it does not hold, is an error and allocates nothing
     long engine_source_prefetch(const char *source, const char *sample, EngineError *error);
 
     unsigned int engine_source_samples(const char *source, char ***names);
@@ -238,9 +242,10 @@ extern "C"
 
     long engine_iapx_head(const char *set, const char *sample, unsigned long long extent[4], EngineError *error);
 
-    // The bits the crystal spends on a lattice of ints arranged as frames, z, y and x: lifted through the tower and
-    // coded, the coder's bits. A value of 2^30 or more in magnitude errors on it, as a coefficient does. It is the
-    // noise detector's price (NoiseCost), which the driver passes so the detector reaches no module but its own.
+    // The bits that the crystal spends on a lattice of ints arranged as frames, z, y and x. The lattice goes through
+    // the tower and the coder, and the return is the bits of the coder. A value of `2^30` or more in magnitude gives an
+    // error, as a coefficient does. It is the price of the noise detector (NoiseCost), which the driver passes. Thus
+    // the detector reaches no module but its own.
     long engine_lattice_bits(const int *values, const unsigned long long extent[4], unsigned long long *bits,
                              EngineError *error);
 

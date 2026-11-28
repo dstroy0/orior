@@ -1,13 +1,13 @@
 kdm sm_86
-# Every arrangement of primitives that produces an operator, and what each costs this part.
-# Found from the relations alone. No ruleset, no machine file and no naming went into a row
-# here. A cost is an exact rational, numerator/denominator in the part's clock count, and a cost
-# of - over 0 runs has not been timed on anything.
+# Every arrangement of primitives that produces an operator, and what each costs this part. The
+# relations alone found them. No ruleset, no machine file and no naming went into a row here.
+# A cost is an exact rational, numerator/denominator in the clock count of the part. A cost of
+# - over 0 runs is a cost that no run timed.
 #
-# The rows of an operator are in no order. Timed in the order they were found, a chain's
-# reading carries where it sat and not what it costs; shuffled, that washes out over runs and
-# what is left is the difference between the arrangements. The order moves whenever a run is
-# folded in, which is why it moves and a cost does not.
+# The rows of an operator are in no order. Timed in the order that the search found them, the
+# reading of a chain carries where it sat, and not what it costs. A shuffle washes that out over
+# runs, and what remains is the difference between the arrangements. The order moves whenever a
+# run folds in, thus the order moves and a cost does not.
 
 # operator	nodes	chain	cost	runs
 same	0	-	-	0
@@ -2872,9 +2872,9 @@ down	3	shr(bitxor(ones, nand(w0, w0)), w1)	-	0
 product	0	-	-	0
 who 01ed16b700000000000098e93be112e4
 
-# operations the system writes on the FMA pipe in place of the integer pipe: the operation, its
-# writing there, and the lane it moves in, one whose integer pipe carries the first number of
-# operations or more and the second more than its FMA pipe.
+# the operations that the system writes on the FMA pipe in place of the integer pipe. Each is the
+# operation, its writing there, and the lane that it moves in. The integer pipe of that lane
+# holds the first number of operations or more, and the second more than its FMA pipe.
 pipe IADD3.X IMAD.X 0 4
 pipe MOV IMAD.MOV.U32 5 2
 pipe SHF.L.U32 IMAD.SHL.U32 0 2

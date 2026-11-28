@@ -451,13 +451,15 @@ const ProbeQuestion *probe_questions(ProbeWriter *writer, unsigned int *count)
         out[1] = (unsigned int)(quotient >> 32u);
         return (divisor != 0ULL) ? 1 : 0;
     });
-    // global_add_atomic_word, the one form the resident counts with and no other question reaches. What it leaves
-    // cannot be read here: the only load the ruleset gives is ld.global.nc, which promises the location is not written
-    // while the kernel runs, and a read-back of a word this just added to breaks that promise (ptxas takes it at its
-    // word and folds the two loads into one, the .CONSTANT in the listing). So the case queried is one a question here
-    // can test - that the part assembles it, runs it, and goes on past it - and the word it adds to is this thread's
-    // own case in the input buffer, which the host never reads back. The add's result is read on the part instead, in
-    // the SASS probe's own code, where the instructions are ours and the read-back is a plain load
+    // global_add_atomic_word, the only form that the resident counts with, which no other question reaches. This file
+    // cannot read what it leaves. The only load that the ruleset gives is ld.global.nc, which promises that no write
+    // goes to the location while the kernel runs. A read-back of a word that this just added to breaks that promise.
+    // The assembler ptxas takes it at its word, and folds the two loads into one, the .CONSTANT in the listing.
+    //
+    // Thus the case queried is one that a question here can test: that the part assembles it, runs it, and goes on past
+    // it. The word that it adds to is the own case of this thread in the input buffer, which the host never reads back.
+    // The SASS probe reads the result of the add on the part instead, in its own code. There, the instructions are ours
+    // and the read-back is a plain load
     ASK_FORM(asking, "global_add_atomic_word", "%interface_wide2");
     ASK_FORM(asking, "word_copy", asking->t[8].text, asking->t[0].text);
     ask_query(asking, "global_add_atomic_word", 1u, [](const unsigned int *in, unsigned int *out) {

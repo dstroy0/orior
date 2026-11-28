@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// sass_assemble_internal.h: what the modules of the assembler share: its includes, the guard and branch fields, the fields of each operand type, the places, labels, holders and placed forms, and the functions one module reads from another (sass_assemble.h)
+// sass_assemble_internal.h: what the modules of the assembler share: its includes, the guard and branch fields, the
+// fields of each operand type, the places, labels, holders and placed forms, and the functions one module reads from
+// another (sass_assemble.h)
 #ifndef SASS_ASSEMBLE_INTERNAL_H
 #define SASS_ASSEMBLE_INTERNAL_H
 
@@ -16,16 +18,16 @@
 
 #define SASS_GUARD_NOT 15u
 
-// a branch's distance in four-byte steps from bit 34 to bit 81: bits 32 and 33 below it are the operation's own,
-// as BRA, BRA.U and BRA.DIV show, the same distance with 0, 1 and 2 there
+// the distance of a branch in four-byte steps, from bit 34 to bit 81. Bits 32 and 33 below it belong to the operation,
+// as BRA, BRA.U and BRA.DIV show, with the same distance and 0, 1 and 2 there
 #define SASS_BRANCH_FIRST 34u
 
 #define SASS_BRANCH_BITS 48u
 
 #define SASS_BRANCH_STEP 4u
 
-// one place a value sits: its first bit, how many bits it contains, what one of them counts, and 1 where the field
-// contains the value with every bit inverted
+// one place where a value sits: its first bit, how many bits it holds, and what one of them counts. Then 1 where the
+// field holds the value with every bit inverted
 typedef struct
 {
     unsigned int first;
@@ -47,8 +49,8 @@ typedef struct
 
 #define SASS_IMMEDIATE_FIELDS (sizeof(s_immediate_fields) / sizeof(s_immediate_fields[0]))
 
-// where one operand of a form was placed: the field its value sits in, and for an address the field its offset sits
-// in as well
+// where the assembler placed one operand of a form: the field that its value sits in. For an address, also the field
+// that its offset sits in
 typedef struct
 {
     SassField value;
@@ -65,10 +67,7 @@ typedef struct
 
 #define SASS_LABEL_TOKEN 64u
 
-// the form whose own bits the encoding carries outside what it leaves open, and that form's places through `places`.
-// Of several: one that reads every field before one with a relocated label, whose field contains nothing; a label
-// before a number of the same operation; then the one leaving the fewest bits open. NULL where none matches it
-// the max forms one encoding is matched by that the reader weighs
+// the max forms that match one encoding, which the reader weighs
 #define SASS_HOLDERS 32u
 
 

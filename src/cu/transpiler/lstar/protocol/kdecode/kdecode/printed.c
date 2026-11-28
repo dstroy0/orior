@@ -18,8 +18,8 @@ static unsigned long long kdecode_row_word(const KdecodeRow *row, size_t place)
     return word;
 }
 
-// the blob whose sequence is `key`, or NULL where the run contains none: the blobs are in the order of their
-// sequences, and a search halves them
+// the blob whose sequence is `key`, or NULL where the run holds none. The blobs are in the order of their sequences,
+// and a search halves them
 static const KdecodeBlob *kdecode_key_named(const KdecodeRun *run, unsigned long long key)
 {
     size_t low = 0u;
@@ -183,8 +183,8 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
     }
 }
 
-// the row `row` of a table with an oracle, its who's two words then its columns, decoded: its key, the row's type, each
-// column, any word past the oracle's columns in hex, and its who named
+// the row `row` of a table with an oracle, the two words of its who and then its columns, decoded. That is its key,
+// the type of the row, each column, any word past the columns of the oracle in hex, and its who named
 static void kdecode_columns_printed(const KdecodeRun *run, const KdecodeOracle *oracle, const KdecodeRow *row)
 {
     unsigned long long who[2] = {0ULL, 0ULL};
@@ -212,8 +212,8 @@ static void kdecode_columns_printed(const KdecodeRun *run, const KdecodeOracle *
     kdecode_line_ended();
 }
 
-// the oracle of the type of the file `key` of the table, read into `oracle` once a file: the type's own, its folder and
-// its stem the type's characters in lower case
+// the oracle of the type of the file `key` of the table, read into `oracle` once for each file. It is the own oracle
+// of the type, whose folder and stem are the characters of the type in lower case
 static const KdecodeOracle *kdecode_format_oracle(const KdecodeRun *run, unsigned long long key, KdecodeOracle *oracle,
                                                   unsigned long long *read_for)
 {
@@ -251,8 +251,12 @@ static const KdecodeOracle *kdecode_format_oracle(const KdecodeRun *run, unsigne
     return oracle;
 }
 
-// the row `row` of a k-file's table decoded: its key, its change as `rows` names it, the file's key and the numbers the
-// change gives, a put record's code named by its format's oracle, the texts of the file a record names, and its who
+// the row `row` of the table of a k-file, decoded:
+//
+// - its key, and its change as `rows` names it
+// - the key of the file, and the numbers that the change gives
+// - the code of a put record, named by the oracle of its format
+// - the texts of the file that a record names, and its who
 static void kdecode_change_printed(const KdecodeRun *run, const KdecodeOracle *rows, const KdecodeRow *row,
                                    KdecodeOracle *format, unsigned long long *format_for)
 {
@@ -343,8 +347,8 @@ static void kdecode_change_printed(const KdecodeRun *run, const KdecodeOracle *r
     kdecode_line_ended();
 }
 
-// the table `table` of the run at `path` from `from` through `to`, `max` rows of it or every one where `max` is 0,
-// raw or decoded: 1, or 0 where the run could not be read
+// the table `table` of the run at `path` from `from` through `to`, `max` rows of it or every one where `max` is 0, raw
+// or decoded. The return is 1, or 0 where the read of the run failed
 int kdecode_table(const char *path, const char *table, int raw, unsigned long long from, unsigned long long to,
                   unsigned long long max)
 {
@@ -396,7 +400,8 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
             }
         }
     }
-    // a table with no oracle is a k-file's where the run contains a head of it, and is given raw where it contains none
+    // a table with no oracle belongs to a k-file where the run holds a head of it. The call gives it raw where the run
+    // holds none
     const int changed = !raw && !texts && !columned && (run.files != 0u);
     if (changed)
     {

@@ -238,6 +238,14 @@ int sass_encoding_places_built(SassMachine *machine)
     return 1;
 }
 
+// the form whose own bits the encoding carries outside what it leaves open, and the places of that form through
+// `places`. Of several, the order is:
+//
+// - a form that reads every field, before one with a relocated label, whose field holds nothing
+// - a label before a number of the same operation
+// - then the form that leaves the fewest bits open
+//
+// NULL where none matches it
 static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned long long low, unsigned long long high,
                                           SassPlace *places)
 {

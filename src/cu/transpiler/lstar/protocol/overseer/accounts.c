@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// accounts.c: the accounts: a conference named, an account written to the run, a located joined, a cause read, text
-// trimmed, an expert named, a clause read, and an account and the accounts read back
+// accounts.c: the accounts: a conference named, an account written to the run, a `located` clause joined, a cause read,
+// text trimmed, an expert named, a clause read, and an account and the accounts read back
 #include "../../../../../../includes/parsers/who.h"
 #include "../../../../../../includes/platform/platform.h"
 #include "../table_text.h"
@@ -37,7 +37,7 @@ int overseer_account(QryShared *run, const char *identity, const char *expert, c
     VerbaLinea line = {account, sizeof(account), 0ULL};
     mmgr_line_put_max(&line, expert, OVERSEER_EXPERT_MAX_LEN);
     mmgr_line_put(&line, ": ");
-    // an account longer than its room is cut, its line ended
+    // the call cuts an account longer than its room, and ends its line
     mmgr_line_put_max(&line, text, sizeof(account) - line.at - 2u);
     mmgr_line_ch(&line, '\n');
     const size_t line_length = (size_t)mmgr_line_finish(&line);
@@ -91,7 +91,7 @@ void overseer_trimmed(const char *from, const char *to, char *into, size_t room)
     {
         to -= 1;
     }
-    // the stretch is not negative, and it is cut to the room
+    // the stretch is not negative, and the call cuts it to the room
     size_t length = (size_t)(to - from);
     length = (length < (room - 1u)) ? length : (room - 1u);
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = into, .src = from, .bytes = length);
@@ -185,7 +185,7 @@ static void overseer_clause_read(OverseerTally *tally, const char *expert, const
     else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "carrier",
                         .ci = EMBED_FALSE))
     {
-        // a carrier's name is its chain's number, far inside the room; a longer one is cut to it
+        // the name of a carrier is the number of its chain, far inside the room. The call cuts a longer one to it
         (void)verba_finis.finish(
             &(VerbaFinisCfg){.out = tally->carrier,
                              .cap = sizeof(tally->carrier),
@@ -212,10 +212,10 @@ static void overseer_clause_read(OverseerTally *tally, const char *expert, const
     }
 }
 
-// One account, the line from `line` to `end`, read into `received`: its expert, then each clause after a `;`, a
-// `located` clause taking the rest of the line. The account a row of the run's table of accounts: the conference,
-// the number of the question's identity, `conference`; the expert's text, the account's and the cause it reads, 0
-// where it reads none
+// One account, the line from `line` to `end`, read into `received`. It is its expert, then each clause after a `;`,
+// with a `located` clause that takes the rest of the line. The account goes as a row of the table of accounts of the
+// run. The row holds the conference, the number of the identity of the question, `conference`. Then the text of the
+// expert, that of the account, and the cause that it reads, 0 where it reads none
 static void overseer_account_read(OverseerTally *tally, const char *line, const char *end, QryShared *run,
                                   unsigned long long conference)
 {
@@ -276,9 +276,9 @@ static void overseer_account_read(OverseerTally *tally, const char *line, const 
     qry_member_append(OVERSEER_ACCOUNTS_TABLE, row, sizeof(row), QRY_ORDINARY);
 }
 
-// every line of `bytes`, `size` of them, read as an account once, each a row of the run's table of accounts of the
-// conference `conference`: a line read before in this conference is the same account received twice, as the carrier's
-// own is in its answer and on the panic line
+// every line of `bytes`, `size` of them, read as an account once, each a row of the table of accounts of the run for
+// the conference `conference`. A line read before in this conference is the same account received twice. The account of
+// the carrier comes twice in that way, in its answer and on the panic line
 void overseer_accounts_read(OverseerTally *tally, const unsigned char *bytes, unsigned long long size,
                             const unsigned char *before, unsigned long long before_size, QryShared *run,
                             unsigned long long conference)

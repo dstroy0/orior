@@ -34,8 +34,9 @@ typedef struct
     char operand[2][8];
 } WritingsNode;
 
-// the expression at `*walk`, a leaf or a precept applied to one or two expressions as the .kdm writes a chain, read
-// into `nodes` with its children first, its register text into `operand`: 1, or 0 where it does not read
+// the expression at `*walk`, a leaf or a precept applied to one or two expressions as the .kdm writes a chain. The call
+// reads it into `nodes` with its children first, and its register text into `operand`. The return is 1, or 0 where it
+// does not read
 static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned int *count, char *operand, size_t room)
 {
     *walk += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = *walk, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
@@ -112,9 +113,9 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
     return 1;
 }
 
-// `writing`, a form as the search put it, written to `out` with its result register WRITINGS_RESULT and its two sources
-// WRITINGS_LEFT and WRITINGS_RIGHT replaced by `to`, `left` and `right`, each only where it is a whole register token.
-// 1, or 0 where `out` will not fit it
+// `writing`, a form as the search put it, written to `out`. The call puts `to`, `left` and `right` in place of its
+// result register WRITINGS_RESULT and its two sources WRITINGS_LEFT and WRITINGS_RIGHT. It does so only where each is
+// a whole register token. The return is 1, or 0 where `out` cannot hold it
 static int writings_put(const char *writing, const char *to, const char *left, const char *right, char *out,
                         size_t room)
 {
@@ -161,7 +162,8 @@ static int writings_put(const char *writing, const char *to, const char *left, c
     return 1;
 }
 
-// the first form the search found containing `precept`, by its number among the forms, or s_form_count where none does
+// the first form that the search found that holds `precept`, by its number among the forms, or s_form_count where none
+// does
 static unsigned int writings_for(unsigned int precept)
 {
     unsigned int relation = s_relations;
@@ -179,9 +181,10 @@ static unsigned int writings_for(unsigned int precept)
     return s_form_count;
 }
 
-// Every chain of the .kdm at `kdm` written into a cubin of its own in `into`, each node the first writing the search in
-// `folder` found for its precept, with <into>/list.txt and <into>/chains.txt beside them. A row's sixth column, a
-// verdict a descent gave it, is recorded in chains.txt. 0, or 2 where nothing could be read or written
+// Every chain of the .kdm at `kdm`, written into a cubin of its own in `into`, with `<into>/list.txt` and
+// `<into>/chains.txt` beside them. Each node is the first writing that the search in `folder` found for its precept.
+// The call records the sixth column of a row, a verdict that a descent gave it, in chains.txt. The return is 0, or 2
+// where the call could not read or write anything
 int writings_chains_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder,
                           const char *kdm, const char *into)
 {
@@ -352,8 +355,8 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
     return 0;
 }
 
-// The chains' answers read back against the relation each chain is a row of, written to `record`: 0, or 2 where
-// nothing could be read
+// The answers of the chains, read back against the relation that each chain is a row of, and written to `record`. The
+// return is 0, or 2 where the call could not read anything
 int writings_chains_read(const char *folder, const char *record)
 {
     writings_cases();

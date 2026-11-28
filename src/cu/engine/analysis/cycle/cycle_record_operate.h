@@ -33,10 +33,10 @@ __device__ static void cycle_record_gcd(const unsigned int *left, unsigned int l
     }
 }
 
-// the quotient of an exact division by a multiply with the divisor's inverse and a mask: both are shifted past the
-// divisor's low zero bits, the odd divisor's inverse modulo 2^(32 limbs) is grown by Newton's x(2 - dx) from one
-// word, and the quotient is the low limbs of numerator . inverse; multiplying back proves it. 0 for a zero divisor or
-// a remainder. scratch contains 5 * WIDE limbs.
+// the quotient of an exact division by a multiply with the inverse of the divisor and a mask. The call shifts both past
+// the low zero bits of the divisor. It grows the inverse of the odd divisor modulo `2^(32 limbs)` by the Newton step
+// `x(2 - dx)` from one word. The quotient is the low limbs of `numerator * inverse`, and a multiply back proves it. The
+// return is 0 for a zero divisor or a remainder. The scratch holds `5 * WIDE` limbs.
 template <unsigned int WIDE>
 __device__ static int cycle_record_exact_quotient(const unsigned int *top, unsigned int top_limbs,
                                                   const unsigned int *bottom, unsigned int bottom_limbs,
@@ -73,7 +73,7 @@ __device__ static int cycle_record_exact_quotient(const unsigned int *top, unsig
     unsigned int *const inverse = &scratch[2u * WIDE];
     unsigned int *const stepped = &scratch[3u * WIDE];
     unsigned int *const grown = &scratch[4u * WIDE];
-    // the work runs at the numerator's width: a quotient by a constant can be narrower than its numerator, and the
+    // the work runs at the width of the numerator. A quotient by a constant can be narrower than its numerator, and the
     // multiply back must see the numerator whole
     const unsigned int work = (top_limbs > limbs) ? top_limbs : limbs;
     cycle_record_shift_down(top, top_limbs, low_zeros, numerator, work);
@@ -150,8 +150,8 @@ __device__ static inline void cycle_record_put(unsigned int *record, unsigned in
 }
 
 // one step that reads registers: the left, and the right, where a table reads the left alone (its right names the
-// table, not a step). Each operand's sign is read beside it, at its place in the file, and the result's sign is left
-// in `sign_out`; `ok` falls to 0 for a lane the step errors.
+// table, not a step). The call reads the sign of each operand beside it, at its place in the file. It leaves the sign
+// of the result in `sign_out`, and `ok` falls to 0 for a lane where the step gives an error.
 template <unsigned int WIDE, unsigned int DIVIDES>
 __device__ static void cycle_record_operate(const CycleRecordLaunch &launch, const DeviceRecordStep &step,
                                             const unsigned int *file, const signed char *sign, unsigned int *scratch,

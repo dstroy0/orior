@@ -73,13 +73,13 @@ unsigned int hadamard_sweep_covers(unsigned int links, unsigned int seed, unsign
     state = (state != 0u) ? state : 0x9e3779b9u;
     for (unsigned int at = links; at > 1u; at -= 1u)
     {
-        // a zero state never leaves zero, and the state is maintained off zero above
+        // a zero state never leaves zero, and the code above keeps the state off zero
         const unsigned int with = ladder_swept(&state) % at;
         const unsigned char swapped = order[at - 1u];
         order[at - 1u] = order[with];
         order[with] = swapped;
     }
-    // one link, half plus one, and every link, in turn: a square read against a line has the least spread with its
+    // one link, half plus one, and every link, in turn. A square read against a line has the least spread with its
     // queries at the two ends and the middle
     const unsigned int counts[3] = {1u, (links + 1u) / 2u, links};
     const unsigned int count = counts[row % 3u];
@@ -95,7 +95,7 @@ unsigned int hadamard_sweep_covers(unsigned int links, unsigned int seed, unsign
 static void hadamard_exact(OriorExactInteger *value, long long given)
 {
     orior_exact_zero(value);
-    // the magnitude of the max negative word is one past the max positive, which the unsigned word represents
+    // the magnitude of the most negative word is one past the most positive, which the unsigned word holds
     const unsigned long long magnitude = (given < 0) ? (0ULL - (unsigned long long)given) : (unsigned long long)given;
     value->limb[0] = (uint32_t)(magnitude & 0xffffffffULL);
     value->limb[1] = (uint32_t)(magnitude >> 32);
@@ -129,7 +129,8 @@ static int hadamard_exact_difference(OriorExactInteger *out, const OriorExactInt
     return (orior_exact_subtract(&product, &taken, out) == ORIOR_EXACT_OK) ? 1 : 0;
 }
 
-// the three things a sweep query's leftover is read against, and the leftover, summed alone and in pairs
+// the three things that the call reads the leftover of a sweep query against, and the leftover, summed alone and in
+// pairs
 enum
 {
     REGRESSION_COUNT,
@@ -146,7 +147,7 @@ HadamardLinks hadamard_links_read(unsigned int links, const long long *scaled, u
     {
         return HADAMARD_LINKS_UNREAD;
     }
-    // each sweep cost is from one pass, and the solve's costs are scaled by the passes and by links + 1
+    // each sweep cost is from one pass, and the call scales the costs of the solve by the passes and by `links + 1`
     const long long scale = (long long)passes * (long long)(links + 1u);
 
     OriorExactInteger sum[REGRESSION_TERMS];
@@ -170,8 +171,8 @@ HadamardLinks hadamard_links_read(unsigned int links, const long long *scaled, u
         {
             predicted += (covered[link] != 0u) ? scaled[link] : 0;
         }
-        // what the solve's links leave of this query's cost, at the solve's scale; a summed cost is under the
-        // header's bound, which bounds the scaled cost inside a signed 64 bit word
+        // what the links of the solve leave of the cost of this query, at the scale of the solve. A summed cost is
+        // under the bound of the header, which keeps the scaled cost inside a signed 64 bit word
         OriorExactInteger value[REGRESSION_TERMS];
         hadamard_exact(&value[REGRESSION_COUNT], (long long)count);
         hadamard_exact(&value[REGRESSION_SQUARE], (long long)count * (long long)count);
@@ -211,9 +212,9 @@ HadamardLinks hadamard_links_read(unsigned int links, const long long *scaled, u
         return HADAMARD_LINKS_UNREAD;
     }
 
-    // The count taken out of the square and of the leftover, each scaled by the count's own spread, which leaves
-    // every one an integer. The constant takes the overhead every query pays, and the count takes the share of it the
-    // solve spreads over every link and therefore over every query in proportion to the count it covers
+    // The count taken out of the square and of the leftover, each scaled by the own spread of the count. That leaves
+    // every one an integer. The constant takes the overhead that every query pays. The count takes the share of it that
+    // the solve spreads over every link. Thus it spreads over every query, in proportion to the count that it covers
     OriorExactInteger square_square;
     OriorExactInteger square_left;
     OriorExactInteger left_left;

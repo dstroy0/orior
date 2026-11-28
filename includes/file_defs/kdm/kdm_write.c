@@ -198,15 +198,15 @@ int program_main(int count, char **word)
     const char *const part = word[1];
     kdm_costs_read(word[2]);
     const unsigned int seed = kdm_seed(part);
-    section_text("# Every arrangement of primitives that produces an operator, and what each costs this part.\n");
-    section_text("# Found from the relations alone. No ruleset, no machine file and no naming went into a row\n");
-    section_text("# here. A cost is an exact rational, numerator/denominator in the part's clock count, and a cost\n");
-    section_text("# of - over 0 runs has not been timed on anything.\n");
+    section_text("# Every arrangement of primitives that produces an operator, and what each costs this part. The\n");
+    section_text("# relations alone found them. No ruleset, no machine file and no naming went into a row here.\n");
+    section_text("# A cost is an exact rational, numerator/denominator in the clock count of the part. A cost of\n");
+    section_text("# - over 0 runs is a cost that no run timed.\n");
     section_text("#\n");
-    section_text("# The rows of an operator are in no order. Timed in the order they were found, a chain's\n");
-    section_text("# reading carries where it sat and not what it costs; shuffled, that washes out over runs and\n");
-    section_text("# what is left is the difference between the arrangements. The order moves whenever a run is\n");
-    section_text("# folded in, which is why it moves and a cost does not.\n\n");
+    section_text("# The rows of an operator are in no order. Timed in the order that the search found them, the\n");
+    section_text("# reading of a chain carries where it sat, and not what it costs. A shuffle washes that out over\n");
+    section_text("# runs, and what remains is the difference between the arrangements. The order moves whenever a\n");
+    section_text("# run folds in, thus the order moves and a cost does not.\n\n");
     section_text(KDM_ROWS_HEAD);
     section_text("\n");
 
