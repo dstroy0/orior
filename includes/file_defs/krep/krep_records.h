@@ -73,13 +73,14 @@ extern "C"
     } KrepRecord;
 
     // A k-file of records in memory. It holds its type and its records in order. It holds its texts, each by its number
-    // less one, with its length. It finds a text by its bytes through the texts' places: an order of them sorted by the
-    // hash of the bytes, `text_ordered` of them in a cell of room for `text_order_room`, and a run of the newest,
-    // `text_run_count` of them, with the room that the sort of a full run writes as it merges into the order.
+    // less one, with its length. It finds a text by its bytes through the places of the texts:
+    //   - an order sorted by the hash of the bytes, `text_ordered` of them in a cell with room for `text_order_room`;
+    //   - a run of the newest, `text_run_count` of them;
+    //   - the room that the sort of a full run writes as it merges into the order.
     //
     // Where it is a view of a table of a run, it holds the run and the name of the table. It also holds the key of the
-    // file. These are 0 where it is no view. A file starts as zeros
-    // the place of a text: the hash of its bytes, and its number
+    // file. These are 0 where it is no view. A file starts as zeros.
+    // The place of a text: the hash of its bytes, and its number
     typedef struct
     {
         unsigned long long hash;

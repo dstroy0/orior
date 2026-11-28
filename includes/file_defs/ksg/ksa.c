@@ -33,7 +33,7 @@ static int ksa_ed25519_verify(const unsigned char *key, const void *message, siz
     return ed25519_verify(key, message, bytes, signature);
 }
 
-// the schemes an approval is made by, one row each
+// the schemes that make an approval, one row each
 static const KsaScheme s_schemes[] = {
     {{'E', 'D', '2', '5'},
      "ed25519",

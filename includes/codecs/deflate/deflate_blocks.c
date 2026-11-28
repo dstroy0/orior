@@ -198,7 +198,7 @@ static void deflate_put(DeflateWriter *writer, unsigned int value, unsigned int 
             writer->overflow = 1;
             return;
         }
-        // the low byte of the accumulator is taken whole
+        // the call takes the low byte of the accumulator whole
         writer->out[writer->written] = (unsigned char)(writer->bits & 0xFFULL);
         writer->written += 1ULL;
         writer->bits >>= 8u;

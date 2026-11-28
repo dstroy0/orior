@@ -133,7 +133,7 @@ EMBED_INLINE int ipc_peer(const PosixInterfaceCtx *args)
 int cli_ipc_accept(const CliIpcListenerCtx *args)
 {
     int *has_peer = args->has_peer;
-    // the socket was a descriptor when it was stored
+    // the socket was a descriptor when the call stored it
     const int socket_fd = (int)args->listener->waiting;
     int fd = -1;
     do

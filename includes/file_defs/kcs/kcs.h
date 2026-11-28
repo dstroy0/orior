@@ -6,9 +6,9 @@
 
 #define KREP_TYPE_CONSTRUCTION_SET "KCS\0"
 
-// a target's construction set for the compiler: each form's cost as the target measured it, then the forms' names,
-// each ended by a zero byte and the last word padded with zeros; words contains the costs and then the name words, and
-// crc is the CRC-64 of all of them
+// the construction set of a target for the compiler: the cost of each form as the target measured it, then the names
+// of the forms. Each name has a zero byte at its end, and zeros fill the last word. The field words holds the costs
+// and then the name words, and crc is the CRC-64 of all of them
 #define KREP_FORMS_MAX 65536ULL
 
 #endif
