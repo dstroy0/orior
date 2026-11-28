@@ -524,7 +524,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/sass_machine_internal.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	1
