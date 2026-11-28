@@ -62,10 +62,10 @@
 #endif
 
 #include <atomic>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <random>
 #include <thread>
 #include <vector>
@@ -383,9 +383,9 @@ long double deficit_term(const Order &order, long double deviation, int is_empty
 {
     if (order.alpha == 1.0)
     {
-        return (is_empty != 0) ? 0.0L : ((1.0L + deviation) * std::log1p(deviation));
+        return (is_empty != 0) ? 0.0L : ((1.0L + deviation) * log1p(deviation));
     }
-    return (is_empty != 0) ? -1.0L : std::expm1((long double)order.alpha * std::log1p(deviation));
+    return (is_empty != 0) ? -1.0L : expm1((long double)order.alpha * log1p(deviation));
 }
 
 /**
@@ -412,7 +412,7 @@ double deficit_at(const uint64_t *counts, size_t bins, uint64_t total, const Ord
         {
             occupied += (counts[bin] != 0u) ? 1u : 0u;
         }
-        return -std::log2((double)occupied / (double)bins);
+        return -log2((double)occupied / (double)bins);
     }
 
     if (order.is_peak != 0)
@@ -422,7 +422,7 @@ double deficit_at(const uint64_t *counts, size_t bins, uint64_t total, const Ord
         {
             largest = (counts[bin] > largest) ? counts[bin] : largest;
         }
-        return std::log2((double)largest / mean);
+        return log2((double)largest / mean);
     }
 
     long double accumulated = 0.0L;
@@ -434,11 +434,11 @@ double deficit_at(const uint64_t *counts, size_t bins, uint64_t total, const Ord
 
     if (order.alpha == 1.0)
     {
-        return (double)(accumulated / (long double)bins / std::log(2.0L));
+        return (double)(accumulated / (long double)bins / log(2.0L));
     }
 
     const long double mean_power = accumulated / (long double)bins;
-    return (double)(std::log1p(mean_power) / std::log(2.0L) / (long double)(order.alpha - 1.0));
+    return (double)(log1p(mean_power) / log(2.0L) / (long double)(order.alpha - 1.0));
 }
 
 /**
@@ -459,8 +459,8 @@ double predicted_deficit(size_t bins, uint64_t total, const Order &order)
     {
         // Expected empty bins are r exp(-m), which underflows to nothing once the mean count is
         // large. Left as it computes instead of rounded to zero by hand.
-        const double empty = (double)bins * std::exp(-(double)total / (double)bins);
-        const double deficit = -std::log2(1.0 - (empty / (double)bins));
+        const double empty = (double)bins * exp(-(double)total / (double)bins);
+        const double deficit = -log2(1.0 - (empty / (double)bins));
         // Underflow leaves a signed zero, which prints as "-0" and reads as a sign convention
         // that does not exist here.
         return (deficit == 0.0) ? 0.0 : deficit;
@@ -470,15 +470,15 @@ double predicted_deficit(size_t bins, uint64_t total, const Order &order)
     {
         // The largest of r deviations, each near normal with this variance. Extreme value. Thus the
         // leading term with its first correction, and not a bare square root.
-        const double logs = 2.0 * std::log((double)bins);
+        const double logs = 2.0 * log((double)bins);
         const double expected_peak =
-            std::sqrt(variance) *
-            (std::sqrt(logs) -
-             ((std::log(std::log((double)bins)) + std::log(4.0 * 3.14159265358979)) / (2.0 * std::sqrt(logs))));
-        return std::log2(1.0 + expected_peak);
+            sqrt(variance) *
+            (sqrt(logs) -
+             ((log(log((double)bins)) + log(4.0 * 3.14159265358979)) / (2.0 * sqrt(logs))));
+        return log2(1.0 + expected_peak);
     }
 
-    return order.alpha * variance / (2.0 * std::log(2.0));
+    return order.alpha * variance / (2.0 * log(2.0));
 }
 
 /**
@@ -499,7 +499,7 @@ double predicted_deficit_sparse(size_t bins, uint64_t total, const Order &order)
     // Enough terms that the tail left out is far below the smallest quantity read off this sum.
     const unsigned terms = 256u;
 
-    long double weight = std::exp(-(long double)mean);
+    long double weight = exp(-(long double)mean);
     long double moment = 0.0L;
     long double occupied = 0.0L;
     long double above = 1.0L;
@@ -527,21 +527,21 @@ double predicted_deficit_sparse(size_t bins, uint64_t total, const Order &order)
         }
         if (order.alpha == 1.0)
         {
-            moment += weight * (long double)count * std::log((long double)count);
+            moment += weight * (long double)count * log((long double)count);
         }
         else
         {
-            moment += weight * std::pow((long double)count, (long double)order.alpha);
+            moment += weight * pow((long double)count, (long double)order.alpha);
         }
     }
 
     if (order.is_support != 0)
     {
-        return (double)(-std::log(occupied) / std::log(2.0L));
+        return (double)(-log(occupied) / log(2.0L));
     }
     if (order.is_peak != 0)
     {
-        return std::log2((double)peak / mean);
+        return log2((double)peak / mean);
     }
     if (order.alpha == 1.0)
     {
@@ -549,9 +549,9 @@ double predicted_deficit_sparse(size_t bins, uint64_t total, const Order &order)
         // is one: the full-domain case. A version without it agrees at that operating point, and
         // disagrees everywhere else. A defect that hides exactly where the code runs is the worst
         // type.
-        return (double)((moment / (long double)mean / std::log(2.0L)) - std::log2((long double)mean));
+        return (double)((moment / (long double)mean / log(2.0L)) - log2((long double)mean));
     }
-    return (double)(std::log(moment / std::pow((long double)mean, (long double)order.alpha)) / std::log(2.0L) /
+    return (double)(log(moment / pow((long double)mean, (long double)order.alpha)) / log(2.0L) /
                     (long double)(order.alpha - 1.0));
 }
 
@@ -693,7 +693,7 @@ int walsh_transform_self_test(unsigned workers, unsigned stages)
 
     if ((uint64_t)values[0] != marked)
     {
-        std::printf("  [!] self test: mask zero reads %d against %llu marked\n", values[0], (unsigned long long)marked);
+        printf("  [!] self test: mask zero reads %d against %llu marked\n", values[0], (unsigned long long)marked);
         return 0;
     }
 
@@ -717,12 +717,12 @@ int walsh_transform_self_test(unsigned workers, unsigned stages)
     }
     if (wide_same(&energy, &expected) == 0)
     {
-        std::printf("  [!] self test: Parseval fails\n");
+        printf("  [!] self test: Parseval fails\n");
         return 0;
     }
     if ((uint64_t)largest > marked)
     {
-        std::printf("  [!] self test: a coefficient of %lld exceeds the marked count %llu\n", (long long)largest,
+        printf("  [!] self test: a coefficient of %lld exceeds the marked count %llu\n", (long long)largest,
                     (unsigned long long)marked);
         return 0;
     }
@@ -735,14 +735,14 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
     const uint64_t wanted = (uint64_t)bins * sizeof(int32_t);
     const uint64_t budget = bench_memory_budget();
 
-    std::printf("\n  Every direction, not only the ones inside two bytes\n");
-    std::printf("\n  %-46s %14.2f GB\n", "the transform needs", (double)wanted / (1024.0 * 1024.0 * 1024.0));
-    std::printf("  %-46s %14.2f GB\n", "the budget allows", (double)budget / (1024.0 * 1024.0 * 1024.0));
+    printf("\n  Every direction, not only the ones inside two bytes\n");
+    printf("\n  %-46s %14.2f GB\n", "the transform needs", (double)wanted / (1024.0 * 1024.0 * 1024.0));
+    printf("  %-46s %14.2f GB\n", "the budget allows", (double)budget / (1024.0 * 1024.0 * 1024.0));
 
     if ((budget != 0u) && (wanted > budget))
     {
-        std::printf("\n  [!] over budget, so this pass is skipped instead of paged. The byte-pair\n");
-        std::printf("      figures above stand and cover masks inside any two bytes only.\n");
+        printf("\n  [!] over budget, so this pass is skipped instead of paged. The byte-pair\n");
+        printf("      figures above stand and cover masks inside any two bytes only.\n");
         return;
     }
 
@@ -756,18 +756,18 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
     {
         if (walsh_transform_self_test(workers, stages) == 0)
         {
-            std::printf("\n  [!] the transform failed its self test at %u stages, so this pass is\n", stages);
-            std::printf("      skipped. It passed at every smaller size, which is why the test\n");
-            std::printf("      sweeps instead of picking one.\n");
+            printf("\n  [!] the transform failed its self test at %u stages, so this pass is\n", stages);
+            printf("      skipped. It passed at every smaller size, which is why the test\n");
+            printf("      sweeps instead of picking one.\n");
             return;
         }
     }
-    std::printf("  %-46s %14s\n", "self test, 12 through 26 stages", "passed");
+    printf("  %-46s %14s\n", "self test, 12 through 26 stages", "passed");
 
     int32_t *const spectrum = new (std::nothrow) int32_t[bins];
     if (spectrum == nullptr)
     {
-        std::printf("\n  [!] the allocation failed, so this pass is skipped.\n");
+        printf("\n  [!] the allocation failed, so this pass is skipped.\n");
         return;
     }
 
@@ -778,14 +778,14 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
 
     if (marked >= 2147483647ull)
     {
-        std::printf("\n  [!] the smaller side still holds %llu values, which a signed 32-bit sum\n",
+        printf("\n  [!] the smaller side still holds %llu values, which a signed 32-bit sum\n",
                     (unsigned long long)marked);
-        std::printf("      cannot carry. Skipped instead of wrapped.\n");
+        printf("      cannot carry. Skipped instead of wrapped.\n");
         delete[] spectrum;
         return;
     }
 
-    std::printf("  %-46s %14s\n", "transforming the smaller side", (mark_holes != 0) ? "the holes" : "the reached");
+    printf("  %-46s %14s\n", "transforming the smaller side", (mark_holes != 0) ? "the holes" : "the reached");
 
     for (size_t value = 0u; value < bins; value += 1u)
     {
@@ -803,9 +803,9 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
     }
     if (filled != marked)
     {
-        std::printf("\n  [!] the fill wrote %llu ones where %llu were expected, so the array was\n",
+        printf("\n  [!] the fill wrote %llu ones where %llu were expected, so the array was\n",
                     (unsigned long long)filled, (unsigned long long)marked);
-        std::printf("      wrong before any transform touched it. Nothing printed.\n");
+        printf("      wrong before any transform touched it. Nothing printed.\n");
         delete[] spectrum;
         return;
     }
@@ -838,9 +838,9 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
 
     if ((wide_same(&energy, &expected_energy) == 0) || ((uint64_t)largest_seen > marked))
     {
-        std::printf("\n  [!] the transform does not satisfy Parseval, or a coefficient exceeds the\n");
-        std::printf("      marked count, which is impossible for a zero-one indicator. Largest\n");
-        std::printf("      coefficient %lld against a marked count of %llu. Nothing printed.\n",
+        printf("\n  [!] the transform does not satisfy Parseval, or a coefficient exceeds the\n");
+        printf("      marked count, which is impossible for a zero-one indicator. Largest\n");
+        printf("      coefficient %lld against a marked count of %llu. Nothing printed.\n",
                     (long long)largest_seen, (unsigned long long)marked);
         delete[] spectrum;
         return;
@@ -848,17 +848,17 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
 
     if ((uint64_t)spectrum[0] != marked)
     {
-        std::printf("\n  [!] the coefficient at mask zero is %lld and the marked count is %llu.\n",
+        printf("\n  [!] the coefficient at mask zero is %lld and the marked count is %llu.\n",
                     (long long)spectrum[0], (unsigned long long)marked);
-        std::printf("      Those have to be equal, so the transform is wrong and nothing below\n");
-        std::printf("      it means anything. Not printed.\n");
+        printf("      Those have to be equal, so the transform is wrong and nothing below\n");
+        printf("      it means anything. Not printed.\n");
         delete[] spectrum;
         return;
     }
 
     const double subset = (double)hole_total;
     const double population = (double)bins;
-    const double deviation = std::sqrt(subset * (population - subset) / (population - 1.0));
+    const double deviation = sqrt(subset * (population - subset) / (population - 1.0));
 
     double worst = 0.0;
     size_t worst_mask = 0u;
@@ -867,7 +867,7 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
 
     for (size_t mask = 1u; mask < bins; mask += 1u)
     {
-        const double score = std::fabs((double)spectrum[mask]) / deviation;
+        const double score = fabs((double)spectrum[mask]) / deviation;
         beyond_five += (score > 5.0) ? 1u : 0u;
         beyond_six += (score > 6.0) ? 1u : 0u;
         if (score > worst)
@@ -879,19 +879,19 @@ void report_full_spectrum(const std::atomic<unsigned char> *wide_window, size_t 
 
     // The largest of this many standard normals, to first order with its first correction. Not a
     // threshold anybody chose, and the count beside it is what a reader should weigh instead.
-    const double logs = 2.0 * std::log((double)(bins - 1u));
+    const double logs = 2.0 * log((double)(bins - 1u));
     const double expected_worst =
-        std::sqrt(logs) -
-        ((std::log(std::log((double)(bins - 1u))) + std::log(4.0 * 3.14159265358979)) / (2.0 * std::sqrt(logs)));
+        sqrt(logs) -
+        ((log(log((double)(bins - 1u))) + log(4.0 * 3.14159265358979)) / (2.0 * sqrt(logs)));
 
-    std::printf("\n  %-46s %14llu\n", "masks tested, every nonzero one", (unsigned long long)(bins - 1u));
-    std::printf("  %-46s %14.1f\n", "one standard deviation of a coefficient", deviation);
-    std::printf("  %-46s %14.4f\n", "largest coefficient, in deviations", worst);
-    std::printf("  %-46s %14.4f\n", "largest a random arrangement would give", expected_worst);
-    std::printf("  %-46s   %08llx\n", "where the largest sits", (unsigned long long)worst_mask);
-    std::printf("  %-46s %14llu   expected %10.1f\n", "coefficients beyond five deviations",
+    printf("\n  %-46s %14llu\n", "masks tested, every nonzero one", (unsigned long long)(bins - 1u));
+    printf("  %-46s %14.1f\n", "one standard deviation of a coefficient", deviation);
+    printf("  %-46s %14.4f\n", "largest coefficient, in deviations", worst);
+    printf("  %-46s %14.4f\n", "largest a random arrangement would give", expected_worst);
+    printf("  %-46s   %08llx\n", "where the largest sits", (unsigned long long)worst_mask);
+    printf("  %-46s %14llu   expected %10.1f\n", "coefficients beyond five deviations",
                 (unsigned long long)beyond_five, (double)(bins - 1u) * 5.733031e-07);
-    std::printf("  %-46s %14llu   expected %10.4f\n", "coefficients beyond six deviations",
+    printf("  %-46s %14llu   expected %10.4f\n", "coefficients beyond six deviations",
                 (unsigned long long)beyond_six, (double)(bins - 1u) * 1.973175e-09);
 
     delete[] spectrum;
@@ -914,16 +914,16 @@ void report_family(const char *title, const uint64_t *counts, unsigned windows, 
     const int sparse = (mean < 8.0) ? 1 : 0;
     // The chi-square statistic behind every deficit has variance twice its degrees of freedom. Thus
     // one window resolves its own deficit to this fraction, and no better.
-    const double resolution = std::sqrt(2.0 / ((double)bins - 1.0));
+    const double resolution = sqrt(2.0 / ((double)bins - 1.0));
 
-    std::printf("\n  %s\n", title);
-    std::printf("  windows %u, bins %llu, mean count %.4g, one-window resolution %.3g of the "
+    printf("\n  %s\n", title);
+    printf("  windows %u, bins %llu, mean count %.4g, one-window resolution %.3g of the "
                 "deficit\n",
                 windows, (unsigned long long)bins, mean, resolution);
-    std::printf("  prediction: %s\n", (sparse != 0) ? "Poisson moments, summed here" : "alpha * var(e) / (2 ln 2)");
+    printf("  prediction: %s\n", (sparse != 0) ? "Poisson moments, summed here" : "alpha * var(e) / (2 ln 2)");
 
-    std::printf("\n  %5s %16s %16s %12s %12s\n", "order", "mean deficit", "predicted", "ratio", "spread");
-    std::printf("  %5s %16s %16s %12s %12s\n", "-----", "----------------", "----------------", "------------",
+    printf("\n  %5s %16s %16s %12s %12s\n", "order", "mean deficit", "predicted", "ratio", "spread");
+    printf("  %5s %16s %16s %12s %12s\n", "-----", "----------------", "----------------", "------------",
                 "------------");
 
     double average_at[7];
@@ -953,7 +953,7 @@ void report_family(const char *title, const uint64_t *counts, unsigned windows, 
             const double offset = per_window[window] - average;
             square_sum += offset * offset;
         }
-        const double spread = std::sqrt(square_sum / (double)windows);
+        const double spread = sqrt(square_sum / (double)windows);
         const double predicted =
             (sparse != 0) ? predicted_deficit_sparse(bins, total, order) : predicted_deficit(bins, total, order);
         average_at[index] = average;
@@ -962,12 +962,12 @@ void report_family(const char *title, const uint64_t *counts, unsigned windows, 
         // that looks like a finding. Say that nothing is there to compare against.
         if (predicted > 1e-300)
         {
-            std::printf("  %5s %16.9g %16.9g %12.5f %12.4g\n", order.tag, average, predicted, average / predicted,
+            printf("  %5s %16.9g %16.9g %12.5f %12.4g\n", order.tag, average, predicted, average / predicted,
                         spread);
         }
         else
         {
-            std::printf("  %5s %16.9g %16.9g %12s %12.4g\n", order.tag, average, predicted, "--", spread);
+            printf("  %5s %16.9g %16.9g %12s %12.4g\n", order.tag, average, predicted, "--", spread);
         }
     }
 
@@ -980,21 +980,21 @@ void report_family(const char *title, const uint64_t *counts, unsigned windows, 
     // not four, and is not a failure to be four. It is nothing, and the code says so.
     if (at_half == 0.0)
     {
-        std::printf("\n  order two over order one half : both deficits are exactly zero, so the\n");
-        std::printf("  ratio is undefined. Exact flatness is the answer, not a ratio.\n");
+        printf("\n  order two over order one half : both deficits are exactly zero, so the\n");
+        printf("  ratio is undefined. Exact flatness is the answer, not a ratio.\n");
         return;
     }
 
-    std::printf("\n  order two over order one half : %.6f", at_two / at_half);
+    printf("\n  order two over order one half : %.6f", at_two / at_half);
     if (sparse != 0)
     {
         const double expected =
             predicted_deficit_sparse(bins, total, ORDERS[3]) / predicted_deficit_sparse(bins, total, ORDERS[1]);
-        std::printf("   (Poisson says %.6f)\n", expected);
+        printf("   (Poisson says %.6f)\n", expected);
     }
     else
     {
-        std::printf("   (a random function says exactly 4)\n");
+        printf("   (a random function says exactly 4)\n");
     }
 }
 
@@ -1012,9 +1012,9 @@ void report_family(const char *title, const uint64_t *counts, unsigned windows, 
 void run_source(const char *name, const Job &job, Source source, uint64_t domain, unsigned workers, unsigned phase,
                 int on_device, std::atomic<unsigned char> *wide_window)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  %s\n", name);
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %s\n", name);
+    printf("================================================================\n");
 
     if (wide_window != nullptr)
     {
@@ -1041,7 +1041,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
         if (renyi_cuda_count(&device_job, (int)source, domain, phase, merged.byte_window.data(),
                              merged.word_window.data(), merged.leading_zero, (unsigned char *)wide_window) == 0)
         {
-            std::printf("\n  [!] the device refused this run, so nothing was counted.\n");
+            printf("\n  [!] the device refused this run, so nothing was counted.\n");
             return;
         }
         counted_on_device = true;
@@ -1109,18 +1109,18 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
         {
             // The last bucket is a catch-all, and its members lose their counts. Thus every statistic
             // below would be wrong by an unknown amount. Say so, and do not print them.
-            std::printf("\n  [!] %llu bins carry %u or more preimages, which the spectrum cannot\n",
+            printf("\n  [!] %llu bins carry %u or more preimages, which the spectrum cannot\n",
                         (unsigned long long)spectrum[spectrum_span - 1u], spectrum_span - 1u);
-            std::printf("      represent. The figures below would be wrong and are not printed.\n");
+            printf("      represent. The figures below would be wrong and are not printed.\n");
             return;
         }
 
-        std::printf("\n  32-bit window at digest bytes 0 to 3, preimage counts\n");
-        std::printf("\n  %6s %20s %20s %12s\n", "count", "bins observed", "Poisson predicts", "ratio");
-        std::printf("  %6s %20s %20s %12s\n", "------", "--------------------", "--------------------", "------------");
+        printf("\n  32-bit window at digest bytes 0 to 3, preimage counts\n");
+        printf("\n  %6s %20s %20s %12s\n", "count", "bins observed", "Poisson predicts", "ratio");
+        printf("  %6s %20s %20s %12s\n", "------", "--------------------", "--------------------", "------------");
 
         const double mean = (double)domain / (double)bins;
-        long double weight = std::exp(-(long double)mean);
+        long double weight = exp(-(long double)mean);
         for (unsigned count = 0u; count < 8u; count += 1u)
         {
             if (count > 0u)
@@ -1128,17 +1128,17 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                 weight *= (long double)mean / (long double)count;
             }
             const double predicted = (double)weight * (double)bins;
-            std::printf("  %6u %20llu %20.6g %12.6f\n", count, (unsigned long long)spectrum[count], predicted,
+            printf("  %6u %20llu %20.6g %12.6f\n", count, (unsigned long long)spectrum[count], predicted,
                         (double)spectrum[count] / predicted);
         }
 
-        std::printf("\n  values never reached : %llu of %llu, a fraction of %.9f\n", (unsigned long long)spectrum[0],
+        printf("\n  values never reached : %llu of %llu, a fraction of %.9f\n", (unsigned long long)spectrum[0],
                     (unsigned long long)bins, (double)spectrum[0] / (double)bins);
-        std::printf("  a random function is unreachable on 1/e = %.9f of its range\n", std::exp(-1.0));
+        printf("  a random function is unreachable on 1/e = %.9f of its range\n", exp(-1.0));
 
-        std::printf("\n  Renyi profile of that window\n");
-        std::printf("\n  %5s %16s %16s %12s\n", "order", "deficit", "Poisson", "ratio");
-        std::printf("  %5s %16s %16s %12s\n", "-----", "----------------", "----------------", "------------");
+        printf("\n  Renyi profile of that window\n");
+        printf("\n  %5s %16s %16s %12s\n", "order", "deficit", "Poisson", "ratio");
+        printf("  %5s %16s %16s %12s\n", "-----", "----------------", "----------------", "------------");
         size_t occupied = 0u;
         uint64_t largest = 0u;
         for (unsigned count = 1u; count < spectrum_span; count += 1u)
@@ -1165,24 +1165,24 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
             double measured;
             if (order.is_support != 0)
             {
-                measured = -std::log2((double)occupied / (double)bins);
+                measured = -log2((double)occupied / (double)bins);
             }
             else if (order.is_peak != 0)
             {
-                measured = std::log2((double)largest / mean);
+                measured = log2((double)largest / mean);
             }
             else if (order.alpha == 1.0)
             {
-                measured = (double)(accumulated / (long double)bins / std::log(2.0L));
+                measured = (double)(accumulated / (long double)bins / log(2.0L));
             }
             else
             {
-                measured = (double)(std::log1p(accumulated / (long double)bins) / std::log(2.0L) /
+                measured = (double)(log1p(accumulated / (long double)bins) / log(2.0L) /
                                     (long double)(order.alpha - 1.0));
             }
 
             const double predicted = predicted_deficit_sparse(bins, domain, order);
-            std::printf("  %5s %16.9g %16.9g %12.6f\n", order.tag, measured, predicted, measured / predicted);
+            printf("  %5s %16.9g %16.9g %12.6f\n", order.tag, measured, predicted, measured / predicted);
         }
 
         // -------------------------------------------------------------------------------------
@@ -1234,7 +1234,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
             // pattern, gives a coefficient of mean zero and this variance. The code fits nothing.
             const double subset = (double)hole_total;
             const double population = (double)bins;
-            const double deviation = std::sqrt(subset * (population - subset) / (population - 1.0));
+            const double deviation = sqrt(subset * (population - subset) / (population - 1.0));
 
             double worst = 0.0;
             unsigned worst_pair = 0u;
@@ -1263,7 +1263,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
 
                 for (unsigned mask = 1u; mask < PAIR_BINS; mask += 1u)
                 {
-                    const double score = std::fabs((double)row[mask]) / deviation;
+                    const double score = fabs((double)row[mask]) / deviation;
                     tested += 1u;
                     beyond_five += (score > 5.0) ? 1u : 0u;
                     if (score > worst)
@@ -1275,16 +1275,16 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                 }
             }
 
-            std::printf("\n  The arrangement of the holes, which nothing above can see\n");
-            std::printf("\n  Every figure above is a function of the count multiset alone, a\n");
-            std::printf("  permutation of which value carries which count leaves all of them exactly\n");
-            std::printf("  unchanged. Where the holes sit is a separate question and this is it.\n");
-            std::printf("\n  %-46s %14llu\n", "holes in the arrangement", (unsigned long long)hole_total);
-            std::printf("  %-46s %14.1f\n", "one standard deviation of a coefficient", deviation);
-            std::printf("  %-46s %14u\n", "masks tested, every one in any two bytes", tested);
-            std::printf("  %-46s %14.4f\n", "largest coefficient, in deviations", worst);
-            std::printf("  %-46s %14u\n", "coefficients beyond five deviations", beyond_five);
-            std::printf("  %-46s   bytes %u,%u mask %04x\n", "where the largest sits", PAIR_LEFT[worst_pair],
+            printf("\n  The arrangement of the holes, which nothing above can see\n");
+            printf("\n  Every figure above is a function of the count multiset alone, a\n");
+            printf("  permutation of which value carries which count leaves all of them exactly\n");
+            printf("  unchanged. Where the holes sit is a separate question and this is it.\n");
+            printf("\n  %-46s %14llu\n", "holes in the arrangement", (unsigned long long)hole_total);
+            printf("  %-46s %14.1f\n", "one standard deviation of a coefficient", deviation);
+            printf("  %-46s %14u\n", "masks tested, every one in any two bytes", tested);
+            printf("  %-46s %14.4f\n", "largest coefficient, in deviations", worst);
+            printf("  %-46s %14u\n", "coefficients beyond five deviations", beyond_five);
+            printf("  %-46s   bytes %u,%u mask %04x\n", "where the largest sits", PAIR_LEFT[worst_pair],
                         PAIR_RIGHT[worst_pair], worst_mask);
             // -------------------------------------------------------------------------------
             // A look at the holes, and not only a test of them.
@@ -1347,41 +1347,41 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                     }
                 }
 
-                std::printf("\n  Walking the holes in value order, which needs no mask at all\n");
-                std::printf("\n  Gaps between consecutive holes. A hole rate of %.6f scattered at\n", rate);
-                std::printf("  random gives geometric gaps, so each bucket has an exact expectation.\n");
-                std::printf("\n  %10s %20s %20s %12s\n", "gap", "observed", "expected", "ratio");
-                std::printf("  %10s %20s %20s %12s\n", "----------", "--------------------", "--------------------",
+                printf("\n  Walking the holes in value order, which needs no mask at all\n");
+                printf("\n  Gaps between consecutive holes. A hole rate of %.6f scattered at\n", rate);
+                printf("  random gives geometric gaps, so each bucket has an exact expectation.\n");
+                printf("\n  %10s %20s %20s %12s\n", "gap", "observed", "expected", "ratio");
+                printf("  %10s %20s %20s %12s\n", "----------", "--------------------", "--------------------",
                             "------------");
 
                 for (unsigned slot = 0u; slot < 12u; slot += 1u)
                 {
                     // A gap lands in bucket `slot` when it is at least 2^`slot` and below 2^(`slot`+1).
-                    const double low = std::pow(2.0, (double)slot);
-                    const double high = std::pow(2.0, (double)slot + 1.0);
+                    const double low = pow(2.0, (double)slot);
+                    const double high = pow(2.0, (double)slot + 1.0);
                     const double expected =
-                        (double)hole_total * (std::pow(1.0 - rate, low - 1.0) - std::pow(1.0 - rate, high - 1.0));
-                    std::printf("  %10.0f %20llu %20.6g %12.6f\n", low, (unsigned long long)gap_histogram[slot],
+                        (double)hole_total * (pow(1.0 - rate, low - 1.0) - pow(1.0 - rate, high - 1.0));
+                    printf("  %10.0f %20llu %20.6g %12.6f\n", low, (unsigned long long)gap_histogram[slot],
                                 expected, (expected > 0.0) ? ((double)gap_histogram[slot] / expected) : 0.0);
                 }
 
                 // Runs are the other non-linear reading, and the prediction is exact. The longest
                 // run of k independent events of probability p over n trials sits near
                 // log(n(1-p)) / log(1/p).
-                const double hole_run_expected = std::log((double)bins * (1.0 - rate)) / std::log(1.0 / rate);
-                const double gap_run_expected = std::log((double)bins * rate) / std::log(1.0 / (1.0 - rate));
+                const double hole_run_expected = log((double)bins * (1.0 - rate)) / log(1.0 / rate);
+                const double gap_run_expected = log((double)bins * rate) / log(1.0 / (1.0 - rate));
 
-                std::printf("\n  %-40s %12llu   expected %8.2f\n", "longest run of holes",
+                printf("\n  %-40s %12llu   expected %8.2f\n", "longest run of holes",
                             (unsigned long long)longest_hole_run, hole_run_expected);
-                std::printf("  %-40s %12llu   expected %8.2f\n", "longest run of reached values",
+                printf("  %-40s %12llu   expected %8.2f\n", "longest run of reached values",
                             (unsigned long long)longest_gap_run, gap_run_expected);
 
-                std::printf("\n  the first eight holes, printed instead of summarised :");
+                printf("\n  the first eight holes, printed instead of summarised :");
                 for (unsigned at = 0u; at < first_seen; at += 1u)
                 {
-                    std::printf(" %08x", first_holes[at]);
+                    printf(" %08x", first_holes[at]);
                 }
-                std::printf("\n");
+                printf("\n");
             }
 
             // -------------------------------------------------------------------------------
@@ -1418,18 +1418,18 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                 }
                 const double variance = mean_square - (mean_count * mean_count);
 
-                std::printf("\n  How the counts flow around a hole, in every single-bit direction\n");
-                std::printf("\n  c(v) against c(v xor d) over all %llu values, using the whole count\n",
+                printf("\n  How the counts flow around a hole, in every single-bit direction\n");
+                printf("\n  c(v) against c(v xor d) over all %llu values, using the whole count\n",
                             (unsigned long long)bins);
-                std::printf("  instead of the hole indicator. A random function correlates at zero\n");
-                std::printf("  in every direction. Mean count %.6f, variance %.6f.\n", mean_count, variance);
-                std::printf("\n  %10s %18s %14s %14s\n", "direction", "correlation", "in sigma", "verdict");
-                std::printf("  %10s %18s %14s %14s\n", "----------", "------------------", "--------------",
+                printf("  instead of the hole indicator. A random function correlates at zero\n");
+                printf("  in every direction. Mean count %.6f, variance %.6f.\n", mean_count, variance);
+                printf("\n  %10s %18s %14s %14s\n", "direction", "correlation", "in sigma", "verdict");
+                printf("  %10s %18s %14s %14s\n", "----------", "------------------", "--------------",
                             "--------------");
 
                 // The pass counts each pair once from each end. Thus the estimator sees 2^32 pairs,
                 // and its standard error is one over the square root of that.
-                const double error = 1.0 / std::sqrt((double)bins);
+                const double error = 1.0 / sqrt((double)bins);
                 double worst_flow = 0.0;
                 unsigned worst_direction = 0u;
 
@@ -1482,37 +1482,37 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                             ? (((double)joint_by_direction[bit] / (double)bins) - (mean_count * mean_count)) / variance
                             : 0.0;
                     const double sigma = correlation / error;
-                    if (std::fabs(sigma) > std::fabs(worst_flow))
+                    if (fabs(sigma) > fabs(worst_flow))
                     {
                         worst_flow = sigma;
                         worst_direction = bit;
                     }
 
-                    if ((bit < 4u) || (std::fabs(sigma) > 4.0))
+                    if ((bit < 4u) || (fabs(sigma) > 4.0))
                     {
-                        std::printf("  %10llu %18.9f %14.3f %14s\n", (unsigned long long)direction, correlation, sigma,
-                                    (std::fabs(sigma) > 4.0) ? "LOOK" : "flat");
+                        printf("  %10llu %18.9f %14.3f %14s\n", (unsigned long long)direction, correlation, sigma,
+                                    (fabs(sigma) > 4.0) ? "LOOK" : "flat");
                     }
                 }
 
-                std::printf("\n  %-44s bit %u at %.3f sigma\n", "strongest of the 32 directions", worst_direction,
+                printf("\n  %-44s bit %u at %.3f sigma\n", "strongest of the 32 directions", worst_direction,
                             worst_flow);
-                std::printf("  The largest of 32 standard normals sits near 2.2, a reading\n");
-                std::printf("  under about 3 is the absence of flow instead of a failure to look.\n");
-                std::printf("  Directions are printed only where they are the first four or where\n");
-                std::printf("  they exceed four sigma, an empty middle means every one was flat.\n");
+                printf("  The largest of 32 standard normals sits near 2.2, a reading\n");
+                printf("  under about 3 is the absence of flow instead of a failure to look.\n");
+                printf("  Directions are printed only where they are the first four or where\n");
+                printf("  they exceed four sigma, an empty middle means every one was flat.\n");
             }
 
-            std::printf("\n  The largest of %u independent standard normals sits near 4.6, a\n", tested);
-            std::printf("  reading below about 5 is the absence of linear structure and not a\n");
-            std::printf("  failure to look. This runs on the control as well, and the control is\n");
-            std::printf("  what says which of those two it is.\n");
+            printf("\n  The largest of %u independent standard normals sits near 4.6, a\n", tested);
+            printf("  reading below about 5 is the absence of linear structure and not a\n");
+            printf("  failure to look. This runs on the control as well, and the control is\n");
+            printf("  what says which of those two it is.\n");
 
             report_full_spectrum(wide_window, bins, hole_total, workers);
         }
 
-        std::printf("\n  Arikan: expected guesses at most (2^H_{1/2} + 1)/2, so the measured\n");
-        std::printf("  order one half deficit is worth a factor of %.6f off a blind search of\n", std::pow(2.0, [&]() {
+        printf("\n  Arikan: expected guesses at most (2^H_{1/2} + 1)/2, so the measured\n");
+        printf("  order one half deficit is worth a factor of %.6f off a blind search of\n", pow(2.0, [&]() {
                         // ORDERS[1] is order one half. The code goes through deficit_term, and does
                         // not write the sum again. A second copy of the same arithmetic can put a
                         // wrong Shannon figure in the table above.
@@ -1527,17 +1527,17 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                             accumulated += (long double)spectrum[count] *
                                            deficit_term(ORDERS[1], deviation, (count == 0u) ? 1 : 0);
                         }
-                        return (double)(std::log1p(accumulated / (long double)bins) / std::log(2.0L) / -0.5L);
+                        return (double)(log1p(accumulated / (long double)bins) / log(2.0L) / -0.5L);
                     }()));
-        std::printf("  this window's output. That is the whole of what the non-uniformity buys,\n");
-        std::printf("  and it buys it against guessing the output, which is not what mining does.\n");
+        printf("  this window's output. That is the whole of what the non-uniformity buys,\n");
+        printf("  and it buys it against guessing the output, which is not what mining does.\n");
     }
 
     // The statistic that the pool actually reads. Over a whole nonce range, this is complete. Thus
     // the comparison is against the exact binomial mean, and not against a sample of it.
-    std::printf("\n  leading zero bits, protocol order, over the whole enumerated domain\n");
-    std::printf("\n  %6s %20s %20s %12s\n", "bits", "nonces at least", "expected", "ratio");
-    std::printf("  %6s %20s %20s %12s\n", "------", "--------------------", "--------------------", "------------");
+    printf("\n  leading zero bits, protocol order, over the whole enumerated domain\n");
+    printf("\n  %6s %20s %20s %12s\n", "bits", "nonces at least", "expected", "ratio");
+    printf("  %6s %20s %20s %12s\n", "------", "--------------------", "--------------------", "------------");
 
     uint64_t at_least = 0u;
     for (unsigned bits = 68u; bits >= 20u; bits -= 4u)
@@ -1547,8 +1547,8 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
         {
             at_least += merged.leading_zero[found];
         }
-        const double expected = (double)domain * std::pow(2.0, -(double)bits);
-        std::printf("  %6u %20llu %20.6g %12.6g\n", bits, (unsigned long long)at_least, expected,
+        const double expected = (double)domain * pow(2.0, -(double)bits);
+        printf("  %6u %20llu %20.6g %12.6g\n", bits, (unsigned long long)at_least, expected,
                     (double)at_least / expected);
     }
 
@@ -1562,14 +1562,14 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
                 deepest = found;
             }
         }
-        std::printf("\n  deepest nonce in the whole domain : %u leading zero bits\n", deepest);
-        std::printf("\n  That is not a fluctuation and the ratio column above should not be read\n");
-        std::printf("  as one. This is block 125552's own header, so its own solved nonce is in\n");
-        std::printf("  the domain being enumerated, and a run over every nonce is guaranteed to\n");
-        std::printf("  find it. The block's published hash carries 64 leading zero bits, a\n");
-        std::printf("  deepest of %u is the pipeline rediscovering a known 2011 answer from the\n", deepest);
-        std::printf("  header alone. It is the strongest external check available here, and it\n");
-        std::printf("  is worth more than the rows below it, which are ordinary statistics.\n");
+        printf("\n  deepest nonce in the whole domain : %u leading zero bits\n", deepest);
+        printf("\n  That is not a fluctuation and the ratio column above should not be read\n");
+        printf("  as one. This is block 125552's own header, so its own solved nonce is in\n");
+        printf("  the domain being enumerated, and a run over every nonce is guaranteed to\n");
+        printf("  find it. The block's published hash carries 64 leading zero bits, a\n");
+        printf("  deepest of %u is the pipeline rediscovering a known 2011 answer from the\n", deepest);
+        printf("  header alone. It is the strongest external check available here, and it\n");
+        printf("  is worth more than the rows below it, which are ordinary statistics.\n");
     }
 }
 
@@ -1577,59 +1577,59 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
 
 int main(int argc, char **argv)
 {
-    const unsigned domain_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 32u;
-    const int with_holes = (argc > 2) ? std::atoi(argv[2]) : 1;
-    const int with_controls = (argc > 3) ? std::atoi(argv[3]) : 7;
+    const unsigned domain_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 32u;
+    const int with_holes = (argc > 2) ? atoi(argv[2]) : 1;
+    const int with_controls = (argc > 3) ? atoi(argv[3]) : 7;
     // The bit where every window starts. Nothing tells a detector where the units begin. A slice of
     // the right width at the wrong offset splits every unit across two symbols. Thus eight phases
     // are eight different symbol choices on the same digest.
-    const unsigned phase = (argc > 4) ? ((unsigned)std::atoi(argv[4]) & 7u) : 0u;
+    const unsigned phase = (argc > 4) ? ((unsigned)atoi(argv[4]) & 7u) : 0u;
     const uint64_t domain = (uint64_t)1u << domain_bits;
     // This machine runs a desktop while a bench runs on it. Thus the bench takes the remainder, and
     // not everything but one core. bench_load_limit.h says why one spare core is not enough.
     bench_lower_priority();
-    const unsigned workers = bench_worker_count((argc > 5) ? (unsigned)std::atoi(argv[5]) : 0u);
-    int on_device = (argc > 6) ? std::atoi(argv[6]) : 0;
+    const unsigned workers = bench_worker_count((argc > 5) ? (unsigned)atoi(argv[5]) : 0u);
+    int on_device = (argc > 6) ? atoi(argv[6]) : 0;
 
 #if BENCH_RENYI_HAS_CUDA
     char device_text[256];
     if ((on_device != 0) && (renyi_cuda_available(device_text, sizeof(device_text)) == 0))
     {
-        std::printf("\n  [!] no usable device, falling back to the host.\n");
+        printf("\n  [!] no usable device, falling back to the host.\n");
         on_device = 0;
     }
 #else
     if (on_device != 0)
     {
-        std::printf("\n  [!] this binary was built without the device arm, using the host.\n");
+        printf("\n  [!] this binary was built without the device arm, using the host.\n");
         on_device = 0;
     }
 #endif
 
-    std::printf("================================================================\n");
-    std::printf("  The Renyi order axis, over the whole nonce domain\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Every entropy in this workbook so far has been order two, because a collision\n");
-    std::printf("  counter is what was to hand. Order is an axis and it has never been swept.\n");
-    std::printf("\n  order 0    counts values that never occur          the holes\n");
-    std::printf("  order 1/2  governs guessing, by Arikan's bound      the cost of search\n");
-    std::printf("  order 1    Shannon\n");
-    std::printf("  order 2    collision probability                    everything measured so far\n");
-    std::printf("  order inf  the single most over-represented value   the largest bump\n");
-    std::printf("\n  Domain: 2^%u nonces of one real header, enumerated instead of sampled.\n", domain_bits);
-    std::printf("  Function: whole SHA256d over all eighty bytes. A window is a readout of the\n");
-    std::printf("  whole 256-bit digest, never a truncation of the computation.\n");
-    std::printf("  Threads: %u.\n", workers);
+    printf("================================================================\n");
+    printf("  The Renyi order axis, over the whole nonce domain\n");
+    printf("================================================================\n");
+    printf("\n  Every entropy in this workbook so far has been order two, because a collision\n");
+    printf("  counter is what was to hand. Order is an axis and it has never been swept.\n");
+    printf("\n  order 0    counts values that never occur          the holes\n");
+    printf("  order 1/2  governs guessing, by Arikan's bound      the cost of search\n");
+    printf("  order 1    Shannon\n");
+    printf("  order 2    collision probability                    everything measured so far\n");
+    printf("  order inf  the single most over-represented value   the largest bump\n");
+    printf("\n  Domain: 2^%u nonces of one real header, enumerated instead of sampled.\n", domain_bits);
+    printf("  Function: whole SHA256d over all eighty bytes. A window is a readout of the\n");
+    printf("  whole 256-bit digest, never a truncation of the computation.\n");
+    printf("  Threads: %u.\n", workers);
 #if BENCH_RENYI_HAS_CUDA
     if (on_device != 0)
     {
-        std::printf("  Counting on the device: %s. Every statistic below is still the host's own\n", device_text);
-        std::printf("  code reading the same three histograms, computed once.\n");
+        printf("  Counting on the device: %s. Every statistic below is still the host's own\n", device_text);
+        printf("  code reading the same three histograms, computed once.\n");
     }
 #endif
-    std::printf("  Window phase: %u. Every window starts %u bits into the digest, which is a\n", phase, phase);
-    std::printf("  different symbolisation of the same 256 bits instead of a different read of\n");
-    std::printf("  the same one. Eight phases exist and only phase zero has ever been looked at.\n");
+    printf("  Window phase: %u. Every window starts %u bits into the digest, which is a\n", phase, phase);
+    printf("  different symbolisation of the same 256 bits instead of a different read of\n");
+    printf("  the same one. Eight phases exist and only phase zero has ever been looked at.\n");
 
     // Block 125552 by default: the header that this tree validates against. Real, and a known
     // answer. The caller can supply a different one as 160 hex characters. The conservation check
@@ -1649,7 +1649,7 @@ int main(int argc, char **argv)
         const size_t given = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = supplied, .cap = ~(size_t)0);
         if (given != ((size_t)BITCOIN_HEADER_BYTES * 2u))
         {
-            std::printf("\n  [!] a supplied header must be exactly %u hex characters, not %zu.\n",
+            printf("\n  [!] a supplied header must be exactly %u hex characters, not %zu.\n",
                         BITCOIN_HEADER_BYTES * 2u, given);
             return 1;
         }
@@ -1667,18 +1667,18 @@ int main(int argc, char **argv)
                                : ((digit >= 'A' && digit <= 'F') ? (unsigned)(digit - 'A' + 10) : 16u));
                 if (nibble > 15u)
                 {
-                    std::printf("\n  [!] '%c' is not a hex digit.\n", digit);
+                    printf("\n  [!] '%c' is not a hex digit.\n", digit);
                     return 1;
                 }
                 value = (value << 4) | nibble;
             }
             header[at] = (uint8_t)value;
         }
-        std::printf("  Header: supplied, %u bytes read from the command line.\n", BITCOIN_HEADER_BYTES);
+        printf("  Header: supplied, %u bytes read from the command line.\n", BITCOIN_HEADER_BYTES);
     }
     else
     {
-        std::printf("  Header: block 125552, the tree's own known answer.\n");
+        printf("  Header: block 125552, the tree's own known answer.\n");
     }
 
     Job job;
@@ -1696,7 +1696,7 @@ int main(int argc, char **argv)
         wide_window = new (std::nothrow) std::atomic<unsigned char>[(size_t)1u << 32];
         if (wide_window == nullptr)
         {
-            std::printf("\n  [!] four gigabytes unavailable, the 32-bit window is skipped\n");
+            printf("\n  [!] four gigabytes unavailable, the 32-bit window is skipped\n");
         }
     }
 
@@ -1721,31 +1721,31 @@ int main(int argc, char **argv)
     }
     if (with_controls != 7)
     {
-        std::printf("\n  [!] controls %d of 7 were run. A control skipped here has to have been\n", with_controls);
-        std::printf("      run at this same domain in another pass, or the figures below grade\n");
-        std::printf("      against nothing. Skipping all of them grades nothing at all.\n");
+        printf("\n  [!] controls %d of 7 were run. A control skipped here has to have been\n", with_controls);
+        printf("      run at this same domain in another pass, or the figures below grade\n");
+        printf("      against nothing. Skipping all of them grades nothing at all.\n");
     }
     run_source("SHA256d over the whole header, the whole nonce domain enumerated", job, SOURCE_SHA256D, domain, workers,
                phase, on_device, wide_window);
 
     delete[] wide_window;
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Control one must report exactly log2(bins) at every order, which is 8 for the\n");
-    std::printf("  byte windows and 16 for the sixteen-bit windows. It was handed a distribution\n");
-    std::printf("  on one point, and that answer does not depend on the domain size, so it grades\n");
-    std::printf("  the estimator at any run length including a short one.\n");
-    std::printf("\n  Control two must report zero at every order, but only where the domain fills\n");
-    std::printf("  the windows. At 2^32 it does. Below that a function of k bits cannot fill a\n");
-    std::printf("  wider window and the control correctly reports the shortfall instead.\n");
-    std::printf("\n  Control three must report the prediction, not zero. An estimator that reports\n");
-    std::printf("  flatness for a pseudorandom function is broken in the opposite direction, and\n");
-    std::printf("  one control alone cannot tell the two failures apart.\n");
-    std::printf("\n  Then SHA256d. The ratio column is the map. A flat plane reads 1.000 at every\n");
-    std::printf("  order and every window; a bump reads high at one position and a hole reads at\n");
-    std::printf("  order zero. The order two over order one half figure is the parameter-free\n");
-    std::printf("  test, because every common scale cancels out of a ratio between orders.\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  Control one must report exactly log2(bins) at every order, which is 8 for the\n");
+    printf("  byte windows and 16 for the sixteen-bit windows. It was handed a distribution\n");
+    printf("  on one point, and that answer does not depend on the domain size, so it grades\n");
+    printf("  the estimator at any run length including a short one.\n");
+    printf("\n  Control two must report zero at every order, but only where the domain fills\n");
+    printf("  the windows. At 2^32 it does. Below that a function of k bits cannot fill a\n");
+    printf("  wider window and the control correctly reports the shortfall instead.\n");
+    printf("\n  Control three must report the prediction, not zero. An estimator that reports\n");
+    printf("  flatness for a pseudorandom function is broken in the opposite direction, and\n");
+    printf("  one control alone cannot tell the two failures apart.\n");
+    printf("\n  Then SHA256d. The ratio column is the map. A flat plane reads 1.000 at every\n");
+    printf("  order and every window; a bump reads high at one position and a hole reads at\n");
+    printf("  order zero. The order two over order one half figure is the parameter-free\n");
+    printf("  test, because every common scale cancels out of a ratio between orders.\n");
     return 0;
 }

@@ -19,7 +19,7 @@
 #include "sha256_core.h"
 
 #include <chrono>
-#include <cstdio>
+#include <stdio.h>
 #include <string>
 
 namespace
@@ -36,7 +36,7 @@ void bytes_of(const char *hex, uint8_t *header)
     for (unsigned at = 0u; at < 80u; at += 1u)
     {
         char pair[3] = {hex[at * 2u], hex[(at * 2u) + 1u], '\0'};
-        header[at] = (uint8_t)std::strtoul(pair, nullptr, 16);
+        header[at] = (uint8_t)strtoul(pair, nullptr, 16);
     }
 }
 
@@ -51,9 +51,9 @@ uint32_t word_at(const uint8_t *header, unsigned offset)
 
 int main(int argc, char **argv)
 {
-    const unsigned scan_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 22u;
+    const unsigned scan_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 22u;
     const uint32_t count = (uint32_t)1u << scan_bits;
-    const double difficulty = (argc > 2) ? std::atof(argv[2]) : 1.0;
+    const double difficulty = (argc > 2) ? atof(argv[2]) : 1.0;
 
     uint8_t header[80];
     bytes_of(GENESIS_HEADER, header);
@@ -69,24 +69,24 @@ int main(int argc, char **argv)
     request.abandon = nullptr;
     sha256_share_target_from_difficulty(request.share_target, difficulty);
 
-    std::printf("================================================================\n");
-    std::printf("  The hoisted scan against the conventional one\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Two exact savings, spent for the first time. The nonce is message word three\n");
-    std::printf("  and W[at] draws on at-16, at-15, at-7 and at-2, so the first eighteen schedule\n");
-    std::printf("  words and the first three rounds of the first block are the same for every\n");
-    std::printf("  nonce and are hoisted out of the loop. And the round moves e to f to g to h, so\n");
-    std::printf("  the anchor word is the e of sixty-one rounds and the last three rounds of the\n");
-    std::printf("  second block cannot change it and are not run.\n");
-    std::printf("\n  Scanning 2^%u nonces at difficulty %.4f.\n", scan_bits, difficulty);
+    printf("================================================================\n");
+    printf("  The hoisted scan against the conventional one\n");
+    printf("================================================================\n");
+    printf("\n  Two exact savings, spent for the first time. The nonce is message word three\n");
+    printf("  and W[at] draws on at-16, at-15, at-7 and at-2, so the first eighteen schedule\n");
+    printf("  words and the first three rounds of the first block are the same for every\n");
+    printf("  nonce and are hoisted out of the loop. And the round moves e to f to g to h, so\n");
+    printf("  the anchor word is the e of sixty-one rounds and the last three rounds of the\n");
+    printf("  second block cannot change it and are not run.\n");
+    printf("\n  Scanning 2^%u nonces at difficulty %.4f.\n", scan_bits, difficulty);
 
     // Check the shortcut against the full arithmetic on every nonce. A scan that finds no survivor
     // does not test it. An anchor survives about once in four billion nonces. Thus an agreement of
     // two arms on a range with no share says nothing about whether the shortcut is right.
-    std::printf("\n  The shortcut against the full arithmetic, on every nonce\n");
-    std::printf("\n  An anchor survives about once in 2^32 nonces, a scan that finds none has\n");
-    std::printf("  not exercised the shortcut. This compares the anchor word itself against word\n");
-    std::printf("  seven of the fully computed digest, nonce by nonce.\n");
+    printf("\n  The shortcut against the full arithmetic, on every nonce\n");
+    printf("\n  An anchor survives about once in 2^32 nonces, a scan that finds none has\n");
+    printf("  not exercised the shortcut. This compares the anchor word itself against word\n");
+    printf("  seven of the fully computed digest, nonce by nonce.\n");
 
     {
         const uint32_t checked = (count < 200000u) ? count : 200000u;
@@ -129,20 +129,20 @@ int main(int argc, char **argv)
             (void)first_pass;
         }
 
-        std::printf("\n  %-40s %14u\n", "nonces checked against the full digest", checked);
-        std::printf("  %-40s %14u\n", "anchor words that disagreed", wrong);
+        printf("\n  %-40s %14u\n", "nonces checked against the full digest", checked);
+        printf("  %-40s %14u\n", "anchor words that disagreed", wrong);
         if (wrong != 0u)
         {
-            std::printf("  %-40s %14u\n", "first disagreeing nonce", first_wrong);
-            std::printf("\n  [!] the shortcut does not reproduce the digest, so it is wrong and\n");
-            std::printf("  nothing below this line is worth reading.\n");
+            printf("  %-40s %14u\n", "first disagreeing nonce", first_wrong);
+            printf("\n  [!] the shortcut does not reproduce the digest, so it is wrong and\n");
+            printf("  nothing below this line is worth reading.\n");
             return 1;
         }
-        std::printf("\n  Every one matches, so the shortcut computes the same anchor word the long\n");
-        std::printf("  route does and the two savings are sound instead of merely fast.\n");
+        printf("\n  Every one matches, so the shortcut computes the same anchor word the long\n");
+        printf("  route does and the two savings are sound instead of merely fast.\n");
     }
 
-    std::printf("\n  Agreement of the two scans over the whole range\n");
+    printf("\n  Agreement of the two scans over the whole range\n");
 
     Sha256ScanResult plain;
     Sha256ScanResult early;
@@ -176,38 +176,38 @@ int main(int argc, char **argv)
     const int same_evaluated = (plain.nonces_evaluated == early.nonces_evaluated) ? 1 : 0;
     const int same_survivors = (plain.anchors_survived == early.anchors_survived) ? 1 : 0;
 
-    std::printf("\n  %-30s %16s %16s %10s\n", "quantity", "conventional", "hoisted", "agrees");
-    std::printf("  %-30s %16s %16s %10s\n", "------------------------------", "----------------", "----------------",
+    printf("\n  %-30s %16s %16s %10s\n", "quantity", "conventional", "hoisted", "agrees");
+    printf("  %-30s %16s %16s %10s\n", "------------------------------", "----------------", "----------------",
                 "----------");
-    std::printf("  %-30s %16llu %16llu %10s\n", "nonces evaluated", (unsigned long long)plain.nonces_evaluated,
+    printf("  %-30s %16llu %16llu %10s\n", "nonces evaluated", (unsigned long long)plain.nonces_evaluated,
                 (unsigned long long)early.nonces_evaluated, (same_evaluated != 0) ? "yes" : "NO");
-    std::printf("  %-30s %16llu %16llu %10s\n", "anchors survived", (unsigned long long)plain.anchors_survived,
+    printf("  %-30s %16llu %16llu %10s\n", "anchors survived", (unsigned long long)plain.anchors_survived,
                 (unsigned long long)early.anchors_survived, (same_survivors != 0) ? "yes" : "NO");
-    std::printf("  %-30s %16d %16d %10s\n", "found a share", plain.found, early.found,
+    printf("  %-30s %16d %16d %10s\n", "found a share", plain.found, early.found,
                 (same_found != 0) ? "yes" : "NO");
-    std::printf("  %-30s %16u %16u %10s\n", "winning nonce", plain.winning_nonce, early.winning_nonce,
+    printf("  %-30s %16u %16u %10s\n", "winning nonce", plain.winning_nonce, early.winning_nonce,
                 (same_nonce != 0) ? "yes" : "NO");
 
     const int agrees = (same_found & same_nonce & same_evaluated & same_survivors);
     if (agrees == 0)
     {
-        std::printf("\n  [!] the arms disagree, so nothing below this line means anything and the\n");
-        std::printf("  hoisted arm must not be used. A saving that changes an answer is not a\n");
-        std::printf("  saving.\n");
+        printf("\n  [!] the arms disagree, so nothing below this line means anything and the\n");
+        printf("  hoisted arm must not be used. A saving that changes an answer is not a\n");
+        printf("  saving.\n");
         return 1;
     }
-    std::printf("\n  Both arms agree on every quantity, including the survivor count, which is the\n");
-    std::printf("  one that would move first if the anchor shortcut were wrong.\n");
+    printf("\n  Both arms agree on every quantity, including the survivor count, which is the\n");
+    printf("  one that would move first if the anchor shortcut were wrong.\n");
 
-    std::printf("\n  Throughput and mean time to share\n");
-    std::printf("\n  %-30s %16s %16s %10s\n", "quantity", "conventional", "hoisted", "ratio");
-    std::printf("  %-30s %16s %16s %10s\n", "------------------------------", "----------------", "----------------",
+    printf("\n  Throughput and mean time to share\n");
+    printf("\n  %-30s %16s %16s %10s\n", "quantity", "conventional", "hoisted", "ratio");
+    printf("  %-30s %16s %16s %10s\n", "------------------------------", "----------------", "----------------",
                 "----------");
 
     const double plain_rate = (double)count / plain_seconds;
     const double early_rate = (double)count / early_seconds;
-    std::printf("  %-30s %16.3f %16.3f %10s\n", "seconds for the range", plain_seconds, early_seconds, "");
-    std::printf("  %-30s %16.3f %16.3f %9.3fx\n", "megahashes per second", plain_rate / 1000000.0,
+    printf("  %-30s %16.3f %16.3f %10s\n", "seconds for the range", plain_seconds, early_seconds, "");
+    printf("  %-30s %16.3f %16.3f %9.3fx\n", "megahashes per second", plain_rate / 1000000.0,
                 early_rate / 1000000.0, early_rate / plain_rate);
 
     // A pool pays on the mean time to a share. At difficulty d, a share wants 2^32 * d hashes on
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
     const double wanted = 4294967296.0 * difficulty;
     const double plain_wait = wanted / plain_rate;
     const double early_wait = wanted / early_rate;
-    std::printf("  %-30s %16.2f %16.2f %9.3fx\n", "mean seconds to a share", plain_wait, early_wait,
+    printf("  %-30s %16.2f %16.2f %9.3fx\n", "mean seconds to a share", plain_wait, early_wait,
                 plain_wait / early_wait);
 
     // The arm that the miner actually runs. btc_miner.cpp dispatches to sha256_scan_avx2, and
@@ -236,21 +236,21 @@ int main(int argc, char **argv)
         const double wide_rate = (double)count / wide_seconds;
         const int wide_agrees = ((wide.found == plain.found) && (wide.winning_nonce == plain.winning_nonce)) ? 1 : 0;
 
-        std::printf("\n  The arm the miner actually runs\n");
-        std::printf("\n  btc_miner dispatches to the eight-lane arm and reaches the scalar one only\n");
-        std::printf("  as a fallback, so the ratio above is about a path the miner does not take.\n");
-        std::printf("\n  %-30s %16.3f %16s %9.3fx\n", "eight-lane megahashes/sec", wide_rate / 1000000.0, "",
+        printf("\n  The arm the miner actually runs\n");
+        printf("\n  btc_miner dispatches to the eight-lane arm and reaches the scalar one only\n");
+        printf("  as a fallback, so the ratio above is about a path the miner does not take.\n");
+        printf("\n  %-30s %16.3f %16s %9.3fx\n", "eight-lane megahashes/sec", wide_rate / 1000000.0, "",
                     wide_rate / plain_rate);
-        std::printf("  %-30s %16.2f %16s %10s\n", "  mean seconds to a share", wanted / wide_rate, "",
+        printf("  %-30s %16.2f %16s %10s\n", "  mean seconds to a share", wanted / wide_rate, "",
                     (wide_agrees != 0) ? "agrees" : "DISAGREES");
-        std::printf("\n  The two savings have not been carried into that arm, so the miner does not\n");
-        std::printf("  have them yet. Porting them is the remaining work and the scalar ratio is\n");
-        std::printf("  the best available guess at what they would be worth there.\n");
+        printf("\n  The two savings have not been carried into that arm, so the miner does not\n");
+        printf("  have them yet. Porting them is the remaining work and the scalar ratio is\n");
+        printf("  the best available guess at what they would be worth there.\n");
     }
 
-    std::printf("\n  The predicted saving was 5.0%% of the arithmetic, counted in word-rounds: 24\n");
-    std::printf("  of 1024 for the shared front and 27 for the tail no rejection reads. Word-rounds\n");
-    std::printf("  are not instructions, so the measured ratio above is the finding and the 5.0%%\n");
-    std::printf("  was only ever a bound on what could be removed.\n");
+    printf("\n  The predicted saving was 5.0%% of the arithmetic, counted in word-rounds: 24\n");
+    printf("  of 1024 for the shared front and 27 for the tail no rejection reads. Word-rounds\n");
+    printf("  are not instructions, so the measured ratio above is the finding and the 5.0%%\n");
+    printf("  was only ever a bound on what could be removed.\n");
     return 0;
 }

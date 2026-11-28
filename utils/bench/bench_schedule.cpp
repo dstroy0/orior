@@ -24,8 +24,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -48,15 +48,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -148,9 +148,9 @@ unsigned expanded_weight(const uint32_t *schedule)
  */
 void check_linearity()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  0. Control. Are sigma0 and sigma1 really GF(2)-linear?\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  0. Control. Are sigma0 and sigma1 really GF(2)-linear?\n");
+    printf("================================================================\n");
 
     std::mt19937 generator(20260908u);
     bool low_linear = true;
@@ -205,8 +205,8 @@ void check_linearity()
     check("sigma0 is GF(2)-linear", low_linear);
     check("sigma1 is GF(2)-linear", high_linear);
     check("the xor-linearised expansion is linear as a whole map", expansion_linear);
-    std::printf("\n  So the only thing standing between the schedule and a linear code is the\n");
-    std::printf("  three modular additions per word. Section 2 measures what they are worth.\n");
+    printf("\n  So the only thing standing between the schedule and a linear code is the\n");
+    printf("  three modular additions per word. Section 2 measures what they are worth.\n");
 }
 
 /**
@@ -214,11 +214,11 @@ void check_linearity()
  */
 void measure_carry_cost()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. How much do the carries actually matter?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Real expansion against the xor-linearised one, same input. Agreement per\n");
-    std::printf("  expanded word, and the Hamming distance between the two full expansions.\n");
+    printf("\n================================================================\n");
+    printf("  1. How much do the carries actually matter?\n");
+    printf("================================================================\n");
+    printf("\n  Real expansion against the xor-linearised one, same input. Agreement per\n");
+    printf("  expanded word, and the Hamming distance between the two full expansions.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 100000u;
@@ -248,25 +248,25 @@ void measure_carry_cost()
         }
     }
 
-    std::printf("\n  %8s %18s\n", "word", "exact agreement");
-    std::printf("  %8s %18s\n", "--------", "------------------");
+    printf("\n  %8s %18s\n", "word", "exact agreement");
+    printf("  %8s %18s\n", "--------", "------------------");
     for (unsigned slot : {16u, 17u, 18u, 20u, 24u, 32u, 48u, 63u})
     {
-        std::printf("  %8u %17.4f%%\n", slot, 100.0 * (double)word_matches[slot] / (double)trials);
+        printf("  %8u %17.4f%%\n", slot, 100.0 * (double)word_matches[slot] / (double)trials);
     }
 
     const double mean_distance = (double)distance_total / (double)trials;
-    std::printf("\n  mean Hamming distance over words 16-63 : %.1f of 1536 bits (%.1f%%)\n", mean_distance,
+    printf("\n  mean Hamming distance over words 16-63 : %.1f of 1536 bits (%.1f%%)\n", mean_distance,
                 100.0 * mean_distance / 1536.0);
-    std::printf("\n  Agreement is zero from the very first expanded word, and the mean distance\n");
-    std::printf("  is 50%% of the bits, which is what two unrelated values give. W[16] already\n");
-    std::printf("  sums four dense random words, and four random addends almost never sum\n");
-    std::printf("  without a carry anywhere. So on dense inputs the linear approximation is\n");
-    std::printf("  worth nothing, immediately, not gradually.\n");
-    std::printf("\n  That is the wrong test for the question that matters, and section 1b is the\n");
-    std::printf("  right one. Cryptanalysis does not approximate the schedule on dense values.\n");
-    std::printf("  It tracks a sparse difference, and a modular sum carries a low-weight xor\n");
-    std::printf("  difference far more faithfully than it carries a dense value.\n");
+    printf("\n  Agreement is zero from the very first expanded word, and the mean distance\n");
+    printf("  is 50%% of the bits, which is what two unrelated values give. W[16] already\n");
+    printf("  sums four dense random words, and four random addends almost never sum\n");
+    printf("  without a carry anywhere. So on dense inputs the linear approximation is\n");
+    printf("  worth nothing, immediately, not gradually.\n");
+    printf("\n  That is the wrong test for the question that matters, and section 1b is the\n");
+    printf("  right one. Cryptanalysis does not approximate the schedule on dense values.\n");
+    printf("  It tracks a sparse difference, and a modular sum carries a low-weight xor\n");
+    printf("  difference far more faithfully than it carries a dense value.\n");
 }
 
 /**
@@ -280,32 +280,32 @@ void measure_carry_cost()
  */
 void measure_differential_fidelity()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1b. Sparse differences: where the linear code still describes it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Input difference of weight w applied to W[3], the nonce word. How often does\n");
-    std::printf("  the real expansion's difference equal the linear code's prediction, exactly,\n");
-    std::printf("  across the expanded words? This is the probability a characteristic holds.\n");
+    printf("\n================================================================\n");
+    printf("  1b. Sparse differences: where the linear code still describes it\n");
+    printf("================================================================\n");
+    printf("\n  Input difference of weight w applied to W[3], the nonce word. How often does\n");
+    printf("  the real expansion's difference equal the linear code's prediction, exactly,\n");
+    printf("  across the expanded words? This is the probability a characteristic holds.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 200000u;
 
-    std::printf("\n  Measured from W[18], which is the first expanded word the nonce reaches.\n");
-    std::printf("  W[16] and W[17] do not depend on W[3] at all, so their difference is zero on\n");
-    std::printf("  both sides and any test including them reports a perfect 100%% that is really\n");
-    std::printf("  zero equals zero. An earlier version of this table did exactly that.\n");
+    printf("\n  Measured from W[18], which is the first expanded word the nonce reaches.\n");
+    printf("  W[16] and W[17] do not depend on W[3] at all, so their difference is zero on\n");
+    printf("  both sides and any test including them reports a perfect 100%% that is really\n");
+    printf("  zero equals zero. An earlier version of this table did exactly that.\n");
 
-    std::printf("\n  %8s", "weight");
+    printf("\n  %8s", "weight");
     for (unsigned slot = 18u; slot <= 24u; slot += 1u)
     {
-        std::printf(" %8u", slot);
+        printf(" %8u", slot);
     }
-    std::printf("\n  %8s", "--------");
+    printf("\n  %8s", "--------");
     for (unsigned slot = 18u; slot <= 24u; slot += 1u)
     {
-        std::printf(" %8s", "--------");
+        printf(" %8s", "--------");
     }
-    std::printf("\n");
+    printf("\n");
 
     for (unsigned weight = 1u; weight <= 4u; weight += 1u)
     {
@@ -361,21 +361,21 @@ void measure_differential_fidelity()
             }
         }
 
-        std::printf("  %8u", weight);
+        printf("  %8u", weight);
         for (unsigned slot = 18u; slot <= 24u; slot += 1u)
         {
-            std::printf(" %7.3f%%", 100.0 * (double)held_at[slot] / (double)trials);
+            printf(" %7.3f%%", 100.0 * (double)held_at[slot] / (double)trials);
         }
-        std::printf("\n");
+        printf("\n");
         (void)held_short;
         (void)held_long;
     }
 
-    std::printf("\n  This is the real shape of the object. On dense values the linear code is\n");
-    std::printf("  useless from word 16. On a sparse difference it describes the first couple of\n");
-    std::printf("  expanded words with high probability and then decays. That decay rate is what\n");
-    std::printf("  a characteristic search is fighting, and it is why published attacks reach the\n");
-    std::printf("  round counts they do and no further.\n");
+    printf("\n  This is the real shape of the object. On dense values the linear code is\n");
+    printf("  useless from word 16. On a sparse difference it describes the first couple of\n");
+    printf("  expanded words with high probability and then decays. That decay rate is what\n");
+    printf("  a characteristic search is fighting, and it is why published attacks reach the\n");
+    printf("  round counts they do and no further.\n");
 }
 
 /**
@@ -383,12 +383,12 @@ void measure_differential_fidelity()
  */
 void measure_weight_profile()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. What does one input bit weigh on the output?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  In the linearised code a single input bit produces a fixed output difference,\n");
-    std::printf("  so its weight is exact instead of sampled. A low weight would be a usable\n");
-    std::printf("  differential characteristic. Random would be about 768 of 1536.\n");
+    printf("\n================================================================\n");
+    printf("  2. What does one input bit weigh on the output?\n");
+    printf("================================================================\n");
+    printf("\n  In the linearised code a single input bit produces a fixed output difference,\n");
+    printf("  so its weight is exact instead of sampled. A low weight would be a usable\n");
+    printf("  differential characteristic. Random would be about 768 of 1536.\n");
 
     unsigned lowest = 0xFFFFFFFFu;
     unsigned highest = 0u;
@@ -419,15 +419,15 @@ void measure_weight_profile()
         }
     }
 
-    std::printf("\n  over all 512 single-bit input differences:\n");
-    std::printf("    lowest weight  : %u bits, at word %u bit %u\n", lowest, lowest_word, lowest_bit);
-    std::printf("    highest weight : %u bits\n", highest);
-    std::printf("    mean weight    : %.1f bits of 1536\n", (double)weight_total / 512.0);
-    std::printf("\n  The lowest-weight entry is the best single-bit characteristic this code\n");
-    std::printf("  admits, and it is the seed a characteristic search would start from. Note\n");
-    std::printf("  which word it sits in: the later input words feed fewer expansion steps, so\n");
-    std::printf("  they weigh less, and that is a property of the recursion's shape instead of\n");
-    std::printf("  of anything cryptographic.\n");
+    printf("\n  over all 512 single-bit input differences:\n");
+    printf("    lowest weight  : %u bits, at word %u bit %u\n", lowest, lowest_word, lowest_bit);
+    printf("    highest weight : %u bits\n", highest);
+    printf("    mean weight    : %.1f bits of 1536\n", (double)weight_total / 512.0);
+    printf("\n  The lowest-weight entry is the best single-bit characteristic this code\n");
+    printf("  admits, and it is the seed a characteristic search would start from. Note\n");
+    printf("  which word it sits in: the later input words feed fewer expansion steps, so\n");
+    printf("  they weigh less, and that is a property of the recursion's shape instead of\n");
+    printf("  of anything cryptographic.\n");
 }
 
 /**
@@ -435,12 +435,12 @@ void measure_weight_profile()
  */
 void measure_mining_schedule()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. The mining schedule. Twelve of sixteen words are constants.\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The header's second block is merkle tail, ntime, nbits, nonce, then padding:\n");
-    std::printf("  W[4] = 0x80000000, W[5..14] = 0, W[15] = 0x280. Only W[0..3] carry anything,\n");
-    std::printf("  and within one job only W[3], the nonce, moves per candidate.\n");
+    printf("\n================================================================\n");
+    printf("  3. The mining schedule. Twelve of sixteen words are constants.\n");
+    printf("================================================================\n");
+    printf("\n  The header's second block is merkle tail, ntime, nbits, nonce, then padding:\n");
+    printf("  W[4] = 0x80000000, W[5..14] = 0, W[15] = 0x280. Only W[0..3] carry anything,\n");
+    printf("  and within one job only W[3], the nonce, moves per candidate.\n");
 
     // Trace which expanded words depend on W[3] at all. Dependency is structural. Thus this is exact.
     bool depends[64];
@@ -454,20 +454,20 @@ void measure_mining_schedule()
     }
 
     unsigned independent = 0u;
-    std::printf("\n  expanded words independent of the nonce: ");
+    printf("\n  expanded words independent of the nonce: ");
     for (unsigned slot = 16u; slot < 64u; slot += 1u)
     {
         if (!depends[slot])
         {
-            std::printf("%u ", slot);
+            printf("%u ", slot);
             independent += 1u;
         }
     }
     if (independent == 0u)
     {
-        std::printf("(none)");
+        printf("(none)");
     }
-    std::printf("\n");
+    printf("\n");
 
     unsigned first_dependent_round = 64u;
     for (unsigned slot = 0u; slot < 64u; slot += 1u)
@@ -479,9 +479,9 @@ void measure_mining_schedule()
         }
     }
 
-    std::printf("\n  rounds computable before the nonce is needed : %u of 64\n", first_dependent_round);
-    std::printf("  expanded words precomputable per job         : %u of 48\n", independent);
-    std::printf("  total schedule work saved per candidate      : %.1f%%\n", 100.0 * (double)independent / 48.0);
+    printf("\n  rounds computable before the nonce is needed : %u of 64\n", first_dependent_round);
+    printf("  expanded words precomputable per job         : %u of 48\n", independent);
+    printf("  total schedule work saved per candidate      : %.1f%%\n", 100.0 * (double)independent / 48.0);
 
     // Confirm the dependency trace against the real function. Do not trust the recursion alone.
     std::mt19937 generator(20260908u);
@@ -519,10 +519,10 @@ void measure_mining_schedule()
     }
     check("the dependency trace matches the real expansion", trace_correct);
 
-    std::printf("\n  This is the same structural fact ASICBoost exploits, seen from the other\n");
-    std::printf("  side. ASICBoost holds the whole second block fixed across candidates so the\n");
-    std::printf("  entire expansion is shared. Holding only the nonce variable, as an ordinary\n");
-    std::printf("  miner does, shares whatever the trace above says is independent of it.\n");
+    printf("\n  This is the same structural fact ASICBoost exploits, seen from the other\n");
+    printf("  side. ASICBoost holds the whole second block fixed across candidates so the\n");
+    printf("  entire expansion is shared. Holding only the nonce variable, as an ordinary\n");
+    printf("  miner does, shares whatever the trace above says is independent of it.\n");
 }
 
 /**
@@ -530,9 +530,9 @@ void measure_mining_schedule()
  */
 void measure_engine_value()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. What this is worth to the engine here\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  4. What this is worth to the engine here\n");
+    printf("================================================================\n");
 
     const unsigned trials = 200000u;
     uint32_t block[16];
@@ -582,16 +582,16 @@ void measure_engine_value()
     finished = std::chrono::steady_clock::now();
     const double hoisted_seconds = std::chrono::duration<double>(finished - started).count();
 
-    std::printf("\n  full expansion per candidate   : %.0f per second\n",
+    printf("\n  full expansion per candidate   : %.0f per second\n",
                 (full_seconds > 0.0) ? ((double)trials / full_seconds) : 0.0);
-    std::printf("  with the free prefix hoisted   : %.0f per second\n",
+    printf("  with the free prefix hoisted   : %.0f per second\n",
                 (hoisted_seconds > 0.0) ? ((double)trials / hoisted_seconds) : 0.0);
-    std::printf("  speedup on the expansion alone : %.3fx\n",
+    printf("  speedup on the expansion alone : %.3fx\n",
                 (hoisted_seconds > 0.0) ? (full_seconds / hoisted_seconds) : 0.0);
-    std::printf("\n  The expansion is roughly half of one compression, and a candidate costs two\n");
-    std::printf("  compressions, so this is worth about a quarter of that speedup end to end.\n");
-    std::printf("  Small, real, and already partly taken by the midstate. It is reported here\n");
-    std::printf("  because a measured small number is worth more than an unmeasured large one.\n");
+    printf("\n  The expansion is roughly half of one compression, and a candidate costs two\n");
+    printf("  compressions, so this is worth about a quarter of that speedup end to end.\n");
+    printf("  Small, real, and already partly taken by the midstate. It is reported here\n");
+    printf("  because a measured small number is worth more than an unmeasured large one.\n");
     (void)sink;
 }
 
@@ -599,9 +599,9 @@ void measure_engine_value()
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  The message schedule as an object in its own right\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  The message schedule as an object in its own right\n");
+    printf("================================================================\n");
 
     check_linearity();
     measure_carry_cost();
@@ -610,8 +610,8 @@ int main()
     measure_mining_schedule();
     measure_engine_value();
 
-    std::printf("\n================================================================\n");
-    std::printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

@@ -30,9 +30,9 @@
 #include "bench_seed.h"
 #include "sha256_core.h"
 
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <vector>
 
@@ -245,7 +245,7 @@ double grip_bits(Machine machine, Language language, unsigned rounds, unsigned d
 
     // Sixteen bits is flat. Anything above zero is grip the language still has.
     const double flat = 16.0;
-    return (rate > 0.0L) ? (flat + std::log2((double)rate)) : 0.0;
+    return (rate > 0.0L) ? (flat + log2((double)rate)) : 0.0;
 }
 
 } // namespace
@@ -254,31 +254,31 @@ int main(int argc, char **argv)
 {
     bench_lower_priority();
 
-    const unsigned draws = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 300000u;
+    const unsigned draws = (argc > 1) ? (unsigned)atoi(argv[1]) : 300000u;
 
-    std::printf("================================================================\n");
-    std::printf("  The two languages, measured against each other\n");
-    std::printf("================================================================\n");
-    std::printf("\n  SHA-256 is built on two module structures that are not bases for each other.\n");
-    std::printf("  Exclusive-or and rotation are linear over GF(2)^32. Addition is linear over the\n");
-    std::printf("  integers modulo 2^32. The round alternates between them, and that is the trick.\n");
-    std::printf("\n  This workbook has searched each language separately and exhaustively. H35\n");
-    std::printf("  walked all 4,294,967,295 Walsh masks, every GF(2)-linear direction there is.\n");
-    std::printf("  H37 swept the Fourier view over 32 units and 12 scales. Two complete\n");
-    std::printf("  dictionaries, for two languages the function is not written in.\n");
-    std::printf("\n  Each language has a native difference: exclusive-or for one, subtraction for\n");
-    std::printf("  the other. How fast the function destroys each is how fast that language loses\n");
-    std::printf("  grip, and the gap between the two rates is the translation cost in rounds.\n");
-    std::printf("\n  Grip is bits by which the output difference falls short of flat over a\n");
-    std::printf("  sixteen-bit window. Zero is no grip at all. Pairs per cell: %u.\n", draws);
+    printf("================================================================\n");
+    printf("  The two languages, measured against each other\n");
+    printf("================================================================\n");
+    printf("\n  SHA-256 is built on two module structures that are not bases for each other.\n");
+    printf("  Exclusive-or and rotation are linear over GF(2)^32. Addition is linear over the\n");
+    printf("  integers modulo 2^32. The round alternates between them, and that is the trick.\n");
+    printf("\n  This workbook has searched each language separately and exhaustively. H35\n");
+    printf("  walked all 4,294,967,295 Walsh masks, every GF(2)-linear direction there is.\n");
+    printf("  H37 swept the Fourier view over 32 units and 12 scales. Two complete\n");
+    printf("  dictionaries, for two languages the function is not written in.\n");
+    printf("\n  Each language has a native difference: exclusive-or for one, subtraction for\n");
+    printf("  the other. How fast the function destroys each is how fast that language loses\n");
+    printf("  grip, and the gap between the two rates is the translation cost in rounds.\n");
+    printf("\n  Grip is bits by which the output difference falls short of flat over a\n");
+    printf("  sixteen-bit window. Zero is no grip at all. Pairs per cell: %u.\n", draws);
 
     const Machine machines[3] = {MACHINE_SHA, MACHINE_XOR_ONLY, MACHINE_ADD_ONLY};
 
     for (unsigned which = 0u; which < 3u; which += 1u)
     {
-        std::printf("\n  %s\n", machine_name(machines[which]));
-        std::printf("\n  %8s %16s %16s %14s\n", "rounds", "xor grip", "add grip", "which leads");
-        std::printf("  %8s %16s %16s %14s\n", "--------", "----------------", "----------------", "--------------");
+        printf("\n  %s\n", machine_name(machines[which]));
+        printf("\n  %8s %16s %16s %14s\n", "rounds", "xor grip", "add grip", "which leads");
+        printf("  %8s %16s %16s %14s\n", "--------", "----------------", "----------------", "--------------");
 
         for (unsigned rounds = 1u; rounds <= DEEPEST; rounds += 1u)
         {
@@ -294,23 +294,23 @@ int main(int argc, char **argv)
                 leader = (by_xor > (by_add + 0.05)) ? "xor" : ((by_add > (by_xor + 0.05)) ? "add" : "level");
             }
 
-            std::printf("  %8u %16.4f %16.4f %14s\n", rounds, by_xor, by_add, leader);
+            printf("  %8u %16.4f %16.4f %14s\n", rounds, by_xor, by_add, leader);
         }
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The two controls have to fail in opposite directions, and that is the whole\n");
-    std::printf("  reason they are here. A machine built only from exclusive-or carries an\n");
-    std::printf("  exclusive-or difference through every round untouched, so its xor column must\n");
-    std::printf("  stay at sixteen bits forever while its add column collapses. A machine built\n");
-    std::printf("  only from addition must do exactly the reverse. If both columns behave the\n");
-    std::printf("  same way on both controls, this instrument is measuring neither language and\n");
-    std::printf("  the SHA rows mean nothing.\n");
-    std::printf("\n  On the real round, the gap between the two columns at a given depth is what\n");
-    std::printf("  the alternation costs. Where one language holds on longer than the other, that\n");
-    std::printf("  is the language the function is closer to being written in, and the round it\n");
-    std::printf("  stops holding is where that closeness runs out.\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  The two controls have to fail in opposite directions, and that is the whole\n");
+    printf("  reason they are here. A machine built only from exclusive-or carries an\n");
+    printf("  exclusive-or difference through every round untouched, so its xor column must\n");
+    printf("  stay at sixteen bits forever while its add column collapses. A machine built\n");
+    printf("  only from addition must do exactly the reverse. If both columns behave the\n");
+    printf("  same way on both controls, this instrument is measuring neither language and\n");
+    printf("  the SHA rows mean nothing.\n");
+    printf("\n  On the real round, the gap between the two columns at a given depth is what\n");
+    printf("  the alternation costs. Where one language holds on longer than the other, that\n");
+    printf("  is the language the function is closer to being written in, and the round it\n");
+    printf("  stops holding is where that closeness runs out.\n");
     return 0;
 }

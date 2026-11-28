@@ -43,9 +43,9 @@
 #include <cuda_runtime.h>
 #include "../../includes/platform/platform.h"
 
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /* The placement, ceiling and rotations that `examples/proofing/precision_floor.py` runs. Thus the
  * numbers printed here sit on the same axis as the arbitrary-precision ladder of that tool. */

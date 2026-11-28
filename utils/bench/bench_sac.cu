@@ -25,9 +25,9 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include <cuda_runtime.h>
 
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <vector>
 
 namespace
@@ -1119,7 +1119,7 @@ __global__ void carry_free_agreement(uint64_t trials, uint64_t seed, unsigned ro
 static void fill_deviation_field(const std::vector<unsigned long long> &matrix, uint64_t trials,
                                  std::vector<double> &field)
 {
-    const double per_cell = 0.5 / std::sqrt((double)trials);
+    const double per_cell = 0.5 / sqrt((double)trials);
     for (size_t at = 0u; at < matrix.size(); at += 1u)
     {
         const double rate = (double)matrix[at] / (double)trials;
@@ -1204,7 +1204,7 @@ static void fold_onto_residue(const std::vector<double> &field, double *folded)
     {
         if (counted[at] > 0.0)
         {
-            folded[at] /= std::sqrt(counted[at]);
+            folded[at] /= sqrt(counted[at]);
         }
     }
 }
@@ -1227,8 +1227,8 @@ static void residue_spectrum_line(const double *folded, unsigned frequency, doub
     for (unsigned at = 0u; at < 32u; at += 1u)
     {
         const double angle = 6.283185307179586 * (double)(frequency * at) / 32.0;
-        summed_real += folded[at] * std::cos(angle);
-        summed_imaginary -= folded[at] * std::sin(angle);
+        summed_real += folded[at] * cos(angle);
+        summed_imaginary -= folded[at] * sin(angle);
     }
     *real_part = summed_real / 4.0;
     *imaginary = summed_imaginary / 4.0;
@@ -1252,10 +1252,10 @@ static double loudest_residue_tone(const double *folded, unsigned *at_what)
         for (unsigned at = 0u; at < 32u; at += 1u)
         {
             const double angle = 6.283185307179586 * (double)(frequency * at) / 32.0;
-            real_part += folded[at] * std::cos(angle);
-            imaginary -= folded[at] * std::sin(angle);
+            real_part += folded[at] * cos(angle);
+            imaginary -= folded[at] * sin(angle);
         }
-        const double magnitude = std::sqrt(((real_part * real_part) + (imaginary * imaginary)) / 16.0);
+        const double magnitude = sqrt(((real_part * real_part) + (imaginary * imaginary)) / 16.0);
         if (magnitude > loudest)
         {
             loudest = magnitude;
@@ -1269,9 +1269,9 @@ static double loudest_residue_tone(const double *folded, unsigned *at_what)
 
 int main(int argc, char **argv)
 {
-    const unsigned trial_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 20u;
-    const unsigned first_round = (argc > 2) ? (unsigned)std::atoi(argv[2]) : 45u;
-    const unsigned last_round = (argc > 3) ? (unsigned)std::atoi(argv[3]) : 64u;
+    const unsigned trial_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 20u;
+    const unsigned first_round = (argc > 2) ? (unsigned)atoi(argv[2]) : 45u;
+    const unsigned last_round = (argc > 3) ? (unsigned)atoi(argv[3]) : 64u;
     const uint64_t trials = (uint64_t)1u << trial_bits;
 
     // The arm "waves" runs the spatial arm alone. Every other arm here has a settled result. A run of all of them to
@@ -1314,23 +1314,23 @@ int main(int argc, char **argv)
         (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
                                   .other = "rotations", .ci = EMBED_FALSE));
 
-    std::printf("================================================================\n");
-    std::printf("  The strict avalanche criterion, sampled hard\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Vaughn and Borowczak report SHA-256 satisfying the SAC from round 23 to 53,\n");
-    std::printf("  failing it from 54 to 57, and satisfying it again from 58. A measured\n");
-    std::printf("  non-monotonicity in the diffusion of a function this studied is worth\n");
-    std::printf("  reproducing before it is believed.\n");
-    std::printf("\n  Their margin is thin: 0.49728 against a threshold of 0.49734, six parts in a\n");
-    std::printf("  hundred thousand, at a million trials where one standard deviation is 0.0005.\n");
-    std::printf("  That is 5.44 standard deviations at their sample and would be far more at ours,\n");
-    std::printf("  so the question is answerable by sampling harder.\n");
+    printf("================================================================\n");
+    printf("  The strict avalanche criterion, sampled hard\n");
+    printf("================================================================\n");
+    printf("\n  Vaughn and Borowczak report SHA-256 satisfying the SAC from round 23 to 53,\n");
+    printf("  failing it from 54 to 57, and satisfying it again from 58. A measured\n");
+    printf("  non-monotonicity in the diffusion of a function this studied is worth\n");
+    printf("  reproducing before it is believed.\n");
+    printf("\n  Their margin is thin: 0.49728 against a threshold of 0.49734, six parts in a\n");
+    printf("  hundred thousand, at a million trials where one standard deviation is 0.0005.\n");
+    printf("  That is 5.44 standard deviations at their sample and would be far more at ours,\n");
+    printf("  so the question is answerable by sampling harder.\n");
 
-    const double deviation = 0.5 / std::sqrt((double)trials);
-    std::printf("\n  Trials per cell: 2^%u = %llu. One standard deviation is %.8f, against their\n", trial_bits,
+    const double deviation = 0.5 / sqrt((double)trials);
+    printf("\n  Trials per cell: 2^%u = %llu. One standard deviation is %.8f, against their\n", trial_bits,
                 (unsigned long long)trials, deviation);
-    std::printf("  0.00050000. Their reported dip of 0.00272 below one half would read %.1f\n", 0.00272 / deviation);
-    std::printf("  standard deviations here if it is real.\n");
+    printf("  0.00050000. Their reported dip of 0.00272 below one half would read %.1f\n", 0.00272 / deviation);
+    printf("  standard deviations here if it is real.\n");
 
     unsigned long long *device_matrix = nullptr;
     cudaMalloc((void **)&device_matrix, (size_t)INPUT_BITS * OUTPUT_BITS * sizeof(unsigned long long));
@@ -1355,16 +1355,16 @@ int main(int argc, char **argv)
         // the average cost nothing, and every earlier reading stands. If they differ, the unconditional matrix reports
         // the mean of two different objects.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Conditioned on the selector, not averaged over it\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Conditioned on the selector, not averaged over it\n");
+        printf("================================================================\n");
 
         const unsigned GATE_AT = 8u;
         const unsigned GATE_BIT = 16u;
 
-        std::printf("\n  Gate: bit %u of e at round %u, which is the bit Choose reads to decide\n", GATE_BIT, GATE_AT);
-        std::printf("  whether that position passes f or g. Both members of a pair are gated on\n");
-        std::printf("  the base message, so a pair never splits across the two halves.\n");
+        printf("\n  Gate: bit %u of e at round %u, which is the bit Choose reads to decide\n", GATE_BIT, GATE_AT);
+        printf("  whether that position passes f or g. Both members of a pair are gated on\n");
+        printf("  the base message, so a pair never splits across the two halves.\n");
 
         const size_t plane = (size_t)INPUT_BITS * OUTPUT_BITS;
         unsigned long long *device_pair = nullptr;
@@ -1374,9 +1374,9 @@ int main(int argc, char **argv)
         unsigned long long *device_counts = nullptr;
         cudaMalloc((void **)&device_counts, sizeof(unsigned long long));
 
-        std::printf("\n  %6s %12s %12s %12s %12s %10s\n", "round", "fold |0", "fold |1", "difference", "error",
+        printf("\n  %6s %12s %12s %12s %12s %10s\n", "round", "fold |0", "fold |1", "difference", "error",
                     "sigmas");
-        std::printf("  %6s %12s %12s %12s %12s %10s\n", "------", "------------", "------------", "------------",
+        printf("  %6s %12s %12s %12s %12s %10s\n", "------", "------------", "------------", "------------",
                     "------------", "----------");
 
         for (unsigned at_round = 10u; at_round <= 30u; at_round += 2u)
@@ -1432,8 +1432,8 @@ int main(int argc, char **argv)
                 {
                     continue;
                 }
-                const double gap = (folded_low[at] - folded_high[at]) / std::sqrt(counted[at]);
-                if (std::fabs(gap) > std::fabs(loudest))
+                const double gap = (folded_low[at] - folded_high[at]) / sqrt(counted[at]);
+                if (fabs(gap) > fabs(loudest))
                 {
                     loudest = gap;
                 }
@@ -1441,24 +1441,24 @@ int main(int argc, char **argv)
 
             // A difference of two independent rates has the variance of both. The error is therefore the per-cell error
             // of each half, added in quadrature.
-            const double error = 0.5 * std::sqrt((1.0 / (low > 0.0 ? low : 1.0)) + (1.0 / (high > 0.0 ? high : 1.0)));
+            const double error = 0.5 * sqrt((1.0 / (low > 0.0 ? low : 1.0)) + (1.0 / (high > 0.0 ? high : 1.0)));
             const double sigmas = loudest / error;
 
-            std::printf("  %6u %12.0f %12.0f %12.6f %12.6f %10.2f\n", at_round, low, high, loudest, error, sigmas);
+            printf("  %6u %12.0f %12.0f %12.6f %12.6f %10.2f\n", at_round, low, high, loudest, error, sigmas);
         }
 
         cudaFree(device_pair);
         cudaFree(device_counts);
         cudaFree(device_matrix);
 
-        std::printf("\n  The largest of 32 residue classes peaks near %.2f sigmas under a null,\n",
-                    std::sqrt(2.0 * std::log(32.0)));
-        std::printf("  and 11 depths were read, so the union peaks near %.2f.\n",
-                    std::sqrt(2.0 * std::log(32.0 * 11.0)));
-        std::printf("\n  A difference standing above that says the unconditional matrix has been\n");
-        std::printf("  reporting the mean of two different objects, and every reading built on it\n");
-        std::printf("  is an average across a regime boundary. A difference at zero says the\n");
-        std::printf("  averaging cost nothing and the earlier readings stand as they are.\n");
+        printf("\n  The largest of 32 residue classes peaks near %.2f sigmas under a null,\n",
+                    sqrt(2.0 * log(32.0)));
+        printf("  and 11 depths were read, so the union peaks near %.2f.\n",
+                    sqrt(2.0 * log(32.0 * 11.0)));
+        printf("\n  A difference standing above that says the unconditional matrix has been\n");
+        printf("  reporting the mean of two different objects, and every reading built on it\n");
+        printf("  is an average across a regime boundary. A difference at zero says the\n");
+        printf("  averaging cost nothing and the earlier readings stand as they are.\n");
         return 0;
     }
 
@@ -1480,23 +1480,23 @@ int main(int argc, char **argv)
         // This sweep covers every member of its set, and is not a sample. The answer is therefore a true minimum, and
         // not the smallest thing that a sample happened to contain.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Constructed differences: the sparsest the linear model carries\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Constructed differences: the sparsest the linear model carries\n");
+        printf("================================================================\n");
 
-        std::printf("\n  Sampling asks what deviates from chance and stops at round 23. This asks\n");
-        std::printf("  what an attacker could choose, which is a different question and the one the\n");
-        std::printf("  published attacks answer. The linearised function is deterministic, so every\n");
-        std::printf("  candidate is evaluated exactly and the minimum is a true minimum.\n");
+        printf("\n  Sampling asks what deviates from chance and stops at round 23. This asks\n");
+        printf("  what an attacker could choose, which is a different question and the one the\n");
+        printf("  published attacks answer. The linearised function is deterministic, so every\n");
+        printf("  candidate is evaluated exactly and the minimum is a true minimum.\n");
 
-        std::printf("\n  Weight of the output difference, over all 512 single-bit message\n");
-        std::printf("  differences and all %llu pairs.\n", (unsigned long long)((INPUT_BITS * (INPUT_BITS - 1u)) / 2u));
+        printf("\n  Weight of the output difference, over all 512 single-bit message\n");
+        printf("  differences and all %llu pairs.\n", (unsigned long long)((INPUT_BITS * (INPUT_BITS - 1u)) / 2u));
 
         unsigned long long *device_best = nullptr;
         cudaMalloc((void **)&device_best, sizeof(unsigned long long));
 
-        std::printf("\n  %6s %10s %10s %12s %10s %12s\n", "round", "best 1", "at bit", "best 2", "at pair", "random 1");
-        std::printf("  %6s %10s %10s %12s %10s %12s\n", "------", "----------", "----------", "------------",
+        printf("\n  %6s %10s %10s %12s %10s %12s\n", "round", "best 1", "at bit", "best 2", "at pair", "random 1");
+        printf("  %6s %10s %10s %12s %10s %12s\n", "------", "----------", "----------", "------------",
                     "----------", "------------");
 
         const unsigned long long SINGLES = INPUT_BITS;
@@ -1525,20 +1525,20 @@ int main(int argc, char **argv)
 
             // A random 256-bit difference has weight 128. A characteristic must beat that to be worth anything, and the
             // column puts the comparison on the page.
-            std::printf("  %6u %10u %10llu %12u %10llu %12u\n", at_round, one_weight, one_where, two_weight, two_where,
+            printf("  %6u %10u %10llu %12u %10llu %12u\n", at_round, one_weight, one_where, two_weight, two_where,
                         128u);
         }
 
         cudaFree(device_best);
         cudaFree(device_matrix);
 
-        std::printf("\n  A weight far below 128 is a characteristic worth having: the difference\n");
-        std::printf("  stays sparse, so the conditions an attacker must force are few. A weight at\n");
-        std::printf("  128 means the linear model has diffused completely and offers nothing to\n");
-        std::printf("  build on at that depth.\n");
-        std::printf("\n  This is the linear model only. The real function's probability of following\n");
-        std::printf("  any of these is a separate and much smaller number, which is exactly the\n");
-        std::printf("  'low-probability uncontrolled part' the published work names as its wall.\n");
+        printf("\n  A weight far below 128 is a characteristic worth having: the difference\n");
+        printf("  stays sparse, so the conditions an attacker must force are few. A weight at\n");
+        printf("  128 means the linear model has diffused completely and offers nothing to\n");
+        printf("  build on at that depth.\n");
+        printf("\n  This is the linear model only. The real function's probability of following\n");
+        printf("  any of these is a separate and much smaller number, which is exactly the\n");
+        printf("  'low-probability uncontrolled part' the published work names as its wall.\n");
         return 0;
     }
 
@@ -1565,9 +1565,9 @@ int main(int argc, char **argv)
         // What remains after the de-rotation, the true difference exclusive-ored with the rotated reference, is
         // everything that the carries contributed, and only that.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Coherent detection against a generated reference\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Coherent detection against a generated reference\n");
+        printf("================================================================\n");
 
         // The reference keeps only what is linear over GF(2): the rotations and the schedule. With addition, Choose and
         // Majority removed, the map is linear. The propagated difference is then a function of the input difference
@@ -1575,17 +1575,17 @@ int main(int argc, char **argv)
         const unsigned DEEPEST = 26u;
         const unsigned WHERE = 0u;
 
-        std::printf("\n  Reference: the same difference through the GF(2)-linear round function,\n");
-        std::printf("  which is exact because a linear map sends a difference to a difference\n");
-        std::printf("  whatever the message is. Input difference is bit %u.\n", WHERE);
-        std::printf("\n  Lock is the rotation of the reference that agrees best with the true\n");
-        std::printf("  difference. The largest of 32 agreements peaks near %.2f sigmas under a\n",
-                    std::sqrt(2.0 * std::log(32.0)));
-        std::printf("  null whatever the data does, so a lock is only a lock above that.\n");
+        printf("\n  Reference: the same difference through the GF(2)-linear round function,\n");
+        printf("  which is exact because a linear map sends a difference to a difference\n");
+        printf("  whatever the message is. Input difference is bit %u.\n", WHERE);
+        printf("\n  Lock is the rotation of the reference that agrees best with the true\n");
+        printf("  difference. The largest of 32 agreements peaks near %.2f sigmas under a\n",
+                    sqrt(2.0 * log(32.0)));
+        printf("  null whatever the data does, so a lock is only a lock above that.\n");
 
-        std::printf("\n  %6s %8s %10s %12s %10s %12s\n", "round", "lock", "agreement", "sigmas", "ref weight",
+        printf("\n  %6s %8s %10s %12s %10s %12s\n", "round", "lock", "agreement", "sigmas", "ref weight",
                     "walked");
-        std::printf("  %6s %8s %10s %12s %10s %12s\n", "------", "--------", "----------", "------------", "----------",
+        printf("  %6s %8s %10s %12s %10s %12s\n", "------", "--------", "----------", "------------", "----------",
                     "------------");
 
         unsigned long long *device_tally = nullptr;
@@ -1634,13 +1634,13 @@ int main(int argc, char **argv)
             for (unsigned turn_by = 0u; turn_by < 32u; turn_by += 1u)
             {
                 const double rate = (compared > 0.0) ? ((double)tally[turn_by] / compared) : 0.5;
-                if (std::fabs(rate - 0.5) > std::fabs(best_rate - 0.5))
+                if (fabs(rate - 0.5) > fabs(best_rate - 0.5))
                 {
                     best_rate = rate;
                     best = turn_by;
                 }
             }
-            const double spread = 0.5 / std::sqrt(compared > 0.0 ? compared : 1.0);
+            const double spread = 0.5 / sqrt(compared > 0.0 ? compared : 1.0);
             const double sigmas = (best_rate - 0.5) / spread;
 
             const char *walked = "";
@@ -1651,20 +1651,20 @@ int main(int argc, char **argv)
             }
             last_lock = (int)best;
 
-            std::printf("  %6u %8u %10.5f %12.1f %10u %12s\n", at_round, best, best_rate, sigmas, reference_weight,
+            printf("  %6u %8u %10.5f %12.1f %10u %12s\n", at_round, best, best_rate, sigmas, reference_weight,
                         walked);
         }
 
         cudaFree(device_tally);
         cudaFree(device_matrix);
 
-        std::printf("\n  A lock that stays at one rotation is a difference that keeps its linear\n");
-        std::printf("  part's orientation: linear polarisation, the carries adding magnitude only.\n");
-        std::printf("  A lock that walks with depth is the difference vector rotating in the plane\n");
-        std::printf("  its linear part and its carry part span, and the direction is a handedness.\n");
-        std::printf("\n  The reference weight is the linear part's own growth, which is exact and\n");
-        std::printf("  owes nothing to sampling. Where it saturates the reference stops carrying\n");
-        std::printf("  phase and the lock below it means nothing.\n");
+        printf("\n  A lock that stays at one rotation is a difference that keeps its linear\n");
+        printf("  part's orientation: linear polarisation, the carries adding magnitude only.\n");
+        printf("  A lock that walks with depth is the difference vector rotating in the plane\n");
+        printf("  its linear part and its carry part span, and the direction is a handedness.\n");
+        printf("\n  The reference weight is the linear part's own growth, which is exact and\n");
+        printf("  owes nothing to sampling. Where it saturates the reference stops carrying\n");
+        printf("  phase and the lock below it means nothing.\n");
         return 0;
     }
 
@@ -1689,9 +1689,9 @@ int main(int argc, char **argv)
         // A variant that removes a named rotation and keeps its residue would refute the reading of the spectrum
         // entirely. That makes this worth a run.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Compositional assay: the spectrum of known variants\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Compositional assay: the spectrum of known variants\n");
+        printf("================================================================\n");
 
         std::vector<double> field((size_t)INPUT_BITS * OUTPUT_BITS);
         double folded[32];
@@ -1716,16 +1716,16 @@ int main(int argc, char **argv)
         };
         const unsigned HOW_MANY = (unsigned)(sizeof(variants) / sizeof(variants[0]));
 
-        std::FILE *const handle = std::fopen("assay.csv", "w");
+        std::FILE *const handle = fopen("assay.csv", "w");
         if (handle == nullptr)
         {
-            std::printf("\n  could not open assay.csv\n");
+            printf("\n  could not open assay.csv\n");
             cudaFree(device_matrix);
             return 1;
         }
-        std::fprintf(handle, "variant,residue,round,value\n");
+        fprintf(handle, "variant,residue,round,value\n");
 
-        std::printf("\n  %u variants across rounds %u to %u, each round on its own seed.\n", HOW_MANY, FROM, UNTIL);
+        printf("\n  %u variants across rounds %u to %u, each round on its own seed.\n", HOW_MANY, FROM, UNTIL);
 
         for (unsigned which = 0u; which < HOW_MANY; which += 1u)
         {
@@ -1742,15 +1742,15 @@ int main(int argc, char **argv)
 
                 for (unsigned at = 0u; at < 32u; at += 1u)
                 {
-                    std::fprintf(handle, "%s,%u,%u,%.4f\n", variants[which].name, at, at_round, folded[at]);
+                    fprintf(handle, "%s,%u,%u,%.4f\n", variants[which].name, at, at_round, folded[at]);
                 }
             }
-            std::printf("  %-14s done\n", variants[which].name);
+            printf("  %-14s done\n", variants[which].name);
         }
-        std::fclose(handle);
+        fclose(handle);
         cudaFree(device_matrix);
 
-        std::printf("\n  Written to assay.csv. Process with utils/maint/radar/radar_assay.py\n");
+        printf("\n  Written to assay.csv. Process with utils/maint/radar/radar_assay.py\n");
         return 0;
     }
 
@@ -1772,9 +1772,9 @@ int main(int argc, char **argv)
         //
         // Only Sigma1 changes. A difference in the result belongs to the rotation amounts alone.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Sigma1's rotation amounts, varied\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Sigma1's rotation amounts, varied\n");
+        printf("================================================================\n");
 
         struct Variant
         {
@@ -1792,11 +1792,11 @@ int main(int argc, char **argv)
         const unsigned HOW_MANY = (unsigned)(sizeof(tried) / sizeof(tried[0]));
         const unsigned AT_ROUND = 12u;
 
-        std::printf("\n  Certain cells at round %u, by where they sit. The diagonal at residue 0 is\n", AT_ROUND);
-        std::printf("  addition and is expected in every row; the question is the rest.\n");
+        printf("\n  Certain cells at round %u, by where they sit. The diagonal at residue 0 is\n", AT_ROUND);
+        printf("  addition and is expected in every row; the question is the rest.\n");
 
-        std::printf("\n  %-26s %8s %8s %10s %s\n", "Sigma1", "certain", "aligned", "skewed", "skewed residues");
-        std::printf("  %-26s %8s %8s %10s %s\n", "--------------------------", "--------", "--------", "----------",
+        printf("\n  %-26s %8s %8s %10s %s\n", "Sigma1", "certain", "aligned", "skewed", "skewed residues");
+        printf("  %-26s %8s %8s %10s %s\n", "--------------------------", "--------", "--------", "----------",
                     "----------------");
 
         for (unsigned which = 0u; which < HOW_MANY; which += 1u)
@@ -1840,26 +1840,26 @@ int main(int argc, char **argv)
             {
                 if ((by_residue[at] != 0u) && (used < 100u))
                 {
-                    used += (unsigned)std::snprintf(&where[used], sizeof(where) - used, "%u:%u ", at, by_residue[at]);
+                    used += (unsigned)snprintf(&where[used], sizeof(where) - used, "%u:%u ", at, by_residue[at]);
                 }
             }
             if (used == 0u)
             {
-                std::snprintf(where, sizeof(where), "none");
+                snprintf(where, sizeof(where), "none");
             }
 
             char label[40];
-            std::snprintf(label, sizeof(label), "%u,%u,%u  %s", tried[which].a, tried[which].b, tried[which].c,
+            snprintf(label, sizeof(label), "%u,%u,%u  %s", tried[which].a, tried[which].b, tried[which].c,
                           tried[which].note);
-            std::printf("  %-26s %8u %8u %10u %s\n", label, total, aligned, total - aligned, where);
+            printf("  %-26s %8u %8u %10u %s\n", label, total, aligned, total - aligned, where);
         }
 
         cudaFree(device_matrix);
 
-        std::printf("\n  If the skewed residue follows the largest amount in every row, the reading\n");
-        std::printf("  is that the largest wins and 25 is incidental. If it stays near 25 while the\n");
-        std::printf("  amounts move, it is not. A row where the skew vanishes says the effect needs\n");
-        std::printf("  a relation between the three and not any one of them.\n");
+        printf("\n  If the skewed residue follows the largest amount in every row, the reading\n");
+        printf("  is that the largest wins and 25 is incidental. If it stays near 25 while the\n");
+        printf("  amounts move, it is not. A row where the skew vanishes says the effect needs\n");
+        printf("  a relation between the three and not any one of them.\n");
         return 0;
     }
 
@@ -1882,9 +1882,9 @@ int main(int argc, char **argv)
         //
         // The arm checks both. It varies only the nonce, and finds the first word and the first round that ever move.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  The miner's shared work, measured\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  The miner's shared work, measured\n");
+        printf("================================================================\n");
 
         // The header tail of block 125552. The numbers below are then about a real header, and not a convenient
         // pattern.
@@ -2019,23 +2019,23 @@ int main(int argc, char **argv)
             }
         }
 
-        std::printf("\n  Header: block 125552, nonce varied over %u draws, everything else fixed.\n", TRIES);
-        std::printf("  The nonce is W[3] of the second block.\n");
+        printf("\n  Header: block 125552, nonce varied over %u draws, everything else fixed.\n", TRIES);
+        printf("  The nonce is W[3] of the second block.\n");
 
-        std::printf("\n  %-34s %10s %10s %8s\n", "quantity", "measured", "in miner", "verdict");
-        std::printf("  %-34s %10s %10s %8s\n", "----------------------------------", "----------", "----------",
+        printf("\n  %-34s %10s %10s %8s\n", "quantity", "measured", "in miner", "verdict");
+        printf("  %-34s %10s %10s %8s\n", "----------------------------------", "----------", "----------",
                     "--------");
-        std::printf("  %-34s %10u %10u %8s\n", "first schedule word that moves", first_schedule_move, 18u,
+        printf("  %-34s %10u %10u %8s\n", "first schedule word that moves", first_schedule_move, 18u,
                     (first_schedule_move == 18u) ? "match" : "MISMATCH");
-        std::printf("  %-34s %10u %10u %8s\n", "first round that moves", first_round_move, 3u,
+        printf("  %-34s %10u %10u %8s\n", "first round that moves", first_round_move, 3u,
                     (first_round_move == 3u) ? "match" : "MISMATCH");
 
-        std::printf("\n  Words 0 to %u and rounds 0 to %u cannot see the nonce, so a miner may\n",
+        printf("\n  Words 0 to %u and rounds 0 to %u cannot see the nonce, so a miner may\n",
                     first_schedule_move - 1u, first_round_move - 1u);
-        std::printf("  compute them once per header. A miner that shares 18 schedule words and 3 rounds\n");
-        std::printf("  claims exactly that. A mismatch above is a miner\n");
-        std::printf("  reusing work the nonce does change, which submits wrong shares instead of\n");
-        std::printf("  slow ones.\n");
+        printf("  compute them once per header. A miner that shares 18 schedule words and 3 rounds\n");
+        printf("  claims exactly that. A mismatch above is a miner\n");
+        printf("  reusing work the nonce does change, which submits wrong shares instead of\n");
+        printf("  slow ones.\n");
 
         cudaFree(device_matrix);
         return 0;
@@ -2059,9 +2059,9 @@ int main(int argc, char **argv)
         // measurement says 312 over 135. The model is close, and wrong by a stated amount: the useful type of wrong.
         // The identities settle it.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Which cells are certain, and where they sit\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Which cells are certain, and where they sit\n");
+        printf("================================================================\n");
 
         const unsigned LOOKS[] = {8u, 10u, 12u};
         const unsigned HOW_MANY = 3u;
@@ -2114,23 +2114,23 @@ int main(int argc, char **argv)
                 }
             }
 
-            std::printf("\n  Round %u: %u certain cells\n", at_round, total);
-            std::printf("    by state word   ");
+            printf("\n  Round %u: %u certain cells\n", at_round, total);
+            printf("    by state word   ");
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
-                std::printf("%c:%-5u", (char)('a' + slot), by_state[slot]);
+                printf("%c:%-5u", (char)('a' + slot), by_state[slot]);
             }
-            std::printf("\n");
-            std::printf("    positions       %u aligned (bit k drives bit k), %u skewed\n", aligned, skewed);
-            std::printf("    by message word ");
+            printf("\n");
+            printf("    positions       %u aligned (bit k drives bit k), %u skewed\n", aligned, skewed);
+            printf("    by message word ");
             for (unsigned slot = 0u; slot < 16u; slot += 1u)
             {
                 if (per_word[slot] != 0u)
                 {
-                    std::printf("W%u:%u ", slot, per_word[slot]);
+                    printf("W%u:%u ", slot, per_word[slot]);
                 }
             }
-            std::printf("\n");
+            printf("\n");
 
             // Every skewed cell by its residue. Sigma1 has three rotation amounts, and a sample of eight would not tell
             // one of them from all three. The count covers the amounts of Sigma0 too, and assumes no answer.
@@ -2158,7 +2158,7 @@ int main(int argc, char **argv)
                         by_word_out[column / 32u] += 1u;
                     }
                 }
-                std::printf("    skewed by residue  ");
+                printf("    skewed by residue  ");
                 for (unsigned slot = 0u; slot < 32u; slot += 1u)
                 {
                     if (by_residue[slot] != 0u)
@@ -2176,26 +2176,26 @@ int main(int argc, char **argv)
                         {
                             what = "=carry";
                         }
-                        std::printf("%u%s:%u  ", slot, what, by_residue[slot]);
+                        printf("%u%s:%u  ", slot, what, by_residue[slot]);
                     }
                 }
-                std::printf("\n    skewed land in     ");
+                printf("\n    skewed land in     ");
                 for (unsigned slot = 0u; slot < 8u; slot += 1u)
                 {
                     if (by_word_out[slot] != 0u)
                     {
-                        std::printf("%c:%u  ", (char)('a' + slot), by_word_out[slot]);
+                        printf("%c:%u  ", (char)('a' + slot), by_word_out[slot]);
                     }
                 }
-                std::printf("\n");
+                printf("\n");
             }
         }
 
         cudaFree(device_matrix);
-        std::printf("\n  The model predicts every certain cell is aligned and lands in a or e and\n");
-        std::printf("  their copies, two per input bit over four words. Anything skewed, or in a\n");
-        std::printf("  word the copy chain cannot reach, is the model being wrong somewhere\n");
-        std::printf("  specific.\n");
+        printf("\n  The model predicts every certain cell is aligned and lands in a or e and\n");
+        printf("  their copies, two per input bit over four words. Anything skewed, or in a\n");
+        printf("  word the copy chain cannot reach, is the model being wrong somewhere\n");
+        printf("  specific.\n");
         return 0;
     }
 
@@ -2219,25 +2219,25 @@ int main(int argc, char **argv)
         //   - always: nonzero marks a bit whose effect is still deterministic.
         //   - mixed: rises as the function loses predictability, and is the real frontier.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  The signed projection: never, always, and mixed counted apart\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  The signed projection: never, always, and mixed counted apart\n");
+        printf("================================================================\n");
 
         const unsigned DEEPEST = 40u;
 
-        std::FILE *const handle = std::fopen("signed.csv", "w");
+        std::FILE *const handle = fopen("signed.csv", "w");
         if (handle == nullptr)
         {
-            std::printf("\n  could not open signed.csv\n");
+            printf("\n  could not open signed.csv\n");
             cudaFree(device_matrix);
             return 1;
         }
-        std::fprintf(handle, "type,axis,index,round,value\n");
+        fprintf(handle, "type,axis,index,round,value\n");
 
-        std::printf("\n  %u rounds, each on its own seed. A cell is never, always or mixed, and\n", DEEPEST);
-        std::printf("  those are exclusive, so nothing cancels the way a signed sum would.\n");
-        std::printf("\n  %6s %10s %10s %10s %10s\n", "round", "never", "always", "mixed", "det. bits");
-        std::printf("  %6s %10s %10s %10s %10s\n", "------", "----------", "----------", "----------", "----------");
+        printf("\n  %u rounds, each on its own seed. A cell is never, always or mixed, and\n", DEEPEST);
+        printf("  those are exclusive, so nothing cancels the way a signed sum would.\n");
+        printf("\n  %6s %10s %10s %10s %10s\n", "round", "never", "always", "mixed", "det. bits");
+        printf("  %6s %10s %10s %10s %10s\n", "------", "----------", "----------", "----------", "----------");
 
         for (unsigned at_round = 1u; at_round <= DEEPEST; at_round += 1u)
         {
@@ -2271,9 +2271,9 @@ int main(int argc, char **argv)
                 }
                 const unsigned mixed_here = OUTPUT_BITS - never_here - always_here;
 
-                std::fprintf(handle, "never,inbit,%u,%u,%u\n", row, at_round, never_here);
-                std::fprintf(handle, "always,inbit,%u,%u,%u\n", row, at_round, always_here);
-                std::fprintf(handle, "mixed,inbit,%u,%u,%u\n", row, at_round, mixed_here);
+                fprintf(handle, "never,inbit,%u,%u,%u\n", row, at_round, never_here);
+                fprintf(handle, "always,inbit,%u,%u,%u\n", row, at_round, always_here);
+                fprintf(handle, "mixed,inbit,%u,%u,%u\n", row, at_round, mixed_here);
 
                 never_all += never_here;
                 always_all += always_here;
@@ -2301,24 +2301,24 @@ int main(int argc, char **argv)
                         always_here += 1u;
                     }
                 }
-                std::fprintf(handle, "never,outbit,%u,%u,%u\n", column, at_round, never_here);
-                std::fprintf(handle, "always,outbit,%u,%u,%u\n", column, at_round, always_here);
-                std::fprintf(handle, "mixed,outbit,%u,%u,%u\n", column, at_round,
+                fprintf(handle, "never,outbit,%u,%u,%u\n", column, at_round, never_here);
+                fprintf(handle, "always,outbit,%u,%u,%u\n", column, at_round, always_here);
+                fprintf(handle, "mixed,outbit,%u,%u,%u\n", column, at_round,
                              INPUT_BITS - never_here - always_here);
             }
 
-            std::printf("  %6u %10llu %10llu %10llu %10u\n", at_round, never_all, always_all, mixed_all,
+            printf("  %6u %10llu %10llu %10llu %10u\n", at_round, never_all, always_all, mixed_all,
                         deterministic_rows);
         }
 
-        std::fclose(handle);
+        fclose(handle);
         cudaFree(device_matrix);
 
-        std::printf("\n  'det. bits' counts input bits whose every output cell is still at an\n");
-        std::printf("  extreme, so the bit's whole effect is predictable. That is the bedrock, and\n");
-        std::printf("  it is now split into the part that changes nothing and the part that\n");
-        std::printf("  changes something every time.\n");
-        std::printf("\n  Written to signed.csv.\n");
+        printf("\n  'det. bits' counts input bits whose every output cell is still at an\n");
+        printf("  extreme, so the bit's whole effect is predictable. That is the bedrock, and\n");
+        printf("  it is now split into the part that changes nothing and the part that\n");
+        printf("  changes something every time.\n");
+        printf("\n  Written to signed.csv.\n");
         return 0;
     }
 
@@ -2335,9 +2335,9 @@ int main(int argc, char **argv)
         // words in place of the compression. Anything that the two have in common is the harness. Anything that only
         // SHA-256 has is SHA-256.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  The same field from several sources\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  The same field from several sources\n");
+        printf("================================================================\n");
 
         std::vector<double> field((size_t)INPUT_BITS * OUTPUT_BITS);
         double folded[32];
@@ -2358,16 +2358,16 @@ int main(int argc, char **argv)
         };
         const unsigned HOW_MANY = (unsigned)(sizeof(sources) / sizeof(sources[0]));
 
-        std::FILE *const handle = std::fopen("sources.csv", "w");
+        std::FILE *const handle = fopen("sources.csv", "w");
         if (handle == nullptr)
         {
-            std::printf("\n  could not open sources.csv\n");
+            printf("\n  could not open sources.csv\n");
             cudaFree(device_matrix);
             return 1;
         }
-        std::fprintf(handle, "source,type,a,b,round,value\n");
+        fprintf(handle, "source,type,a,b,round,value\n");
 
-        std::printf("\n  %u sources across %u rounds, each round on its own seed.\n", HOW_MANY, DEEPEST);
+        printf("\n  %u sources across %u rounds, each round on its own seed.\n", HOW_MANY, DEEPEST);
 
         for (unsigned which = 0u; which < HOW_MANY; which += 1u)
         {
@@ -2391,7 +2391,7 @@ int main(int argc, char **argv)
                 fold_onto_residue(field, folded);
                 for (unsigned at = 0u; at < 32u; at += 1u)
                 {
-                    std::fprintf(handle, "%s,residue,%u,0,%u,%.4f\n", sources[which].name, at, at_round, folded[at]);
+                    fprintf(handle, "%s,residue,%u,0,%u,%.4f\n", sources[which].name, at, at_round, folded[at]);
                 }
 
                 for (unsigned row = 0u; row < INPUT_BITS; row += 1u)
@@ -2402,7 +2402,7 @@ int main(int argc, char **argv)
                         const double here = field[((size_t)row * OUTPUT_BITS) + column];
                         along += here * here;
                     }
-                    std::fprintf(handle, "%s,inbit,%u,0,%u,%.2f\n", sources[which].name, row, at_round,
+                    fprintf(handle, "%s,inbit,%u,0,%u,%.2f\n", sources[which].name, row, at_round,
                                  along - (double)OUTPUT_BITS);
                 }
 
@@ -2414,16 +2414,16 @@ int main(int argc, char **argv)
                         const double here = field[((size_t)row * OUTPUT_BITS) + column];
                         along += here * here;
                     }
-                    std::fprintf(handle, "%s,outbit,%u,0,%u,%.2f\n", sources[which].name, column, at_round,
+                    fprintf(handle, "%s,outbit,%u,0,%u,%.2f\n", sources[which].name, column, at_round,
                                  along - (double)INPUT_BITS);
                 }
             }
-            std::printf("  %-14s done\n", sources[which].name);
+            printf("  %-14s done\n", sources[which].name);
         }
-        std::fclose(handle);
+        fclose(handle);
         cudaFree(device_matrix);
 
-        std::printf("\n  Written to sources.csv. Render with examples/00_blob_viz_tools/build_sources_view.py\n");
+        printf("\n  Written to sources.csv. Render with examples/00_blob_viz_tools/build_sources_view.py\n");
         return 0;
     }
 
@@ -2449,9 +2449,9 @@ int main(int argc, char **argv)
         // Signed where a sign exists, because magnitudes first would fold noise into a positive bias, and manufacture a
         // shape in every cell.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  The object, dumped as its shadows\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  The object, dumped as its shadows\n");
+        printf("================================================================\n");
 
         std::vector<double> field((size_t)INPUT_BITS * OUTPUT_BITS);
         double folded[32];
@@ -2462,9 +2462,9 @@ int main(int argc, char **argv)
         std::vector<double> outbit_by_round((size_t)OUTPUT_BITS * DEEPEST, 0.0);
         std::vector<double> word_by_word((size_t)16u * 8u * DEEPEST, 0.0);
 
-        std::printf("\n  Filling %u rounds. Each is its own seed, so the noise between rounds is\n", DEEPEST);
-        std::printf("  independent and any shape that crosses rounds is the object instead of a\n");
-        std::printf("  fluctuation carried along.\n");
+        printf("\n  Filling %u rounds. Each is its own seed, so the noise between rounds is\n", DEEPEST);
+        printf("  independent and any shape that crosses rounds is the object instead of a\n");
+        printf("  fluctuation carried along.\n");
 
         for (unsigned at_round = 1u; at_round <= DEEPEST; at_round += 1u)
         {
@@ -2529,18 +2529,18 @@ int main(int argc, char **argv)
 
         cudaFree(device_matrix);
 
-        std::FILE *const handle = std::fopen("shadows.csv", "w");
+        std::FILE *const handle = fopen("shadows.csv", "w");
         if (handle == nullptr)
         {
-            std::printf("\n  could not open shadows.csv\n");
+            printf("\n  could not open shadows.csv\n");
             return 1;
         }
-        std::fprintf(handle, "type,a,b,round,value\n");
+        fprintf(handle, "type,a,b,round,value\n");
         for (unsigned at = 0u; at < 32u; at += 1u)
         {
             for (unsigned slot = 0u; slot < DEEPEST; slot += 1u)
             {
-                std::fprintf(handle, "residue,%u,0,%u,%.4f\n", at, slot + 1u,
+                fprintf(handle, "residue,%u,0,%u,%.4f\n", at, slot + 1u,
                              residue_by_round[((size_t)at * DEEPEST) + slot]);
             }
         }
@@ -2548,7 +2548,7 @@ int main(int argc, char **argv)
         {
             for (unsigned slot = 0u; slot < DEEPEST; slot += 1u)
             {
-                std::fprintf(handle, "inbit,%u,0,%u,%.2f\n", row, slot + 1u,
+                fprintf(handle, "inbit,%u,0,%u,%.2f\n", row, slot + 1u,
                              inbit_by_round[((size_t)row * DEEPEST) + slot]);
             }
         }
@@ -2556,7 +2556,7 @@ int main(int argc, char **argv)
         {
             for (unsigned slot = 0u; slot < DEEPEST; slot += 1u)
             {
-                std::fprintf(handle, "outbit,%u,0,%u,%.2f\n", column, slot + 1u,
+                fprintf(handle, "outbit,%u,0,%u,%.2f\n", column, slot + 1u,
                              outbit_by_round[((size_t)column * DEEPEST) + slot]);
             }
         }
@@ -2567,15 +2567,15 @@ int main(int argc, char **argv)
                 for (unsigned slot = 0u; slot < DEEPEST; slot += 1u)
                 {
                     const size_t where = ((((size_t)in_word * 8u) + out_word) * DEEPEST) + slot;
-                    std::fprintf(handle, "word,%u,%u,%u,%.2f\n", in_word, out_word, slot + 1u, word_by_word[where]);
+                    fprintf(handle, "word,%u,%u,%u,%.2f\n", in_word, out_word, slot + 1u, word_by_word[where]);
                 }
             }
         }
-        std::fclose(handle);
+        fclose(handle);
 
-        std::printf("\n  Written to shadows.csv: %u residue rows, %u input bits, %u output bits\n", 32u, INPUT_BITS,
+        printf("\n  Written to shadows.csv: %u residue rows, %u input bits, %u output bits\n", 32u, INPUT_BITS,
                     OUTPUT_BITS);
-        std::printf("  and %u word pairs, each across %u rounds.\n", 16u * 8u, DEEPEST);
+        printf("  and %u word pairs, each across %u rounds.\n", 16u * 8u, DEEPEST);
         return 0;
     }
 
@@ -2601,9 +2601,9 @@ int main(int argc, char **argv)
         // and this therefore locates structure. Nothing here recovers the value of any bit, and the table below makes
         // no such claim.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  The dispersion relation, rounds 10 to 23\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  The dispersion relation, rounds 10 to 23\n");
+        printf("================================================================\n");
 
         std::vector<double> field((size_t)INPUT_BITS * OUTPUT_BITS);
         double folded[32];
@@ -2616,10 +2616,10 @@ int main(int argc, char **argv)
         // above the floor that the log of the amplitude is still the log of a signal.
         const double FLOOR_AT = 10.0;
 
-        std::printf("\n  Fitting Z_f(r) across %u rounds, each on its own seed. Drift is the phase\n", WALK);
-        std::printf("  advance per round turned into residues per round; decay is the amplitude\n");
-        std::printf("  fall per round. Position is where the component sits, which phase carries\n");
-        std::printf("  and magnitude does not.\n");
+        printf("\n  Fitting Z_f(r) across %u rounds, each on its own seed. Drift is the phase\n", WALK);
+        printf("  advance per round turned into residues per round; decay is the amplitude\n");
+        printf("  fall per round. Position is where the component sits, which phase carries\n");
+        printf("  and magnitude does not.\n");
 
         for (unsigned source = 0u; source < 2u; source += 1u)
         {
@@ -2659,10 +2659,10 @@ int main(int argc, char **argv)
                 }
             }
 
-            std::printf("\n  %s\n", label);
-            std::printf("  %6s %12s %12s %12s %12s %8s %8s\n", "freq", "amplitude", "position", "drift", "decay/round",
+            printf("\n  %s\n", label);
+            printf("  %6s %12s %12s %12s %12s %8s %8s\n", "freq", "amplitude", "position", "drift", "decay/round",
                         "fitted", "holds");
-            std::printf("  %6s %12s %12s %12s %12s %8s %8s\n", "------", "------------", "------------", "------------",
+            printf("  %6s %12s %12s %12s %12s %8s %8s\n", "------", "------------", "------------", "------------",
                         "------------", "--------", "--------");
 
             for (unsigned tone = 1u; tone < TONES; tone += 1u)
@@ -2681,7 +2681,7 @@ int main(int argc, char **argv)
                     turned_real += (next_real * here_real) + (next_imaginary * here_imaginary);
                     turned_imaginary += (next_imaginary * here_real) - (next_real * here_imaginary);
                 }
-                const double advance = std::atan2(turned_imaginary, turned_real);
+                const double advance = atan2(turned_imaginary, turned_real);
                 const double drift = (advance * 32.0) / (6.283185307179586 * (double)tone);
 
                 // Decay from a straight-line fit of the log amplitude. The table also reports the amplitude at the
@@ -2696,7 +2696,7 @@ int main(int argc, char **argv)
                 {
                     const double here_real = line_real[((size_t)tone * WALK) + at];
                     const double here_imaginary = line_imaginary[((size_t)tone * WALK) + at];
-                    const double size = std::sqrt((here_real * here_real) + (here_imaginary * here_imaginary));
+                    const double size = sqrt((here_real * here_real) + (here_imaginary * here_imaginary));
                     if (at == 0u)
                     {
                         first_size = size;
@@ -2714,8 +2714,8 @@ int main(int argc, char **argv)
                     }
                     const double when = (double)at;
                     sum_at += when;
-                    sum_log += std::log(size);
-                    sum_at_log += when * std::log(size);
+                    sum_log += log(size);
+                    sum_at_log += when * log(size);
                     sum_at_at += when * when;
                     counted += 1.0;
                 }
@@ -2731,7 +2731,7 @@ int main(int argc, char **argv)
 
                 const double where = line_imaginary[((size_t)tone * WALK)];
                 const double whence = line_real[((size_t)tone * WALK)];
-                double position = (std::atan2(where, whence) * 32.0) / (6.283185307179586 * (double)tone);
+                double position = (atan2(where, whence) * 32.0) / (6.283185307179586 * (double)tone);
                 const double wrap = 32.0 / (double)tone;
                 while (position < 0.0)
                 {
@@ -2743,15 +2743,15 @@ int main(int argc, char **argv)
                 // wants amplitude to carry a phase. The table reports both, so that a row that says nothing visibly
                 // says nothing.
                 const char *holds = ((first_size > 20.0) && (counted >= 4.0)) ? "yes" : "-";
-                std::printf("  %6u %12.1f %12.3f %12.3f %12.4f %8.0f %8s\n", tone, first_size, position, drift, decay,
+                printf("  %6u %12.1f %12.3f %12.3f %12.4f %8.0f %8s\n", tone, first_size, position, drift, decay,
                             counted, holds);
             }
         }
 
-        std::printf("\n  The control must read drift 1.000 and decay near zero at frequency 3, or\n");
-        std::printf("  the fit is wrong and the SHA-256 table above means nothing. Where a row is\n");
-        std::printf("  marked '-' the component was too faint to carry a phase and its drift is the\n");
-        std::printf("  argument of noise, which is uniform.\n");
+        printf("\n  The control must read drift 1.000 and decay near zero at frequency 3, or\n");
+        printf("  the fit is wrong and the SHA-256 table above means nothing. Where a row is\n");
+        printf("  marked '-' the component was too faint to carry a phase and its drift is the\n");
+        printf("  argument of noise, which is uniform.\n");
 
         cudaFree(device_matrix);
         return 0;
@@ -2777,18 +2777,18 @@ int main(int argc, char **argv)
         // Smoothness that appears in the third and not the first is SHA-256's. Smoothness that appears in both is the
         // harness's, and that still deserves a record.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Waves in, and whether the field is smooth\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Waves in, and whether the field is smooth\n");
+        printf("================================================================\n");
 
         std::vector<double> field((size_t)INPUT_BITS * OUTPUT_BITS);
         double folded[32];
-        const double white_error = 1.0 / std::sqrt((double)(INPUT_BITS * OUTPUT_BITS));
+        const double white_error = 1.0 / sqrt((double)(INPUT_BITS * OUTPUT_BITS));
 
-        std::printf("\n  A white field correlates with itself at zero for every nonzero lag, with a\n");
-        std::printf("  standard error of %.6f on %u pairs. Anything standing clear of that is a\n", white_error,
+        printf("\n  A white field correlates with itself at zero for every nonzero lag, with a\n");
+        printf("  standard error of %.6f on %u pairs. Anything standing clear of that is a\n", white_error,
                     INPUT_BITS * OUTPUT_BITS);
-        std::printf("  field with a length scale, which is what smooth means when it is measured.\n");
+        printf("  field with a length scale, which is what smooth means when it is measured.\n");
 
         // -- The calibration ladder ------------------------------------------------------------
         //
@@ -2798,11 +2798,11 @@ int main(int argc, char **argv)
         const unsigned WAVE_FREQUENCY = 3u;
         const unsigned FAINTEST = 16u;
 
-        std::printf("\n  Calibration: a plane wave at frequency %u across the residues, faded until\n", WAVE_FREQUENCY);
-        std::printf("  the readout loses it. Amplitude is the bias driven into each cell's rate.\n");
-        std::printf("\n  %10s %14s %16s %12s %10s %10s\n", "amplitude", "excess chi2", "chi2 sigmas", "loudest",
+        printf("\n  Calibration: a plane wave at frequency %u across the residues, faded until\n", WAVE_FREQUENCY);
+        printf("  the readout loses it. Amplitude is the bias driven into each cell's rate.\n");
+        printf("\n  %10s %14s %16s %12s %10s %10s\n", "amplitude", "excess chi2", "chi2 sigmas", "loudest",
                     "at freq", "found");
-        std::printf("  %10s %14s %16s %12s %10s %10s\n", "----------", "--------------", "----------------",
+        printf("  %10s %14s %16s %12s %10s %10s\n", "----------", "--------------", "----------------",
                     "------------", "----------", "----------");
 
         for (unsigned strength = 8u; strength <= FAINTEST; strength += 1u)
@@ -2821,33 +2821,33 @@ int main(int argc, char **argv)
                 total += field[at] * field[at];
             }
             const double excess = total - (double)(INPUT_BITS * OUTPUT_BITS);
-            const double chi_sigmas = excess / std::sqrt(2.0 * (double)(INPUT_BITS * OUTPUT_BITS));
+            const double chi_sigmas = excess / sqrt(2.0 * (double)(INPUT_BITS * OUTPUT_BITS));
 
             fold_onto_residue(field, folded);
             unsigned tone_at = 0u;
             const double tone = loudest_residue_tone(folded, &tone_at);
 
-            const double amplitude = std::pow(0.5, (double)(strength + 1u));
+            const double amplitude = pow(0.5, (double)(strength + 1u));
             const char *found = ((tone_at == WAVE_FREQUENCY) && (tone > 5.0)) ? "yes" : "-";
-            std::printf("  %10.2e %14.1f %16.2f %12.2f %10u %10s\n", amplitude, excess, chi_sigmas, tone, tone_at,
+            printf("  %10.2e %14.1f %16.2f %12.2f %10u %10s\n", amplitude, excess, chi_sigmas, tone, tone_at,
                         found);
         }
 
         // -- The three fields, side by side ------------------------------------------------------
         const unsigned LAGS = 8u;
-        std::printf("\n  Correlation of the field with itself, shifted. Zero is white.\n");
-        std::printf("\n  %-22s %8s", "field", "axis");
+        printf("\n  Correlation of the field with itself, shifted. Zero is white.\n");
+        printf("\n  %-22s %8s", "field", "axis");
         for (unsigned lag = 1u; lag <= LAGS; lag += 1u)
         {
-            std::printf(" %8u", lag);
+            printf(" %8u", lag);
         }
-        std::printf("\n");
-        std::printf("  %-22s %8s", "----------------------", "--------");
+        printf("\n");
+        printf("  %-22s %8s", "----------------------", "--------");
         for (unsigned lag = 1u; lag <= LAGS; lag += 1u)
         {
-            std::printf(" %8s", "--------");
+            printf(" %8s", "--------");
         }
-        std::printf("\n");
+        printf("\n");
 
         for (unsigned which = 0u; which < 4u; which += 1u)
         {
@@ -2878,26 +2878,26 @@ int main(int argc, char **argv)
                        cudaMemcpyDeviceToHost);
             fill_deviation_field(matrix, trials, field);
 
-            std::printf("  %-22s %8s", label, "output");
+            printf("  %-22s %8s", label, "output");
             for (unsigned lag = 1u; lag <= LAGS; lag += 1u)
             {
-                std::printf(" %8.2f", correlate_along_output(field, lag) / white_error);
+                printf(" %8.2f", correlate_along_output(field, lag) / white_error);
             }
-            std::printf("\n");
+            printf("\n");
 
-            std::printf("  %-22s %8s", "", "input");
+            printf("  %-22s %8s", "", "input");
             for (unsigned lag = 1u; lag <= LAGS; lag += 1u)
             {
-                std::printf(" %8.2f", correlate_along_input(field, lag) / white_error);
+                printf(" %8.2f", correlate_along_input(field, lag) / white_error);
             }
-            std::printf("\n");
+            printf("\n");
         }
 
-        std::printf("\n  Every number above is in standard errors of a white field. The wave row is\n");
-        std::printf("  the positive control: it must light up, or the readout cannot see anything\n");
-        std::printf("  and the other rows mean nothing. The harness row is the null: whatever it\n");
-        std::printf("  carries is the instrument's own, and SHA-256 only claims what stands above\n");
-        std::printf("  it instead of above zero.\n");
+        printf("\n  Every number above is in standard errors of a white field. The wave row is\n");
+        printf("  the positive control: it must light up, or the readout cannot see anything\n");
+        printf("  and the other rows mean nothing. The harness row is the null: whatever it\n");
+        printf("  carries is the instrument's own, and SHA-256 only claims what stands above\n");
+        printf("  it instead of above zero.\n");
 
         // ---------------------------------------------------------------------------------------
         // Doppler: what moves, visible at rest or not.
@@ -2919,9 +2919,9 @@ int main(int argc, char **argv)
         // coherent across rounds whatever the seed. The seeds make the sampling noise independent, and it decoheres.
         // One shared seed would keep the noise coherent too, and the gain would be nothing.
         // ---------------------------------------------------------------------------------------
-        std::printf("\n================================================================\n");
-        std::printf("  Doppler: what is moving, seen or not\n");
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Doppler: what is moving, seen or not\n");
+        printf("================================================================\n");
 
         const unsigned FIRST_ROUND = 23u;
         const unsigned SPAN = 42u;
@@ -2931,11 +2931,11 @@ int main(int argc, char **argv)
         const double SLOWEST = -8.0;
         const double FASTEST = 8.0;
 
-        std::printf("\n  Rounds %u to %u, each on its own seed. A structure standing still holds its\n", FIRST_ROUND,
+        printf("\n  Rounds %u to %u, each on its own seed. A structure standing still holds its\n", FIRST_ROUND,
                     (FIRST_ROUND + SPAN) - 1u);
-        std::printf("  phase, one drifting advances it, noise does neither. Summing coherently over\n");
-        std::printf("  %u rounds gains sqrt(%u) = %.2f on whatever moves at the tried velocity.\n", SPAN, SPAN,
-                    std::sqrt((double)SPAN));
+        printf("  phase, one drifting advances it, noise does neither. Summing coherently over\n");
+        printf("  %u rounds gains sqrt(%u) = %.2f on whatever moves at the tried velocity.\n", SPAN, SPAN,
+                    sqrt((double)SPAN));
 
         // Three sources through the same scan. The harness alone is the null, a wave that walks one residue per round
         // is the positive control, and the third is SHA-256.
@@ -3028,14 +3028,14 @@ int main(int argc, char **argv)
                         const double turn = 6.283185307179586 * drift * (double)at / 32.0;
                         const double here_real = line_real[((size_t)tone * SPAN) + at];
                         const double here_imaginary = line_imaginary[((size_t)tone * SPAN) + at];
-                        const double rotated_real = (here_real * std::cos(turn)) + (here_imaginary * std::sin(turn));
+                        const double rotated_real = (here_real * cos(turn)) + (here_imaginary * sin(turn));
                         const double rotated_imaginary =
-                            (here_imaginary * std::cos(turn)) - (here_real * std::sin(turn));
+                            (here_imaginary * cos(turn)) - (here_real * sin(turn));
                         summed_real += rotated_real;
                         summed_imaginary += rotated_imaginary;
 
                         const double length =
-                            std::sqrt((rotated_real * rotated_real) + (rotated_imaginary * rotated_imaginary));
+                            sqrt((rotated_real * rotated_real) + (rotated_imaginary * rotated_imaginary));
                         if (length > 0.0)
                         {
                             turned_real += rotated_real / length;
@@ -3043,7 +3043,7 @@ int main(int argc, char **argv)
                         }
                     }
                     const double magnitude =
-                        std::sqrt(((summed_real * summed_real) + (summed_imaginary * summed_imaginary)) / (double)SPAN);
+                        sqrt(((summed_real * summed_real) + (summed_imaginary * summed_imaginary)) / (double)SPAN);
                     if (magnitude > loudest)
                     {
                         loudest = magnitude;
@@ -3057,7 +3057,7 @@ int main(int argc, char **argv)
 
                     // Unit vectors summed. Under the null, the phases are uniform, and each part has variance SPAN/2.
                     // This reads as a Rayleigh magnitude with unit parts, on the same scale as the magnitude channel.
-                    const double concentration = std::sqrt(
+                    const double concentration = sqrt(
                         ((turned_real * turned_real) + (turned_imaginary * turned_imaginary)) / ((double)SPAN / 2.0));
                     if (concentration > tightest)
                     {
@@ -3088,13 +3088,13 @@ int main(int argc, char **argv)
             }
             const double cells = (double)((TONES - 1u) * DRIFTS);
             const double every_cell = (cells * 2.0) + (double)STEPS + windows_searched;
-            const double peaks_at = std::sqrt(2.0 * std::log(every_cell));
+            const double peaks_at = sqrt(2.0 * log(every_cell));
 
             // A sum of R unit vectors cannot exceed R. The phase channel therefore has an upper bound of sqrt(2R)
             // whatever the data does: 9.17 at forty-two rounds. Against a null peak near 4.7, that is barely a factor
             // of two of range. It is a weak instrument at this baseline, however good the idea is. The table reports
             // it, so that the ceiling is visible.
-            const double phase_ceiling = std::sqrt(2.0 * (double)SPAN);
+            const double phase_ceiling = sqrt(2.0 * (double)SPAN);
 
             // -- Radius instead of a single cone -------------------------------------------
             //
@@ -3122,8 +3122,8 @@ int main(int argc, char **argv)
                         const double turn = 6.283185307179586 * (double)tone * speed * (double)at / 32.0;
                         const double here_real = line_real[((size_t)tone * SPAN) + at];
                         const double here_imaginary = line_imaginary[((size_t)tone * SPAN) + at];
-                        summed_real += (here_real * std::cos(turn)) + (here_imaginary * std::sin(turn));
-                        summed_imaginary += (here_imaginary * std::cos(turn)) - (here_real * std::sin(turn));
+                        summed_real += (here_real * cos(turn)) + (here_imaginary * sin(turn));
+                        summed_imaginary += (here_imaginary * cos(turn)) - (here_real * sin(turn));
                     }
                     pooled += ((summed_real * summed_real) + (summed_imaginary * summed_imaginary)) / (double)SPAN;
                 }
@@ -3137,7 +3137,7 @@ int main(int argc, char **argv)
             // Fifteen frequencies, two unit-normal parts each. The pooled power is therefore chi-square with thirty
             // degrees of freedom: mean 30, spread sqrt(60). The harness row is the honest null for it regardless, and
             // the SHA-256 row reads against it.
-            const double pooled_sigmas = (loudest_radius - 30.0) / std::sqrt(60.0);
+            const double pooled_sigmas = (loudest_radius - 30.0) / sqrt(60.0);
 
             // -- Every position of the sphere ------------------------------------------------
             //
@@ -3169,10 +3169,10 @@ int main(int argc, char **argv)
                                 const double turn = 6.283185307179586 * (double)tone * speed * (double)where / 32.0;
                                 const double here_real = line_real[((size_t)tone * SPAN) + where];
                                 const double here_imaginary = line_imaginary[((size_t)tone * SPAN) + where];
-                                summed_real += (here_real * std::cos(turn)) + (here_imaginary * std::sin(turn));
-                                summed_imaginary += (here_imaginary * std::cos(turn)) - (here_real * std::sin(turn));
+                                summed_real += (here_real * cos(turn)) + (here_imaginary * sin(turn));
+                                summed_imaginary += (here_imaginary * cos(turn)) - (here_real * sin(turn));
                             }
-                            const double magnitude = std::sqrt(
+                            const double magnitude = sqrt(
                                 ((summed_real * summed_real) + (summed_imaginary * summed_imaginary)) / (double)width);
                             if (magnitude > windowed_best)
                             {
@@ -3185,20 +3185,20 @@ int main(int argc, char **argv)
                 }
             }
 
-            std::printf("\n  %s\n", label);
-            std::printf("    loudest         %8.2f at frequency %u, velocity %+.3f residues/round\n", loudest,
+            printf("\n  %s\n", label);
+            printf("    loudest         %8.2f at frequency %u, velocity %+.3f residues/round\n", loudest,
                         loud_tone, loud_speed);
-            std::printf("    phase only      %8.2f at frequency %u, velocity %+.3f  (amplitude\n", tightest, tight_tone,
+            printf("    phase only      %8.2f at frequency %u, velocity %+.3f  (amplitude\n", tightest, tight_tone,
                         tight_speed);
-            std::printf("                             thrown away; ceiling is %.2f at %u rounds)\n", phase_ceiling,
+            printf("                             thrown away; ceiling is %.2f at %u rounds)\n", phase_ceiling,
                         SPAN);
-            std::printf("    pooled radius   %8.2f at velocity %+.3f  (%.2f sigmas of chi2(30))\n", loudest_radius,
+            printf("    pooled radius   %8.2f at velocity %+.3f  (%.2f sigmas of chi2(30))\n", loudest_radius,
                         radius_speed, pooled_sigmas);
-            std::printf("    best window     %8.2f over rounds %u to %u\n", windowed_best, windowed_start,
+            printf("    best window     %8.2f over rounds %u to %u\n", windowed_best, windowed_start,
                         (windowed_start + windowed_span) - 1u);
-            std::printf("    standing still  %8.2f  (velocity zero, the best any single-round\n", standing_best);
-            std::printf("                             reading could ever pool to)\n");
-            std::printf("    null peak       %8.2f  (maximum over %.0f cells, all four channels)\n", peaks_at,
+            printf("    standing still  %8.2f  (velocity zero, the best any single-round\n", standing_best);
+            printf("                             reading could ever pool to)\n");
+            printf("    null peak       %8.2f  (maximum over %.0f cells, all four channels)\n", peaks_at,
                         every_cell);
 
             double largest = loudest;
@@ -3210,21 +3210,21 @@ int main(int argc, char **argv)
             {
                 largest = windowed_best;
             }
-            std::printf("    %s\n", (largest > peaks_at) ? "ABOVE the null peak: something is moving."
+            printf("    %s\n", (largest > peaks_at) ? "ABOVE the null peak: something is moving."
                                                          : "under the null peak: nothing is moving that this can see.");
         }
 
-        std::printf("\n  The walking wave is the positive control and is set below the standing\n");
-        std::printf("  floor on purpose: it cannot be found in any single round, so if the scan\n");
-        std::printf("  recovers it, the gain is real and came from the motion. If it does not, this\n");
-        std::printf("  instrument is blind and the SHA-256 line below it means nothing.\n");
+        printf("\n  The walking wave is the positive control and is set below the standing\n");
+        printf("  floor on purpose: it cannot be found in any single round, so if the scan\n");
+        printf("  recovers it, the gain is real and came from the motion. If it does not, this\n");
+        printf("  instrument is blind and the SHA-256 line below it means nothing.\n");
 
         cudaFree(device_matrix);
         return 0;
     }
 
-    std::printf("\n  %8s %14s %14s %12s %10s\n", "round", "SAC value", "from half", "sigmas", "verdict");
-    std::printf("  %8s %14s %14s %12s %10s\n", "--------", "--------------", "--------------", "------------",
+    printf("\n  %8s %14s %14s %12s %10s\n", "round", "SAC value", "from half", "sigmas", "verdict");
+    printf("  %8s %14s %14s %12s %10s\n", "--------", "--------------", "--------------", "------------",
                 "----------");
 
     for (unsigned rounds = first_round; rounds <= last_round; rounds += 1u)
@@ -3255,9 +3255,9 @@ int main(int argc, char **argv)
         // The matrix holds 131072 entries. The largest deviation among them therefore peaks near sqrt(2 ln 131072) =
         // 4.85 standard deviations, with or without anything there. Anything at or under that is the null, however
         // small the probability of one entry alone.
-        const double null_peak = std::sqrt(2.0 * std::log((double)matrix.size()));
+        const double null_peak = sqrt(2.0 * log((double)matrix.size()));
         const char *verdict = (sigmas > (null_peak + 2.0)) ? "OFF" : "flat";
-        std::printf("  %8u %14.8f %14.8f %12.1f %10s\n", rounds, furthest, widest, sigmas, verdict);
+        printf("  %8u %14.8f %14.8f %12.1f %10s\n", rounds, furthest, widest, sigmas, verdict);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -3276,15 +3276,15 @@ int main(int argc, char **argv)
     // chain. In bench_words, the depths per position of the a half are irregular, and the e half is clean at k + 3
     // exactly.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Do Choose and Majority dampen each other\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The published SAC-mean ratio for this pair is 0.508, meaning the two together\n");
-    std::printf("  deliver about half the diffusion each gives alone. That is a mean over the whole\n");
-    std::printf("  matrix instead of a maximum of it, so the argument that disposes of the 54-57\n");
-    std::printf("  dip does not touch it.\n");
-    std::printf("\n  Their model has each sub-function flipping a bit independently, so two of them\n");
-    std::printf("  flip it when exactly one does: Expect(A,B) = A + B - 2AB.\n");
+    printf("\n================================================================\n");
+    printf("  Do Choose and Majority dampen each other\n");
+    printf("================================================================\n");
+    printf("\n  The published SAC-mean ratio for this pair is 0.508, meaning the two together\n");
+    printf("  deliver about half the diffusion each gives alone. That is a mean over the whole\n");
+    printf("  matrix instead of a maximum of it, so the argument that disposes of the 54-57\n");
+    printf("  dip does not touch it.\n");
+    printf("\n  Their model has each sub-function flipping a bit independently, so two of them\n");
+    printf("  flip it when exactly one does: Expect(A,B) = A + B - 2AB.\n");
 
     {
         const unsigned VARIANTS = 3u;
@@ -3293,8 +3293,8 @@ int main(int argc, char **argv)
         const unsigned at_round = 64u;
 
         double means[VARIANTS];
-        std::printf("\n  %-18s %16s\n", "variant", "SAC-mean");
-        std::printf("  %-18s %16s\n", "------------------", "----------------");
+        printf("\n  %-18s %16s\n", "variant", "SAC-mean");
+        printf("  %-18s %16s\n", "------------------", "----------------");
 
         for (unsigned which = 0u; which < VARIANTS; which += 1u)
         {
@@ -3310,25 +3310,25 @@ int main(int argc, char **argv)
                 total += (double)matrix[at] / (double)trials;
             }
             means[which] = total / (double)matrix.size();
-            std::printf("  %-18s %16.8f\n", named[which], means[which]);
+            printf("  %-18s %16.8f\n", named[which], means[which]);
         }
 
         const double expected = means[0] + means[1] - (2.0 * means[0] * means[1]);
         const double ratio = (expected > 0.0) ? (means[2] / expected) : 0.0;
-        std::printf("\n  %-34s %16.8f\n", "expected from the two alone", expected);
-        std::printf("  %-34s %16.8f\n", "measured together", means[2]);
-        std::printf("  %-34s %16.4f\n", "ratio", ratio);
-        std::printf("  %-34s %16.4f\n", "published ratio", 0.508);
+        printf("\n  %-34s %16.8f\n", "expected from the two alone", expected);
+        printf("  %-34s %16.8f\n", "measured together", means[2]);
+        printf("  %-34s %16.4f\n", "ratio", ratio);
+        printf("  %-34s %16.4f\n", "published ratio", 0.508);
 
         const char *verdict =
             (ratio < 0.75) ? "dampening reproduces" : ((ratio > 1.25) ? "amplifies instead" : "neither");
-        std::printf("  %-34s %16s\n", "verdict", verdict);
+        printf("  %-34s %16s\n", "verdict", verdict);
 
-        std::printf("\n  A ratio near the published 0.508 reproduces the dampening and makes these\n");
-        std::printf("  two functions worth attacking together instead of separately. A ratio near\n");
-        std::printf("  one says the composition model is doing the work instead of SHA-256, since\n");
-        std::printf("  that model assumes independence which two functions reading overlapping\n");
-        std::printf("  state words do not have.\n");
+        printf("\n  A ratio near the published 0.508 reproduces the dampening and makes these\n");
+        printf("  two functions worth attacking together instead of separately. A ratio near\n");
+        printf("  one says the composition model is doing the work instead of SHA-256, since\n");
+        printf("  that model assumes independence which two functions reading overlapping\n");
+        printf("  state words do not have.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -3344,22 +3344,22 @@ int main(int argc, char **argv)
     // An instrument that reports it as diffused is broken. One that reports it pinned at a deviation of one half reads
     // correctly. This is the first control here with an answer known before the run.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  A null whose answer is known before the run\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Removing integer addition leaves the function GF(2)-linear, so a one-bit input\n");
-    std::printf("  difference gives a deterministic output difference - the same one for every\n");
-    std::printf("  message. Every matrix entry is then exactly 0 or exactly 1, never one half, and\n");
-    std::printf("  the deviation is pinned at 0.5 forever whatever the round.\n");
-    std::printf("\n  That is an analytic control instead of a statistical one. Every other null in\n");
-    std::printf("  this document is a distribution to compare against; this one has an answer.\n");
+    printf("\n================================================================\n");
+    printf("  A null whose answer is known before the run\n");
+    printf("================================================================\n");
+    printf("\n  Removing integer addition leaves the function GF(2)-linear, so a one-bit input\n");
+    printf("  difference gives a deterministic output difference - the same one for every\n");
+    printf("  message. Every matrix entry is then exactly 0 or exactly 1, never one half, and\n");
+    printf("  the deviation is pinned at 0.5 forever whatever the round.\n");
+    printf("\n  That is an analytic control instead of a statistical one. Every other null in\n");
+    printf("  this document is a distribution to compare against; this one has an answer.\n");
 
     {
         const unsigned CHECKED = 4u;
         const unsigned rounds_at[CHECKED] = {8u, 23u, 40u, 64u};
 
-        std::printf("\n  %8s %20s %20s\n", "round", "full function", "linear variant");
-        std::printf("  %8s %20s %20s\n", "--------", "--------------------", "--------------------");
+        printf("\n  %8s %20s %20s\n", "round", "full function", "linear variant");
+        printf("  %8s %20s %20s\n", "--------", "--------------------", "--------------------");
 
         int carry_holds = 1;
         for (unsigned which = 0u; which < CHECKED; which += 1u)
@@ -3395,28 +3395,28 @@ int main(int argc, char **argv)
             {
                 carry_holds = 0;
             }
-            std::printf("  %8u %20.8f %20.8f\n", rounds_at[which], reading[0], reading[1]);
+            printf("  %8u %20.8f %20.8f\n", rounds_at[which], reading[0], reading[1]);
         }
 
         if (carry_holds != 0)
         {
-            std::printf("\n  The linear arm reads exactly 0.5 at every round, which is what a\n");
-            std::printf("  deterministic difference must give and confirms the instrument reads a\n");
-            std::printf("  known answer correctly.\n");
-            std::printf("\n  What it does not show is that the carry causes the diffusion. Removing\n");
-            std::printf("  addition alone leaves Choose and Majority, which use AND and stay\n");
-            std::printf("  nonlinear, and that variant still reaches 0.0093 by round 64 - the same\n");
-            std::printf("  plateau as the full function. So the nonlinearity is what makes diffusion\n");
-            std::printf("  happen at all, and the carry changes how fast instead of whether. That\n");
-            std::printf("  matches the published finding that removing addition costs about two\n");
-            std::printf("  rounds instead of stopping the function diffusing.\n");
+            printf("\n  The linear arm reads exactly 0.5 at every round, which is what a\n");
+            printf("  deterministic difference must give and confirms the instrument reads a\n");
+            printf("  known answer correctly.\n");
+            printf("\n  What it does not show is that the carry causes the diffusion. Removing\n");
+            printf("  addition alone leaves Choose and Majority, which use AND and stay\n");
+            printf("  nonlinear, and that variant still reaches 0.0093 by round 64 - the same\n");
+            printf("  plateau as the full function. So the nonlinearity is what makes diffusion\n");
+            printf("  happen at all, and the carry changes how fast instead of whether. That\n");
+            printf("  matches the published finding that removing addition costs about two\n");
+            printf("  rounds instead of stopping the function diffusing.\n");
         }
         else
         {
-            std::printf("\n  [!] The linear arm did not read exactly 0.5. A GF(2)-linear function\n");
-            std::printf("  cannot produce a matrix entry strictly between 0 and 1, so either the\n");
-            std::printf("  variant is not actually linear or the measurement is wrong. Nothing else\n");
-            std::printf("  in this bench should be believed until that is settled.\n");
+            printf("\n  [!] The linear arm did not read exactly 0.5. A GF(2)-linear function\n");
+            printf("  cannot produce a matrix entry strictly between 0 and 1, so either the\n");
+            printf("  variant is not actually linear or the measurement is wrong. Nothing else\n");
+            printf("  in this bench should be believed until that is settled.\n");
         }
     }
 
@@ -3435,16 +3435,16 @@ int main(int argc, char **argv)
     // its own null peak whatever the function does. A speed from maxima would read that peak as it wanders from round
     // to round.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Diffusion speed, against a null whose speed is exactly zero\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Everything above reads where a variant arrives. This reads how fast it travels,\n");
-    std::printf("  and the two need not order the same way - a variant can start later and move\n");
-    std::printf("  quicker, which a level measurement cannot see.\n");
-    std::printf("\n  The linear variant's speed is analytically zero: its deviation is pinned at 0.5\n");
-    std::printf("  and cannot move, so a ratio of exactly 1.000 is the known null.\n");
-    std::printf("\n  Mean deviation, not the largest, because a maximum over 131072 entries sits at\n");
-    std::printf("  its own null peak whatever the function does and its wander is not speed.\n");
+    printf("\n================================================================\n");
+    printf("  Diffusion speed, against a null whose speed is exactly zero\n");
+    printf("================================================================\n");
+    printf("\n  Everything above reads where a variant arrives. This reads how fast it travels,\n");
+    printf("  and the two need not order the same way - a variant can start later and move\n");
+    printf("  quicker, which a level measurement cannot see.\n");
+    printf("\n  The linear variant's speed is analytically zero: its deviation is pinned at 0.5\n");
+    printf("  and cannot move, so a ratio of exactly 1.000 is the known null.\n");
+    printf("\n  Mean deviation, not the largest, because a maximum over 131072 entries sits at\n");
+    printf("  its own null peak whatever the function does and its wander is not speed.\n");
 
     {
         const unsigned ARMS = 5u;
@@ -3456,23 +3456,23 @@ int main(int argc, char **argv)
         const unsigned FIRST_SPEED = 17u;
         const unsigned LAST_SPEED = 24u;
 
-        std::printf("\n  Mean deviation from one half, by round\n");
-        std::printf("\n  %8s", "round");
+        printf("\n  Mean deviation from one half, by round\n");
+        printf("\n  %8s", "round");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %13s", arm_name[arm]);
+            printf(" %13s", arm_name[arm]);
         }
-        std::printf("\n  %8s", "--------");
+        printf("\n  %8s", "--------");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %13s", "-------------");
+            printf(" %13s", "-------------");
         }
-        std::printf("\n");
+        printf("\n");
 
         double held[ARMS][32];
         for (unsigned rounds = FIRST_SPEED; rounds <= LAST_SPEED; rounds += 1u)
         {
-            std::printf("  %8u", rounds);
+            printf("  %8u", rounds);
             for (unsigned arm = 0u; arm < ARMS; arm += 1u)
             {
                 cudaMemset(device_matrix, 0, (size_t)INPUT_BITS * OUTPUT_BITS * sizeof(unsigned long long));
@@ -3488,42 +3488,42 @@ int main(int argc, char **argv)
                     total += (rate < 0.5) ? (0.5 - rate) : (rate - 0.5);
                 }
                 held[arm][rounds - FIRST_SPEED] = total / (double)matrix.size();
-                std::printf(" %13.8f", held[arm][rounds - FIRST_SPEED]);
+                printf(" %13.8f", held[arm][rounds - FIRST_SPEED]);
             }
-            std::printf("\n");
+            printf("\n");
         }
 
-        std::printf("\n  Speed, as the ratio of one round's deviation to the next. Above one is\n");
-        std::printf("  travelling; exactly one is standing still.\n");
-        std::printf("\n  %8s", "round");
+        printf("\n  Speed, as the ratio of one round's deviation to the next. Above one is\n");
+        printf("  travelling; exactly one is standing still.\n");
+        printf("\n  %8s", "round");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %13s", arm_name[arm]);
+            printf(" %13s", arm_name[arm]);
         }
-        std::printf("\n  %8s", "--------");
+        printf("\n  %8s", "--------");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %13s", "-------------");
+            printf(" %13s", "-------------");
         }
-        std::printf("\n");
+        printf("\n");
 
         for (unsigned step = 1u; step <= (LAST_SPEED - FIRST_SPEED); step += 1u)
         {
-            std::printf("  %5u->%2u", FIRST_SPEED + step - 1u, FIRST_SPEED + step);
+            printf("  %5u->%2u", FIRST_SPEED + step - 1u, FIRST_SPEED + step);
             for (unsigned arm = 0u; arm < ARMS; arm += 1u)
             {
                 const double before = held[arm][step - 1u];
                 const double after = held[arm][step];
                 const double speed = (after > 0.0) ? (before / after) : 0.0;
-                std::printf(" %13.4f", speed);
+                printf(" %13.4f", speed);
             }
-            std::printf("\n");
+            printf("\n");
         }
 
-        std::printf("\n  The linear column must read 1.0000 throughout, since its deviation cannot\n");
-        std::printf("  move. Any other column's excess over that is the speed the sub-functions in\n");
-        std::printf("  it actually contribute, measured against a baseline that is known rather\n");
-        std::printf("  than estimated.\n");
+        printf("\n  The linear column must read 1.0000 throughout, since its deviation cannot\n");
+        printf("  move. Any other column's excess over that is the speed the sub-functions in\n");
+        printf("  it actually contribute, measured against a baseline that is known rather\n");
+        printf("  than estimated.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -3541,16 +3541,16 @@ int main(int argc, char **argv)
     // The arm uses several bases per measurement. A single unlucky base can give an impossible order, such as dimension
     // 8 that reaches further than dimension 10, with a correct kernel.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  What is Majority for\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Three diffusion statistics now agree that Majority contributes nothing\n");
-    std::printf("  measurable, and both published papers agree. A sub-function that does nothing\n");
-    std::printf("  detectable is either redundant or doing something else, and algebraic degree is\n");
-    std::printf("  the candidate: degree resists algebraic attack instead of differential probing.\n");
-    std::printf("\n  Degree is proved, not sampled. A function of degree below d has every d-th\n");
-    std::printf("  order derivative zero, and that derivative is the exclusive-or of the output over\n");
-    std::printf("  a d-dimensional input cube. One nonzero fold settles it.\n");
+    printf("\n================================================================\n");
+    printf("  What is Majority for\n");
+    printf("================================================================\n");
+    printf("\n  Three diffusion statistics now agree that Majority contributes nothing\n");
+    printf("  measurable, and both published papers agree. A sub-function that does nothing\n");
+    printf("  detectable is either redundant or doing something else, and algebraic degree is\n");
+    printf("  the candidate: degree resists algebraic attack instead of differential probing.\n");
+    printf("\n  Degree is proved, not sampled. A function of degree below d has every d-th\n");
+    printf("  order derivative zero, and that derivative is the exclusive-or of the output over\n");
+    printf("  a d-dimensional input cube. One nonzero fold settles it.\n");
 
     {
         // A removal of one nonlinear source at a time cannot discriminate, because the others cover for it. Full,
@@ -3574,22 +3574,22 @@ int main(int argc, char **argv)
         cudaMalloc((void **)&device_positions, MOST_DIMENSION * sizeof(unsigned));
         cudaMalloc((void **)&device_folded, 8u * sizeof(uint32_t));
 
-        std::printf("\n  Degree lower bound, the smallest dimension whose fold is nonzero\n");
-        std::printf("\n  %8s", "rounds");
+        printf("\n  Degree lower bound, the smallest dimension whose fold is nonzero\n");
+        printf("\n  %8s", "rounds");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %14s", arm_name[arm]);
+            printf(" %14s", arm_name[arm]);
         }
-        std::printf("\n  %8s", "--------");
+        printf("\n  %8s", "--------");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %14s", "--------------");
+            printf(" %14s", "--------------");
         }
-        std::printf("\n");
+        printf("\n");
 
         for (unsigned rounds = 2u; rounds <= 7u; rounds += 1u)
         {
-            std::printf("  %8u", rounds);
+            printf("  %8u", rounds);
             for (unsigned arm = 0u; arm < ARMS; arm += 1u)
             {
                 // The derivative vanishes *above* the degree, and not below it. The answer is therefore the largest
@@ -3653,25 +3653,25 @@ int main(int argc, char **argv)
                 }
                 if (found >= MOST_DIMENSION)
                 {
-                    std::printf(" %14s", ">= 18");
+                    printf(" %14s", ">= 18");
                 }
                 else
                 {
-                    std::printf(" %14u", found);
+                    printf(" %14u", found);
                 }
             }
-            std::printf("\n");
+            printf("\n");
         }
 
         cudaFree(device_base);
         cudaFree(device_positions);
         cudaFree(device_folded);
 
-        std::printf("\n  A no-Majority column matching the full one says Majority adds no degree\n");
-        std::printf("  either, and that it is redundant on every measure this tree can make. A\n");
-        std::printf("  column reading lower says Majority is carrying degree instead of diffusion,\n");
-        std::printf("  which is a real job and would explain why it is in the standard while\n");
-        std::printf("  contributing nothing a diffusion statistic can see.\n");
+        printf("\n  A no-Majority column matching the full one says Majority adds no degree\n");
+        printf("  either, and that it is redundant on every measure this tree can make. A\n");
+        printf("  column reading lower says Majority is carrying degree instead of diffusion,\n");
+        printf("  which is a real job and would explain why it is in the standard while\n");
+        printf("  contributing nothing a diffusion statistic can see.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -3686,15 +3686,15 @@ int main(int argc, char **argv)
     // Isolation again, and not removal, because removal cannot discriminate. The operations mix, and a removal of one
     // leaves the others to cover for it, and every arm reads the same.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The linear axis, which the differential tests cannot see\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Everything above is differential: what a change in the input does. This asks\n");
-    std::printf("  whether an output bit agrees with an input bit more often than chance, which is\n");
-    std::printf("  what linear cryptanalysis attacks. A function can be strong against one and weak\n");
-    std::printf("  against the other.\n");
-    std::printf("\n  Isolated instead of removed, because the operations mix: taking one out leaves\n");
-    std::printf("  the others covering for it, which is why every removal arm read the same degree.\n");
+    printf("\n================================================================\n");
+    printf("  The linear axis, which the differential tests cannot see\n");
+    printf("================================================================\n");
+    printf("\n  Everything above is differential: what a change in the input does. This asks\n");
+    printf("  whether an output bit agrees with an input bit more often than chance, which is\n");
+    printf("  what linear cryptanalysis attacks. A function can be strong against one and weak\n");
+    printf("  against the other.\n");
+    printf("\n  Isolated instead of removed, because the operations mix: taking one out leaves\n");
+    printf("  the others covering for it, which is why every removal arm read the same degree.\n");
 
     {
         const unsigned SPINE = KEEP_SCHEDULE | KEEP_BIG_ZERO | KEEP_BIG_ONE | KEEP_CONSTANT;
@@ -3707,22 +3707,22 @@ int main(int argc, char **argv)
         cudaMalloc((void **)&device_agree, (size_t)INPUT_BITS * OUTPUT_BITS * sizeof(unsigned long long));
         std::vector<unsigned long long> agree((size_t)INPUT_BITS * OUTPUT_BITS);
 
-        std::printf("\n  Largest linear correlation, |2p-1| over the 512 by 256 masks\n");
-        std::printf("\n  %8s", "rounds");
+        printf("\n  Largest linear correlation, |2p-1| over the 512 by 256 masks\n");
+        printf("\n  %8s", "rounds");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %13s", arm_name[arm]);
+            printf(" %13s", arm_name[arm]);
         }
-        std::printf("\n  %8s", "--------");
+        printf("\n  %8s", "--------");
         for (unsigned arm = 0u; arm < ARMS; arm += 1u)
         {
-            std::printf(" %13s", "-------------");
+            printf(" %13s", "-------------");
         }
-        std::printf("\n");
+        printf("\n");
 
         for (unsigned rounds = 4u; rounds <= 24u; rounds += 4u)
         {
-            std::printf("  %8u", rounds);
+            printf("  %8u", rounds);
             for (unsigned arm = 0u; arm < ARMS; arm += 1u)
             {
                 cudaMemset(device_agree, 0, (size_t)INPUT_BITS * OUTPUT_BITS * sizeof(unsigned long long));
@@ -3739,18 +3739,18 @@ int main(int argc, char **argv)
                     const double size = (correlation < 0.0) ? -correlation : correlation;
                     loudest = (size > loudest) ? size : loudest;
                 }
-                std::printf(" %13.8f", loudest);
+                printf(" %13.8f", loudest);
             }
-            std::printf("\n");
+            printf("\n");
         }
 
         cudaFree(device_agree);
 
-        std::printf("\n  The linear arm should sit near 1.0, since a GF(2)-linear function's output\n");
-        std::printf("  bit is an exclusive-or of input bits and agrees with one of them perfectly\n");
-        std::printf("  or not at all. A correlation that falls with rounds is the operation in that\n");
-        std::printf("  arm destroying linear structure, and one that stays high is an operation not\n");
-        std::printf("  doing that job whatever it does differentially.\n");
+        printf("\n  The linear arm should sit near 1.0, since a GF(2)-linear function's output\n");
+        printf("  bit is an exclusive-or of input bits and agrees with one of them perfectly\n");
+        printf("  or not at all. A correlation that falls with rounds is the operation in that\n");
+        printf("  arm destroying linear structure, and one that stays high is an operation not\n");
+        printf("  doing that job whatever it does differentially.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -3769,16 +3769,16 @@ int main(int argc, char **argv)
     // aggregate 64 times more sensitive than a single cell. It is unboundedly more sensitive than a maximum, which gets
     // no benefit from the other cells at all.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The matrix read spectrally instead of by its maximum\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Every reading above takes the largest of 131072 cells and discards the rest,\n");
-    std::printf("  which is why it peaks at sqrt(2 ln N) whatever the function does. A structure\n");
-    std::printf("  spread thinly across many cells is invisible to a maximum and plain to a sum.\n");
-    std::printf("\n  SHA-256 is built from rotations, and a rotation makes bit j depend on bit j-r,\n");
-    std::printf("  so surviving rotational structure appears as a function of (input bit - output\n");
-    std::printf("  bit) mod 32 spread over every word pair. Folding onto that residue puts 4096\n");
-    std::printf("  cells behind each measurement instead of one.\n");
+    printf("\n================================================================\n");
+    printf("  The matrix read spectrally instead of by its maximum\n");
+    printf("================================================================\n");
+    printf("\n  Every reading above takes the largest of 131072 cells and discards the rest,\n");
+    printf("  which is why it peaks at sqrt(2 ln N) whatever the function does. A structure\n");
+    printf("  spread thinly across many cells is invisible to a maximum and plain to a sum.\n");
+    printf("\n  SHA-256 is built from rotations, and a rotation makes bit j depend on bit j-r,\n");
+    printf("  so surviving rotational structure appears as a function of (input bit - output\n");
+    printf("  bit) mod 32 spread over every word pair. Folding onto that residue puts 4096\n");
+    printf("  cells behind each measurement instead of one.\n");
 
     {
         // A sweep round by round through the window where the ridge lives, and not a sample at a few depths. If the
@@ -3791,17 +3791,17 @@ int main(int argc, char **argv)
 
         // 4096 cells per residue class. The standard error of the aggregate is therefore the per-cell one divided by
         // 64.
-        const double per_cell = 0.5 / std::sqrt((double)trials);
-        const double per_class = per_cell / std::sqrt(4096.0);
-        const double class_null = std::sqrt(2.0 * std::log((double)RESIDUES));
+        const double per_cell = 0.5 / sqrt((double)trials);
+        const double per_class = per_cell / sqrt(4096.0);
+        const double class_null = sqrt(2.0 * log((double)RESIDUES));
 
-        std::printf("\n  Per-cell standard error %.8f, per-class %.8f, %u cells per class.\n", per_cell, per_class,
+        printf("\n  Per-cell standard error %.8f, per-class %.8f, %u cells per class.\n", per_cell, per_class,
                     4096u);
-        std::printf("  The largest of %u residues peaks near %.2f sigmas under the null.\n", RESIDUES, class_null);
+        printf("  The largest of %u residues peaks near %.2f sigmas under the null.\n", RESIDUES, class_null);
 
-        std::printf("\n  %8s %16s %14s %10s %12s %8s\n", "rounds", "loudest residue", "its sigmas", "null peak",
+        printf("\n  %8s %16s %14s %10s %12s %8s\n", "rounds", "loudest residue", "its sigmas", "null peak",
                     "verdict", "walked");
-        std::printf("  %8s %16s %14s %10s %12s %8s\n", "--------", "----------------", "--------------", "----------",
+        printf("  %8s %16s %14s %10s %12s %8s\n", "--------", "----------------", "--------------", "----------",
                     "------------", "--------");
 
         unsigned last_residue = 0u;
@@ -3863,15 +3863,15 @@ int main(int argc, char **argv)
             if ((which > 0u) && (loudest > (class_null + 2.0)))
             {
                 const unsigned step = (loud_residue + 32u - last_residue) % 32u;
-                std::snprintf(walked, sizeof(walked), "%+d", (step <= 16u) ? (int)step : ((int)step - 32));
+                snprintf(walked, sizeof(walked), "%+d", (step <= 16u) ? (int)step : ((int)step - 32));
             }
             else
             {
-                std::snprintf(walked, sizeof(walked), "%s", "-");
+                snprintf(walked, sizeof(walked), "%s", "-");
             }
             last_residue = loud_residue;
 
-            std::printf("  %8u %16u %14.2f %10.2f %12s %8s\n", rounds_at[which], loud_residue, loudest, class_null,
+            printf("  %8u %16u %14.2f %10.2f %12s %8s\n", rounds_at[which], loud_residue, loudest, class_null,
                         verdict, walked);
 
             // The loudest residue alone is the same error in miniature: one number from thirty-two. The table prints
@@ -3880,21 +3880,21 @@ int main(int argc, char **argv)
             // appears at frequency 32/p, and its harmonics appear at multiples of that.
             if (which == 2u)
             {
-                std::printf("\n  Full residue profile at round %u, in sigmas\n", rounds_at[which]);
-                std::printf("  ");
+                printf("\n  Full residue profile at round %u, in sigmas\n", rounds_at[which]);
+                printf("  ");
                 for (unsigned at = 0u; at < RESIDUES; at += 1u)
                 {
                     const double mean = folded[at] / counted_in[at];
-                    std::printf("%+6.2f", mean / per_class);
+                    printf("%+6.2f", mean / per_class);
                     if (((at + 1u) % 8u) == 0u)
                     {
-                        std::printf("\n  ");
+                        printf("\n  ");
                     }
                 }
 
                 double loudest_tone = 0.0;
                 unsigned loud_tone = 0u;
-                std::printf("\n  Transform of that profile, magnitude by frequency\n  ");
+                printf("\n  Transform of that profile, magnitude by frequency\n  ");
                 for (unsigned tone = 1u; tone <= (RESIDUES / 2u); tone += 1u)
                 {
                     double real_part = 0.0;
@@ -3903,38 +3903,38 @@ int main(int argc, char **argv)
                     {
                         const double mean = (folded[at] / counted_in[at]) / per_class;
                         const double angle = (-6.283185307179586 * (double)tone * (double)at) / (double)RESIDUES;
-                        real_part += mean * std::cos(angle);
-                        other_part += mean * std::sin(angle);
+                        real_part += mean * cos(angle);
+                        other_part += mean * sin(angle);
                     }
                     const double size =
-                        std::sqrt((real_part * real_part) + (other_part * other_part)) / std::sqrt((double)RESIDUES);
+                        sqrt((real_part * real_part) + (other_part * other_part)) / sqrt((double)RESIDUES);
                     if (size > loudest_tone)
                     {
                         loudest_tone = size;
                         loud_tone = tone;
                     }
-                    std::printf("f%02u %5.2f  ", tone, size);
+                    printf("f%02u %5.2f  ", tone, size);
                     if ((tone % 4u) == 0u)
                     {
-                        std::printf("\n  ");
+                        printf("\n  ");
                     }
                 }
 
                 // A transform of white noise has magnitudes near one after this normalization. The largest of sixteen
                 // peaks near sqrt(2 ln 16) = 2.35 by itself.
-                const double tone_null = std::sqrt(2.0 * std::log((double)(RESIDUES / 2u)));
-                std::printf("\n  loudest tone f%02u at %.2f, null peak %.2f, period %.1f residues\n", loud_tone,
+                const double tone_null = sqrt(2.0 * log((double)(RESIDUES / 2u)));
+                printf("\n  loudest tone f%02u at %.2f, null peak %.2f, period %.1f residues\n", loud_tone,
                             loudest_tone, tone_null, (loud_tone > 0u) ? ((double)RESIDUES / (double)loud_tone) : 0.0);
-                std::printf("  %s\n", (loudest_tone > (tone_null + 2.0)) ? "a repeating trend stands clear of the null"
+                printf("  %s\n", (loudest_tone > (tone_null + 2.0)) ? "a repeating trend stands clear of the null"
                                                                          : "no repeating trend above the null");
             }
         }
 
-        std::printf("\n  A residue standing clear of the null peak is rotational structure surviving\n");
-        std::printf("  into the dependency matrix, and it would be invisible to the maximum this\n");
-        std::printf("  document has been reading. A flat column says the rotations leave no trace\n");
-        std::printf("  the fold can find, which is a stronger statement than the maximum could make\n");
-        std::printf("  because it is made with 4096 cells behind each number instead of one.\n");
+        printf("\n  A residue standing clear of the null peak is rotational structure surviving\n");
+        printf("  into the dependency matrix, and it would be invisible to the maximum this\n");
+        printf("  document has been reading. A flat column says the rotations leave no trace\n");
+        printf("  the fold can find, which is a stronger statement than the maximum could make\n");
+        printf("  because it is made with 4096 cells behind each number instead of one.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -3955,24 +3955,24 @@ int main(int argc, char **argv)
     // The arm assumes neither, and the measurement says which. A center that does not move while R collapses is
     // diffusion with no drift at all. That would mean that the rotations cancel in aggregate, and transport nothing.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Particle transfer: where the mass is and how wide\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The fold reports the loudest residue, which is one number about a distribution\n");
-    std::printf("  of thirty-two. Treating the profile as a mass distribution instead gives what a\n");
-    std::printf("  transported particle has: a position and a width.\n");
-    std::printf("\n  Residues are a circle so the moments are circular. R is one for mass on a\n");
-    std::printf("  single residue and zero for mass spread evenly over all of them.\n");
-    std::printf("\n  Ballistic transport drifts at a constant rate with R holding. Diffusive\n");
-    std::printf("  transport stays put with R falling. The measurement says which.\n");
+    printf("\n================================================================\n");
+    printf("  Particle transfer: where the mass is and how wide\n");
+    printf("================================================================\n");
+    printf("\n  The fold reports the loudest residue, which is one number about a distribution\n");
+    printf("  of thirty-two. Treating the profile as a mass distribution instead gives what a\n");
+    printf("  transported particle has: a position and a width.\n");
+    printf("\n  Residues are a circle so the moments are circular. R is one for mass on a\n");
+    printf("  single residue and zero for mass spread evenly over all of them.\n");
+    printf("\n  Ballistic transport drifts at a constant rate with R holding. Diffusive\n");
+    printf("  transport stays put with R falling. The measurement says which.\n");
 
     {
         const unsigned RESIDUES = 32u;
         const unsigned FIRST_SEEN = 12u;
         const unsigned LAST_SEEN = 24u;
 
-        std::printf("\n  %8s %14s %12s %12s %14s\n", "rounds", "center", "drift", "R", "mass");
-        std::printf("  %8s %14s %12s %12s %14s\n", "--------", "--------------", "------------", "------------",
+        printf("\n  %8s %14s %12s %12s %14s\n", "rounds", "center", "drift", "R", "mass");
+        printf("  %8s %14s %12s %12s %14s\n", "--------", "--------------", "------------", "------------",
                     "--------------");
 
         double last_centre = 0.0;
@@ -4012,16 +4012,16 @@ int main(int argc, char **argv)
             {
                 const double angle = (6.283185307179586 * (double)at) / (double)RESIDUES;
                 total += mass[at];
-                along += mass[at] * std::cos(angle);
-                across += mass[at] * std::sin(angle);
+                along += mass[at] * cos(angle);
+                across += mass[at] * sin(angle);
             }
             if (total <= 0.0)
             {
                 continue;
             }
 
-            const double concentration = std::sqrt((along * along) + (across * across)) / total;
-            double center = std::atan2(across, along) * (double)RESIDUES / 6.283185307179586;
+            const double concentration = sqrt((along * along) + (across * across)) / total;
+            double center = atan2(across, along) * (double)RESIDUES / 6.283185307179586;
             if (center < 0.0)
             {
                 center += (double)RESIDUES;
@@ -4039,23 +4039,23 @@ int main(int argc, char **argv)
                 {
                     moved += 32.0;
                 }
-                std::snprintf(drift, sizeof(drift), "%+.3f", moved);
+                snprintf(drift, sizeof(drift), "%+.3f", moved);
             }
             else
             {
-                std::snprintf(drift, sizeof(drift), "%s", "-");
+                snprintf(drift, sizeof(drift), "%s", "-");
             }
             last_centre = center;
             have_last = 1;
 
-            std::printf("  %8u %14.3f %12s %12.6f %14.2f\n", rounds, center, drift, concentration, total);
+            printf("  %8u %14.3f %12s %12.6f %14.2f\n", rounds, center, drift, concentration, total);
         }
 
-        std::printf("\n  A drift column holding one value is ballistic transport and names the rate.\n");
-        std::printf("  A drift near zero with R falling is diffusion in place, which would mean the\n");
-        std::printf("  rotations cancel in aggregate instead of carrying the mass anywhere. R\n");
-        std::printf("  approaching zero is the particle spread evenly over every residue, which is\n");
-        std::printf("  where a difference stops being locatable at all.\n");
+        printf("\n  A drift column holding one value is ballistic transport and names the rate.\n");
+        printf("  A drift near zero with R falling is diffusion in place, which would mean the\n");
+        printf("  rotations cancel in aggregate instead of carrying the mass anywhere. R\n");
+        printf("  approaching zero is the particle spread evenly over every residue, which is\n");
+        printf("  where a difference stops being locatable at all.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -4072,22 +4072,22 @@ int main(int argc, char **argv)
     // and an end: bit thirty-one carries into nothing. The arithmetic is therefore not rotation-equivariant, even
     // though the rotations are. How much that shows is the measurement.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Is the transport circular\n");
-    std::printf("================================================================\n");
-    std::printf("\n  If a bit's path is its neighbor's shifted by one, the whole matrix is one row\n");
-    std::printf("  and thirty-two rotations of it. That is where a signature would come from: one\n");
-    std::printf("  path reused at every offset.\n");
-    std::printf("\n  SHA-256 has reason to fail this. Its rotations are circular but its additions\n");
-    std::printf("  carry, and a carry has a direction and an end - bit thirty-one carries into\n");
-    std::printf("  nothing. The arithmetic is not equivariant even though the rotations are.\n");
+    printf("\n================================================================\n");
+    printf("  Is the transport circular\n");
+    printf("================================================================\n");
+    printf("\n  If a bit's path is its neighbor's shifted by one, the whole matrix is one row\n");
+    printf("  and thirty-two rotations of it. That is where a signature would come from: one\n");
+    printf("  path reused at every offset.\n");
+    printf("\n  SHA-256 has reason to fail this. Its rotations are circular but its additions\n");
+    printf("  carry, and a carry has a direction and an end - bit thirty-one carries into\n");
+    printf("  nothing. The arithmetic is not equivariant even though the rotations are.\n");
 
     {
         const unsigned CHECKED = 6u;
         const unsigned rounds_at[CHECKED] = {8u, 12u, 16u, 20u, 23u, 64u};
 
-        std::printf("\n  %8s %16s %16s %12s\n", "rounds", "equivariance", "shuffled control", "verdict");
-        std::printf("  %8s %16s %16s %12s\n", "--------", "----------------", "----------------", "------------");
+        printf("\n  %8s %16s %16s %12s\n", "rounds", "equivariance", "shuffled control", "verdict");
+        printf("  %8s %16s %16s %12s\n", "--------", "----------------", "----------------", "------------");
 
         for (unsigned which = 0u; which < CHECKED; which += 1u)
         {
@@ -4147,7 +4147,7 @@ int main(int argc, char **argv)
                             }
                         }
 
-                        const double spread = std::sqrt(first_square * other_square);
+                        const double spread = sqrt(first_square * other_square);
                         if (spread <= 0.0)
                         {
                             continue;
@@ -4167,13 +4167,13 @@ int main(int argc, char **argv)
             const double control = control_total / counted_pairs;
 
             const char *verdict = (equivariance > (control + 0.05)) ? "CIRCULAR" : "not circular";
-            std::printf("  %8u %16.6f %16.6f %12s\n", rounds_at[which], equivariance, control, verdict);
+            printf("  %8u %16.6f %16.6f %12s\n", rounds_at[which], equivariance, control, verdict);
         }
 
-        std::printf("\n  The control is the same two rows paired without the rotation, which is the\n");
-        std::printf("  identical data with the claimed symmetry removed. Equivariance standing above\n");
-        std::printf("  it is a path reused at every offset; the two agreeing is the rotation buying\n");
-        std::printf("  nothing, which is what a carry that ends at bit thirty-one would do.\n");
+        printf("\n  The control is the same two rows paired without the rotation, which is the\n");
+        printf("  identical data with the claimed symmetry removed. Equivariance standing above\n");
+        printf("  it is a path reused at every offset; the two agreeing is the rotation buying\n");
+        printf("  nothing, which is what a carry that ends at bit thirty-one would do.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -4191,15 +4191,15 @@ int main(int argc, char **argv)
     // Agreement starts at one and falls to one half, which is chance for a bit. Where it reaches one half, the
     // polynomial description stops working, and the polynomial is still true.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Buried or destroyed: how long the carry-free prediction holds\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The polynomial part is absolute. Sigma0 is x^2 + x^13 + x^22 in\n");
-    std::printf("  GF(2)[x]/(x^32+1) independently of any message, round or run, its rank is 32 at\n");
-    std::printf("  round one and at round sixty-four, and the linear variant reads 0.50000000 at\n");
-    std::printf("  both. It does not decay and cannot.\n");
-    std::printf("\n  What decays is whether a prediction built from it still describes the real\n");
-    std::printf("  function. Agreement of one is exact description; one half is chance.\n");
+    printf("\n================================================================\n");
+    printf("  Buried or destroyed: how long the carry-free prediction holds\n");
+    printf("================================================================\n");
+    printf("\n  The polynomial part is absolute. Sigma0 is x^2 + x^13 + x^22 in\n");
+    printf("  GF(2)[x]/(x^32+1) independently of any message, round or run, its rank is 32 at\n");
+    printf("  round one and at round sixty-four, and the linear variant reads 0.50000000 at\n");
+    printf("  both. It does not decay and cannot.\n");
+    printf("\n  What decays is whether a prediction built from it still describes the real\n");
+    printf("  function. Agreement of one is exact description; one half is chance.\n");
 
     {
         unsigned long long *device_agreed = nullptr;
@@ -4214,9 +4214,9 @@ int main(int argc, char **argv)
         {
             unsigned long long *device_failed = nullptr;
             cudaMalloc((void **)&device_failed, sizeof(unsigned long long));
-            std::printf("\n  Round trip, both variants, before anything is read from the inverse\n");
-            std::printf("\n  %8s %16s\n", "rounds", "failed");
-            std::printf("  %8s %16s\n", "--------", "----------------");
+            printf("\n  Round trip, both variants, before anything is read from the inverse\n");
+            printf("\n  %8s %16s\n", "rounds", "failed");
+            printf("  %8s %16s\n", "--------", "----------------");
 
             unsigned long long any_failed = 0u;
             for (unsigned rounds = 1u; rounds <= 24u; rounds += 7u)
@@ -4227,31 +4227,31 @@ int main(int argc, char **argv)
                 unsigned long long failed = 0u;
                 cudaMemcpy(&failed, device_failed, sizeof(failed), cudaMemcpyDeviceToHost);
                 any_failed += failed;
-                std::printf("  %8u %16llu\n", rounds, (unsigned long long)failed);
+                printf("  %8u %16llu\n", rounds, (unsigned long long)failed);
             }
             cudaFree(device_failed);
 
             if (any_failed != 0u)
             {
-                std::printf("\n  [!] The inverse does not invert. Every direction figure below is\n");
-                std::printf("  meaningless and the anti-correlation it reports is this defect and\n");
-                std::printf("  not a property of SHA-256.\n");
+                printf("\n  [!] The inverse does not invert. Every direction figure below is\n");
+                printf("  meaningless and the anti-correlation it reports is this defect and\n");
+                printf("  not a property of SHA-256.\n");
             }
             else
             {
-                std::printf("\n  The inverse inverts exactly, in both variants, at every depth\n");
-                std::printf("  checked. What follows is measuring the function instead of the\n");
-                std::printf("  instrument.\n");
+                printf("\n  The inverse inverts exactly, in both variants, at every depth\n");
+                printf("  checked. What follows is measuring the function instead of the\n");
+                printf("  instrument.\n");
             }
         }
 
-        std::printf("\n  A walk from wholly unnatural to wholly natural. One is a polynomial\n");
-        std::printf("  describing the object exactly; zero is chance, where no polynomial helps.\n");
-        std::printf("  Both directions are run, because the two are known to differ in depth and in\n");
-        std::printf("  shape and the question is whether they differ in describability too.\n");
+        printf("\n  A walk from wholly unnatural to wholly natural. One is a polynomial\n");
+        printf("  describing the object exactly; zero is chance, where no polynomial helps.\n");
+        printf("  Both directions are run, because the two are known to differ in depth and in\n");
+        printf("  shape and the question is whether they differ in describability too.\n");
 
-        std::printf("\n  %8s %14s %12s %14s %12s %10s\n", "rounds", "forward", "step", "inverse", "step", "apart");
-        std::printf("  %8s %14s %12s %14s %12s %10s\n", "--------", "--------------", "------------", "--------------",
+        printf("\n  %8s %14s %12s %14s %12s %10s\n", "rounds", "forward", "step", "inverse", "step", "apart");
+        printf("  %8s %14s %12s %14s %12s %10s\n", "--------", "--------------", "------------", "--------------",
                     "------------", "----------");
 
         double last_seen[2] = {0.0, 0.0};
@@ -4277,18 +4277,18 @@ int main(int argc, char **argv)
             char inverse_step[16];
             if (rounds > 1u)
             {
-                std::snprintf(forward_step, sizeof(forward_step), "%+.4f", above[0] - last_seen[0]);
-                std::snprintf(inverse_step, sizeof(inverse_step), "%+.4f", above[1] - last_seen[1]);
+                snprintf(forward_step, sizeof(forward_step), "%+.4f", above[0] - last_seen[0]);
+                snprintf(inverse_step, sizeof(inverse_step), "%+.4f", above[1] - last_seen[1]);
             }
             else
             {
-                std::snprintf(forward_step, sizeof(forward_step), "%s", "-");
-                std::snprintf(inverse_step, sizeof(inverse_step), "%s", "-");
+                snprintf(forward_step, sizeof(forward_step), "%s", "-");
+                snprintf(inverse_step, sizeof(inverse_step), "%s", "-");
             }
             last_seen[0] = above[0];
             last_seen[1] = above[1];
 
-            std::printf("  %8u %14.8f %12s %14.8f %12s %10.4f\n", rounds, above[0], forward_step, above[1],
+            printf("  %8u %14.8f %12s %14.8f %12s %10.4f\n", rounds, above[0], forward_step, above[1],
                         inverse_step, above[1] - above[0]);
         }
 
@@ -4296,9 +4296,9 @@ int main(int argc, char **argv)
         // zero has no carry-in, and the prediction must describe it exactly. Bit thirty-one carries the most
         // accumulated uncertainty, and then wraps into nothing. If the wrap is the cause, the two directions wear
         // different profiles across bit position. If not, they wear the same one, and the asymmetry is somewhere else.
-        std::printf("\n  Describability by bit position, at the round each direction is halfway\n");
-        std::printf("\n  %6s %14s %14s %12s\n", "bit", "forward r11", "inverse r6", "apart");
-        std::printf("  %6s %14s %14s %12s\n", "------", "--------------", "--------------", "------------");
+        printf("\n  Describability by bit position, at the round each direction is halfway\n");
+        printf("\n  %6s %14s %14s %12s\n", "bit", "forward r11", "inverse r6", "apart");
+        printf("  %6s %14s %14s %12s\n", "------", "--------------", "--------------", "------------");
 
         double profile[2][32];
         const unsigned halfway[2] = {11u, 6u};
@@ -4328,25 +4328,25 @@ int main(int argc, char **argv)
 
         for (unsigned bit = 0u; bit < 32u; bit += 1u)
         {
-            std::printf("  %6u %14.6f %14.6f %12.6f\n", bit, profile[0][bit], profile[1][bit],
+            printf("  %6u %14.6f %14.6f %12.6f\n", bit, profile[0][bit], profile[1][bit],
                         profile[1][bit] - profile[0][bit]);
         }
 
-        std::printf("\n  Bit zero has no carry-in and should be described exactly in both\n");
-        std::printf("  directions. A profile that climbs away from bit zero is the carry chain\n");
-        std::printf("  accumulating, and the two directions differing in that climb is the wrap\n");
-        std::printf("  being responsible for the asymmetry. The same climb in both is the wrap\n");
-        std::printf("  being symmetric and the asymmetry living somewhere else.\n");
+        printf("\n  Bit zero has no carry-in and should be described exactly in both\n");
+        printf("  directions. A profile that climbs away from bit zero is the carry chain\n");
+        printf("  accumulating, and the two directions differing in that climb is the wrap\n");
+        printf("  being responsible for the asymmetry. The same climb in both is the wrap\n");
+        printf("  being symmetric and the asymmetry living somewhere else.\n");
 
         cudaFree(device_agreed);
         cudaFree(device_compared);
         cudaFree(device_position);
 
-        std::printf("\n  Agreement falling to one half is the description failing, and the round it\n");
-        std::printf("  reaches it is the depth at which the polynomial stops being usable as a\n");
-        std::printf("  prediction. The polynomial itself is unchanged there and is still exactly as\n");
-        std::printf("  true as it was at round one, which is the difference between buried and\n");
-        std::printf("  destroyed stated as a measurement instead of as a position.\n");
+        printf("\n  Agreement falling to one half is the description failing, and the round it\n");
+        printf("  reaches it is the depth at which the polynomial stops being usable as a\n");
+        printf("  prediction. The polynomial itself is unchanged there and is still exactly as\n");
+        printf("  true as it was at round one, which is the difference between buried and\n");
+        printf("  destroyed stated as a measurement instead of as a position.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -4364,15 +4364,15 @@ int main(int argc, char **argv)
     //
     // A design that punishes wide samples would be least prepared for this test.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Every cell, without extremising\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A maximum uses one cell of 131072 and discards the rest. A fold sums them into\n");
-    std::printf("  thirty-two bins and sees only what lines up with it. The sum of squared z uses\n");
-    std::printf("  all of them and extremises nothing.\n");
-    std::printf("\n  Under the null it is chi-square with 131072 degrees of freedom: mean 131072,\n");
-    std::printf("  standard deviation 512. That detects a per-cell bias near 0.06 standard errors,\n");
-    std::printf("  where a maximum needs 4.85 in one cell before it says anything.\n");
+    printf("\n================================================================\n");
+    printf("  Every cell, without extremising\n");
+    printf("================================================================\n");
+    printf("\n  A maximum uses one cell of 131072 and discards the rest. A fold sums them into\n");
+    printf("  thirty-two bins and sees only what lines up with it. The sum of squared z uses\n");
+    printf("  all of them and extremises nothing.\n");
+    printf("\n  Under the null it is chi-square with 131072 degrees of freedom: mean 131072,\n");
+    printf("  standard deviation 512. That detects a per-cell bias near 0.06 standard errors,\n");
+    printf("  where a maximum needs 4.85 in one cell before it says anything.\n");
 
     {
         // The control first, because a statistic this sensitive is worth nothing until the instrument reads a known
@@ -4381,7 +4381,7 @@ int main(int argc, char **argv)
         // arm only means something after the arm subtracts it.
         const unsigned CONTROLS = 42u;
         const double cells_null = (double)(INPUT_BITS * OUTPUT_BITS);
-        const double spread_null = std::sqrt(2.0 * cells_null);
+        const double spread_null = sqrt(2.0 * cells_null);
 
         double control_excess = 0.0;
         double control_square = 0.0;
@@ -4394,7 +4394,7 @@ int main(int argc, char **argv)
             cudaMemcpy(matrix.data(), device_matrix, matrix.size() * sizeof(unsigned long long),
                        cudaMemcpyDeviceToHost);
 
-            const double per_cell = 0.5 / std::sqrt((double)trials);
+            const double per_cell = 0.5 / sqrt((double)trials);
             double total = 0.0;
             for (size_t at = 0u; at < matrix.size(); at += 1u)
             {
@@ -4409,14 +4409,14 @@ int main(int argc, char **argv)
 
         const double control_mean = control_excess / (double)CONTROLS;
         const double control_var = (control_square / (double)CONTROLS) - (control_mean * control_mean);
-        const double control_sd = std::sqrt(control_var * (double)CONTROLS / (double)(CONTROLS - 1u));
+        const double control_sd = sqrt(control_var * (double)CONTROLS / (double)(CONTROLS - 1u));
 
-        std::printf("\n  Control: %u draws of a matrix that is binomial by construction, through the\n", CONTROLS);
-        std::printf("  same kernel and the same arithmetic.\n");
-        std::printf("    mean excess     %12.1f  (analytic null says 0)\n", control_mean);
-        std::printf("    spread of one   %12.1f  (analytic null says %.1f)\n", control_sd, spread_null);
-        std::printf("    that mean is    %12.2f sigmas off zero, on the measured spread\n",
-                    control_mean / (control_sd / std::sqrt((double)CONTROLS)));
+        printf("\n  Control: %u draws of a matrix that is binomial by construction, through the\n", CONTROLS);
+        printf("  same kernel and the same arithmetic.\n");
+        printf("    mean excess     %12.1f  (analytic null says 0)\n", control_mean);
+        printf("    spread of one   %12.1f  (analytic null says %.1f)\n", control_sd, spread_null);
+        printf("    that mean is    %12.2f sigmas off zero, on the measured spread\n",
+                    control_mean / (control_sd / sqrt((double)CONTROLS)));
 
         // The synthetic control says whether the arithmetic and the analytic 512 are right when the cells really are
         // independent. In the real arm they are not independent: all 131072 come from one message set. Its spread per
@@ -4435,7 +4435,7 @@ int main(int argc, char **argv)
             cudaMemcpy(matrix.data(), device_matrix, matrix.size() * sizeof(unsigned long long),
                        cudaMemcpyDeviceToHost);
 
-            const double per_cell = 0.5 / std::sqrt((double)trials);
+            const double per_cell = 0.5 / sqrt((double)trials);
             double total = 0.0;
             for (size_t at = 0u; at < matrix.size(); at += 1u)
             {
@@ -4450,13 +4450,13 @@ int main(int argc, char **argv)
 
         const double real_mean = real_excess / (double)CONTROLS;
         const double real_var = (real_square / (double)CONTROLS) - (real_mean * real_mean);
-        const double real_sd = std::sqrt(real_var * (double)CONTROLS / (double)(CONTROLS - 1u));
+        const double real_sd = sqrt(real_var * (double)CONTROLS / (double)(CONTROLS - 1u));
 
-        std::printf("\n  SHA-256 at round %u, %u seeds, to measure this statistic's own spread when\n", SPREAD_AT,
+        printf("\n  SHA-256 at round %u, %u seeds, to measure this statistic's own spread when\n", SPREAD_AT,
                     CONTROLS);
-        std::printf("  the cells share one message set as they really do.\n");
-        std::printf("    mean excess     %12.1f\n", real_mean);
-        std::printf("    spread of one   %12.1f  (analytic null says %.1f, ratio %.2f)\n", real_sd, spread_null,
+        printf("  the cells share one message set as they really do.\n");
+        printf("    mean excess     %12.1f\n", real_mean);
+        printf("    spread of one   %12.1f  (analytic null says %.1f, ratio %.2f)\n", real_sd, spread_null,
                     real_sd / spread_null);
 
         // Every round from twenty-three to sixty-four, and not a handful. Six depths give a standard error of 209,
@@ -4472,10 +4472,10 @@ int main(int argc, char **argv)
             rounds_at[at] = 22u + at;
         }
         const double cells = (double)(INPUT_BITS * OUTPUT_BITS);
-        const double null_spread = std::sqrt(2.0 * cells);
+        const double null_spread = sqrt(2.0 * cells);
 
-        std::printf("\n  %8s %18s %14s %12s %12s\n", "rounds", "sum of z^2", "excess", "sigmas", "verdict");
-        std::printf("  %8s %18s %14s %12s %12s\n", "--------", "------------------", "--------------", "------------",
+        printf("\n  %8s %18s %14s %12s %12s\n", "rounds", "sum of z^2", "excess", "sigmas", "verdict");
+        printf("  %8s %18s %14s %12s %12s\n", "--------", "------------------", "--------------", "------------",
                     "------------");
 
         double pooled_excess = 0.0;
@@ -4493,7 +4493,7 @@ int main(int argc, char **argv)
             cudaMemcpy(matrix.data(), device_matrix, matrix.size() * sizeof(unsigned long long),
                        cudaMemcpyDeviceToHost);
 
-            const double per_cell = 0.5 / std::sqrt((double)trials);
+            const double per_cell = 0.5 / sqrt((double)trials);
             double total = 0.0;
             for (size_t at = 0u; at < matrix.size(); at += 1u)
             {
@@ -4505,7 +4505,7 @@ int main(int argc, char **argv)
             const double excess = total - cells;
             const double sigmas = excess / null_spread;
             const char *verdict = (sigmas > 5.0) ? "STRUCTURE" : "flat";
-            std::printf("  %8u %18.1f %14.1f %12.2f %12s\n", rounds_at[which], total, excess, sigmas, verdict);
+            printf("  %8u %18.1f %14.1f %12.2f %12s\n", rounds_at[which], total, excess, sigmas, verdict);
 
             // The arm pools the rounds past the collapse, because the question is whether their mean sits off zero, and
             // one depth cannot answer it.
@@ -4519,39 +4519,39 @@ int main(int argc, char **argv)
         if (pooled_count > 1.0)
         {
             const double mean_excess = pooled_excess / pooled_count;
-            const double mean_error = null_spread / std::sqrt(pooled_count);
+            const double mean_error = null_spread / sqrt(pooled_count);
 
             // Against the measured spread, and not the analytic one. The analytic 512 assumes independent cells, and
             // they are not: all 131072 come from one set of messages. The seed sweep at a fixed depth measures the
             // actual spread on this matrix, and it is the honest denominator.
-            const double honest_error = real_sd / std::sqrt(pooled_count);
+            const double honest_error = real_sd / sqrt(pooled_count);
             const double against_control = mean_excess / honest_error;
 
-            std::printf("\n  Pooled over %.0f depths past the collapse: mean excess %.1f.\n", pooled_count,
+            printf("\n  Pooled over %.0f depths past the collapse: mean excess %.1f.\n", pooled_count,
                         mean_excess);
-            std::printf("    against the analytic null   %8.1f  ->  %6.2f sigmas\n", mean_error,
+            printf("    against the analytic null   %8.1f  ->  %6.2f sigmas\n", mean_error,
                         mean_excess / mean_error);
-            std::printf("    against the measured null   %8.1f  ->  %6.2f sigmas\n", honest_error, against_control);
-            std::printf("  %s\n",
-                        (std::fabs(against_control) > 3.0)
+            printf("    against the measured null   %8.1f  ->  %6.2f sigmas\n", honest_error, against_control);
+            printf("  %s\n",
+                        (fabs(against_control) > 3.0)
                             ? "  Off zero against its own control: the matrix is not carrying binomial variance."
                             : "  On zero against its own control: the tendency is the instrument, not SHA-256.");
         }
 
-        std::printf("\n  An excess standing clear of the null is structure spread across every cell,\n");
-        std::printf("  invisible to a maximum and to a fold alike, and it would be the first thing\n");
-        std::printf("  found past round twenty-three by anything here. A sum sitting on 131072 is\n");
-        std::printf("  the matrix carrying nothing at all, measured the most sensitive way this\n");
-        std::printf("  data allows instead of the most convenient.\n");
+        printf("\n  An excess standing clear of the null is structure spread across every cell,\n");
+        printf("  invisible to a maximum and to a fold alike, and it would be the first thing\n");
+        printf("  found past round twenty-three by anything here. A sum sitting on 131072 is\n");
+        printf("  the matrix carrying nothing at all, measured the most sensitive way this\n");
+        printf("  data allows instead of the most convenient.\n");
     }
 
     cudaFree(device_matrix);
 
-    std::printf("\n  The matrix holds %u entries, so its largest deviation peaks near %.2f sigmas\n",
-                INPUT_BITS * OUTPUT_BITS, std::sqrt(2.0 * std::log(131072.0)));
-    std::printf("  whatever SHA-256 does - the strictest entry of a large matrix is a maximum and\n");
-    std::printf("  behaves like one. A round reading near that is flat. A dip at 54 to 57 that is\n");
-    std::printf("  real would stand far above it at this sample, and one that is a fluctuation of\n");
-    std::printf("  their smaller sample will not appear at all.\n");
+    printf("\n  The matrix holds %u entries, so its largest deviation peaks near %.2f sigmas\n",
+                INPUT_BITS * OUTPUT_BITS, sqrt(2.0 * log(131072.0)));
+    printf("  whatever SHA-256 does - the strictest entry of a large matrix is a maximum and\n");
+    printf("  behaves like one. A round reading near that is flat. A dip at 54 to 57 that is\n");
+    printf("  real would stand far above it at this sample, and one that is a fluctuation of\n");
+    printf("  their smaller sample will not appear at all.\n");
     return 0;
 }

@@ -34,9 +34,9 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <thread>
 #include <vector>
@@ -77,7 +77,7 @@ double shortfall_of(const uint64_t *counts, uint64_t total)
     {
         return 8.0;
     }
-    return 8.0 + std::log2((double)(collisions / possible));
+    return 8.0 + log2((double)(collisions / possible));
 }
 
 /**
@@ -132,7 +132,7 @@ double baseline_of(const uint64_t *marginal, uint64_t total, int additive)
     {
         collisions += spread[bin] * spread[bin];
     }
-    return (collisions > 0.0) ? (8.0 + std::log2(collisions)) : 8.0;
+    return (collisions > 0.0) ? (8.0 + log2(collisions)) : 8.0;
 }
 
 /** @brief How the code takes the nonce out of the digest byte, or not. */
@@ -363,19 +363,19 @@ int main(int argc, char **argv)
     bench_lower_priority();
     const unsigned workers = bench_worker_count(0u);
 
-    std::printf("================================================================================\n");
-    std::printf("  Which linear language has grip on natural data, over every lag to %u\n", LAG_LIMIT);
-    std::printf("================================================================================\n");
-    std::printf("\n  Grip is bits of structure a language sees at some lag beyond what the alphabet\n");
-    std::printf("  alone accounts for. The baseline is exact: for a shuffle every lag gives the\n");
-    std::printf("  difference of two independent draws from the marginal, which is that marginal\n");
-    std::printf("  convolved with itself and needs no seed and no sampling.\n");
-    std::printf("\n  The lag is swept instead of picked. Six hand-chosen lags was the first attempt\n");
-    std::printf("  and fixing a scale is the defect the symbol-width posit exists to prevent.\n");
-    std::printf("\n  Bytes per corpus: %zu. Threads: %u.\n", SAMPLE_CAP, workers);
+    printf("================================================================================\n");
+    printf("  Which linear language has grip on natural data, over every lag to %u\n", LAG_LIMIT);
+    printf("================================================================================\n");
+    printf("\n  Grip is bits of structure a language sees at some lag beyond what the alphabet\n");
+    printf("  alone accounts for. The baseline is exact: for a shuffle every lag gives the\n");
+    printf("  difference of two independent draws from the marginal, which is that marginal\n");
+    printf("  convolved with itself and needs no seed and no sampling.\n");
+    printf("\n  The lag is swept instead of picked. Six hand-chosen lags was the first attempt\n");
+    printf("  and fixing a scale is the defect the symbol-width posit exists to prevent.\n");
+    printf("\n  Bytes per corpus: %zu. Threads: %u.\n", SAMPLE_CAP, workers);
 
-    std::printf("\n  %-34s %10s %10s %8s %8s %8s\n", "corpus", "xor", "add", "xor lag", "add lag", "which");
-    std::printf("  %-34s %10s %10s %8s %8s %8s\n", "----------------------------------", "----------", "----------",
+    printf("\n  %-34s %10s %10s %8s %8s %8s\n", "corpus", "xor", "add", "xor lag", "add lag", "which");
+    printf("  %-34s %10s %10s %8s %8s %8s\n", "----------------------------------", "----------", "----------",
                 "--------", "--------", "--------");
 
     // -------------------------------------------------------------------------------------
@@ -391,9 +391,9 @@ int main(int argc, char **argv)
     // measures that "ought to". The method here checks a null, and does not reason about it.
     // -------------------------------------------------------------------------------------
     {
-        std::printf("\n  Checking the analytic baseline against an actual shuffle\n");
-        std::printf("\n  %-28s %14s %14s %14s\n", "sequence", "mean diff", "spread", "in sigma");
-        std::printf("  %-28s %14s %14s %14s\n", "----------------------------", "--------------", "--------------",
+        printf("\n  Checking the analytic baseline against an actual shuffle\n");
+        printf("\n  %-28s %14s %14s %14s\n", "sequence", "mean diff", "spread", "in sigma");
+        printf("  %-28s %14s %14s %14s\n", "----------------------------", "--------------", "--------------",
                     "--------------");
 
         for (int which = 0; which < 2; which += 1)
@@ -462,20 +462,20 @@ int main(int argc, char **argv)
                 const double offset = differential[draw] - mean_differential;
                 square_sum += offset * offset;
             }
-            const double spread = std::sqrt(square_sum / (double)draws);
+            const double spread = sqrt(square_sum / (double)draws);
 
             // The conclusion downstream is a comparison between the two languages, a baseline
             // error only bends it where the error differs between them. A shared error cancels out
             // of the difference and is harmless however large it is; a differential one does not.
-            std::printf("  %-28s %14.6f %14.6f %14.2f\n", (which == 0) ? "16 byte values" : "26 byte values",
+            printf("  %-28s %14.6f %14.6f %14.2f\n", (which == 0) ? "16 byte values" : "26 byte values",
                         mean_differential, spread, (spread > 0.0) ? (mean_differential / spread) : 0.0);
         }
-        std::printf("\n  The first two columns are what a shuffled sequence reads against the\n");
-        std::printf("  analytic baseline, per language, and both should be zero because a shuffle\n");
-        std::printf("  has no arrangement. The third is the one that matters: the conclusion is a\n");
-        std::printf("  comparison between the languages, a shared error cancels out of it and\n");
-        std::printf("  only a differential error bends it. Read the third column against the\n");
-        std::printf("  add-minus-xor gaps below, which run from about 0.04 to 0.16 bits.\n");
+        printf("\n  The first two columns are what a shuffled sequence reads against the\n");
+        printf("  analytic baseline, per language, and both should be zero because a shuffle\n");
+        printf("  has no arrangement. The third is the one that matters: the conclusion is a\n");
+        printf("  comparison between the languages, a shared error cancels out of it and\n");
+        printf("  only a differential error bends it. Read the third column against the\n");
+        printf("  add-minus-xor gaps below, which run from about 0.04 to 0.16 bits.\n");
     }
 
     // The two built controls first. Every row below them is readable only if they behave.
@@ -521,7 +521,7 @@ int main(int argc, char **argv)
         const double at_add =
             shortfall_of(add_counts, (uint64_t)pairs) - baseline_of(marginal, (uint64_t)made.size(), 1);
 
-        std::printf("  %-34s %10.4f %10.4f %8u %8u %8s\n",
+        printf("  %-34s %10.4f %10.4f %8u %8u %8s\n",
                     (additive != 0) ? "[built] add at its own lag" : "[built] xor at its own lag", at_xor, at_add,
                     designed, designed,
                     (at_xor > (at_add + 0.02)) ? "xor" : ((at_add > (at_xor + 0.02)) ? "add" : "level"));
@@ -538,7 +538,7 @@ int main(int argc, char **argv)
         {
             const std::vector<unsigned char> stream = digest_stream(SAMPLE_CAP, removals[which], 64u, 7u);
             const Reading found = sweep(stream.data(), stream.size(), workers);
-            std::printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", names[which], found.best_xor, found.best_add,
+            printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", names[which], found.best_xor, found.best_add,
                         found.xor_lag, found.add_lag,
                         (found.best_xor > (found.best_add + 0.02))
                             ? "xor"
@@ -575,8 +575,8 @@ int main(int argc, char **argv)
                 }
             }
             char label[44];
-            std::snprintf(label, sizeof(label), "[sha] unwound to %2u rounds, w%u", rounds, best_word);
-            std::printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label, best.best_xor, best.best_add, best.xor_lag,
+            snprintf(label, sizeof(label), "[sha] unwound to %2u rounds, w%u", rounds, best_word);
+            printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label, best.best_xor, best.best_add, best.xor_lag,
                         best.add_lag,
                         (best.best_xor > (best.best_add + 0.02))
                             ? "xor"
@@ -594,20 +594,20 @@ int main(int argc, char **argv)
             mixed[swap] = keep;
         }
         const Reading shuffled = sweep(mixed.data(), mixed.size(), workers);
-        std::printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", "[sha] the same bytes shuffled", shuffled.best_xor,
+        printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", "[sha] the same bytes shuffled", shuffled.best_xor,
                     shuffled.best_add, shuffled.xor_lag, shuffled.add_lag, "floor");
     }
 
     for (int at = 1; at < argc; at += 1)
     {
-        std::FILE *const handle = std::fopen(argv[at], "rb");
+        std::FILE *const handle = fopen(argv[at], "rb");
         if (handle == nullptr)
         {
             continue;
         }
         std::vector<unsigned char> body(SAMPLE_CAP, 0u);
-        const size_t read = std::fread(body.data(), 1u, SAMPLE_CAP, handle);
-        std::fclose(handle);
+        const size_t read = fread(body.data(), 1u, SAMPLE_CAP, handle);
+        fclose(handle);
         if (read < 100000u)
         {
             continue;
@@ -627,28 +627,28 @@ int main(int argc, char **argv)
         }
 
         const Reading found = sweep(body.data(), body.size(), workers);
-        std::printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label.substr(0u, 34u).c_str(), found.best_xor,
+        printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label.substr(0u, 34u).c_str(), found.best_xor,
                     found.best_add, found.xor_lag, found.add_lag,
                     (found.best_xor > (found.best_add + 0.02))
                         ? "xor"
                         : ((found.best_add > (found.best_xor + 0.02)) ? "add" : "level"));
     }
 
-    std::printf("\n  The two built rows must come out lopsided in opposite directions. If they do\n");
-    std::printf("  not, this instrument is measuring neither language and no row below them means\n");
-    std::printf("  anything. That is not a formality: the first version of this test failed on\n");
-    std::printf("  three separate controls and its natural rows looked entirely plausible.\n");
-    std::printf("\n  The two are lopsided by different amounts, 2.19 bits against 3.84, and that is\n");
-    std::printf("  not a tilt in the statistic. Each control saturates its own ceiling exactly. A\n");
-    std::printf("  grip cannot exceed eight bits less that corpus's own baseline, and the two\n");
-    std::printf("  controls have different alphabets: the exclusive-or one uses 16 byte values and\n");
-    std::printf("  carries a baseline of 2.4594, so its ceiling is 5.5406 and it reads 5.5406; the\n");
-    std::printf("  additive one walks all 256 values, carries a baseline of zero, so its ceiling is\n");
-    std::printf("  8.0000 and it reads 8.0000.\n");
-    std::printf("\n  Expecting two differently built objects to give equal magnitudes was the error,\n");
-    std::printf("  and it was alphabet size read as instrument bias - the same confound this tool\n");
-    std::printf("  had already been corrected for twice. These are entropy differences over\n");
-    std::printf("  distributions with different supports. What is calibrated is each against its\n");
-    std::printf("  own ceiling, and both are exact, so the natural magnitudes below are readable.\n");
+    printf("\n  The two built rows must come out lopsided in opposite directions. If they do\n");
+    printf("  not, this instrument is measuring neither language and no row below them means\n");
+    printf("  anything. That is not a formality: the first version of this test failed on\n");
+    printf("  three separate controls and its natural rows looked entirely plausible.\n");
+    printf("\n  The two are lopsided by different amounts, 2.19 bits against 3.84, and that is\n");
+    printf("  not a tilt in the statistic. Each control saturates its own ceiling exactly. A\n");
+    printf("  grip cannot exceed eight bits less that corpus's own baseline, and the two\n");
+    printf("  controls have different alphabets: the exclusive-or one uses 16 byte values and\n");
+    printf("  carries a baseline of 2.4594, so its ceiling is 5.5406 and it reads 5.5406; the\n");
+    printf("  additive one walks all 256 values, carries a baseline of zero, so its ceiling is\n");
+    printf("  8.0000 and it reads 8.0000.\n");
+    printf("\n  Expecting two differently built objects to give equal magnitudes was the error,\n");
+    printf("  and it was alphabet size read as instrument bias - the same confound this tool\n");
+    printf("  had already been corrected for twice. These are entropy differences over\n");
+    printf("  distributions with different supports. What is calibrated is each against its\n");
+    printf("  own ceiling, and both are exact, so the natural magnitudes below are readable.\n");
     return 0;
 }

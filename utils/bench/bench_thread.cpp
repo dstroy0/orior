@@ -27,9 +27,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -130,12 +130,12 @@ struct Candidate
  */
 void measure_conditional_survival()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Does the enhancement persist or decay?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Instead of waiting for rare deep survivors, condition at each depth: keep\n");
-    std::printf("  the survivors of round n and measure round n+1 on them directly. That gives\n");
-    std::printf("  every depth the same statistical weight instead of exponentially less.\n");
+    printf("\n================================================================\n");
+    printf("  1. Does the enhancement persist or decay?\n");
+    printf("================================================================\n");
+    printf("\n  Instead of waiting for rare deep survivors, condition at each depth: keep\n");
+    printf("  the survivors of round n and measure round n+1 on them directly. That gives\n");
+    printf("  every depth the same statistical weight instead of exponentially less.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned population = 200000u;
@@ -153,8 +153,8 @@ void measure_conditional_survival()
         living.push_back(candidate);
     }
 
-    std::printf("\n  %8s %14s %16s %18s\n", "round", "survivors", "conditional", "vs base rate");
-    std::printf("  %8s %14s %16s %18s\n", "--------", "--------------", "----------------", "------------------");
+    printf("\n  %8s %14s %16s %18s\n", "round", "survivors", "conditional", "vs base rate");
+    printf("  %8s %14s %16s %18s\n", "--------", "--------------", "----------------", "------------------");
 
     double base_rate = 0.0;
 
@@ -191,13 +191,13 @@ void measure_conditional_survival()
             base_rate = conditional;
         }
 
-        std::printf("  %8u %14zu %15.6f%% %17.3fx\n", round, next.size(), conditional * 100.0,
+        printf("  %8u %14zu %15.6f%% %17.3fx\n", round, next.size(), conditional * 100.0,
                     (base_rate > 0.0) ? (conditional / base_rate) : 0.0);
 
         living.swap(next);
         if (living.empty())
         {
-            std::printf("\n  Nothing survived to this depth.\n");
+            printf("\n  Nothing survived to this depth.\n");
             break;
         }
 
@@ -216,9 +216,9 @@ void measure_conditional_survival()
         }
     }
 
-    std::printf("\n  A ratio holding above 1.0 would mean the advantage compounds with depth,\n");
-    std::printf("  which is what makes a characteristic cheap. A ratio falling to 1.0 means the\n");
-    std::printf("  advantage is a one-time selection effect at the first round and nothing more.\n");
+    printf("\n  A ratio holding above 1.0 would mean the advantage compounds with depth,\n");
+    printf("  which is what makes a characteristic cheap. A ratio falling to 1.0 means the\n");
+    printf("  advantage is a one-time selection effect at the first round and nothing more.\n");
 }
 
 /**
@@ -226,12 +226,12 @@ void measure_conditional_survival()
  */
 void measure_survivor_signature()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. What distinguishes a survivor?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Per-bit rate at which each of the 256 state bits and 32 message bits is set,\n");
-    std::printf("  among survivors of one round against the population they came from. A bit that\n");
-    std::printf("  is set far more often in survivors is a predictor.\n");
+    printf("\n================================================================\n");
+    printf("  2. What distinguishes a survivor?\n");
+    printf("================================================================\n");
+    printf("\n  Per-bit rate at which each of the 256 state bits and 32 message bits is set,\n");
+    printf("  among survivors of one round against the population they came from. A bit that\n");
+    printf("  is set far more often in survivors is a predictor.\n");
 
     std::mt19937 generator(777u);
     const unsigned population = 4000000u;
@@ -284,23 +284,23 @@ void measure_survivor_signature()
         }
     }
 
-    std::printf("\n  %llu survivors of %u, base rate %.4f%%\n", (unsigned long long)survivors, population,
+    printf("\n  %llu survivors of %u, base rate %.4f%%\n", (unsigned long long)survivors, population,
                 100.0 * (double)survivors / (double)population);
 
     // A predictor shows as a survivor rate far from one half at some input bit.
-    const double standard_error = 0.5 / std::sqrt((double)survivors);
+    const double standard_error = 0.5 / sqrt((double)survivors);
     std::vector<std::pair<double, unsigned>> ranked;
 
     for (unsigned index = 0u; index < 288u; index += 1u)
     {
         const double rate = (double)survivor_bits[index] / (double)survivors;
-        ranked.push_back({std::fabs(rate - 0.5) / standard_error, index});
+        ranked.push_back({fabs(rate - 0.5) / standard_error, index});
     }
     std::sort(ranked.rbegin(), ranked.rend());
 
-    std::printf("\n  strongest predictors among 288 input bits:\n");
-    std::printf("  %28s %14s %12s\n", "bit", "set in survivors", "sigma");
-    std::printf("  %28s %14s %12s\n", "----------------------------", "--------------", "------------");
+    printf("\n  strongest predictors among 288 input bits:\n");
+    printf("  %28s %14s %12s\n", "bit", "set in survivors", "sigma");
+    printf("  %28s %14s %12s\n", "----------------------------", "--------------", "------------");
 
     for (unsigned rank = 0u; rank < 8u; rank += 1u)
     {
@@ -310,17 +310,17 @@ void measure_survivor_signature()
 
         if (index < 256u)
         {
-            std::snprintf(label, sizeof(label), "state word %u bit %u", index / 32u, index % 32u);
+            snprintf(label, sizeof(label), "state word %u bit %u", index / 32u, index % 32u);
         }
         else
         {
-            std::snprintf(label, sizeof(label), "message bit %u", index - 256u);
+            snprintf(label, sizeof(label), "message bit %u", index - 256u);
         }
-        std::printf("  %28s %13.4f%% %+12.1f\n", label, rate * 100.0, ranked[rank].first);
+        printf("  %28s %13.4f%% %+12.1f\n", label, rate * 100.0, ranked[rank].first);
     }
 
-    std::printf("\n  Expected largest over 288 tests under no structure is near 3.3 sigma. Any\n");
-    std::printf("  bit far above that is a real predictor and section 3 tries to use it.\n");
+    printf("\n  Expected largest over 288 tests under no structure is near 3.3 sigma. Any\n");
+    printf("  bit far above that is a real predictor and section 3 tries to use it.\n");
 }
 
 /**
@@ -328,15 +328,15 @@ void measure_survivor_signature()
  */
 void measure_steering()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. Can survivors be constructed?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  This is the pull that decides it. An enhancement visible only after the fact\n");
-    std::printf("  is worth nothing, because recognising a survivor costs the same round that\n");
-    std::printf("  produced it. An enhancement you can steer into is an attack.\n");
-    std::printf("\n  The rotational condition on a sum under a frame turning by %u concerns the\n", FRAME);
-    std::printf("  bit that wraps. Construct states whose wrapping bits are set to cooperate and\n");
-    std::printf("  measure the survival rate against unconstrained states.\n");
+    printf("\n================================================================\n");
+    printf("  3. Can survivors be constructed?\n");
+    printf("================================================================\n");
+    printf("\n  This is the pull that decides it. An enhancement visible only after the fact\n");
+    printf("  is worth nothing, because recognising a survivor costs the same round that\n");
+    printf("  produced it. An enhancement you can steer into is an attack.\n");
+    printf("\n  The rotational condition on a sum under a frame turning by %u concerns the\n", FRAME);
+    printf("  bit that wraps. Construct states whose wrapping bits are set to cooperate and\n");
+    printf("  measure the survival rate against unconstrained states.\n");
 
     std::mt19937 generator(31337u);
     const unsigned trials = 2000000u;
@@ -359,8 +359,8 @@ void measure_steering()
         {"low half cleared", 0x0000FFFFu, 0x00000000u},
     };
 
-    std::printf("\n  %34s %16s %12s\n", "construction", "survival", "vs control");
-    std::printf("  %34s %16s %12s\n", "----------------------------------", "----------------", "------------");
+    printf("\n  %34s %16s %12s\n", "construction", "survival", "vs control");
+    printf("  %34s %16s %12s\n", "----------------------------------", "----------------", "------------");
 
     double control_rate = 0.0;
 
@@ -398,35 +398,35 @@ void measure_steering()
         {
             control_rate = rate;
         }
-        std::printf("  %34s %15.6f%% %11.3fx\n", strategy.name, rate * 100.0,
+        printf("  %34s %15.6f%% %11.3fx\n", strategy.name, rate * 100.0,
                     (control_rate > 0.0) ? (rate / control_rate) : 0.0);
     }
 
-    std::printf("\n  Steering works, and the signature in section 2 says why: every predictor is\n");
-    std::printf("  bit 31, the wrap position for a frame turning by 31. Clearing it lifts survival\n");
-    std::printf("  nine and a half fold; setting it destroys the relation entirely.\n");
+    printf("\n  Steering works, and the signature in section 2 says why: every predictor is\n");
+    printf("  bit 31, the wrap position for a frame turning by 31. Clearing it lifts survival\n");
+    printf("  nine and a half fold; setting it destroys the relation entirely.\n");
 
     // Extrapolate honestly before the decisive test. Thus no one reads the decisive test as an
     // excuse afterwards.
     const double steered = 0.21247450;
-    std::printf("\n  Extrapolated on the constant-free variant, which is what was measured above:\n");
-    std::printf("    steered per round : %.6f\n", steered);
-    std::printf("    over 64 rounds    : %.3e\n", std::pow(steered, 64.0));
-    std::printf("    unsteered over 64 : %.3e\n", std::pow(0.02226850, 64.0));
-    std::printf("    brute force       : %.3e   (2^-256)\n", std::pow(2.0, -256.0));
-    std::printf("\n  That is a real and large gain, and on the constant-free variant it beats\n");
-    std::printf("  brute force by roughly thirty orders of magnitude. Which makes the next\n");
-    std::printf("  measurement the one that matters.\n");
+    printf("\n  Extrapolated on the constant-free variant, which is what was measured above:\n");
+    printf("    steered per round : %.6f\n", steered);
+    printf("    over 64 rounds    : %.3e\n", pow(steered, 64.0));
+    printf("    unsteered over 64 : %.3e\n", pow(0.02226850, 64.0));
+    printf("    brute force       : %.3e   (2^-256)\n", pow(2.0, -256.0));
+    printf("\n  That is a real and large gain, and on the constant-free variant it beats\n");
+    printf("  brute force by roughly thirty orders of magnitude. Which makes the next\n");
+    printf("  measurement the one that matters.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  3b. The same steering against the real function\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Everything above removed the round constants, because that is the setting the\n");
-    std::printf("  signal was found in. SHA-256 has them. Repeat the best construction with them\n");
-    std::printf("  present, since a gain that only exists in a variant nobody uses is not a gain.\n");
+    printf("\n================================================================\n");
+    printf("  3b. The same steering against the real function\n");
+    printf("================================================================\n");
+    printf("\n  Everything above removed the round constants, because that is the setting the\n");
+    printf("  signal was found in. SHA-256 has them. Repeat the best construction with them\n");
+    printf("  present, since a gain that only exists in a variant nobody uses is not a gain.\n");
 
-    std::printf("\n  %34s %16s\n", "construction", "survival");
-    std::printf("  %34s %16s\n", "----------------------------------", "----------------");
+    printf("\n  %34s %16s\n", "construction", "survival");
+    printf("  %34s %16s\n", "----------------------------------", "----------------");
 
     for (const Strategy &strategy : strategies)
     {
@@ -465,14 +465,14 @@ void measure_steering()
                 survived += 1u;
             }
         }
-        std::printf("  %34s %15.6f%%\n", strategy.name, 100.0 * (double)survived / (double)trials);
+        printf("  %34s %15.6f%%\n", strategy.name, 100.0 * (double)survived / (double)trials);
     }
 
-    std::printf("\n  The constant is not part of the state, so no construction on the state can\n");
-    std::printf("  remove it, and it differs every round so it cannot be absorbed into the frame.\n");
-    std::printf("  That is the wall the ablation already located from a different direction: both\n");
-    std::printf("  the additions and the constants are load-bearing, and steering only addresses\n");
-    std::printf("  the additions.\n");
+    printf("\n  The constant is not part of the state, so no construction on the state can\n");
+    printf("  remove it, and it differs every round so it cannot be absorbed into the frame.\n");
+    printf("  That is the wall the ablation already located from a different direction: both\n");
+    printf("  the additions and the constants are load-bearing, and steering only addresses\n");
+    printf("  the additions.\n");
 }
 
 /**
@@ -491,13 +491,13 @@ void measure_steering()
  */
 void measure_rotational_xor()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. Keep the delta. Rotational-XOR against the real constants.\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Requiring the delta to be zero is what the constants defeat. Track it instead:\n");
-    std::printf("  delta = y xor rotr(x, %u), measured after one real round with a real constant.\n", FRAME);
-    std::printf("  If delta concentrates on a few values, those are characteristics. If it spreads\n");
-    std::printf("  over 2^32, the delta carries nothing that a guess does not.\n");
+    printf("\n================================================================\n");
+    printf("  4. Keep the delta. Rotational-XOR against the real constants.\n");
+    printf("================================================================\n");
+    printf("\n  Requiring the delta to be zero is what the constants defeat. Track it instead:\n");
+    printf("  delta = y xor rotr(x, %u), measured after one real round with a real constant.\n", FRAME);
+    printf("  If delta concentrates on a few values, those are characteristics. If it spreads\n");
+    printf("  over 2^32, the delta carries nothing that a guess does not.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 4000000u;
@@ -544,27 +544,27 @@ void measure_rotational_xor()
     const double best_rate = (double)best_count / (double)trials;
     const double uniform_rate = 1.0 / 4294967296.0;
 
-    std::printf("\n  distinct deltas seen      : %zu of %u trials\n", delta_counts.size(), trials);
-    std::printf("  most common delta         : 0x%08x\n", best_delta);
-    std::printf("  its probability           : %.6f%%  (%u occurrences)\n", best_rate * 100.0, best_count);
-    std::printf("  uniform would give        : %.3e%%\n", uniform_rate * 100.0);
-    std::printf("  concentration over uniform: %.3e\n", best_rate / uniform_rate);
-    std::printf("\n  theory's predicted offset : 0x%08x  (K xor rotr(K,%u))\n", predicted_offset, FRAME);
-    std::printf("  observed matches predicted: %s\n", (best_delta == predicted_offset) ? "yes" : "no");
+    printf("\n  distinct deltas seen      : %zu of %u trials\n", delta_counts.size(), trials);
+    printf("  most common delta         : 0x%08x\n", best_delta);
+    printf("  its probability           : %.6f%%  (%u occurrences)\n", best_rate * 100.0, best_count);
+    printf("  uniform would give        : %.3e%%\n", uniform_rate * 100.0);
+    printf("  concentration over uniform: %.3e\n", best_rate / uniform_rate);
+    printf("\n  theory's predicted offset : 0x%08x  (K xor rotr(K,%u))\n", predicted_offset, FRAME);
+    printf("  observed matches predicted: %s\n", (best_delta == predicted_offset) ? "yes" : "no");
 
-    std::printf("\n  A concentrated delta is a usable characteristic and its probability is the\n");
-    std::printf("  per-round cost. Compare it against the steered rotational rate of 0.212 that\n");
-    std::printf("  section 3 measured on the constant-free variant, and against the 0.000000 that\n");
-    std::printf("  section 3b measured for exact equality against the real one.\n");
+    printf("\n  A concentrated delta is a usable characteristic and its probability is the\n");
+    printf("  per-round cost. Compare it against the steered rotational rate of 0.212 that\n");
+    printf("  section 3 measured on the constant-free variant, and against the 0.000000 that\n");
+    printf("  section 3b measured for exact equality against the real one.\n");
 }
 
 } // namespace
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Pulling the thread: the frame-31 round correlation\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Pulling the thread: the frame-31 round correlation\n");
+    printf("================================================================\n");
 
     const auto started = std::chrono::steady_clock::now();
 
@@ -574,8 +574,8 @@ int main()
     measure_rotational_xor();
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

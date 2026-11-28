@@ -26,8 +26,8 @@
 
 #include <cuda_runtime.h>
 
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 
 namespace
 {
@@ -167,29 +167,29 @@ __global__ void wide_walk(uint64_t trials, uint64_t seed, unsigned count, unsign
 
 int main(int argc, char **argv)
 {
-    const unsigned trial_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 24u;
+    const unsigned trial_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 24u;
     const uint64_t trials = (uint64_t)1u << trial_bits;
 
-    std::printf("================================================================\n");
-    std::printf("  The wall against how many words are on the chain\n");
-    std::printf("================================================================\n");
-    std::printf("\n  bench_narrow found the wall at nine or ten rounds at every width from four\n");
-    std::printf("  bits to thirty-two, which is evidence the wall belongs to the chain instead of\n");
-    std::printf("  to the word - and not proof, because that sweep holds eight words at every\n");
-    std::printf("  width. This varies the count and holds everything else at the standard's.\n");
-    std::printf("\n  The prediction can fail. If the wall is the chain emptying it sits at the word\n");
-    std::printf("  count plus a constant, and SHA-256's eight words walling at ten fixes that\n");
-    std::printf("  constant at two: six words should wall at eight, sixteen at eighteen. A wall\n");
-    std::printf("  that stays near ten instead belongs to the mixing functions.\n");
-    std::printf("\n  Pairs per cell: 2^%u. Eight words is SHA-256 itself, not a model of it.\n", trial_bits);
+    printf("================================================================\n");
+    printf("  The wall against how many words are on the chain\n");
+    printf("================================================================\n");
+    printf("\n  bench_narrow found the wall at nine or ten rounds at every width from four\n");
+    printf("  bits to thirty-two, which is evidence the wall belongs to the chain instead of\n");
+    printf("  to the word - and not proof, because that sweep holds eight words at every\n");
+    printf("  width. This varies the count and holds everything else at the standard's.\n");
+    printf("\n  The prediction can fail. If the wall is the chain emptying it sits at the word\n");
+    printf("  count plus a constant, and SHA-256's eight words walling at ten fixes that\n");
+    printf("  constant at two: six words should wall at eight, sixteen at eighteen. A wall\n");
+    printf("  that stays near ten instead belongs to the mixing functions.\n");
+    printf("\n  Pairs per cell: 2^%u. Eight words is SHA-256 itself, not a model of it.\n", trial_bits);
 
     unsigned long long *device_sums = nullptr;
     unsigned long long *device_counted = nullptr;
     cudaMalloc((void **)&device_sums, MOST_WORDS * sizeof(unsigned long long));
     cudaMalloc((void **)&device_counted, sizeof(unsigned long long));
 
-    std::printf("\n  %8s %12s %12s %12s %14s\n", "words", "wall", "predicted", "error", "which");
-    std::printf("  %8s %12s %12s %12s %14s\n", "--------", "------------", "------------", "------------",
+    printf("\n  %8s %12s %12s %12s %14s\n", "words", "wall", "predicted", "error", "which");
+    printf("  %8s %12s %12s %12s %14s\n", "--------", "------------", "------------", "------------",
                 "--------------");
 
     const unsigned COUNTS = 6u;
@@ -243,7 +243,7 @@ int main(int argc, char **argv)
             note =
                 (wall == 10u) ? "  <- SHA-256, matches bench_depth" : "  <- SHA-256, DOES NOT MATCH bench_depth's 10";
         }
-        std::printf("  %8u %12u %12u %+12d %14s%s\n", count, wall, predicted, error, verdict, note);
+        printf("  %8u %12u %12u %+12d %14s%s\n", count, wall, predicted, error, verdict, note);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -261,22 +261,22 @@ int main(int argc, char **argv)
     // depth of each position, and not the largest across positions. If the decomposition holds,
     // position k dies about m + k rounds in, and the deepest position reproduces the whole wall.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Where the plus two comes from\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Only slot zero and slot half are mixed by the round. Every other slot is a copy\n");
-    std::printf("  of the one above it, which transports a difference without touching it, so the\n");
-    std::printf("  tail holds what slot zero made count-1 rounds ago. That predicts the wall is a\n");
-    std::printf("  mixing depth plus a transport delay, and count + 2 puts the mixing depth at 3.\n");
-    std::printf("\n  Each slot's own death depth, instead of the largest across slots.\n");
+    printf("\n================================================================\n");
+    printf("  Where the plus two comes from\n");
+    printf("================================================================\n");
+    printf("\n  Only slot zero and slot half are mixed by the round. Every other slot is a copy\n");
+    printf("  of the one above it, which transports a difference without touching it, so the\n");
+    printf("  tail holds what slot zero made count-1 rounds ago. That predicts the wall is a\n");
+    printf("  mixing depth plus a transport delay, and count + 2 puts the mixing depth at 3.\n");
+    printf("\n  Each slot's own death depth, instead of the largest across slots.\n");
 
     for (unsigned which = 0u; which < COUNTS; which += 1u)
     {
         const unsigned count = count_of[which];
 
-        std::printf("\n  %u words\n", count);
-        std::printf("\n  %8s %12s %14s %10s\n", "slot", "dies at", "predicted 3+k", "role");
-        std::printf("  %8s %12s %14s %10s\n", "--------", "------------", "--------------", "----------");
+        printf("\n  %u words\n", count);
+        printf("\n  %8s %12s %14s %10s\n", "slot", "dies at", "predicted 3+k", "role");
+        printf("  %8s %12s %14s %10s\n", "--------", "------------", "--------------", "----------");
 
         unsigned deepest_slot = 0u;
         unsigned per_slot[MOST_WORDS];
@@ -316,9 +316,9 @@ int main(int argc, char **argv)
             {
                 role = "mixed e";
             }
-            std::printf("  %8u %12u %14u %10s\n", slot, dies, 3u + slot, role);
+            printf("  %8u %12u %14u %10s\n", slot, dies, 3u + slot, role);
         }
-        std::printf("\n  deepest slot dies at %u, and the whole-chain wall is %u\n", deepest_slot, count + 2u);
+        printf("\n  deepest slot dies at %u, and the whole-chain wall is %u\n", deepest_slot, count + 2u);
 
         // Each half reads as its own chain, because both are chains of copies below one mixed head.
         // The offsets differ, and the difference between them is the asymmetry. Word a takes T1 plus
@@ -350,23 +350,23 @@ int main(int argc, char **argv)
         {
             const double a_law = a_offset / (double)a_seen;
             const double e_law = e_offset / (double)e_seen;
-            std::printf("  a half reads slot + %.2f, e half reads slot + %.2f, apart by %.2f\n", a_law, e_law,
+            printf("  a half reads slot + %.2f, e half reads slot + %.2f, apart by %.2f\n", a_law, e_law,
                         a_law - e_law);
         }
     }
 
-    std::printf("\n  A slot column reading three plus its index is the decomposition holding: a\n");
-    std::printf("  mixing depth of three at the two mixed slots, and one round of transport per\n");
-    std::printf("  copy below them. The plus two is then 3 minus 1, and it is a property of the\n");
-    std::printf("  round function instead of of the chain, which is why it did not move when the\n");
-    std::printf("  word count did.\n");
+    printf("\n  A slot column reading three plus its index is the decomposition holding: a\n");
+    printf("  mixing depth of three at the two mixed slots, and one round of transport per\n");
+    printf("  copy below them. The plus two is then 3 minus 1, and it is a property of the\n");
+    printf("  round function instead of of the chain, which is why it did not move when the\n");
+    printf("  word count did.\n");
 
     cudaFree(device_sums);
     cudaFree(device_counted);
 
-    std::printf("\n  A chain column throughout is the wall belonging to the shift chain, and it\n");
-    std::printf("  makes the width sweep's agreement a consequence instead of a coincidence. A\n");
-    std::printf("  mixing column is the opposite finding: the wall would then be a property of the\n");
-    std::printf("  rotation and choice functions and would have to be explained by them instead.\n");
+    printf("\n  A chain column throughout is the wall belonging to the shift chain, and it\n");
+    printf("  makes the width sweep's agreement a consequence instead of a coincidence. A\n");
+    printf("  mixing column is the opposite finding: the wall would then be a property of the\n");
+    printf("  rotation and choice functions and would have to be explained by them instead.\n");
     return 0;
 }

@@ -27,10 +27,10 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
+#include <math.h>
 #include <complex>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -54,15 +54,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -140,15 +140,15 @@ bool load_chain(const std::string &path, std::vector<ChainBlock> &blocks)
  */
 void measure_chain_autocorrelation(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Do consecutive block hashes agree beyond chance?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Bit agreement between the free 64 bits of block n and block n+lag. Under an\n");
-    std::printf("  unstructured chain this is 0.5. Block n's hash is an input field of block n+1,\n");
-    std::printf("  so if that dependence leaves any trace it should show at lag 1 first.\n");
+    printf("\n================================================================\n");
+    printf("  1. Do consecutive block hashes agree beyond chance?\n");
+    printf("================================================================\n");
+    printf("\n  Bit agreement between the free 64 bits of block n and block n+lag. Under an\n");
+    printf("  unstructured chain this is 0.5. Block n's hash is an input field of block n+1,\n");
+    printf("  so if that dependence leaves any trace it should show at lag 1 first.\n");
 
-    std::printf("\n  %8s %16s %12s\n", "lag", "bit agreement", "z");
-    std::printf("  %8s %16s %12s\n", "--------", "----------------", "------------");
+    printf("\n  %8s %16s %12s\n", "lag", "bit agreement", "z");
+    printf("  %8s %16s %12s\n", "--------", "----------------", "------------");
 
     double worst = 0.0;
     unsigned worst_lag = 0u;
@@ -170,18 +170,18 @@ void measure_chain_autocorrelation(const std::vector<ChainBlock> &blocks)
 
         const double total_bits = (double)pairs * 64.0;
         const double agreement = (double)agreeing / total_bits;
-        const double score = (agreement - 0.5) / (0.5 / std::sqrt(total_bits));
+        const double score = (agreement - 0.5) / (0.5 / sqrt(total_bits));
 
-        if (std::fabs(score) > std::fabs(worst))
+        if (fabs(score) > fabs(worst))
         {
             worst = score;
             worst_lag = lag;
         }
-        std::printf("  %8u %16.8f %+12.2f\n", lag, agreement, score);
+        printf("  %8u %16.8f %+12.2f\n", lag, agreement, score);
     }
 
-    std::printf("\n  largest departure: lag %u at %+.2f sigma over %zu lags tested\n", worst_lag, worst, 12u);
-    check("no lag shows agreement beyond chance", std::fabs(worst) < 4.0);
+    printf("\n  largest departure: lag %u at %+.2f sigma over %zu lags tested\n", worst_lag, worst, 12u);
+    check("no lag shows agreement beyond chance", fabs(worst) < 4.0);
 }
 
 /**
@@ -191,20 +191,20 @@ void measure_chain_autocorrelation(const std::vector<ChainBlock> &blocks)
  */
 void measure_excess_zeros(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. Is the excess beyond the target geometric?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A block only needs to clear the target. How far it overshoots is free, and an\n");
-    std::printf("  unstructured source overshoots geometrically: half the blocks by 0 extra bits,\n");
-    std::printf("  a quarter by 1, an eighth by 2. Any other shape would be a finding.\n");
+    printf("\n================================================================\n");
+    printf("  2. Is the excess beyond the target geometric?\n");
+    printf("================================================================\n");
+    printf("\n  A block only needs to clear the target. How far it overshoots is free, and an\n");
+    printf("  unstructured source overshoots geometrically: half the blocks by 0 extra bits,\n");
+    printf("  a quarter by 1, an eighth by 2. Any other shape would be a finding.\n");
 
     // The target is not at a nibble boundary. A nibble model of it produces a spectacular fake
     // finding. nbits 0x1702355e gives a target near 2^177.14. Thus the probability to clear 80
     // leading zero bits is 2^176 / 2^177.14 = 0.454, and not one in sixteen. The nibble model
     // predicts 58.6 blocks where 426 appear: a 7.27x excess that comes entirely from the boundary.
-    std::printf("\n  The target is not at a nibble boundary, so the overshoot is not geometric in\n");
-    std::printf("  nibbles. Each block's own nbits gives its own target, and the probability of\n");
-    std::printf("  clearing k leading zero bits is 2^(256-k) over that target, capped at one.\n");
+    printf("\n  The target is not at a nibble boundary, so the overshoot is not geometric in\n");
+    printf("  nibbles. Each block's own nbits gives its own target, and the probability of\n");
+    printf("  clearing k leading zero bits is 2^(256-k) over that target, capped at one.\n");
 
     unsigned lowest = 256u;
     for (const ChainBlock &block : blocks)
@@ -212,8 +212,8 @@ void measure_excess_zeros(const std::vector<ChainBlock> &blocks)
         lowest = std::min(lowest, block.leading);
     }
 
-    std::printf("\n  %10s %12s %14s %10s\n", "zero bits", "blocks", "predicted", "ratio");
-    std::printf("  %10s %12s %14s %10s\n", "----------", "------------", "--------------", "----------");
+    printf("\n  %10s %12s %14s %10s\n", "zero bits", "blocks", "predicted", "ratio");
+    printf("  %10s %12s %14s %10s\n", "----------", "------------", "--------------", "----------");
 
     double chi_square = 0.0;
     unsigned cells = 0u;
@@ -243,12 +243,12 @@ void measure_excess_zeros(const std::vector<ChainBlock> &blocks)
                     const unsigned high = 31u - (unsigned)__builtin_clz(target[rank]);
                     target_log2 =
                         (double)((7u - rank) * 32u + high) +
-                        std::log2(1.0 + ((double)(target[rank] & ((1u << high) - 1u)) / (double)(1u << high)));
+                        log2(1.0 + ((double)(target[rank] & ((1u << high) - 1u)) / (double)(1u << high)));
                     break;
                 }
             }
 
-            const double clears = std::pow(2.0, (double)(256u - bits) - target_log2);
+            const double clears = pow(2.0, (double)(256u - bits) - target_log2);
             predicted += (clears > 1.0) ? 1.0 : clears;
         }
 
@@ -257,7 +257,7 @@ void measure_excess_zeros(const std::vector<ChainBlock> &blocks)
             chi_square += (((double)measured - predicted) * ((double)measured - predicted)) / predicted;
             cells += 1u;
         }
-        std::printf("  %10u %12u %14.1f %10.4f\n", bits, measured, predicted,
+        printf("  %10u %12u %14.1f %10.4f\n", bits, measured, predicted,
                     (predicted > 0.0) ? ((double)measured / predicted) : 0.0);
     }
 
@@ -272,12 +272,12 @@ void measure_excess_zeros(const std::vector<ChainBlock> &blocks)
  */
 void measure_nonce_sequence(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. Do the nonces that solved consecutive blocks relate?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  These are the answers other people's hardware found, in chain order. If the\n");
-    std::printf("  search space carried a preferred direction, consecutive answers would drift\n");
-    std::printf("  instead of scatter.\n");
+    printf("\n================================================================\n");
+    printf("  3. Do the nonces that solved consecutive blocks relate?\n");
+    printf("================================================================\n");
+    printf("\n  These are the answers other people's hardware found, in chain order. If the\n");
+    printf("  search space carried a preferred direction, consecutive answers would drift\n");
+    printf("  instead of scatter.\n");
 
     double sum_left = 0.0;
     double sum_right = 0.0;
@@ -300,13 +300,13 @@ void measure_nonce_sequence(const std::vector<ChainBlock> &blocks)
 
     const double count = (double)pairs;
     const double covariance = (sum_product / count) - ((sum_left / count) * (sum_right / count));
-    const double spread_left = std::sqrt((sum_left_squared / count) - ((sum_left / count) * (sum_left / count)));
-    const double spread_right = std::sqrt((sum_right_squared / count) - ((sum_right / count) * (sum_right / count)));
+    const double spread_left = sqrt((sum_left_squared / count) - ((sum_left / count) * (sum_left / count)));
+    const double spread_right = sqrt((sum_right_squared / count) - ((sum_right / count) * (sum_right / count)));
     const double correlation = covariance / (spread_left * spread_right);
 
-    std::printf("\n  consecutive nonce correlation : %+.6f\n", correlation);
-    std::printf("  in standard errors            : %+.2f over %zu pairs\n", correlation * std::sqrt(count), pairs);
-    check("consecutive winning nonces are uncorrelated", std::fabs(correlation * std::sqrt(count)) < 4.0);
+    printf("\n  consecutive nonce correlation : %+.6f\n", correlation);
+    printf("  in standard errors            : %+.2f over %zu pairs\n", correlation * sqrt(count), pairs);
+    check("consecutive winning nonces are uncorrelated", fabs(correlation * sqrt(count)) < 4.0);
 }
 
 /**
@@ -318,12 +318,12 @@ void measure_nonce_sequence(const std::vector<ChainBlock> &blocks)
  */
 void measure_chain_period(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. Longer patterns, even if repeating\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Power spectrum of the free-bit sequence across %zu blocks. A repeat at any\n", blocks.size());
-    std::printf("  period would stand up as a peak. Under no structure the spectrum is flat and\n");
-    std::printf("  the largest peak of N/2 bins lands near 2*ln(N/2) times the mean.\n");
+    printf("\n================================================================\n");
+    printf("  4. Longer patterns, even if repeating\n");
+    printf("================================================================\n");
+    printf("\n  Power spectrum of the free-bit sequence across %zu blocks. A repeat at any\n", blocks.size());
+    printf("  period would stand up as a peak. Under no structure the spectrum is flat and\n");
+    printf("  the largest peak of N/2 bins lands near 2*ln(N/2) times the mean.\n");
 
     // Map each block to a centred value so the constant bin does not dominate.
     std::vector<double> series;
@@ -345,7 +345,7 @@ void measure_chain_period(const std::vector<ChainBlock> &blocks)
         for (size_t at = 0u; at < length; at += 1u)
         {
             const double angle = -2.0 * 3.14159265358979323846 * (double)bin * (double)at / (double)length;
-            sum += series[at] * std::complex<double>(std::cos(angle), std::sin(angle));
+            sum += series[at] * std::complex<double>(cos(angle), sin(angle));
         }
         const double power = std::norm(sum);
         total_power += power;
@@ -358,12 +358,12 @@ void measure_chain_period(const std::vector<ChainBlock> &blocks)
 
     const double mean_power = total_power / (double)(bins - 1u);
     const double ratio = (mean_power > 0.0) ? (peak_power / mean_power) : 0.0;
-    const double expected_peak = 2.0 * std::log((double)bins);
+    const double expected_peak = 2.0 * log((double)bins);
 
-    std::printf("\n  strongest bin       : %zu, which is a period of %.1f blocks\n", peak_bin,
+    printf("\n  strongest bin       : %zu, which is a period of %.1f blocks\n", peak_bin,
                 (peak_bin > 0u) ? ((double)length / (double)peak_bin) : 0.0);
-    std::printf("  its power over mean : %.3f\n", ratio);
-    std::printf("  expected largest    : %.3f under no structure\n", expected_peak);
+    printf("  its power over mean : %.3f\n", ratio);
+    printf("  expected largest    : %.3f under no structure\n", expected_peak);
     check("no period stands above what chance produces over this many bins", ratio < (expected_peak * 1.5),
           "peak/mean " + std::to_string(ratio) + " against expected " + std::to_string(expected_peak));
 }
@@ -374,30 +374,30 @@ int main(int argument_count, char **arguments)
 {
     const std::string path = (argument_count > 1) ? arguments[1] : "utils/maint/chain/blocks.json";
 
-    std::printf("================================================================\n");
-    std::printf("  The chain as an iterated map\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  The chain as an iterated map\n");
+    printf("================================================================\n");
 
     std::vector<ChainBlock> blocks;
     if (!load_chain(path, blocks))
     {
-        std::printf("\nCould not read %s. Run utils/maint/chain/fetch_blocks.py first.\n", path.c_str());
+        printf("\nCould not read %s. Run utils/maint/chain/fetch_blocks.py first.\n", path.c_str());
         return 1;
     }
-    std::printf("\n  %zu blocks, heights %u to %u\n", blocks.size(), blocks.front().height, blocks.back().height);
-    std::printf("\n  Stated before any measurement: a block hash is not a uniform 256-bit value.\n");
-    std::printf("  It is conditioned on clearing the target, so its top bits are forced to zero\n");
-    std::printf("  and only the remainder is free. Every test below uses the free bits, because a\n");
-    std::printf("  test on the whole hash would find enormous structure that is entirely the\n");
-    std::printf("  conditioning and nothing to do with the chain.\n");
+    printf("\n  %zu blocks, heights %u to %u\n", blocks.size(), blocks.front().height, blocks.back().height);
+    printf("\n  Stated before any measurement: a block hash is not a uniform 256-bit value.\n");
+    printf("  It is conditioned on clearing the target, so its top bits are forced to zero\n");
+    printf("  and only the remainder is free. Every test below uses the free bits, because a\n");
+    printf("  test on the whole hash would find enormous structure that is entirely the\n");
+    printf("  conditioning and nothing to do with the chain.\n");
 
     measure_chain_autocorrelation(blocks);
     measure_excess_zeros(blocks);
     measure_nonce_sequence(blocks);
     measure_chain_period(blocks);
 
-    std::printf("\n================================================================\n");
-    std::printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

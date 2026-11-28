@@ -35,9 +35,9 @@
 #include "bench_seed.h"
 #include "sha256_core.h"
 
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <filesystem>
 #include <random>
 #include <string>
@@ -149,7 +149,7 @@ void digest_for_nonce(const Job &job, Source source, uint32_t nonce, unsigned ch
             }
         }
         const double period = 137.0;
-        const double wave = 6.0 * std::sin(2.0 * 3.14159265358979 * (double)nonce / period);
+        const double wave = 6.0 * sin(2.0 * 3.14159265358979 * (double)nonce / period);
         int mixed = (int)digest[19] + (int)wave;
         mixed = (mixed < 0) ? 0 : ((mixed > 255) ? 255 : mixed);
         digest[19] = (unsigned char)mixed;
@@ -220,7 +220,7 @@ std::vector<unsigned char> envelope(const std::vector<unsigned char> &samples, s
             const double offset = (double)samples[at] - (double)MIDPOINT;
             total += offset * offset;
         }
-        out.push_back((unsigned char)(int)std::sqrt(total / (double)block));
+        out.push_back((unsigned char)(int)sqrt(total / (double)block));
     }
 
     unsigned char low = 255u;
@@ -276,8 +276,8 @@ void fourier_transform(std::vector<double> &real, std::vector<double> &imaginary
     for (size_t span = 2u; span <= length; span <<= 1)
     {
         const double angle = -2.0 * 3.14159265358979323846 / (double)span;
-        const double step_real = std::cos(angle);
-        const double step_imaginary = std::sin(angle);
+        const double step_real = cos(angle);
+        const double step_imaginary = sin(angle);
 
         for (size_t base = 0u; base < length; base += span)
         {
@@ -380,7 +380,7 @@ Peak spectrum_peak(const std::vector<unsigned char> &samples)
  */
 int write_wav(const char *path, const std::vector<unsigned char> &samples, uint32_t rate)
 {
-    std::FILE *const handle = std::fopen(path, "wb");
+    std::FILE *const handle = fopen(path, "wb");
     if (handle == nullptr)
     {
         return 0;
@@ -395,20 +395,20 @@ int write_wav(const char *path, const std::vector<unsigned char> &samples, uint3
     const uint16_t block_align = 1u;
     const uint16_t bits = 8u;
 
-    std::fwrite("RIFF", 1u, 4u, handle);
-    std::fwrite(&riff_bytes, 4u, 1u, handle);
-    std::fwrite("WAVEfmt ", 1u, 8u, handle);
-    std::fwrite(&format_bytes, 4u, 1u, handle);
-    std::fwrite(&format_tag, 2u, 1u, handle);
-    std::fwrite(&channels, 2u, 1u, handle);
-    std::fwrite(&rate, 4u, 1u, handle);
-    std::fwrite(&byte_rate, 4u, 1u, handle);
-    std::fwrite(&block_align, 2u, 1u, handle);
-    std::fwrite(&bits, 2u, 1u, handle);
-    std::fwrite("data", 1u, 4u, handle);
-    std::fwrite(&data_bytes, 4u, 1u, handle);
-    std::fwrite(samples.data(), 1u, samples.size(), handle);
-    std::fclose(handle);
+    fwrite("RIFF", 1u, 4u, handle);
+    fwrite(&riff_bytes, 4u, 1u, handle);
+    fwrite("WAVEfmt ", 1u, 8u, handle);
+    fwrite(&format_bytes, 4u, 1u, handle);
+    fwrite(&format_tag, 2u, 1u, handle);
+    fwrite(&channels, 2u, 1u, handle);
+    fwrite(&rate, 4u, 1u, handle);
+    fwrite(&byte_rate, 4u, 1u, handle);
+    fwrite(&block_align, 2u, 1u, handle);
+    fwrite(&bits, 2u, 1u, handle);
+    fwrite("data", 1u, 4u, handle);
+    fwrite(&data_bytes, 4u, 1u, handle);
+    fwrite(samples.data(), 1u, samples.size(), handle);
+    fclose(handle);
     return 1;
 }
 
@@ -426,24 +426,24 @@ int main(int argc, char **argv)
 {
     bench_lower_priority();
 
-    const unsigned length_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 22u;
+    const unsigned length_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 22u;
     const size_t length = (size_t)1u << length_bits;
 
-    std::printf("================================================================\n");
-    std::printf("  The digest heard against its own nonce\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Every statistic in this workbook is a histogram, and a histogram throws away\n");
-    std::printf("  the order its inputs arrived in. The arrangement work in H35 walked the value\n");
-    std::printf("  axis in all 4.29 billion linear directions. The nonce axis is a different axis\n");
-    std::printf("  and it is the one the miner walks, and nothing here has ever looked along it,\n");
-    std::printf("  because no histogram can.\n");
-    std::printf("\n  Nonce is time and the digest is the waveform. One sample is the last byte of\n");
-    std::printf("  one digest, which is the end of the digest the protocol reads as least\n");
-    std::printf("  significant and the part nothing else here has examined.\n");
-    std::printf("\n  Two scales, after vocalization_scale.py, where reading at the wrong one was\n");
-    std::printf("  wrong by four orders of magnitude. And a Fourier spectrum, which sees periodic\n");
-    std::printf("  structure where every Walsh test run here sees only dyadic.\n");
-    std::printf("\n  Samples: 2^%u nonces from zero.\n", length_bits);
+    printf("================================================================\n");
+    printf("  The digest heard against its own nonce\n");
+    printf("================================================================\n");
+    printf("\n  Every statistic in this workbook is a histogram, and a histogram throws away\n");
+    printf("  the order its inputs arrived in. The arrangement work in H35 walked the value\n");
+    printf("  axis in all 4.29 billion linear directions. The nonce axis is a different axis\n");
+    printf("  and it is the one the miner walks, and nothing here has ever looked along it,\n");
+    printf("  because no histogram can.\n");
+    printf("\n  Nonce is time and the digest is the waveform. One sample is the last byte of\n");
+    printf("  one digest, which is the end of the digest the protocol reads as least\n");
+    printf("  significant and the part nothing else here has examined.\n");
+    printf("\n  Two scales, after vocalization_scale.py, where reading at the wrong one was\n");
+    printf("  wrong by four orders of magnitude. And a Fourier spectrum, which sees periodic\n");
+    printf("  structure where every Walsh test run here sees only dyadic.\n");
+    printf("\n  Samples: 2^%u nonces from zero.\n", length_bits);
 
     const uint8_t header[BITCOIN_HEADER_BYTES] = {
         0x01, 0x00, 0x00, 0x00, 0x81, 0xcd, 0x02, 0xab, 0x7e, 0x56, 0x9e, 0x8b, 0xcd, 0x93, 0x17, 0xe2,
@@ -470,11 +470,11 @@ int main(int argc, char **argv)
     // and unit stay free until the answer is final.
     const size_t ladder[12] = {1u, 2u, 4u, 8u, 16u, 32u, 64u, 128u, 256u, 1024u, 4096u, 16384u};
 
-    std::printf("\n  Sweeping the unit over all 32 digest bytes and the scale over 12 blocks,\n");
-    std::printf("  which is 384 readings per signal instead of the 3 a fixed grid would give.\n");
+    printf("\n  Sweeping the unit over all 32 digest bytes and the scale over 12 blocks,\n");
+    printf("  which is 384 readings per signal instead of the 3 a fixed grid would give.\n");
 
-    std::printf("\n  %-28s %8s %8s %14s %12s %12s\n", "signal", "byte", "block", "largest peak", "expected", "period");
-    std::printf("  %-28s %8s %8s %14s %12s %12s\n", "----------------------------", "--------", "--------",
+    printf("\n  %-28s %8s %8s %14s %12s %12s\n", "signal", "byte", "block", "largest peak", "expected", "period");
+    printf("  %-28s %8s %8s %14s %12s %12s\n", "----------------------------", "--------", "--------",
                 "--------------", "------------", "------------");
 
     for (unsigned which = 0u; which < 3u; which += 1u)
@@ -521,8 +521,8 @@ int main(int argc, char **argv)
             }
         }
 
-        std::printf("  %-28s %8u %8zu %14.3f %12.3f %12.1f\n", source_name(source), best_byte, best_block, best_height,
-                    std::log(bins_examined), best_period);
+        printf("  %-28s %8u %8zu %14.3f %12.3f %12.1f\n", source_name(source), best_byte, best_block, best_height,
+                    log(bins_examined), best_period);
 
         // Five seconds of the byte that the sweep settles on. Thus anyone can listen to the report.
         const size_t heard = (size_t)SAMPLE_RATE * 5u;
@@ -534,28 +534,28 @@ int main(int argc, char **argv)
             std::error_code ignored;
             std::filesystem::create_directories("build/bench", ignored);
             char path[64];
-            std::snprintf(path, sizeof(path), "build/bench/sound_%u.wav", which);
+            snprintf(path, sizeof(path), "build/bench/sound_%u.wav", which);
             if (write_wav(path, clip, SAMPLE_RATE) == 0)
             {
-                std::printf("  could not write %s\n", path);
+                printf("  could not write %s\n", path);
             }
         }
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  For a white signal every spectral bin is exponentially distributed about the\n");
-    std::printf("  mean power, so the largest of n bins sits near ln(n) times the mean. That is\n");
-    std::printf("  the expected column, and it is derived instead of chosen.\n");
-    std::printf("\n  The comb control must show a peak at period 137 and a height far above the\n");
-    std::printf("  expected column. If it does not, the spectrum cannot find a period that was\n");
-    std::printf("  deliberately written in, and a flat reading on SHA256d would mean nothing at\n");
-    std::printf("  all. That control is the whole reason the other two rows are readable.\n");
-    std::printf("\n  The splitmix row is the other direction: it must come out near the expected\n");
-    std::printf("  column, because a tool that reports a peak for everything is as useless as one\n");
-    std::printf("  that reports none.\n");
-    std::printf("\n  In build/bench, sound_0.wav is SHA256d, sound_1.wav the pseudorandom control, and\n");
-    std::printf("  sound_2.wav the comb. The third should be audibly different from the first two.\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  For a white signal every spectral bin is exponentially distributed about the\n");
+    printf("  mean power, so the largest of n bins sits near ln(n) times the mean. That is\n");
+    printf("  the expected column, and it is derived instead of chosen.\n");
+    printf("\n  The comb control must show a peak at period 137 and a height far above the\n");
+    printf("  expected column. If it does not, the spectrum cannot find a period that was\n");
+    printf("  deliberately written in, and a flat reading on SHA256d would mean nothing at\n");
+    printf("  all. That control is the whole reason the other two rows are readable.\n");
+    printf("\n  The splitmix row is the other direction: it must come out near the expected\n");
+    printf("  column, because a tool that reports a peak for everything is as useless as one\n");
+    printf("  that reports none.\n");
+    printf("\n  In build/bench, sound_0.wav is SHA256d, sound_1.wav the pseudorandom control, and\n");
+    printf("  sound_2.wav the comb. The third should be audibly different from the first two.\n");
     return 0;
 }

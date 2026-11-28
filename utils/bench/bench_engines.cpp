@@ -20,8 +20,8 @@
 #include "sha256_core.h"
 
 #include <chrono>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <immintrin.h>
 #include <string>
 #include <thread>
@@ -190,14 +190,14 @@ void probe_legacy_dependence(const uint32_t *midstate, uint32_t remaining_merkle
     bool all_identical = true;
     uint32_t first = 0u;
 
-    std::printf("\n----------------------------------------------------------------\n");
-    std::printf("  Does the legacy output depend on the nonce?\n");
-    std::printf("----------------------------------------------------------------\n");
+    printf("\n----------------------------------------------------------------\n");
+    printf("  Does the legacy output depend on the nonce?\n");
+    printf("----------------------------------------------------------------\n");
 
     for (size_t index = 0u; index < (sizeof(probes) / sizeof(probes[0])); index += 1u)
     {
         const uint32_t distance = legacy_distance_for_nonce(midstate, remaining_merkle, timestamp, probes[index]);
-        std::printf("    nonce %10u -> distance %u\n", probes[index], distance);
+        printf("    nonce %10u -> distance %u\n", probes[index], distance);
         if (index == 0u)
         {
             first = distance;
@@ -210,19 +210,19 @@ void probe_legacy_dependence(const uint32_t *midstate, uint32_t remaining_merkle
 
     if (all_identical)
     {
-        std::printf("\n  Every nonce yields the same distance, %u.\n", first);
-        std::printf("  The reason is in the first three instructions. hash1_vector is\n");
-        std::printf("  _mm256_set1_epi32(base_val), all eight lanes hold one value. A shuffle\n");
-        std::printf("  of a vector whose lanes are equal is that same vector, so crease_1 is\n");
-        std::printf("  v XOR v, which is zero. Everything downstream folds zero into zero.\n");
-        std::printf("\n  So the legacy engine is a constant function. It does not read the nonce,\n");
-        std::printf("  the midstate, the merkle tail or the time. Its speed number below is not\n");
-        std::printf("  a measurement of a pipeline, it is the compiler deleting work it proved\n");
-        std::printf("  had no effect.\n");
+        printf("\n  Every nonce yields the same distance, %u.\n", first);
+        printf("  The reason is in the first three instructions. hash1_vector is\n");
+        printf("  _mm256_set1_epi32(base_val), all eight lanes hold one value. A shuffle\n");
+        printf("  of a vector whose lanes are equal is that same vector, so crease_1 is\n");
+        printf("  v XOR v, which is zero. Everything downstream folds zero into zero.\n");
+        printf("\n  So the legacy engine is a constant function. It does not read the nonce,\n");
+        printf("  the midstate, the merkle tail or the time. Its speed number below is not\n");
+        printf("  a measurement of a pipeline, it is the compiler deleting work it proved\n");
+        printf("  had no effect.\n");
     }
     else
     {
-        std::printf("\n  Output varies with the nonce.\n");
+        printf("\n  Output varies with the nonce.\n");
     }
 }
 
@@ -294,20 +294,20 @@ struct ArmMeasurement
  */
 void print_measurement(const ArmMeasurement &measurement)
 {
-    std::printf("\n  %s\n", measurement.name.c_str());
-    std::printf("    elapsed                   : %.3f s\n", measurement.seconds);
-    std::printf("    evaluations               : %llu\n", (unsigned long long)measurement.evaluations);
-    std::printf("    evaluations per second    : %.2f M/s\n", measurement.evaluations_per_second / 1.0e6);
-    std::printf("    SHA-256 compressions each : %.1f\n", measurement.sha256_compressions_per_evaluation);
-    std::printf("    useful hash rate          : %.2f MH/s\n", measurement.useful_hashes_per_second / 1.0e6);
-    std::printf("    claims a winning nonce    : %s\n", measurement.claims_a_win ? "yes" : "no");
+    printf("\n  %s\n", measurement.name.c_str());
+    printf("    elapsed                   : %.3f s\n", measurement.seconds);
+    printf("    evaluations               : %llu\n", (unsigned long long)measurement.evaluations);
+    printf("    evaluations per second    : %.2f M/s\n", measurement.evaluations_per_second / 1.0e6);
+    printf("    SHA-256 compressions each : %.1f\n", measurement.sha256_compressions_per_evaluation);
+    printf("    useful hash rate          : %.2f MH/s\n", measurement.useful_hashes_per_second / 1.0e6);
+    printf("    claims a winning nonce    : %s\n", measurement.claims_a_win ? "yes" : "no");
     if (measurement.claims_a_win)
     {
-        std::printf("    claimed nonce             : %u (0x%08x)\n", measurement.claimed_nonce,
+        printf("    claimed nonce             : %u (0x%08x)\n", measurement.claimed_nonce,
                     measurement.claimed_nonce);
-        std::printf("    claim survives verification: %s\n", measurement.claim_verifies ? "yes" : "NO");
+        printf("    claim survives verification: %s\n", measurement.claim_verifies ? "yes" : "NO");
     }
-    std::printf("    verdict                   : %s\n", measurement.verdict.c_str());
+    printf("    verdict                   : %s\n", measurement.verdict.c_str());
 }
 
 /**
@@ -363,11 +363,11 @@ double measure_threaded_rate(const uint8_t *header, unsigned thread_count)
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Engine comparison: legacy topological arm vs SHA-256 arm\n");
-    std::printf("  Same header, same nonce range, one thread each.\n");
-    std::printf("  Header: block 125552, nonce 0x%08x on the record.\n", BENCH_EXPECTED_NONCE);
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Engine comparison: legacy topological arm vs SHA-256 arm\n");
+    printf("  Same header, same nonce range, one thread each.\n");
+    printf("  Header: block 125552, nonce 0x%08x on the record.\n", BENCH_EXPECTED_NONCE);
+    printf("================================================================\n");
 
     const std::vector<uint8_t> header = bytes_from_hex(BENCH_HEADER_HEX);
     Sha256State midstate;
@@ -424,7 +424,7 @@ int main()
                 ? (measurement.claim_verifies ? "found a real nonce" : "claimed a nonce that is not a share")
                 : "no claim";
         measurements.push_back(measurement);
-        std::printf("\n  (legacy checksum %08x, printed so the loop cannot be optimized away)\n", legacy.checksum);
+        printf("\n  (legacy checksum %08x, printed so the loop cannot be optimized away)\n", legacy.checksum);
     }
 
     // --- SHA-256 arm ----------------------------------------------------------------------
@@ -478,9 +478,9 @@ int main()
         measurements.push_back(measurement);
     }
 
-    std::printf("\n----------------------------------------------------------------\n");
-    std::printf("  Per-core measurements\n");
-    std::printf("----------------------------------------------------------------\n");
+    printf("\n----------------------------------------------------------------\n");
+    printf("  Per-core measurements\n");
+    printf("----------------------------------------------------------------\n");
     for (const ArmMeasurement &measurement : measurements)
     {
         print_measurement(measurement);
@@ -489,35 +489,35 @@ int main()
     const double legacy_rate = measurements[0].evaluations_per_second;
     const double real_rate = measurements[1].evaluations_per_second;
 
-    std::printf("\n----------------------------------------------------------------\n");
-    std::printf("  Reading the numbers\n");
-    std::printf("----------------------------------------------------------------\n");
-    std::printf("\n  Raw iteration rate  : legacy is %.1fx the SHA-256 arm.\n",
+    printf("\n----------------------------------------------------------------\n");
+    printf("  Reading the numbers\n");
+    printf("----------------------------------------------------------------\n");
+    printf("\n  Raw iteration rate  : legacy is %.1fx the SHA-256 arm.\n",
                 (real_rate > 0.0) ? (legacy_rate / real_rate) : 0.0);
-    std::printf("  Work per iteration  : legacy 0 SHA-256 compressions, new arm 2.\n");
-    std::printf("  Useful hash rate    : legacy %.2f MH/s, new arm %.2f MH/s.\n", 0.0, real_rate / 1.0e6);
-    std::printf("\n  The legacy arm is faster per iteration because it skips the hash. It\n");
-    std::printf("  computes midstate[0] xor nonce, folds that once, stores it 128 times and\n");
-    std::printf("  reduces it. No message schedule, no round constants, no rounds. Its\n");
-    std::printf("  iteration rate is therefore not a hash rate and does not convert to one.\n");
+    printf("  Work per iteration  : legacy 0 SHA-256 compressions, new arm 2.\n");
+    printf("  Useful hash rate    : legacy %.2f MH/s, new arm %.2f MH/s.\n", 0.0, real_rate / 1.0e6);
+    printf("\n  The legacy arm is faster per iteration because it skips the hash. It\n");
+    printf("  computes midstate[0] xor nonce, folds that once, stores it 128 times and\n");
+    printf("  reduces it. No message schedule, no round constants, no rounds. Its\n");
+    printf("  iteration rate is therefore not a hash rate and does not convert to one.\n");
 
-    std::printf("\n  Share correctness, which is the axis that decides earnings:\n");
-    std::printf("    legacy : %s\n", measurements[0].verdict.c_str());
-    std::printf("    new arm: %s\n", measurements[1].verdict.c_str());
+    printf("\n  Share correctness, which is the axis that decides earnings:\n");
+    printf("    legacy : %s\n", measurements[0].verdict.c_str());
+    printf("    new arm: %s\n", measurements[1].verdict.c_str());
 
     if (measurements[0].claims_a_win && !measurements[0].claim_verifies)
     {
-        std::printf("\n  The legacy arm claimed nonce %u on the first iteration of the window.\n",
+        printf("\n  The legacy arm claimed nonce %u on the first iteration of the window.\n",
                     measurements[0].claimed_nonce);
-        std::printf("  Its test is distance < compact_target where distance is masked to 16 bits\n");
-        std::printf("  (at most 65535) and compact_target is nbits (%u). That comparison is\n", nbits_numeric);
-        std::printf("  true for every nonce, so it reports a win immediately, every time.\n");
-        std::printf("  At a pool every one of those is a rejected share.\n");
+        printf("  Its test is distance < compact_target where distance is masked to 16 bits\n");
+        printf("  (at most 65535) and compact_target is nbits (%u). That comparison is\n", nbits_numeric);
+        printf("  true for every nonce, so it reports a win immediately, every time.\n");
+        printf("  At a pool every one of those is a rejected share.\n");
     }
 
-    std::printf("\n----------------------------------------------------------------\n");
-    std::printf("  Thread scaling of the SHA-256 arm\n");
-    std::printf("----------------------------------------------------------------\n");
+    printf("\n----------------------------------------------------------------\n");
+    printf("  Thread scaling of the SHA-256 arm\n");
+    printf("----------------------------------------------------------------\n");
     const unsigned available = (std::thread::hardware_concurrency() > 0u) ? std::thread::hardware_concurrency() : 8u;
     const unsigned ladder[] = {1u, 2u, 4u, 8u, available};
     for (unsigned thread_count : ladder)
@@ -527,9 +527,9 @@ int main()
             continue;
         }
         const double rate = measure_threaded_rate(header.data(), thread_count);
-        std::printf("    %2u thread(s): %8.2f MH/s\n", thread_count, rate / 1.0e6);
+        printf("    %2u thread(s): %8.2f MH/s\n", thread_count, rate / 1.0e6);
     }
 
-    std::printf("\n================================================================\n");
+    printf("\n================================================================\n");
     return 0;
 }

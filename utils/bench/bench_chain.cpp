@@ -21,9 +21,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -47,15 +47,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -198,9 +198,9 @@ bool load_corpus(const std::string &path, std::vector<ChainBlock> &blocks)
  */
 void test_every_block_hashes(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Hashing %zu real solves\n", blocks.size());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  1. Hashing %zu real solves\n", blocks.size());
+    printf("================================================================\n");
 
     size_t hash_matches = 0u;
     size_t target_matches = 0u;
@@ -248,9 +248,9 @@ void test_every_block_hashes(const std::vector<ChainBlock> &blocks)
  */
 void test_chain_links(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. Is the corpus actually a chain?\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  2. Is the corpus actually a chain?\n");
+    printf("================================================================\n");
 
     size_t links = 0u;
     size_t checked = 0u;
@@ -271,8 +271,8 @@ void test_chain_links(const std::vector<ChainBlock> &blocks)
 
     check("every block names its predecessor's hash as its parent", links == checked,
           std::to_string(links) + " of " + std::to_string(checked));
-    std::printf("\n  Linkage is checked a corpus altered in transit fails here instead of\n");
-    std::printf("  passing section 1 against its own altered hashes.\n");
+    printf("\n  Linkage is checked a corpus altered in transit fails here instead of\n");
+    printf("  passing section 1 against its own altered hashes.\n");
 }
 
 /**
@@ -284,9 +284,9 @@ void test_chain_links(const std::vector<ChainBlock> &blocks)
  */
 void analyse_winning_nonces(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. Where do real winning nonces land?\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  3. Where do real winning nonces land?\n");
+    printf("================================================================\n");
 
     // Sixteen buckets across the 32-bit nonce space.
     const unsigned buckets = 16u;
@@ -304,19 +304,19 @@ void analyse_winning_nonces(const std::vector<ChainBlock> &blocks)
         chi_square += (residual * residual) / expected;
     }
 
-    std::printf("\n  Nonce space split into %u buckets, %zu solves, %.1f expected each:\n", buckets, blocks.size(),
+    printf("\n  Nonce space split into %u buckets, %zu solves, %.1f expected each:\n", buckets, blocks.size(),
                 expected);
-    std::printf("\n  ");
+    printf("\n  ");
     for (size_t bucket = 0u; bucket < buckets; bucket += 1u)
     {
-        std::printf("%4zu", counts[bucket]);
+        printf("%4zu", counts[bucket]);
     }
-    std::printf("\n");
+    printf("\n");
 
     // Chi-square on 15 degrees of freedom has mean 15 and standard deviation sqrt(30).
-    const double score = (chi_square - 15.0) / std::sqrt(30.0);
-    std::printf("\n  chi-square %.1f on 15 df (expected 15), z = %+.2f\n", chi_square, score);
-    check("winning nonces are spread uniformly across the space", std::fabs(score) < 4.0,
+    const double score = (chi_square - 15.0) / sqrt(30.0);
+    printf("\n  chi-square %.1f on 15 df (expected 15), z = %+.2f\n", chi_square, score);
+    check("winning nonces are spread uniformly across the space", fabs(score) < 4.0,
           "a preferred region would mean every miner should start there");
 
     // A version roll shows up as many distinct versions across a short span of blocks.
@@ -328,9 +328,9 @@ void analyse_winning_nonces(const std::vector<ChainBlock> &blocks)
     std::sort(versions.begin(), versions.end());
     const size_t distinct = (size_t)(std::unique(versions.begin(), versions.end()) - versions.begin());
 
-    std::printf("\n  distinct version values across %zu blocks: %zu\n", blocks.size(), distinct);
-    std::printf("  That is BIP320 version rolling in use. It is a real search dimension and it\n");
-    std::printf("  is being spent, which is why bounding the input to the nonce was wrong.\n");
+    printf("\n  distinct version values across %zu blocks: %zu\n", blocks.size(), distinct);
+    printf("  That is BIP320 version rolling in use. It is a real search dimension and it\n");
+    printf("  is being spent, which is why bounding the input to the nonce was wrong.\n");
 }
 
 /**
@@ -340,9 +340,9 @@ void analyse_winning_nonces(const std::vector<ChainBlock> &blocks)
  */
 void report_work(const std::vector<ChainBlock> &blocks)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. What these solves cost\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  4. What these solves cost\n");
+    printf("================================================================\n");
 
     if (blocks.empty())
     {
@@ -359,17 +359,17 @@ void report_work(const std::vector<ChainBlock> &blocks)
     {
         difficulty_scale = (difficulty_scale * 4294967296.0) + (double)target[rank];
     }
-    const double expected_hashes = std::pow(2.0, 256.0) / (difficulty_scale + 1.0);
+    const double expected_hashes = pow(2.0, 256.0) / (difficulty_scale + 1.0);
 
-    std::printf("\n  nbits on the newest block : %08x\n", blocks[0].bits);
-    std::printf("  expected hashes per solve : %.3e\n", expected_hashes);
-    std::printf("  this machine, CPU         : %.3e per second\n", 81.17e6);
-    std::printf("  this machine, RTX 3070    : %.3e per second\n", 1885.79e6);
-    std::printf("\n  So one solve at this difficulty is about %.2e seconds of the GPU,\n", expected_hashes / 1885.79e6);
-    std::printf("  which is %.2e years.\n", expected_hashes / 1885.79e6 / 31557600.0);
-    std::printf("\n  These %zu blocks were found in roughly %u seconds of wall clock by the\n", blocks.size(),
+    printf("\n  nbits on the newest block : %08x\n", blocks[0].bits);
+    printf("  expected hashes per solve : %.3e\n", expected_hashes);
+    printf("  this machine, CPU         : %.3e per second\n", 81.17e6);
+    printf("  this machine, RTX 3070    : %.3e per second\n", 1885.79e6);
+    printf("\n  So one solve at this difficulty is about %.2e seconds of the GPU,\n", expected_hashes / 1885.79e6);
+    printf("  which is %.2e years.\n", expected_hashes / 1885.79e6 / 31557600.0);
+    printf("\n  These %zu blocks were found in roughly %u seconds of wall clock by the\n", blocks.size(),
                 blocks.front().timestamp - blocks.back().timestamp);
-    std::printf("  whole network, which is the number this machine is being compared against.\n");
+    printf("  whole network, which is the number this machine is being compared against.\n");
 }
 
 } // namespace
@@ -378,18 +378,18 @@ int main(int argument_count, char **arguments)
 {
     const std::string path = (argument_count > 1) ? arguments[1] : "utils/maint/chain/blocks.json";
 
-    std::printf("================================================================\n");
-    std::printf("  A thousand real solves as a known answer test\n");
-    std::printf("  corpus: %s\n", path.c_str());
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  A thousand real solves as a known answer test\n");
+    printf("  corpus: %s\n", path.c_str());
+    printf("================================================================\n");
 
     std::vector<ChainBlock> blocks;
     if (!load_corpus(path, blocks))
     {
-        std::printf("\nCould not read the corpus. Run utils/maint/chain/fetch_blocks.py first.\n");
+        printf("\nCould not read the corpus. Run utils/maint/chain/fetch_blocks.py first.\n");
         return 1;
     }
-    std::printf("\nloaded %zu blocks, heights %u to %u\n", blocks.size(), blocks.back().height, blocks.front().height);
+    printf("\nloaded %zu blocks, heights %u to %u\n", blocks.size(), blocks.back().height, blocks.front().height);
 
     const auto started = std::chrono::steady_clock::now();
 
@@ -399,9 +399,9 @@ int main(int argument_count, char **arguments)
     report_work(blocks);
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("  elapsed %.2f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("  elapsed %.2f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

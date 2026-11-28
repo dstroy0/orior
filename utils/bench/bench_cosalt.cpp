@@ -21,9 +21,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <thread>
 #include <vector>
@@ -204,11 +204,11 @@ int main(int argument_count, char **arguments)
 {
     uint32_t total = (argument_count > 1) ? (uint32_t)std::stoul(arguments[1]) : (1u << 21);
 
-    std::printf("================================================================\n");
-    std::printf("  Co-arm salts: do they combine independently?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  %u salts, most read off the algorithm's own rotation sets.\n", SALT_COUNT);
-    std::printf("  Each candidate costs %u hashes, so %u candidates is %u hashes.\n", SALT_COUNT + 1u, total,
+    printf("================================================================\n");
+    printf("  Co-arm salts: do they combine independently?\n");
+    printf("================================================================\n");
+    printf("\n  %u salts, most read off the algorithm's own rotation sets.\n", SALT_COUNT);
+    printf("  Each candidate costs %u hashes, so %u candidates is %u hashes.\n", SALT_COUNT + 1u, total,
                 total * (SALT_COUNT + 1u));
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
@@ -254,40 +254,40 @@ int main(int argument_count, char **arguments)
     }
 
     const double samples = (double)combined.evaluated;
-    std::printf("\n  %llu candidates in %.1f s\n", (unsigned long long)combined.evaluated,
+    printf("\n  %llu candidates in %.1f s\n", (unsigned long long)combined.evaluated,
                 std::chrono::duration<double>(finished - started).count());
 
     // --- The cascade tail -------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  1. The cascade tail. Does it fall as 2^-k?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Requiring the first k salt responses all clear. Independent arms halve the\n");
-    std::printf("  survivor count per arm, so the prediction is stated before the measurement.\n");
-    std::printf("\n  %6s %16s %16s %10s %10s\n", "arms", "predicted", "measured", "ratio", "sigma");
-    std::printf("  %6s %16s %16s %10s %10s\n", "------", "----------------", "----------------", "----------",
+    printf("\n================================================================\n");
+    printf("  1. The cascade tail. Does it fall as 2^-k?\n");
+    printf("================================================================\n");
+    printf("\n  Requiring the first k salt responses all clear. Independent arms halve the\n");
+    printf("  survivor count per arm, so the prediction is stated before the measurement.\n");
+    printf("\n  %6s %16s %16s %10s %10s\n", "arms", "predicted", "measured", "ratio", "sigma");
+    printf("  %6s %16s %16s %10s %10s\n", "------", "----------------", "----------------", "----------",
                 "----------");
 
     for (unsigned width = 0u; width <= SALT_COUNT; width += 1u)
     {
-        const double rate = std::pow(0.5, (double)width);
+        const double rate = pow(0.5, (double)width);
         const double predicted = samples * rate;
         const double measured = (double)combined.cascade[width];
-        const double standard_error = std::sqrt(samples * rate * (1.0 - rate));
+        const double standard_error = sqrt(samples * rate * (1.0 - rate));
         const double score = (standard_error > 0.0) ? ((measured - predicted) / standard_error) : 0.0;
 
-        std::printf("  %6u %16.1f %16.0f %10.5f %+10.2f\n", width, predicted, measured,
+        printf("  %6u %16.1f %16.0f %10.5f %+10.2f\n", width, predicted, measured,
                     (predicted > 0.0) ? (measured / predicted) : 0.0, score);
     }
-    std::printf("\n  The tail does fall to zero, and that is arithmetic instead of a finding.\n");
-    std::printf("  What would be a finding is a ratio away from one, meaning the arms are not\n");
-    std::printf("  independent and the product rule does not hold.\n");
+    printf("\n  The tail does fall to zero, and that is arithmetic instead of a finding.\n");
+    printf("  What would be a finding is a ratio away from one, meaning the arms are not\n");
+    printf("  independent and the product rule does not hold.\n");
 
     // --- Pairwise independence --------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  2. Are the arms independent of each other?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Agreement between each pair of salt responses. Independent arms agree half\n");
-    std::printf("  the time. Standard error is %.2e.\n", 0.5 / std::sqrt(samples));
+    printf("\n================================================================\n");
+    printf("  2. Are the arms independent of each other?\n");
+    printf("================================================================\n");
+    printf("\n  Agreement between each pair of salt responses. Independent arms agree half\n");
+    printf("  the time. Standard error is %.2e.\n", 0.5 / sqrt(samples));
 
     double worst_pair = 0.0;
     unsigned worst_left = 0u;
@@ -298,9 +298,9 @@ int main(int argument_count, char **arguments)
         for (unsigned right = left + 1u; right < SALT_COUNT; right += 1u)
         {
             const double agreement = (double)combined.pair_agree[(left * SALT_COUNT) + right] / samples;
-            const double score = (agreement - 0.5) / (0.5 / std::sqrt(samples));
+            const double score = (agreement - 0.5) / (0.5 / sqrt(samples));
 
-            if (std::fabs(score) > std::fabs(worst_pair))
+            if (fabs(score) > fabs(worst_pair))
             {
                 worst_pair = score;
                 worst_left = left;
@@ -308,18 +308,18 @@ int main(int argument_count, char **arguments)
             }
         }
     }
-    std::printf("\n  largest departure: salts %u and %u at %+.2f sigma\n", worst_left, worst_right, worst_pair);
-    std::printf("  pairs tested     : %u, so the expected worst by chance is near %.1f sigma\n",
+    printf("\n  largest departure: salts %u and %u at %+.2f sigma\n", worst_left, worst_right, worst_pair);
+    printf("  pairs tested     : %u, so the expected worst by chance is near %.1f sigma\n",
                 (SALT_COUNT * (SALT_COUNT - 1u)) / 2u,
-                std::sqrt(2.0 * std::log((double)((SALT_COUNT * (SALT_COUNT - 1u)) / 2u))));
-    std::printf("  verdict          : %s\n",
-                (std::fabs(worst_pair) < 5.0) ? "arms are independent" : "ARMS ARE COUPLED, worth investigating");
+                sqrt(2.0 * log((double)((SALT_COUNT * (SALT_COUNT - 1u)) / 2u))));
+    printf("  verdict          : %s\n",
+                (fabs(worst_pair) < 5.0) ? "arms are independent" : "ARMS ARE COUPLED, worth investigating");
 
     // --- Joint occupancy --------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  3. Joint occupancy of the response pattern\n");
-    std::printf("================================================================\n");
-    std::printf("\n  All %zu response patterns should be equally likely. Chi-square against that.\n",
+    printf("\n================================================================\n");
+    printf("  3. Joint occupancy of the response pattern\n");
+    printf("================================================================\n");
+    printf("\n  All %zu response patterns should be equally likely. Chi-square against that.\n",
                 combined.joint.size());
 
     const double expected = samples / (double)combined.joint.size();
@@ -330,25 +330,25 @@ int main(int argument_count, char **arguments)
         chi_square += (residual * residual) / expected;
     }
     const double degrees = (double)combined.joint.size() - 1.0;
-    const double chi_score = (chi_square - degrees) / std::sqrt(2.0 * degrees);
+    const double chi_score = (chi_square - degrees) / sqrt(2.0 * degrees);
 
-    std::printf("\n  chi-square %.1f on %.0f df (expected %.0f), z = %+.2f\n", chi_square, degrees, degrees, chi_score);
-    std::printf("  verdict   : %s\n", (std::fabs(chi_score) < 5.0) ? "no response pattern is preferred"
+    printf("\n  chi-square %.1f on %.0f df (expected %.0f), z = %+.2f\n", chi_square, degrees, degrees, chi_score);
+    printf("  verdict   : %s\n", (fabs(chi_score) < 5.0) ? "no response pattern is preferred"
                                                                    : "A PATTERN IS PREFERRED, worth investigating");
 
     // --- Does the sieve keep the winners? ---------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  4. The survivor divider. Does it divide the winners too?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A cascade halves the survivor count per arm, which sections 1 to 3 confirm.\n");
-    std::printf("  The question that decides whether it is worth anything is whether the\n");
-    std::printf("  candidates it keeps are enriched in winners, or merely fewer.\n");
-    std::printf("\n  Section 2.2 of anchor-sift.md is the test. An anchor is sound because it is\n");
-    std::printf("  a subconfiguration of the pattern, an occurrence must satisfy it and no\n");
-    std::printf("  occurrence can be lost. A salt response is not a member of that set: it is a\n");
-    std::printf("  property of a difference between two candidates, not a condition the target\n");
-    std::printf("  imposes on one. So the theorem does not cover it, and whether it keeps\n");
-    std::printf("  winners has to be measured.\n");
+    printf("\n================================================================\n");
+    printf("  4. The survivor divider. Does it divide the winners too?\n");
+    printf("================================================================\n");
+    printf("\n  A cascade halves the survivor count per arm, which sections 1 to 3 confirm.\n");
+    printf("  The question that decides whether it is worth anything is whether the\n");
+    printf("  candidates it keeps are enriched in winners, or merely fewer.\n");
+    printf("\n  Section 2.2 of anchor-sift.md is the test. An anchor is sound because it is\n");
+    printf("  a subconfiguration of the pattern, an occurrence must satisfy it and no\n");
+    printf("  occurrence can be lost. A salt response is not a member of that set: it is a\n");
+    printf("  property of a difference between two candidates, not a condition the target\n");
+    printf("  imposes on one. So the theorem does not cover it, and whether it keeps\n");
+    printf("  winners has to be measured.\n");
 
     // An easy target so winners are common enough to count: 12 leading zero bits, about 1 in 4096.
     const unsigned target_bits = 12u;
@@ -399,10 +399,10 @@ int main(int argument_count, char **arguments)
         }
     }
 
-    std::printf("\n  Target is %u leading zero bits, about one candidate in %.0f.\n", target_bits,
-                std::pow(2.0, (double)target_bits));
-    std::printf("\n  %6s %14s %12s %16s %10s\n", "arms", "survivors", "winners", "winner rate", "enriched");
-    std::printf("  %6s %14s %12s %16s %10s\n", "------", "--------------", "------------", "----------------",
+    printf("\n  Target is %u leading zero bits, about one candidate in %.0f.\n", target_bits,
+                pow(2.0, (double)target_bits));
+    printf("\n  %6s %14s %12s %16s %10s\n", "arms", "survivors", "winners", "winner rate", "enriched");
+    printf("  %6s %14s %12s %16s %10s\n", "------", "--------------", "------------", "----------------",
                 "----------");
 
     const double base_rate = (survivors[0] > 0u) ? ((double)winners[0] / (double)survivors[0]) : 0.0;
@@ -410,18 +410,18 @@ int main(int argument_count, char **arguments)
     for (unsigned width = 0u; width <= SALT_COUNT; width += 1u)
     {
         const double rate = (survivors[width] > 0u) ? ((double)winners[width] / (double)survivors[width]) : 0.0;
-        std::printf("  %6u %14llu %12llu %16.8f %10.4f\n", width, (unsigned long long)survivors[width],
+        printf("  %6u %14llu %12llu %16.8f %10.4f\n", width, (unsigned long long)survivors[width],
                     (unsigned long long)winners[width], rate, (base_rate > 0.0) ? (rate / base_rate) : 0.0);
     }
 
-    std::printf("\n  Enrichment near 1.0 at every depth means the cascade threw away winners at\n");
-    std::printf("  exactly the rate it threw away everything else. It is a survivor divider that\n");
-    std::printf("  divides the survivors you want along with the rest, so it costs %u extra\n", SALT_COUNT);
-    std::printf("  hashes per candidate and buys no concentration.\n");
-    std::printf("\n  Enrichment rising with depth would be the finding: a filter that keeps\n");
-    std::printf("  winners preferentially, which is what a sound anchor does by construction and\n");
-    std::printf("  what a salt response would have to be shown to do by measurement.\n");
+    printf("\n  Enrichment near 1.0 at every depth means the cascade threw away winners at\n");
+    printf("  exactly the rate it threw away everything else. It is a survivor divider that\n");
+    printf("  divides the survivors you want along with the rest, so it costs %u extra\n", SALT_COUNT);
+    printf("  hashes per candidate and buys no concentration.\n");
+    printf("\n  Enrichment rising with depth would be the finding: a filter that keeps\n");
+    printf("  winners preferentially, which is what a sound anchor does by construction and\n");
+    printf("  what a salt response would have to be shown to do by measurement.\n");
 
-    std::printf("\n================================================================\n");
+    printf("\n================================================================\n");
     return 0;
 }

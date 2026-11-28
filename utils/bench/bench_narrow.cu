@@ -40,9 +40,9 @@
 
 #include <cuda_runtime.h>
 
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <vector>
 
 namespace
@@ -447,23 +447,23 @@ __global__ void narrow_walk(uint64_t trials, uint64_t seed, unsigned width, unsi
 
 int main(int argc, char **argv)
 {
-    const unsigned sample_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 32u;
+    const unsigned sample_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 32u;
 
-    std::printf("================================================================\n");
-    std::printf("  SHA-256 squished, so the answers are computed instead of sampled\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The observer is not obliged to stand outside watching output go past. The\n");
-    std::printf("  whole object is available and can be shrunk, and shrinking is the move that\n");
-    std::printf("  changes what is knowable: at four-bit words the state is 32 bits and every one\n");
-    std::printf("  of them can be visited, so the differential spread is a finite sum instead of\n");
-    std::printf("  an estimate with a floor under it.\n");
-    std::printf("\n  Aimed at the largest unknown in the topology document: why forward differences\n");
-    std::printf("  die at nine rounds and inverted ones survive past thirteen. Topology was tested\n");
-    std::printf("  for it and failed, because a cone bounds what could arrive and not what does.\n");
-    std::printf("\n  Four-bit words are the control: too narrow for three distinct rotation amounts,\n");
-    std::printf("  so Sigma0 and Sigma1 collapse together and the rotation design is gone. Anything\n");
-    std::printf("  surviving there is not coming from that design. Eight-bit words keep three\n");
-    std::printf("  distinct amounts, which is the structure the real thing has.\n");
+    printf("================================================================\n");
+    printf("  SHA-256 squished, so the answers are computed instead of sampled\n");
+    printf("================================================================\n");
+    printf("\n  The observer is not obliged to stand outside watching output go past. The\n");
+    printf("  whole object is available and can be shrunk, and shrinking is the move that\n");
+    printf("  changes what is knowable: at four-bit words the state is 32 bits and every one\n");
+    printf("  of them can be visited, so the differential spread is a finite sum instead of\n");
+    printf("  an estimate with a floor under it.\n");
+    printf("\n  Aimed at the largest unknown in the topology document: why forward differences\n");
+    printf("  die at nine rounds and inverted ones survive past thirteen. Topology was tested\n");
+    printf("  for it and failed, because a cone bounds what could arrive and not what does.\n");
+    printf("\n  Four-bit words are the control: too narrow for three distinct rotation amounts,\n");
+    printf("  so Sigma0 and Sigma1 collapse together and the rotation design is gone. Anything\n");
+    printf("  surviving there is not coming from that design. Eight-bit words keep three\n");
+    printf("  distinct amounts, which is the structure the real thing has.\n");
 
     uint32_t words[64];
     uint32_t state = 20260908u;
@@ -481,13 +481,13 @@ int main(int argc, char **argv)
     cudaMalloc((void **)&device_spread, sizeof(unsigned long long));
     cudaMalloc((void **)&device_counted, sizeof(unsigned long long));
 
-    std::printf("\n  Width is swept instead of picked, because it is a coordinate and a coordinate\n");
-    std::printf("  that can be scanned is not one to fix. The rotation amounts are derived from the\n");
-    std::printf("  standard's by scaling, so every width is the same construction instead of a\n");
-    std::printf("  hand-made object per width.\n");
+    printf("\n  Width is swept instead of picked, because it is a coordinate and a coordinate\n");
+    printf("  that can be scanned is not one to fix. The rotation amounts are derived from the\n");
+    printf("  standard's by scaling, so every width is the same construction instead of a\n");
+    printf("  hand-made object per width.\n");
 
-    std::printf("\n  %8s %8s %18s %18s %12s\n", "width", "state", "low amounts", "high amounts", "distinct");
-    std::printf("  %8s %8s %18s %18s %12s\n", "--------", "--------", "------------------", "------------------",
+    printf("\n  %8s %8s %18s %18s %12s\n", "width", "state", "low amounts", "high amounts", "distinct");
+    printf("  %8s %8s %18s %18s %12s\n", "--------", "--------", "------------------", "------------------",
                 "------------");
     for (unsigned width = 3u; width <= 8u; width += 1u)
     {
@@ -502,9 +502,9 @@ int main(int argc, char **argv)
         const int high_distinct = ((ha != hb) && (hb != hc) && (ha != hc)) ? 1 : 0;
         const int sets_differ = ((la != ha) || (lb != hb) || (lc != hc)) ? 1 : 0;
         char summary[24];
-        std::snprintf(summary, sizeof(summary), "%s%s", ((low_distinct != 0) && (high_distinct != 0)) ? "yes" : "no",
+        snprintf(summary, sizeof(summary), "%s%s", ((low_distinct != 0) && (high_distinct != 0)) ? "yes" : "no",
                       (sets_differ != 0) ? ", differ" : ", same");
-        std::printf("  %8u %8u %6u %5u %5u %6u %5u %5u %12s\n", width, width * WORDS, la, lb, lc, ha, hb, hc, summary);
+        printf("  %8u %8u %6u %5u %5u %6u %5u %5u %12s\n", width, width * WORDS, la, lb, lc, ha, hb, hc, summary);
     }
 
     for (unsigned width = 3u; width <= 8u; width += 1u)
@@ -515,10 +515,10 @@ int main(int argc, char **argv)
         // Saturation for a whole state of this width, which is half its bits.
         const double saturated = (double)bits / 2.0;
 
-        std::printf("\n================================================================\n");
-        std::printf("  %u-bit words, %u-bit state, %s over %llu states\n", width, bits,
+        printf("\n================================================================\n");
+        printf("  %u-bit words, %u-bit state, %s over %llu states\n", width, bits,
                     (exhaustive != 0) ? "EXHAUSTIVE" : "sampled", (unsigned long long)span);
-        std::printf("================================================================\n");
+        printf("================================================================\n");
 
         for (unsigned rounds_setting = 0u; rounds_setting < 2u; rounds_setting += 1u)
         {
@@ -526,9 +526,9 @@ int main(int argc, char **argv)
             // something more mixed than SHA-256. Rounds scaled with the width keep the mix
             // comparable. A report of one would choose an answer.
             const unsigned deepest = (rounds_setting == 0u) ? ((64u * width) / 32u) : 24u;
-            std::printf("\n  rounds scaled with the width to %u, and read to that depth\n", deepest);
-            std::printf("\n  %8s %16s %16s %14s\n", "rounds", "forward spread", "inverse spread", "saturated at");
-            std::printf("  %8s %16s %16s %14s\n", "--------", "----------------", "----------------", "--------------");
+            printf("\n  rounds scaled with the width to %u, and read to that depth\n", deepest);
+            printf("\n  %8s %16s %16s %14s\n", "rounds", "forward spread", "inverse spread", "saturated at");
+            printf("  %8s %16s %16s %14s\n", "--------", "----------------", "----------------", "--------------");
 
             for (unsigned rounds = 1u; rounds <= deepest; rounds += 1u)
             {
@@ -550,24 +550,24 @@ int main(int argc, char **argv)
                     reading[backward] = (seen > 0u) ? ((double)total / (double)seen) : 0.0;
                 }
 
-                std::printf("  %8u %16.6f %16.6f %14.1f\n", rounds, reading[0], reading[1], saturated);
+                printf("  %8u %16.6f %16.6f %14.1f\n", rounds, reading[0], reading[1], saturated);
             }
         }
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The spread columns are the mean Hamming distance of the whole output state.\n");
-    std::printf("  Saturation is half the state bits, and a column that reaches it has lost the\n");
-    std::printf("  difference entirely. Where the run is exhaustive these are the exact values and\n");
-    std::printf("  there is no floor to clear and no control to compare against, because nothing\n");
-    std::printf("  about them is uncertain.\n");
-    std::printf("\n  If the forward and inverse columns saturate at different rounds here, the\n");
-    std::printf("  asymmetry is a property of this shape at any width and the full-size reading\n");
-    std::printf("  was not a coincidence of sampling. If they saturate together, the asymmetry\n");
-    std::printf("  belongs to the 32-bit width or to something the narrowing removed, and the\n");
-    std::printf("  four-bit control says whether the rotation design is what removed it.\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  The spread columns are the mean Hamming distance of the whole output state.\n");
+    printf("  Saturation is half the state bits, and a column that reaches it has lost the\n");
+    printf("  difference entirely. Where the run is exhaustive these are the exact values and\n");
+    printf("  there is no floor to clear and no control to compare against, because nothing\n");
+    printf("  about them is uncertain.\n");
+    printf("\n  If the forward and inverse columns saturate at different rounds here, the\n");
+    printf("  asymmetry is a property of this shape at any width and the full-size reading\n");
+    printf("  was not a coincidence of sampling. If they saturate together, the asymmetry\n");
+    printf("  belongs to the 32-bit width or to something the narrowing removed, and the\n");
+    printf("  four-bit control says whether the rotation design is what removed it.\n");
 
     // ---------------------------------------------------------------------------------------
     // The rake, in both directions.
@@ -582,14 +582,14 @@ int main(int argc, char **argv)
     // rounds forward and s backward covers r plus s when the two meet in the middle. The inverse is
     // the side of slower diffusion.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The rake: every pin set at once, and the hole is exact\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A differential moves one pin. This holds every coordinate still and sweeps a\n");
-    std::printf("  whole subspace, then reads the sum. Below the subspace dimension the algebraic\n");
-    std::printf("  degree cannot survive the cancellation, so the sum is exactly zero - an\n");
-    std::printf("  identity that holds or does not, instead of a number to be compared against a\n");
-    std::printf("  null. It is the one reading here that needs no control.\n");
+    printf("\n================================================================\n");
+    printf("  The rake: every pin set at once, and the hole is exact\n");
+    printf("================================================================\n");
+    printf("\n  A differential moves one pin. This holds every coordinate still and sweeps a\n");
+    printf("  whole subspace, then reads the sum. Below the subspace dimension the algebraic\n");
+    printf("  degree cannot survive the cancellation, so the sum is exactly zero - an\n");
+    printf("  identity that holds or does not, instead of a number to be compared against a\n");
+    printf("  null. It is the one reading here that needs no control.\n");
 
     {
         unsigned *device_positions = nullptr;
@@ -599,9 +599,9 @@ int main(int argc, char **argv)
 
         for (unsigned width = 4u; width <= 8u; width += 4u)
         {
-            std::printf("\n  %u-bit words\n", width);
-            std::printf("\n  %10s %10s %20s %20s\n", "dimension", "inputs", "forward zero to", "inverse zero to");
-            std::printf("  %10s %10s %20s %20s\n", "----------", "----------", "--------------------",
+            printf("\n  %u-bit words\n", width);
+            printf("\n  %10s %10s %20s %20s\n", "dimension", "inputs", "forward zero to", "inverse zero to");
+            printf("  %10s %10s %20s %20s\n", "----------", "----------", "--------------------",
                         "--------------------");
 
             for (unsigned dimension = 2u; dimension <= 12u; dimension += 2u)
@@ -647,7 +647,7 @@ int main(int argc, char **argv)
                     }
                 }
 
-                std::printf("  %10u %10llu %20u %20u\n", dimension, (unsigned long long)1u << dimension, reach[0],
+                printf("  %10u %10llu %20u %20u\n", dimension, (unsigned long long)1u << dimension, reach[0],
                             reach[1]);
             }
         }
@@ -669,14 +669,14 @@ int main(int argc, char **argv)
     // about SHA-256. If it does not hold, the kernel is wrong. If it holds, the argument above is
     // wrong, and one of those zeros is an accident, and not a degree bound.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Bisecting the monotonicity violation\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A dimension-ten sum must equal the exclusive-or of the four dimension-eight\n");
-    std::printf("  sums over its cosets. That is an identity about the kernel's bookkeeping, not\n");
-    std::printf("  about the function, a mismatch localises the defect immediately.\n");
-    std::printf("\n  %8s %20s %20s %12s\n", "rounds", "whole at dim 10", "cosets of dim 8", "agree");
-    std::printf("  %8s %20s %20s %12s\n", "--------", "--------------------", "--------------------", "------------");
+    printf("\n================================================================\n");
+    printf("  Bisecting the monotonicity violation\n");
+    printf("================================================================\n");
+    printf("\n  A dimension-ten sum must equal the exclusive-or of the four dimension-eight\n");
+    printf("  sums over its cosets. That is an identity about the kernel's bookkeeping, not\n");
+    printf("  about the function, a mismatch localises the defect immediately.\n");
+    printf("\n  %8s %20s %20s %12s\n", "rounds", "whole at dim 10", "cosets of dim 8", "agree");
+    printf("  %8s %20s %20s %12s\n", "--------", "--------------------", "--------------------", "------------");
 
     {
         const unsigned width = 4u;
@@ -729,25 +729,25 @@ int main(int argc, char **argv)
                 assembled ^= part;
             }
 
-            std::printf("  %8u %20llx %20llx %12s\n", rounds, whole, assembled, (whole == assembled) ? "yes" : "NO");
+            printf("  %8u %20llx %20llx %12s\n", rounds, whole, assembled, (whole == assembled) ? "yes" : "NO");
         }
 
         cudaFree(device_positions);
         cudaFree(device_total);
     }
 
-    std::printf("\n  Agreement everywhere means the kernel adds correctly and the reach table's\n");
-    std::printf("  zeros at one base were accidents instead of degree bounds - which would mean\n");
-    std::printf("  the reach has to be read over several bases, not one. Disagreement means the\n");
-    std::printf("  kernel is wrong and nothing it has produced counts.\n");
+    printf("\n  Agreement everywhere means the kernel adds correctly and the reach table's\n");
+    printf("  zeros at one base were accidents instead of degree bounds - which would mean\n");
+    printf("  the reach has to be read over several bases, not one. Disagreement means the\n");
+    printf("  kernel is wrong and nothing it has produced counts.\n");
 
-    std::printf("\n  The reach columns are the last round at which the sum was still exactly zero.\n");
-    std::printf("  A dimension that reaches further than the one below it is the degree growing\n");
-    std::printf("  slower than the dimension, and where the columns stop growing with dimension the\n");
-    std::printf("  degree has caught up and the rake is finished.\n");
-    std::printf("\n  Forward and inverse are read separately because the inverse holds pressure from\n");
-    std::printf("  the other end: matched in the middle, an integral covers the sum of the two, and\n");
-    std::printf("  the inverse is already known to be the slower-diffusing side.\n");
+    printf("\n  The reach columns are the last round at which the sum was still exactly zero.\n");
+    printf("  A dimension that reaches further than the one below it is the degree growing\n");
+    printf("  slower than the dimension, and where the columns stop growing with dimension the\n");
+    printf("  degree has caught up and the rake is finished.\n");
+    printf("\n  Forward and inverse are read separately because the inverse holds pressure from\n");
+    printf("  the other end: matched in the middle, an integral covers the sum of the two, and\n");
+    printf("  the inverse is already known to be the slower-diffusing side.\n");
 
     // ---------------------------------------------------------------------------------------
     // Does the peak destruction rate follow the width?
@@ -764,13 +764,13 @@ int main(int argc, char **argv)
     // statistic as the 32-bit result. Rounds pinned at the ceiling are the shift chain with an
     // untouched word, and carry no rate. Thus the bench excludes them here, as there.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Peak destruction rate against width\n");
-    std::printf("================================================================\n");
-    std::printf("\n  At 32 bits the forward decay peaks at 29.73 per round, 4.89 bits against 5.000\n");
-    std::printf("  for exactly 32. If that is one word destroyed per round the peak tracks the\n");
-    std::printf("  width and reads near 8 at eight bits; if it is a constant of the construction\n");
-    std::printf("  every width peaks near the same figure and 32 was a coincidence.\n");
+    printf("\n================================================================\n");
+    printf("  Peak destruction rate against width\n");
+    printf("================================================================\n");
+    printf("\n  At 32 bits the forward decay peaks at 29.73 per round, 4.89 bits against 5.000\n");
+    printf("  for exactly 32. If that is one word destroyed per round the peak tracks the\n");
+    printf("  width and reads near 8 at eight bits; if it is a constant of the construction\n");
+    printf("  every width peaks near the same figure and 32 was a coincidence.\n");
 
     {
         const unsigned WIDTHS = 7u;
@@ -788,9 +788,9 @@ int main(int argc, char **argv)
         // rotation has short orbits, and mixes weakly. A sweep of the width therefore sweeps the
         // construction, and not one construction at several sizes. The worst gcd in a row is the
         // honest label for how much of the design survives the narrowing.
-        std::printf("\n  %6s %11s %11s %6s %11s %10s %8s %8s\n", "width", "low rot", "high rot", "worst", "peak x/rd",
+        printf("\n  %6s %11s %11s %6s %11s %10s %8s %8s\n", "width", "low rot", "high rot", "worst", "peak x/rd",
                     "peak bits", "w bits", "dies at");
-        std::printf("  %6s %11s %11s %6s %11s %10s %8s %8s\n", "------", "-----------", "-----------", "------",
+        printf("  %6s %11s %11s %6s %11s %10s %8s %8s\n", "------", "-----------", "-----------", "------",
                     "-----------", "----------", "--------", "--------");
 
         for (unsigned which = 0u; which < WIDTHS; which += 1u)
@@ -838,8 +838,8 @@ int main(int argc, char **argv)
                 before = strongest;
             }
 
-            const double peak_bits = (peak > 0.0) ? std::log2(peak) : 0.0;
-            const double width_bits = std::log2((double)width);
+            const double peak_bits = (peak > 0.0) ? log2(peak) : 0.0;
+            const double width_bits = log2((double)width);
 
             unsigned low_a = 0u;
             unsigned low_b = 0u;
@@ -866,40 +866,40 @@ int main(int argc, char **argv)
 
             char low_text[16];
             char high_text[16];
-            std::snprintf(low_text, sizeof(low_text), "%u,%u,%u", low_a, low_b, low_c);
-            std::snprintf(high_text, sizeof(high_text), "%u,%u,%u", high_a, high_b, high_c);
+            snprintf(low_text, sizeof(low_text), "%u,%u,%u", low_a, low_b, low_c);
+            snprintf(high_text, sizeof(high_text), "%u,%u,%u", high_a, high_b, high_c);
 
-            std::printf("  %6u %11s %11s %6u %11.2f %10.2f %8.2f %8u\n", width, low_text, high_text, worst, peak,
+            printf("  %6u %11s %11s %6u %11.2f %10.2f %8.2f %8u\n", width, low_text, high_text, worst, peak,
                         peak_bits, width_bits, dies);
         }
 
         cudaFree(device_sums);
         cudaFree(device_seen);
 
-        std::printf("\n  The worst column is the largest gcd between the width and any of its six\n");
-        std::printf("  rotation amounts, so it is the shortest orbit the narrowing left in place.\n");
-        std::printf("  A row with a worst above one is not the same construction as a row with one,\n");
-        std::printf("  and this sweep therefore compares seven constructions instead of one at\n");
-        std::printf("  seven sizes. The peak column tracks that instead of the width.\n");
-        std::printf("\n  The peak column is not measurable at this resolution either. The collapse\n");
-        std::printf("  falls between two integer rounds, a ratio of rounds is a derivative sampled\n");
-        std::printf("  coarser than the thing it is sampling, and it lands where the round grid\n");
-        std::printf("  happens to cut the fall. Sub-round resolution wants the input weight swept\n");
-        std::printf("  instead, since a heavier difference collapses earlier and walks the fall\n");
-        std::printf("  across the grid.\n");
-        std::printf("\n  The dies column is the one that holds still, and it holds still at nine or\n");
-        std::printf("  ten across an eightfold change in width. A wall set by how many words are on\n");
-        std::printf("  the chain is exactly what does not move when the bits inside them change; a\n");
-        std::printf("  wall set by the width of a word would have moved and did not. Varying the\n");
-        std::printf("  word count instead of the word width is the test that would settle it, and\n");
-        std::printf("  this bench holds eight words at every width.\n");
-        std::printf("\n  The two triples above are the state functions, Sigma0 at 2, 13, 22 and\n");
-        std::printf("  Sigma1 at 6, 11, 25. The schedule's own constants - sigma0 at 7, 18 and a\n");
-        std::printf("  shift of 3, sigma1 at 17, 19 and a shift of 10 - are not swept here and are\n");
-        std::printf("  not narrowed by anything in this tree, because this bench feeds independent\n");
-        std::printf("  random words instead of expanding a schedule. A nonce travels through those\n");
-        std::printf("  four and not through these two, so the same orbit argument aimed at them is\n");
-        std::printf("  the sharper form of this question.\n");
+        printf("\n  The worst column is the largest gcd between the width and any of its six\n");
+        printf("  rotation amounts, so it is the shortest orbit the narrowing left in place.\n");
+        printf("  A row with a worst above one is not the same construction as a row with one,\n");
+        printf("  and this sweep therefore compares seven constructions instead of one at\n");
+        printf("  seven sizes. The peak column tracks that instead of the width.\n");
+        printf("\n  The peak column is not measurable at this resolution either. The collapse\n");
+        printf("  falls between two integer rounds, a ratio of rounds is a derivative sampled\n");
+        printf("  coarser than the thing it is sampling, and it lands where the round grid\n");
+        printf("  happens to cut the fall. Sub-round resolution wants the input weight swept\n");
+        printf("  instead, since a heavier difference collapses earlier and walks the fall\n");
+        printf("  across the grid.\n");
+        printf("\n  The dies column is the one that holds still, and it holds still at nine or\n");
+        printf("  ten across an eightfold change in width. A wall set by how many words are on\n");
+        printf("  the chain is exactly what does not move when the bits inside them change; a\n");
+        printf("  wall set by the width of a word would have moved and did not. Varying the\n");
+        printf("  word count instead of the word width is the test that would settle it, and\n");
+        printf("  this bench holds eight words at every width.\n");
+        printf("\n  The two triples above are the state functions, Sigma0 at 2, 13, 22 and\n");
+        printf("  Sigma1 at 6, 11, 25. The schedule's own constants - sigma0 at 7, 18 and a\n");
+        printf("  shift of 3, sigma1 at 17, 19 and a shift of 10 - are not swept here and are\n");
+        printf("  not narrowed by anything in this tree, because this bench feeds independent\n");
+        printf("  random words instead of expanding a schedule. A nonce travels through those\n");
+        printf("  four and not through these two, so the same orbit argument aimed at them is\n");
+        printf("  the sharper form of this question.\n");
     }
 
     cudaFree(device_words);

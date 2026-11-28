@@ -21,7 +21,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstdio>
+#include <stdio.h>
 #include <string>
 #include <vector>
 
@@ -186,18 +186,18 @@ std::vector<unsigned char> built_control(int additive, size_t length, unsigned p
 
 int main(int argc, char **argv)
 {
-    std::printf("================================================================\n");
-    std::printf("  The two-language lag sweep, on the device\n");
-    std::printf("================================================================\n");
-    std::printf("\n  One block per lag, both languages histogrammed in shared memory at once, so\n");
-    std::printf("  the corpus is read once for both instead of twice and the sixteen billion\n");
-    std::printf("  global round trips a naive version would make never happen.\n");
-    std::printf("\n  Every statistic is the host's own, from bench_nature_score.h, included by both\n");
-    std::printf("  arms. A device computing its own grip would be the same statistic implemented\n");
-    std::printf("  twice, which has already cost this tree two wrong numbers.\n");
+    printf("================================================================\n");
+    printf("  The two-language lag sweep, on the device\n");
+    printf("================================================================\n");
+    printf("\n  One block per lag, both languages histogrammed in shared memory at once, so\n");
+    printf("  the corpus is read once for both instead of twice and the sixteen billion\n");
+    printf("  global round trips a naive version would make never happen.\n");
+    printf("\n  Every statistic is the host's own, from bench_nature_score.h, included by both\n");
+    printf("  arms. A device computing its own grip would be the same statistic implemented\n");
+    printf("  twice, which has already cost this tree two wrong numbers.\n");
 
-    std::printf("\n  %-34s %10s %10s %8s %8s %8s\n", "corpus", "xor", "add", "xor lag", "add lag", "which");
-    std::printf("  %-34s %10s %10s %8s %8s %8s\n", "----------------------------------", "----------", "----------",
+    printf("\n  %-34s %10s %10s %8s %8s %8s\n", "corpus", "xor", "add", "xor lag", "add lag", "which");
+    printf("  %-34s %10s %10s %8s %8s %8s\n", "----------------------------------", "----------", "----------",
                 "--------", "--------", "--------");
 
     // The built controls first, read at their own period. Every row below them is readable only if
@@ -230,7 +230,7 @@ int main(int argc, char **argv)
         const double at_add =
             bench_nature_shortfall(by_add, (uint64_t)pairs) - bench_nature_baseline(marginal, (uint64_t)made.size(), 1);
 
-        std::printf("  %-34s %10.4f %10.4f %8u %8u %8s\n",
+        printf("  %-34s %10.4f %10.4f %8u %8u %8s\n",
                     (additive != 0) ? "[built] add at its own lag" : "[built] xor at its own lag", at_xor, at_add,
                     designed, designed,
                     (at_xor > (at_add + 0.02)) ? "xor" : ((at_add > (at_xor + 0.02)) ? "add" : "level"));
@@ -238,14 +238,14 @@ int main(int argc, char **argv)
 
     for (int at = 1; at < argc; at += 1)
     {
-        std::FILE *const handle = std::fopen(argv[at], "rb");
+        std::FILE *const handle = fopen(argv[at], "rb");
         if (handle == nullptr)
         {
             continue;
         }
         std::vector<unsigned char> body(SAMPLE_CAP, 0u);
-        const size_t read = std::fread(body.data(), 1u, SAMPLE_CAP, handle);
-        std::fclose(handle);
+        const size_t read = fread(body.data(), 1u, SAMPLE_CAP, handle);
+        fclose(handle);
         if (read < 100000u)
         {
             continue;
@@ -265,16 +265,16 @@ int main(int argc, char **argv)
         }
 
         const Reading found = sweep(body.data(), body.size());
-        std::printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label.substr(0u, 34u).c_str(), found.best_xor,
+        printf("  %-34s %10.4f %10.4f %8u %8u %8s\n", label.substr(0u, 34u).c_str(), found.best_xor,
                     found.best_add, found.xor_lag, found.add_lag,
                     (found.best_xor > (found.best_add + 0.02))
                         ? "xor"
                         : ((found.best_add > (found.best_xor + 0.02)) ? "add" : "level"));
     }
 
-    std::printf("\n  The two built rows must come out lopsided in opposite directions, and they are\n");
-    std::printf("  lopsided by different amounts because each saturates its own ceiling: a grip\n");
-    std::printf("  cannot exceed eight bits less that corpus's baseline, and the two controls have\n");
-    std::printf("  different alphabets. That is scarcity setting what can be measured at all.\n");
+    printf("\n  The two built rows must come out lopsided in opposite directions, and they are\n");
+    printf("  lopsided by different amounts because each saturates its own ceiling: a grip\n");
+    printf("  cannot exceed eight bits less that corpus's baseline, and the two controls have\n");
+    printf("  different alphabets. That is scarcity setting what can be measured at all.\n");
     return 0;
 }

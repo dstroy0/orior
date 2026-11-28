@@ -22,8 +22,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -57,15 +57,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -201,9 +201,9 @@ void expand_schedule(const uint32_t *block, uint32_t *schedule)
  */
 void demonstrate_bijection()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. The round is a bijection. Nothing is lost.\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  1. The round is a bijection. Nothing is lost.\n");
+    printf("================================================================\n");
 
     std::mt19937 generator(20260908u);
     bool round_trip_holds = true;
@@ -269,10 +269,10 @@ void demonstrate_bijection()
     check("64 rounds forward then 64 backward returns the exact starting state", round_trip_holds);
     check("this file's forward round is the kernel's round", matches_core);
 
-    std::printf("\n  So the mechanism is reversible end to end. The apparent randomness of the\n");
-    std::printf("  output is a property of its statistics, not of the process. Every bit that\n");
-    std::printf("  went in is still in there, exactly, and can be walked back out given the\n");
-    std::printf("  message words.\n");
+    printf("\n  So the mechanism is reversible end to end. The apparent randomness of the\n");
+    printf("  output is a property of its statistics, not of the process. Every bit that\n");
+    printf("  went in is still in there, exactly, and can be walked back out given the\n");
+    printf("  message words.\n");
 }
 
 /**
@@ -280,14 +280,14 @@ void demonstrate_bijection()
  */
 void map_ceiling_construction()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. Where the artificial ceiling gets built\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The ceiling is constructed, so it is constructed over some number of rounds.\n");
-    std::printf("  Flip one input bit, run r rounds, and count how much of the state moved. A\n");
-    std::printf("  fully built ceiling sits at 50%% and holds.\n");
-    std::printf("\n  %8s %14s %28s\n", "rounds", "state moved", "ceiling");
-    std::printf("  %8s %14s %28s\n", "--------", "--------------", "----------------------------");
+    printf("\n================================================================\n");
+    printf("  2. Where the artificial ceiling gets built\n");
+    printf("================================================================\n");
+    printf("\n  The ceiling is constructed, so it is constructed over some number of rounds.\n");
+    printf("  Flip one input bit, run r rounds, and count how much of the state moved. A\n");
+    printf("  fully built ceiling sits at 50%% and holds.\n");
+    printf("\n  %8s %14s %28s\n", "rounds", "state moved", "ceiling");
+    printf("  %8s %14s %28s\n", "--------", "--------------", "----------------------------");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 4096u;
@@ -324,12 +324,12 @@ void map_ceiling_construction()
 
         const double fraction = (double)moved / ((double)trials * 256.0);
         const char *state = (fraction < 0.05) ? "not started" : (fraction < 0.45) ? "under construction" : "built";
-        std::printf("  %8u %13.2f%% %28s\n", rounds, fraction * 100.0, state);
+        printf("  %8u %13.2f%% %28s\n", rounds, fraction * 100.0, state);
     }
 
-    std::printf("\n  The ceiling is finished by round 10. A header hash runs 128 rounds, so it\n");
-    std::printf("  spends 118 of them holding a ceiling that was already complete. That margin\n");
-    std::printf("  is the design, and it is why reduced-round results do not extend.\n");
+    printf("\n  The ceiling is finished by round 10. A header hash runs 128 rounds, so it\n");
+    printf("  spends 118 of them holding a ceiling that was already complete. That margin\n");
+    printf("  is the design, and it is why reduced-round results do not extend.\n");
 }
 
 /**
@@ -337,45 +337,45 @@ void map_ceiling_construction()
  */
 void map_trackable_quantities()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. What can actually be tracked in the mining problem\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  3. What can actually be tracked in the mining problem\n");
+    printf("================================================================\n");
 
-    std::printf("\n  The unknown is one 32-bit word: the nonce at schedule position 3. Everything\n");
-    std::printf("  else in the header is given by the job. So the map is:\n");
+    printf("\n  The unknown is one 32-bit word: the nonce at schedule position 3. Everything\n");
+    printf("  else in the header is given by the job. So the map is:\n");
 
-    std::printf("\n  %-42s %s\n", "quantity", "status");
-    std::printf("  %-42s %s\n", "------------------------------------------", "----------------------------------");
-    std::printf("  %-42s %s\n", "midstate H0 (header bytes 0-63)", "known, fixed per job");
-    std::printf("  %-42s %s\n", "W[0] merkle tail, W[1] ntime, W[2] nbits", "known");
-    std::printf("  %-42s %s\n", "W[3] nonce", "THE UNKNOWN, 32 bits");
-    std::printf("  %-42s %s\n", "W[4..15] padding and length", "known, constant");
-    std::printf("  %-42s %s\n", "W[16..63]", "generated from W[0..15], so unknown");
-    std::printf("  %-42s %s\n", "rounds 0,1,2 of hash one", "computable without the nonce");
-    std::printf("  %-42s %s\n", "round 3 onward", "needs W[3]");
-    std::printf("  %-42s %s\n", "hash two's message", "is hash one's output, so needs it all");
+    printf("\n  %-42s %s\n", "quantity", "status");
+    printf("  %-42s %s\n", "------------------------------------------", "----------------------------------");
+    printf("  %-42s %s\n", "midstate H0 (header bytes 0-63)", "known, fixed per job");
+    printf("  %-42s %s\n", "W[0] merkle tail, W[1] ntime, W[2] nbits", "known");
+    printf("  %-42s %s\n", "W[3] nonce", "THE UNKNOWN, 32 bits");
+    printf("  %-42s %s\n", "W[4..15] padding and length", "known, constant");
+    printf("  %-42s %s\n", "W[16..63]", "generated from W[0..15], so unknown");
+    printf("  %-42s %s\n", "rounds 0,1,2 of hash one", "computable without the nonce");
+    printf("  %-42s %s\n", "round 3 onward", "needs W[3]");
+    printf("  %-42s %s\n", "hash two's message", "is hash one's output, so needs it all");
 
-    std::printf("\n  Forward frontier : 3 rounds of 128 computable before meeting the unknown.\n");
-    std::printf("  Backward frontier: 0 rounds. Inverting round t needs W[t], and every W past\n");
-    std::printf("                     15 is generated from the word being solved for.\n");
+    printf("\n  Forward frontier : 3 rounds of 128 computable before meeting the unknown.\n");
+    printf("  Backward frontier: 0 rounds. Inverting round t needs W[t], and every W past\n");
+    printf("                     15 is generated from the word being solved for.\n");
 
-    std::printf("\n  That circularity is the whole obstruction, and it is worth stating exactly.\n");
-    std::printf("  The bijection in section 1 is real: given the message, the state walks back\n");
-    std::printf("  perfectly. The mining problem does not give the message. It asks for the\n");
-    std::printf("  message that produces a wanted output, and the inverse needs that same\n");
-    std::printf("  message to run. Invertible given the input is not the same as solvable for\n");
-    std::printf("  the input.\n");
+    printf("\n  That circularity is the whole obstruction, and it is worth stating exactly.\n");
+    printf("  The bijection in section 1 is real: given the message, the state walks back\n");
+    printf("  perfectly. The mining problem does not give the message. It asks for the\n");
+    printf("  message that produces a wanted output, and the inverse needs that same\n");
+    printf("  message to run. Invertible given the input is not the same as solvable for\n");
+    printf("  the input.\n");
 
-    std::printf("\n  Stated as algebra: 32 unknown bits, and a demand that 76 or so output bits\n");
-    std::printf("  come out zero, through a system whose algebraic degree over GF(2) is driven\n");
-    std::printf("  to saturation by round 10. Meet-in-the-middle and SAT attacks work this\n");
-    std::printf("  exact surface. Published results reach roughly 52 of 64 rounds for preimages\n");
-    std::printf("  at complexity near 2^255, and about 20 to 24 rounds for SAT. Bitcoin runs\n");
-    std::printf("  128 rounds.\n");
+    printf("\n  Stated as algebra: 32 unknown bits, and a demand that 76 or so output bits\n");
+    printf("  come out zero, through a system whose algebraic degree over GF(2) is driven\n");
+    printf("  to saturation by round 10. Meet-in-the-middle and SAT attacks work this\n");
+    printf("  exact surface. Published results reach roughly 52 of 64 rounds for preimages\n");
+    printf("  at complexity near 2^255, and about 20 to 24 rounds for SAT. Bitcoin runs\n");
+    printf("  128 rounds.\n");
 
-    std::printf("\n  So the honest frontier: the seam is rounds 0 through 9, measured, and the\n");
-    std::printf("  construction is complete for the remaining 118. Every projection tried in\n");
-    std::printf("  this tree dies inside that seam.\n");
+    printf("\n  So the honest frontier: the seam is rounds 0 through 9, measured, and the\n");
+    printf("  construction is complete for the remaining 118. Every projection tried in\n");
+    printf("  this tree dies inside that seam.\n");
 }
 
 /**
@@ -390,14 +390,14 @@ void map_trackable_quantities()
  */
 void measure_propagation_speed()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. Speed of information propagation, as a distribution\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Flip one input bit and watch the front move. For each of 256 state\n");
-    std::printf("  positions, P(this bit differs) after r rounds. Reached means the position\n");
-    std::printf("  has moved at all; saturated means it has reached a fair coin.\n");
-    std::printf("\n  %6s %10s %12s %14s %14s\n", "rounds", "reached", "saturated", "mean P", "front width");
-    std::printf("  %6s %10s %12s %14s %14s\n", "------", "----------", "------------", "--------------",
+    printf("\n================================================================\n");
+    printf("  4. Speed of information propagation, as a distribution\n");
+    printf("================================================================\n");
+    printf("\n  Flip one input bit and watch the front move. For each of 256 state\n");
+    printf("  positions, P(this bit differs) after r rounds. Reached means the position\n");
+    printf("  has moved at all; saturated means it has reached a fair coin.\n");
+    printf("\n  %6s %10s %12s %14s %14s\n", "rounds", "reached", "saturated", "mean P", "front width");
+    printf("  %6s %10s %12s %14s %14s\n", "------", "----------", "------------", "--------------",
                 "--------------");
 
     std::mt19937 generator(20260908u);
@@ -450,7 +450,7 @@ void measure_propagation_speed()
                 reached += 1u;
             }
             // Within four standard errors of a fair coin counts as arrived.
-            if (std::fabs(probability - 0.5) < (4.0 * 0.5 / std::sqrt((double)trials)))
+            if (fabs(probability - 0.5) < (4.0 * 0.5 / sqrt((double)trials)))
             {
                 saturated += 1u;
             }
@@ -458,35 +458,35 @@ void measure_propagation_speed()
 
         // The front is the band that the wave reached, but that did not settle yet: the wave itself.
         const unsigned front = (reached > saturated) ? (reached - saturated) : 0u;
-        std::printf("  %6u %10u %12u %14.6f %14u\n", rounds, reached, saturated, probability_total / 256.0, front);
+        printf("  %6u %10u %12u %14.6f %14u\n", rounds, reached, saturated, probability_total / 256.0, front);
         previous_reached = reached;
     }
     (void)previous_reached;
 
-    std::printf("\n  There are two speeds here and they are not the same.\n");
-    std::printf("\n  Reach is linear and exactly 64 bits per round: 64, 128, 192, 256 across\n");
-    std::printf("  rounds 4 through 7. That is two words a round, and it is structural rather\n");
-    std::printf("  than statistical. The eight working variables are a shift register in two\n");
-    std::printf("  chains, a to b to c to d and e to f to g to h, a disturbance walks one\n");
-    std::printf("  word along each chain per round. Two words is sixty four bits. There is a\n");
-    std::printf("  real finite propagation speed and this is its value.\n");
-    std::printf("\n  Saturation is the second speed and it lags: 0, 32, 96, 159, 222, 256 over\n");
-    std::printf("  rounds 5 to 10. The gap between the two is the wave, and its width peaks near\n");
-    std::printf("  160 positions around rounds 6 and 7 before collapsing.\n");
-    std::printf("\n  So there is a light cone. It is just small compared to the state. Reach\n");
-    std::printf("  covers all 256 bits four rounds after the input enters, because 256 divided\n");
-    std::printf("  by 64 is 4, and a header hash runs 128 rounds. A cone is a constraint worth\n");
-    std::printf("  solving against only while something sits outside it, and nothing does after\n");
-    std::printf("  round 7 of 128.\n");
+    printf("\n  There are two speeds here and they are not the same.\n");
+    printf("\n  Reach is linear and exactly 64 bits per round: 64, 128, 192, 256 across\n");
+    printf("  rounds 4 through 7. That is two words a round, and it is structural rather\n");
+    printf("  than statistical. The eight working variables are a shift register in two\n");
+    printf("  chains, a to b to c to d and e to f to g to h, a disturbance walks one\n");
+    printf("  word along each chain per round. Two words is sixty four bits. There is a\n");
+    printf("  real finite propagation speed and this is its value.\n");
+    printf("\n  Saturation is the second speed and it lags: 0, 32, 96, 159, 222, 256 over\n");
+    printf("  rounds 5 to 10. The gap between the two is the wave, and its width peaks near\n");
+    printf("  160 positions around rounds 6 and 7 before collapsing.\n");
+    printf("\n  So there is a light cone. It is just small compared to the state. Reach\n");
+    printf("  covers all 256 bits four rounds after the input enters, because 256 divided\n");
+    printf("  by 64 is 4, and a header hash runs 128 rounds. A cone is a constraint worth\n");
+    printf("  solving against only while something sits outside it, and nothing does after\n");
+    printf("  round 7 of 128.\n");
 }
 
 } // namespace
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Invertibility, the artificial ceiling, and what is trackable\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Invertibility, the artificial ceiling, and what is trackable\n");
+    printf("================================================================\n");
 
     const auto started = std::chrono::steady_clock::now();
 
@@ -496,9 +496,9 @@ int main()
     measure_propagation_speed();
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

@@ -22,9 +22,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <vector>
 
@@ -83,7 +83,7 @@ struct WorstBit
 WorstBit worst_departure(const unsigned long long *counts, double samples)
 {
     // Under a fair coin the count of ones has standard error sqrt(N)/2.
-    const double standard_error = std::sqrt(samples) / 2.0;
+    const double standard_error = sqrt(samples) / 2.0;
     WorstBit worst = {0u, 0.0, 0.0};
 
     for (unsigned position = 0u; position < 256u; position += 1u)
@@ -91,7 +91,7 @@ WorstBit worst_departure(const unsigned long long *counts, double samples)
         const double deviation = (double)counts[position] - (samples / 2.0);
         const double score = (standard_error > 0.0) ? (deviation / standard_error) : 0.0;
 
-        if (std::fabs(score) > std::fabs(worst.score))
+        if (fabs(score) > fabs(worst.score))
         {
             worst.position = position;
             worst.score = score;
@@ -115,13 +115,13 @@ int main(int argument_count, char **arguments)
     char device_text[256];
     const int multiprocessors = cuda_miner_device_report(device_text, sizeof(device_text));
 
-    std::printf("================================================================\n");
-    std::printf("  Keyhole scan\n");
-    std::printf("  device: %s\n", device_text);
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Keyhole scan\n");
+    printf("  device: %s\n", device_text);
+    printf("================================================================\n");
     if (multiprocessors == 0)
     {
-        std::printf("\nNo CUDA device.\n");
+        printf("\nNo CUDA device.\n");
         return 1;
     }
 
@@ -141,15 +141,15 @@ int main(int argument_count, char **arguments)
     CudaMinerContext *const context = cuda_miner_create(16u);
     if (context == nullptr)
     {
-        std::printf("\nCould not allocate device buffers.\n");
+        printf("\nCould not allocate device buffers.\n");
         return 1;
     }
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  1. Deep survey. Is any digest bit not a fair coin?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  target sample: %llu digests\n", wanted);
+    printf("\n================================================================\n");
+    printf("  1. Deep survey. Is any digest bit not a fair coin?\n");
+    printf("================================================================\n");
+    printf("\n  target sample: %llu digests\n", wanted);
 
     CudaSurvey survey;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &survey, .bytes = sizeof(survey), .val = 0);
@@ -165,13 +165,13 @@ int main(int argument_count, char **arguments)
 
         if (cuda_miner_survey(context, &parameters, (uint32_t)done, take, &survey) == 0)
         {
-            std::printf("  survey launch failed\n");
+            printf("  survey launch failed\n");
             cuda_miner_destroy(context);
             return 1;
         }
         done += take;
-        std::printf("\r  %llu of %llu ...", done, wanted);
-        std::fflush(stdout);
+        printf("\r  %llu of %llu ...", done, wanted);
+        fflush(stdout);
     }
     auto finished = std::chrono::steady_clock::now();
     const double survey_seconds = std::chrono::duration<double>(finished - started).count();
@@ -179,33 +179,33 @@ int main(int argument_count, char **arguments)
     const double samples = (double)survey.nonces_evaluated;
     const WorstBit worst = worst_departure(survey.bit_one_count, samples);
 
-    std::printf("\r  %llu digests in %.1f s (%.2f GH/s)          \n", (unsigned long long)survey.nonces_evaluated,
+    printf("\r  %llu digests in %.1f s (%.2f GH/s)          \n", (unsigned long long)survey.nonces_evaluated,
                 survey_seconds, (survey_seconds > 0.0) ? (samples / survey_seconds / 1.0e9) : 0.0);
-    std::printf("\n  worst bit position   : %u\n", worst.position);
-    std::printf("  its bias             : %+.3e\n", worst.bias);
-    std::printf("  in standard errors   : %+.2f\n", worst.score);
-    std::printf("  expected worst of 256: about 3.0\n");
-    std::printf("  detection floor now  : %.3e at four sigma\n", 4.0 / (2.0 * std::sqrt(samples)));
-    std::printf("\n  verdict: %s\n", (std::fabs(worst.score) < 5.0) ? "no digest bit departs from a fair coin"
+    printf("\n  worst bit position   : %u\n", worst.position);
+    printf("  its bias             : %+.3e\n", worst.bias);
+    printf("  in standard errors   : %+.2f\n", worst.score);
+    printf("  expected worst of 256: about 3.0\n");
+    printf("  detection floor now  : %.3e at four sigma\n", 4.0 / (2.0 * sqrt(samples)));
+    printf("\n  verdict: %s\n", (fabs(worst.score) < 5.0) ? "no digest bit departs from a fair coin"
                                                                     : "A BIT DEPARTS. Investigate this position.");
 
     // The leading-zero counts are the anchor rate, and they price the filter directly.
-    std::printf("\n  Anchor survivors against the section 2.5 prediction:\n");
-    std::printf("  %8s %18s %18s %10s\n", "k bits", "predicted", "measured", "ratio");
+    printf("\n  Anchor survivors against the section 2.5 prediction:\n");
+    printf("  %8s %18s %18s %10s\n", "k bits", "predicted", "measured", "ratio");
     for (unsigned width : {8u, 16u, 24u, 32u})
     {
-        const double predicted = samples / std::pow(2.0, (double)width);
+        const double predicted = samples / pow(2.0, (double)width);
         const double measured = (double)survey.leading_zero_count[width];
-        std::printf("  %8u %18.1f %18.0f %10.5f\n", width, predicted, measured,
+        printf("  %8u %18.1f %18.0f %10.5f\n", width, predicted, measured,
                     (predicted > 0.0) ? (measured / predicted) : 0.0);
     }
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  2. Keyhole scan. Salt the nonce, watch every output bit.\n");
-    std::printf("================================================================\n");
-    std::printf("\n  For each salt, the difference at each of 256 output bits should be a fair\n");
-    std::printf("  coin. A keyhole is a position where it is not.\n");
+    printf("\n================================================================\n");
+    printf("  2. Keyhole scan. Salt the nonce, watch every output bit.\n");
+    printf("================================================================\n");
+    printf("\n  For each salt, the difference at each of 256 output bits should be a fair\n");
+    printf("  coin. A keyhole is a position where it is not.\n");
 
     // A flagged row gets a new test here, and not a report. Pass a salt and a sample size to run
     // that one salt deep. A real bias grows as the square root of the sample, and an artifact of
@@ -215,9 +215,9 @@ int main(int argument_count, char **arguments)
         const uint32_t confirm_salt = (uint32_t)std::stoul(arguments[2], nullptr, 16);
         const unsigned long long confirm_total = std::stoull(arguments[3]);
 
-        std::printf("\n================================================================\n");
-        std::printf("  Confirmation run: salt 0x%08x over %llu pairs\n", confirm_salt, confirm_total);
-        std::printf("================================================================\n");
+        printf("\n================================================================\n");
+        printf("  Confirmation run: salt 0x%08x over %llu pairs\n", confirm_salt, confirm_total);
+        printf("================================================================\n");
 
         std::vector<unsigned long long> counts(256u, 0u);
         unsigned long long seen = 0u;
@@ -229,25 +229,25 @@ int main(int argument_count, char **arguments)
 
             if (cuda_miner_keyhole(context, &parameters, (uint32_t)seen, take, confirm_salt, counts.data()) == 0)
             {
-                std::printf("  launch failed\n");
+                printf("  launch failed\n");
                 cuda_miner_destroy(context);
                 return 1;
             }
             seen += take;
-            std::printf("\r  %llu of %llu ...", seen, confirm_total);
-            std::fflush(stdout);
+            printf("\r  %llu of %llu ...", seen, confirm_total);
+            fflush(stdout);
         }
 
         const WorstBit confirmed = worst_departure(counts.data(), (double)seen);
-        std::printf("\r  %llu pairs                              \n", seen);
-        std::printf("\n  worst bit position : %u\n", confirmed.position);
-        std::printf("  its bias           : %+.4e\n", confirmed.bias);
-        std::printf("  in standard errors : %+.2f\n", confirmed.score);
-        std::printf("  four sigma here is : %.4e\n", 4.0 / (2.0 * std::sqrt((double)seen)));
+        printf("\r  %llu pairs                              \n", seen);
+        printf("\n  worst bit position : %u\n", confirmed.position);
+        printf("  its bias           : %+.4e\n", confirmed.bias);
+        printf("  in standard errors : %+.2f\n", confirmed.score);
+        printf("  four sigma here is : %.4e\n", 4.0 / (2.0 * sqrt((double)seen)));
 
-        std::printf("\n  A bias that was real at the smaller sample grows as sqrt(N): the sigma\n");
-        std::printf("  should rise by the square root of the sample ratio. One that was an\n");
-        std::printf("  artifact of testing 3840 positions at once falls back toward zero.\n");
+        printf("\n  A bias that was real at the smaller sample grows as sqrt(N): the sigma\n");
+        printf("  should rise by the square root of the sample ratio. One that was an\n");
+        printf("  artifact of testing 3840 positions at once falls back toward zero.\n");
 
         cuda_miner_destroy(context);
         return 0;
@@ -283,8 +283,8 @@ int main(int argument_count, char **arguments)
         {0xFFFFFFFFu, "every bit"},
     };
 
-    std::printf("\n  %12s %10s %14s %10s %-9s %s\n", "salt", "worst bit", "bias", "sigma", "verdict", "why this salt");
-    std::printf("  %12s %10s %14s %10s %-9s %s\n", "------------", "----------", "--------------", "----------",
+    printf("\n  %12s %10s %14s %10s %-9s %s\n", "salt", "worst bit", "bias", "sigma", "verdict", "why this salt");
+    printf("  %12s %10s %14s %10s %-9s %s\n", "------------", "----------", "--------------", "----------",
                 "---------", "-------------");
 
     double overall_worst = 0.0;
@@ -297,38 +297,38 @@ int main(int argument_count, char **arguments)
 
         if (cuda_miner_keyhole(context, &parameters, 0u, keyhole_sample, salt, difference_counts.data()) == 0)
         {
-            std::printf("  keyhole launch failed for salt %08x\n", salt);
+            printf("  keyhole launch failed for salt %08x\n", salt);
             continue;
         }
 
         const WorstBit found = worst_departure(difference_counts.data(), (double)keyhole_sample);
-        if (std::fabs(found.score) > std::fabs(overall_worst))
+        if (fabs(found.score) > fabs(overall_worst))
         {
             overall_worst = found.score;
             overall_salt = salt;
         }
-        std::printf("    0x%08x %10u %+14.3e %+10.2f %-9s %s\n", salt, found.position, found.bias, found.score,
-                    (std::fabs(found.score) < 5.0) ? "closed" : "KEYHOLE", entry.reason);
+        printf("    0x%08x %10u %+14.3e %+10.2f %-9s %s\n", salt, found.position, found.bias, found.score,
+                    (fabs(found.score) < 5.0) ? "closed" : "KEYHOLE", entry.reason);
     }
 
     const unsigned salt_count = (unsigned)(sizeof(salts) / sizeof(salts[0]));
     const unsigned tests = salt_count * 256u;
-    std::printf("\n  Each row is %u pairs, a four sigma bias is %.3e.\n", keyhole_sample,
-                4.0 / (2.0 * std::sqrt((double)keyhole_sample)));
-    std::printf("  Largest departure anywhere: salt 0x%08x at %+.2f sigma.\n", overall_salt, overall_worst);
-    std::printf("\n  That is %u salts times 256 positions, %u tests. The expected worst by chance\n", salt_count,
+    printf("\n  Each row is %u pairs, a four sigma bias is %.3e.\n", keyhole_sample,
+                4.0 / (2.0 * sqrt((double)keyhole_sample)));
+    printf("  Largest departure anywhere: salt 0x%08x at %+.2f sigma.\n", overall_salt, overall_worst);
+    printf("\n  That is %u salts times 256 positions, %u tests. The expected worst by chance\n", salt_count,
                 tests);
-    std::printf("  alone over that many is near %.1f sigma, so the table is read against that\n",
-                std::sqrt(2.0 * std::log((double)tests)));
-    std::printf("  and not against zero. Calling a 3 sigma result a keyhole here would be\n");
-    std::printf("  finding structure in the multiple comparisons instead of in the function.\n");
+    printf("  alone over that many is near %.1f sigma, so the table is read against that\n",
+                sqrt(2.0 * log((double)tests)));
+    printf("  and not against zero. Calling a 3 sigma result a keyhole here would be\n");
+    printf("  finding structure in the multiple comparisons instead of in the function.\n");
 
     cuda_miner_destroy(context);
 
     finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  There is no noise floor under any of these numbers. They are\n");
-    std::printf("  sampling limits, and they move with more samples.\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  There is no noise floor under any of these numbers. They are\n");
+    printf("  sampling limits, and they move with more samples.\n");
+    printf("================================================================\n");
     return 0;
 }

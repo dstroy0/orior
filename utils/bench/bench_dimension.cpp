@@ -25,8 +25,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <thread>
@@ -149,10 +149,10 @@ bool differential_vanishes(uint32_t base, const uint32_t *directions, unsigned o
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  n dimensions at once: higher-order differentials\n");
-    std::printf("  The degree of reduced-round SHA-256 as a map from the nonce\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  n dimensions at once: higher-order differentials\n");
+    printf("  The degree of reduced-round SHA-256 as a map from the nonce\n");
+    printf("================================================================\n");
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
     sha256_header_midstate(&g_midstate, header.data());
@@ -160,36 +160,36 @@ int main()
     g_ntime = schedule_word_from_header(header.data() + 68u);
     g_nbits = schedule_word_from_header(header.data() + 72u);
 
-    std::printf("\n  A k-th order differential sums f over all 2^k corners of a k-dimensional\n");
-    std::printf("  cube of input differences. If the algebraic degree over GF(2) is below k it\n");
-    std::printf("  is identically zero, for every base point, exactly. a column of 'vanishes'\n");
-    std::printf("  is a proof of a degree bound, not a sampled bound.\n");
-    std::printf("\n  Directions are distinct single bits of the nonce, so the cube spans k of the\n");
-    std::printf("  32 input dimensions and every one of its intersections is visited.\n");
+    printf("\n  A k-th order differential sums f over all 2^k corners of a k-dimensional\n");
+    printf("  cube of input differences. If the algebraic degree over GF(2) is below k it\n");
+    printf("  is identically zero, for every base point, exactly. a column of 'vanishes'\n");
+    printf("  is a proof of a degree bound, not a sampled bound.\n");
+    printf("\n  Directions are distinct single bits of the nonce, so the cube spans k of the\n");
+    printf("  32 input dimensions and every one of its intersections is visited.\n");
 
     std::mt19937 generator(bench_seed(20260908u));
     const unsigned base_points = 24u;
     const unsigned max_order = 12u;
 
-    std::printf("\n  vanishes at every base point tested = V, fails somewhere = .\n");
-    std::printf("\n  %6s", "rounds");
+    printf("\n  vanishes at every base point tested = V, fails somewhere = .\n");
+    printf("\n  %6s", "rounds");
     for (unsigned order = 1u; order <= max_order; order += 1u)
     {
-        std::printf(" %2u", order);
+        printf(" %2u", order);
     }
-    std::printf("   degree is at least\n");
-    std::printf("  %6s", "------");
+    printf("   degree is at least\n");
+    printf("  %6s", "------");
     for (unsigned order = 1u; order <= max_order; order += 1u)
     {
-        std::printf(" --");
+        printf(" --");
     }
-    std::printf("   ------------------\n");
+    printf("   ------------------\n");
 
     const auto started = std::chrono::steady_clock::now();
 
     for (unsigned rounds = 1u; rounds <= 10u; rounds += 1u)
     {
-        std::printf("  %6u", rounds);
+        printf("  %6u", rounds);
         unsigned lowest_failing = 0u;
 
         for (unsigned order = 1u; order <= max_order; order += 1u)
@@ -221,7 +221,7 @@ int main()
                 }
             }
 
-            std::printf("  %c", always_vanishes ? 'V' : '.');
+            printf("  %c", always_vanishes ? 'V' : '.');
             // Order k vanishes exactly when the degree is below k. Thus the degree is the highest
             // order that fails. A report of the lowest order that fails would call every row with
             // any failure "degree 1".
@@ -233,38 +233,38 @@ int main()
 
         if (lowest_failing == 0u)
         {
-            std::printf("   0, the nonce has not entered\n");
+            printf("   0, the nonce has not entered\n");
         }
         else if (lowest_failing == max_order)
         {
-            std::printf("   at least %u, past the table\n", max_order);
+            printf("   at least %u, past the table\n", max_order);
         }
         else
         {
-            std::printf("   exactly %u\n", lowest_failing);
+            printf("   exactly %u\n", lowest_failing);
         }
     }
 
     const auto finished = std::chrono::steady_clock::now();
 
-    std::printf("\n  Reading the table. A V means the differential was exactly zero at every base\n");
-    std::printf("  point, which for a genuine degree bound is what the algebra requires and is\n");
-    std::printf("  not a statistical statement. The first dot in a row is where the degree of the\n");
-    std::printf("  reduced function reaches that order.\n");
+    printf("\n  Reading the table. A V means the differential was exactly zero at every base\n");
+    printf("  point, which for a genuine degree bound is what the algebra requires and is\n");
+    printf("  not a statistical statement. The first dot in a row is where the degree of the\n");
+    printf("  reduced function reaches that order.\n");
 
-    std::printf("\n  Why this is the exact measurement the other twenty were not. Every earlier\n");
-    std::printf("  result in this tree says 'no structure was observed at this sensitivity'. A\n");
-    std::printf("  vanishing higher-order differential says 'this function cannot have degree at\n");
-    std::printf("  or above k', which no amount of sampling can overturn. Where the row fills\n");
-    std::printf("  with dots, the degree has saturated and no algebraic attack of that order has\n");
-    std::printf("  anything left to work on.\n");
+    printf("\n  Why this is the exact measurement the other twenty were not. Every earlier\n");
+    printf("  result in this tree says 'no structure was observed at this sensitivity'. A\n");
+    printf("  vanishing higher-order differential says 'this function cannot have degree at\n");
+    printf("  or above k', which no amount of sampling can overturn. Where the row fills\n");
+    printf("  with dots, the degree has saturated and no algebraic attack of that order has\n");
+    printf("  anything left to work on.\n");
 
-    std::printf("\n  The nonce carries 32 bits, so degree 32 is the ceiling. A row that is all\n");
-    std::printf("  dots by order %u is within a factor of three of that ceiling after a handful\n", max_order);
-    std::printf("  of rounds, out of the 128 a header hash runs.\n");
+    printf("\n  The nonce carries 32 bits, so degree 32 is the ceiling. A row that is all\n");
+    printf("  dots by order %u is within a factor of three of that ceiling after a handful\n", max_order);
+    printf("  of rounds, out of the 128 a header hash runs.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

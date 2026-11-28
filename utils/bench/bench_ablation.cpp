@@ -25,9 +25,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -186,17 +186,17 @@ double rotational_survival(const Variant &variant, unsigned rounds)
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Ablation: which element destroys the rotational relation?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A rotational pair is (x, x rotated by %u). Rotational cryptanalysis\n", PAIR_SHIFT);
-    std::printf("  (Khovratovich and Nikolic, FSE 2010) tracks whether that relation survives\n");
-    std::printf("  the rounds. Rotation preserves it exactly. Exclusive or preserves it exactly.\n");
-    std::printf("  Modular addition preserves it with a known probability below one. A round\n");
-    std::printf("  constant destroys it, unless the constant is itself invariant under the\n");
-    std::printf("  rotation.\n");
-    std::printf("\n  That theory predicts which column below should hold. Each variant removes one\n");
-    std::printf("  element, and the prediction is written down before the number.\n");
+    printf("================================================================\n");
+    printf("  Ablation: which element destroys the rotational relation?\n");
+    printf("================================================================\n");
+    printf("\n  A rotational pair is (x, x rotated by %u). Rotational cryptanalysis\n", PAIR_SHIFT);
+    printf("  (Khovratovich and Nikolic, FSE 2010) tracks whether that relation survives\n");
+    printf("  the rounds. Rotation preserves it exactly. Exclusive or preserves it exactly.\n");
+    printf("  Modular addition preserves it with a known probability below one. A round\n");
+    printf("  constant destroys it, unless the constant is itself invariant under the\n");
+    printf("  rotation.\n");
+    printf("\n  That theory predicts which column below should hold. Each variant removes one\n");
+    printf("  element, and the prediction is written down before the number.\n");
 
     const Variant variants[] = {
         {"BASELINE, real SHA-256", true, true, true, true, false, "dies immediately, constants differ every round"},
@@ -210,24 +210,24 @@ int main()
         {"no constants, no choice", false, true, true, false, false, "survives"},
     };
 
-    std::printf("\n  %-32s %7s %7s %7s %7s %7s\n", "variant", "r=1", "r=2", "r=4", "r=8", "r=16");
-    std::printf("  %-32s %7s %7s %7s %7s %7s\n", "--------------------------------", "-------", "-------", "-------",
+    printf("\n  %-32s %7s %7s %7s %7s %7s\n", "variant", "r=1", "r=2", "r=4", "r=8", "r=16");
+    printf("  %-32s %7s %7s %7s %7s %7s\n", "--------------------------------", "-------", "-------", "-------",
                 "-------", "-------");
 
     for (const Variant &variant : variants)
     {
-        std::printf("  %-32s", variant.name);
+        printf("  %-32s", variant.name);
         for (unsigned rounds : {1u, 2u, 4u, 8u, 16u})
         {
-            std::printf(" %6.2f%%", rotational_survival(variant, rounds) * 100.0);
+            printf(" %6.2f%%", rotational_survival(variant, rounds) * 100.0);
         }
-        std::printf("\n");
+        printf("\n");
     }
 
-    std::printf("\n  Predictions made before the run:\n");
+    printf("\n  Predictions made before the run:\n");
     for (const Variant &variant : variants)
     {
-        std::printf("    %-32s %s\n", variant.name, variant.prediction);
+        printf("    %-32s %s\n", variant.name, variant.prediction);
     }
 
     // -------------------------------------------------------------------------------------
@@ -235,13 +235,13 @@ int main()
     // probability. Modular addition keeps a rotational pair with probability well below one.
     // The published theory computes that quantity. Thus measure it.
     // -------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The prediction above was wrong. Here is the number that explains it.\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Rotational cryptanalysis does not say addition preserves the relation. It\n");
-    std::printf("  says addition preserves it with a probability, and computes that probability.\n");
-    std::printf("  For a rotation by r on n bits:\n");
-    std::printf("\n      P = (1/4) * (1 + 2^(r-n) + 2^(-r) + 2^(-n))\n");
+    printf("\n================================================================\n");
+    printf("  The prediction above was wrong. Here is the number that explains it.\n");
+    printf("================================================================\n");
+    printf("\n  Rotational cryptanalysis does not say addition preserves the relation. It\n");
+    printf("  says addition preserves it with a probability, and computes that probability.\n");
+    printf("  For a rotation by r on n bits:\n");
+    printf("\n      P = (1/4) * (1 + 2^(r-n) + 2^(-r) + 2^(-n))\n");
 
     {
         std::mt19937 generator(4242u);
@@ -261,41 +261,41 @@ int main()
         }
 
         const double measured = (double)held / (double)trials;
-        const double predicted = 0.25 * (1.0 + std::pow(2.0, (double)PAIR_SHIFT - 32.0) +
-                                         std::pow(2.0, -(double)PAIR_SHIFT) + std::pow(2.0, -32.0));
+        const double predicted = 0.25 * (1.0 + pow(2.0, (double)PAIR_SHIFT - 32.0) +
+                                         pow(2.0, -(double)PAIR_SHIFT) + pow(2.0, -32.0));
 
-        std::printf("\n  one modular addition, rotation by %u, %u trials:\n", PAIR_SHIFT, trials);
-        std::printf("    measured  : %.6f\n", measured);
-        std::printf("    predicted : %.6f\n", predicted);
-        std::printf("    difference: %+.6f\n", measured - predicted);
+        printf("\n  one modular addition, rotation by %u, %u trials:\n", PAIR_SHIFT, trials);
+        printf("    measured  : %.6f\n", measured);
+        printf("    predicted : %.6f\n", predicted);
+        printf("    difference: %+.6f\n", measured - predicted);
 
         // A round applies several additions. Thus the per-round rate is that probability raised to
         // the count. For this reason, the constants-free variant shows zero in a 4096-trial table.
         const unsigned additions_per_round = 6u;
-        const double per_round = std::pow(measured, (double)additions_per_round);
-        std::printf("\n  a round applies about %u additions, so per-round survival is about\n", additions_per_round);
-        std::printf("    %.6f ^ %u = %.3e\n", measured, additions_per_round, per_round);
-        std::printf("    expected survivors in the 4096-trial table above: %.2f\n", per_round * 4096.0);
-        std::printf("\n  Which is why that row read 0.00%%. The relation was not destroyed by the\n");
-        std::printf("  constants alone, as predicted. It was destroyed by the additions, at a\n");
-        std::printf("  rate the table had no resolution to see.\n");
+        const double per_round = pow(measured, (double)additions_per_round);
+        printf("\n  a round applies about %u additions, so per-round survival is about\n", additions_per_round);
+        printf("    %.6f ^ %u = %.3e\n", measured, additions_per_round, per_round);
+        printf("    expected survivors in the 4096-trial table above: %.2f\n", per_round * 4096.0);
+        printf("\n  Which is why that row read 0.00%%. The relation was not destroyed by the\n");
+        printf("  constants alone, as predicted. It was destroyed by the additions, at a\n");
+        printf("  rate the table had no resolution to see.\n");
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading this\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Rotation, exclusive or and the Sigma functions are all rotation-equivariant:\n");
-    std::printf("  they commute with rotating the input, so they cannot break the relation. Only\n");
-    std::printf("  two things in the round can. Modular addition breaks it sometimes, because a\n");
-    std::printf("  carry crosses the word boundary that a rotation wraps. A round constant breaks\n");
-    std::printf("  it always, because adding a fixed value to both members of a rotational pair\n");
-    std::printf("  does not preserve the pair unless the value is itself invariant.\n");
-    std::printf("\n  If the baseline dies at round one while the constant-free variant survives,\n");
-    std::printf("  then the sixty-four distinct constants are the load-bearing element for this\n");
-    std::printf("  property, and H6's result has a named cause instead of only a measurement.\n");
-    std::printf("\n  Note what that does and does not buy. It identifies the mechanism exactly.\n");
-    std::printf("  It does not weaken SHA-256, because the constants are not optional and are not\n");
-    std::printf("  chosen by anyone at mining time. Knowing which brick holds the arch up does\n");
-    std::printf("  not let you remove it.\n");
+    printf("\n================================================================\n");
+    printf("  Reading this\n");
+    printf("================================================================\n");
+    printf("\n  Rotation, exclusive or and the Sigma functions are all rotation-equivariant:\n");
+    printf("  they commute with rotating the input, so they cannot break the relation. Only\n");
+    printf("  two things in the round can. Modular addition breaks it sometimes, because a\n");
+    printf("  carry crosses the word boundary that a rotation wraps. A round constant breaks\n");
+    printf("  it always, because adding a fixed value to both members of a rotational pair\n");
+    printf("  does not preserve the pair unless the value is itself invariant.\n");
+    printf("\n  If the baseline dies at round one while the constant-free variant survives,\n");
+    printf("  then the sixty-four distinct constants are the load-bearing element for this\n");
+    printf("  property, and H6's result has a named cause instead of only a measurement.\n");
+    printf("\n  Note what that does and does not buy. It identifies the mechanism exactly.\n");
+    printf("  It does not weaken SHA-256, because the constants are not optional and are not\n");
+    printf("  chosen by anyone at mining time. Knowing which brick holds the arch up does\n");
+    printf("  not let you remove it.\n");
     return 0;
 }

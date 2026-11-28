@@ -21,9 +21,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -112,18 +112,18 @@ void run_round(uint32_t *state, unsigned round, uint32_t schedule_word, bool use
  */
 double sweep_addition_frames(unsigned *best_frame)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Every frame, one addition\n");
-    std::printf("================================================================\n");
-    std::printf("\n  In a frame turning by r, does a sum still look like a sum? Measured for all\n");
-    std::printf("  thirty-one non-trivial frames, 2,000,000 pairs each. Nothing assumed.\n");
+    printf("\n================================================================\n");
+    printf("  1. Every frame, one addition\n");
+    printf("================================================================\n");
+    printf("\n  In a frame turning by r, does a sum still look like a sum? Measured for all\n");
+    printf("  thirty-one non-trivial frames, 2,000,000 pairs each. Nothing assumed.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 2000000u;
     double best = 0.0;
 
-    std::printf("\n  %6s %14s   %6s %14s\n", "frame", "holds", "frame", "holds");
-    std::printf("  %6s %14s   %6s %14s\n", "------", "--------------", "------", "--------------");
+    printf("\n  %6s %14s   %6s %14s\n", "frame", "holds", "frame", "holds");
+    printf("  %6s %14s   %6s %14s\n", "------", "--------------", "------", "--------------");
 
     std::vector<double> rates(32u, 0.0);
     for (unsigned frame = 1u; frame < 32u; frame += 1u)
@@ -149,17 +149,17 @@ double sweep_addition_frames(unsigned *best_frame)
 
     for (unsigned frame = 1u; frame <= 16u; frame += 1u)
     {
-        std::printf("  %6u %13.6f", frame, rates[frame]);
+        printf("  %6u %13.6f", frame, rates[frame]);
         if ((frame + 16u) < 32u)
         {
-            std::printf("   %6u %13.6f", frame + 16u, rates[frame + 16u]);
+            printf("   %6u %13.6f", frame + 16u, rates[frame + 16u]);
         }
-        std::printf("\n");
+        printf("\n");
     }
 
-    std::printf("\n  strongest frame: %u at %.6f\n", *best_frame, best);
-    std::printf("  weakest        : %.6f\n", *std::min_element(rates.begin() + 1, rates.end()));
-    std::printf("  ratio          : %.4f\n", best / *std::min_element(rates.begin() + 1, rates.end()));
+    printf("\n  strongest frame: %u at %.6f\n", *best_frame, best);
+    printf("  weakest        : %.6f\n", *std::min_element(rates.begin() + 1, rates.end()));
+    printf("  ratio          : %.4f\n", best / *std::min_element(rates.begin() + 1, rates.end()));
     return best;
 }
 
@@ -172,7 +172,7 @@ double sweep_addition_frames(unsigned *best_frame)
  */
 double sweep_round_frames(bool use_constant, unsigned *best_frame)
 {
-    std::printf("\n  %s\n", use_constant ? "with the round constants present:" : "with the round constants removed:");
+    printf("\n  %s\n", use_constant ? "with the round constants present:" : "with the round constants removed:");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 400000u;
@@ -216,17 +216,17 @@ double sweep_round_frames(bool use_constant, unsigned *best_frame)
         }
     }
 
-    std::printf("    %6s %14s   %6s %14s\n", "frame", "holds", "frame", "holds");
+    printf("    %6s %14s   %6s %14s\n", "frame", "holds", "frame", "holds");
     for (unsigned frame = 1u; frame <= 16u; frame += 1u)
     {
-        std::printf("    %6u %13.6f", frame, rates[frame]);
+        printf("    %6u %13.6f", frame, rates[frame]);
         if ((frame + 16u) < 32u)
         {
-            std::printf("   %6u %13.6f", frame + 16u, rates[frame + 16u]);
+            printf("   %6u %13.6f", frame + 16u, rates[frame + 16u]);
         }
-        std::printf("\n");
+        printf("\n");
     }
-    std::printf("\n    strongest frame: %u at %.6f\n", *best_frame, best);
+    printf("\n    strongest frame: %u at %.6f\n", *best_frame, best);
     return best;
 }
 
@@ -234,46 +234,46 @@ double sweep_round_frames(bool use_constant, unsigned *best_frame)
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Riding the rotating frame\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Treat rotr not as an operation on the data but as the field turning under\n");
-    std::printf("  the observer. Sit in the turning frame and rotr is the identity. The question\n");
-    std::printf("  is what the rest of the construction costs once expressed there, and whether\n");
-    std::printf("  any of the thirty-two available frames is cheaper than the others.\n");
+    printf("================================================================\n");
+    printf("  Riding the rotating frame\n");
+    printf("================================================================\n");
+    printf("\n  Treat rotr not as an operation on the data but as the field turning under\n");
+    printf("  the observer. Sit in the turning frame and rotr is the identity. The question\n");
+    printf("  is what the rest of the construction costs once expressed there, and whether\n");
+    printf("  any of the thirty-two available frames is cheaper than the others.\n");
 
     unsigned best_addition_frame = 0u;
     const double best_addition = sweep_addition_frames(&best_addition_frame);
 
-    std::printf("\n================================================================\n");
-    std::printf("  2. Every frame, one full round\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  2. Every frame, one full round\n");
+    printf("================================================================\n");
 
     unsigned best_open_frame = 0u;
     unsigned best_real_frame = 0u;
     const double best_open = sweep_round_frames(false, &best_open_frame);
     const double best_real = sweep_round_frames(true, &best_real_frame);
 
-    std::printf("\n================================================================\n");
-    std::printf("  3. Riding the strongest frame, round by round\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  3. Riding the strongest frame, round by round\n");
+    printf("================================================================\n");
 
     if (best_open <= 0.0)
     {
-        std::printf("\n  No frame survives even one round without constants, so there is nothing\n");
-        std::printf("  to ride and section 3 does not apply.\n");
+        printf("\n  No frame survives even one round without constants, so there is nothing\n");
+        printf("  to ride and section 3 does not apply.\n");
     }
     else
     {
-        std::printf("\n  The sweep picked frame %u, not a frame chosen by hand. Ride it and count\n", best_open_frame);
-        std::printf("  how far the relation holds, constants removed so the ride is given every\n");
-        std::printf("  advantage the construction allows.\n");
+        printf("\n  The sweep picked frame %u, not a frame chosen by hand. Ride it and count\n", best_open_frame);
+        printf("  how far the relation holds, constants removed so the ride is given every\n");
+        printf("  advantage the construction allows.\n");
 
         std::mt19937 generator(4242u);
         const unsigned trials = 2000000u;
 
-        std::printf("\n  %8s %16s %18s\n", "rounds", "holds", "predicted p^n");
-        std::printf("  %8s %16s %18s\n", "--------", "----------------", "------------------");
+        printf("\n  %8s %16s %18s\n", "rounds", "holds", "predicted p^n");
+        printf("  %8s %16s %18s\n", "--------", "----------------", "------------------");
 
         for (unsigned rounds : {1u, 2u, 3u, 4u, 5u, 6u})
         {
@@ -306,22 +306,22 @@ int main()
                 held += matches ? 1u : 0u;
             }
 
-            std::printf("  %8u %15.6f%% %17.6f%%\n", rounds, 100.0 * (double)held / (double)trials,
-                        100.0 * std::pow(best_open, (double)rounds));
+            printf("  %8u %15.6f%% %17.6f%%\n", rounds, 100.0 * (double)held / (double)trials,
+                        100.0 * pow(best_open, (double)rounds));
         }
 
-        std::printf("\n  Extrapolating the measured per-round rate to the depth a header hash\n");
-        std::printf("  actually runs:\n");
-        std::printf("    per round      : %.6f\n", best_open);
-        std::printf("    over 64 rounds : %.3e\n", std::pow(best_open, 64.0));
-        std::printf("    over 128       : %.3e\n", std::pow(best_open, 128.0));
-        std::printf("    brute force    : %.3e   (2^-256)\n", std::pow(2.0, -256.0));
-        std::printf("\n  And with the constants present, which is the real function, the strongest\n");
-        std::printf("  frame holds at %.6f per round.\n", best_real);
+        printf("\n  Extrapolating the measured per-round rate to the depth a header hash\n");
+        printf("  actually runs:\n");
+        printf("    per round      : %.6f\n", best_open);
+        printf("    over 64 rounds : %.3e\n", pow(best_open, 64.0));
+        printf("    over 128       : %.3e\n", pow(best_open, 128.0));
+        printf("    brute force    : %.3e   (2^-256)\n", pow(2.0, -256.0));
+        printf("\n  And with the constants present, which is the real function, the strongest\n");
+        printf("  frame holds at %.6f per round.\n", best_real);
     }
 
-    std::printf("\n  best addition frame %u at %.6f, best round frame %u\n", best_addition_frame, best_addition,
+    printf("\n  best addition frame %u at %.6f, best round frame %u\n", best_addition_frame, best_addition,
                 best_open_frame);
-    std::printf("\n================================================================\n");
+    printf("\n================================================================\n");
     return 0;
 }

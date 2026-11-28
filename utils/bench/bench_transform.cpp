@@ -24,10 +24,10 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
+#include <math.h>
 #include <complex>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -56,15 +56,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -115,7 +115,7 @@ void transform_row(const double *boundary, std::complex<double> *spectrum)
         {
             const double angle =
                 -2.0 * 3.14159265358979323846 * (double)frequency * (double)position / (double)BOUNDARY_WIDTH;
-            total += boundary[position] * std::complex<double>(std::cos(angle), std::sin(angle));
+            total += boundary[position] * std::complex<double>(cos(angle), sin(angle));
         }
         spectrum[frequency] = total;
     }
@@ -129,9 +129,9 @@ void transform_row(const double *boundary, std::complex<double> *spectrum)
  */
 void check_rotation_identity()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  0. Control. Does the boundary see a rotation at all?\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  0. Control. Does the boundary see a rotation at all?\n");
+    printf("================================================================\n");
 
     std::mt19937 generator(20260908u);
     double worst_magnitude_drift = 0.0;
@@ -155,7 +155,7 @@ void check_rotation_identity()
 
         for (unsigned frequency = 1u; frequency < BOUNDARY_WIDTH; frequency += 1u)
         {
-            const double drift = std::fabs(std::abs(plain_spectrum[frequency]) - std::abs(rotated_spectrum[frequency]));
+            const double drift = fabs(std::abs(plain_spectrum[frequency]) - std::abs(rotated_spectrum[frequency]));
             worst_magnitude_drift = std::max(worst_magnitude_drift, drift);
 
             if (std::abs(plain_spectrum[frequency]) > 1e-6)
@@ -174,19 +174,19 @@ void check_rotation_identity()
                 {
                     error += 2.0 * 3.14159265358979323846;
                 }
-                worst_phase_error = std::max(worst_phase_error, std::fabs(error));
+                worst_phase_error = std::max(worst_phase_error, fabs(error));
             }
         }
     }
 
-    std::printf("\n  Over 256 random words and random rotations:\n");
-    std::printf("    largest magnitude drift : %.3e  (identity predicts 0)\n", worst_magnitude_drift);
-    std::printf("    largest phase error     : %.3e rad  (identity predicts 0)\n", worst_phase_error);
+    printf("\n  Over 256 random words and random rotations:\n");
+    printf("    largest magnitude drift : %.3e  (identity predicts 0)\n", worst_magnitude_drift);
+    printf("    largest phase error     : %.3e rad  (identity predicts 0)\n", worst_phase_error);
     check("magnitude spectrum is rotation invariant", worst_magnitude_drift < 1e-9);
     check("phase advances exactly as 2*pi*k*r/32", worst_phase_error < 1e-9);
-    std::printf("\n  So the representation does know when it was rotated. It reads r off the\n");
-    std::printf("  phase to machine precision, and the magnitude never moves. Everything after\n");
-    std::printf("  this asks how many rounds that survives.\n");
+    printf("\n  So the representation does know when it was rotated. It reads r off the\n");
+    printf("  phase to machine precision, and the magnitude never moves. Everything after\n");
+    printf("  this asks how many rounds that survives.\n");
 }
 
 /**
@@ -255,19 +255,19 @@ void fill_tail_block(uint32_t *block, uint32_t nonce)
  */
 void measure_rotation_memory()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. How many rounds does it remember the rotation?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Two chaining values differing by a rotation of one word, same message block.\n");
-    std::printf("  Run both through r rounds, then read the rotation back off the boundary.\n");
-    std::printf("  Chance is 1/32 = 3.1%%. Round zero must read 100%% by construction, which is\n");
-    std::printf("  what makes this a decay curve instead of an assertion.\n");
-    std::printf("\n  The rotation is applied to the chaining value and not to the nonce. The\n");
-    std::printf("  nonce sits at schedule word three and does not enter until round three, so\n");
-    std::printf("  rotating it would report zero recovery for the first three rounds through\n");
-    std::printf("  absence instead of through diffusion, and read as a decay that never was.\n");
-    std::printf("\n  %8s %14s %12s\n", "rounds", "recovered", "vs chance");
-    std::printf("  %8s %14s %12s\n", "--------", "--------------", "------------");
+    printf("\n================================================================\n");
+    printf("  1. How many rounds does it remember the rotation?\n");
+    printf("================================================================\n");
+    printf("\n  Two chaining values differing by a rotation of one word, same message block.\n");
+    printf("  Run both through r rounds, then read the rotation back off the boundary.\n");
+    printf("  Chance is 1/32 = 3.1%%. Round zero must read 100%% by construction, which is\n");
+    printf("  what makes this a decay curve instead of an assertion.\n");
+    printf("\n  The rotation is applied to the chaining value and not to the nonce. The\n");
+    printf("  nonce sits at schedule word three and does not enter until round three, so\n");
+    printf("  rotating it would report zero recovery for the first three rounds through\n");
+    printf("  absence instead of through diffusion, and read as a decay that never was.\n");
+    printf("\n  %8s %14s %12s\n", "rounds", "recovered", "vs chance");
+    printf("  %8s %14s %12s\n", "--------", "--------------", "------------");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 4096u;
@@ -308,7 +308,7 @@ void measure_rotation_memory()
 
         const double rate = (double)recovered / (double)trials;
         const double chance = 1.0 / (double)BOUNDARY_WIDTH;
-        const double standard_error = std::sqrt(chance * (1.0 - chance) / (double)trials);
+        const double standard_error = sqrt(chance * (1.0 - chance) / (double)trials);
         const double score = (rate - chance) / standard_error;
 
         if (score > 5.0)
@@ -316,19 +316,19 @@ void measure_rotation_memory()
             last_informative_round = rounds;
             ever_informative = true;
         }
-        std::printf("  %8u %13.2f%% %+11.1f sigma\n", rounds, rate * 100.0, score);
+        printf("  %8u %13.2f%% %+11.1f sigma\n", rounds, rate * 100.0, score);
     }
 
     if (ever_informative)
     {
-        std::printf("\n  Last round still above chance: %u.\n", last_informative_round);
+        printf("\n  Last round still above chance: %u.\n", last_informative_round);
     }
     else
     {
-        std::printf("\n  Never above chance, which would mean the control itself is broken.\n");
+        printf("\n  Never above chance, which would mean the control itself is broken.\n");
     }
-    std::printf("  SHA-256 runs 64 rounds and Bitcoin runs it twice, a header hash is 128\n");
-    std::printf("  rounds deep. Compare that against the round the signal died at.\n");
+    printf("  SHA-256 runs 64 rounds and Bitcoin runs it twice, a header hash is 128\n");
+    printf("  rounds deep. Compare that against the round the signal died at.\n");
 }
 
 /**
@@ -336,13 +336,13 @@ void measure_rotation_memory()
  */
 void measure_avalanche()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. Diffusion. When does one flipped bit reach half the state?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Flip one bit of the nonce, run r rounds, count state bits that moved.\n");
-    std::printf("  A function with nothing left to leak sits at 50%% and stays there.\n");
-    std::printf("\n  %8s %14s\n", "rounds", "bits moved");
-    std::printf("  %8s %14s\n", "--------", "--------------");
+    printf("\n================================================================\n");
+    printf("  2. Diffusion. When does one flipped bit reach half the state?\n");
+    printf("================================================================\n");
+    printf("\n  Flip one bit of the nonce, run r rounds, count state bits that moved.\n");
+    printf("  A function with nothing left to leak sits at 50%% and stays there.\n");
+    printf("\n  %8s %14s\n", "rounds", "bits moved");
+    printf("  %8s %14s\n", "--------", "--------------");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 2048u;
@@ -382,11 +382,11 @@ void measure_avalanche()
             saturation_round = rounds;
             saturated = true;
         }
-        std::printf("  %8u %13.2f%%\n", rounds, fraction * 100.0);
+        printf("  %8u %13.2f%%\n", rounds, fraction * 100.0);
     }
 
-    std::printf("\n  Half the state moves by round %u, and the header hash runs 128 rounds.\n", saturation_round);
-    std::printf("  Past saturation the output carries no readable trace of which bit moved.\n");
+    printf("\n  Half the state moves by round %u, and the header hash runs 128 rounds.\n", saturation_round);
+    printf("  Past saturation the output carries no readable trace of which bit moved.\n");
 }
 
 /**
@@ -394,13 +394,13 @@ void measure_avalanche()
  */
 void measure_spectral_flatness()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. The boundary spectrum. Does any frequency stand up?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Mean power per frequency across the 8 by 32 boundary. A structured state\n");
-    std::printf("  concentrates power in a few bins. Flat spectral flatness is 1.0.\n");
-    std::printf("\n  %8s %18s %14s\n", "rounds", "spectral flatness", "peak / mean");
-    std::printf("  %8s %18s %14s\n", "--------", "------------------", "--------------");
+    printf("\n================================================================\n");
+    printf("  3. The boundary spectrum. Does any frequency stand up?\n");
+    printf("================================================================\n");
+    printf("\n  Mean power per frequency across the 8 by 32 boundary. A structured state\n");
+    printf("  concentrates power in a few bins. Flat spectral flatness is 1.0.\n");
+    printf("\n  %8s %18s %14s\n", "rounds", "spectral flatness", "peak / mean");
+    printf("  %8s %18s %14s\n", "--------", "------------------", "--------------");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 4096u;
@@ -444,21 +444,21 @@ void measure_spectral_flatness()
         for (unsigned frequency = 1u; frequency < BOUNDARY_WIDTH; frequency += 1u)
         {
             const double value = power[frequency];
-            log_sum += std::log(std::max(value, 1e-300));
+            log_sum += log(std::max(value, 1e-300));
             linear_sum += value;
             peak = std::max(peak, value);
         }
         const double count = (double)(BOUNDARY_WIDTH - 1u);
-        const double geometric = std::exp(log_sum / count);
+        const double geometric = exp(log_sum / count);
         const double arithmetic = linear_sum / count;
         const double flatness = (arithmetic > 0.0) ? (geometric / arithmetic) : 0.0;
 
-        std::printf("  %8u %17.6f %14.4f\n", rounds, flatness, (arithmetic > 0.0) ? (peak / arithmetic) : 0.0);
+        printf("  %8u %17.6f %14.4f\n", rounds, flatness, (arithmetic > 0.0) ? (peak / arithmetic) : 0.0);
     }
 
-    std::printf("\n  The nonce enters at word three and the state starts on the fixed initial\n");
-    std::printf("  value, so round zero is highly structured and its flatness is far from one.\n");
-    std::printf("  By the round count a real hash uses there is no bin left standing up.\n");
+    printf("\n  The nonce enters at word three and the state starts on the fixed initial\n");
+    printf("  value, so round zero is highly structured and its flatness is far from one.\n");
+    printf("  By the round count a real hash uses there is no bin left standing up.\n");
 }
 
 /**
@@ -466,9 +466,9 @@ void measure_spectral_flatness()
  */
 void check_instrument()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  Instrument check\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  Instrument check\n");
+    printf("================================================================\n");
 
     std::mt19937 generator(1u);
     bool all_matched = true;
@@ -507,10 +507,10 @@ void check_instrument()
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  SHA-256 on its two dimensional boundary\n");
-    std::printf("  Rotation is a phase ramp. How far does the phase travel?\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  SHA-256 on its two dimensional boundary\n");
+    printf("  Rotation is a phase ramp. How far does the phase travel?\n");
+    printf("================================================================\n");
 
     const auto started = std::chrono::steady_clock::now();
 
@@ -522,9 +522,9 @@ int main()
 
     const auto finished = std::chrono::steady_clock::now();
 
-    std::printf("\n================================================================\n");
-    std::printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

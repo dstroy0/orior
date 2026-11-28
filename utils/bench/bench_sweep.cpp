@@ -26,9 +26,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -170,25 +170,25 @@ Best strongest_delta(unsigned frame, unsigned word, unsigned round, uint32_t inp
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Rigorous sweep: every frame, every word, every constant\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Rigorous sweep: every frame, every word, every constant\n");
+    printf("================================================================\n");
 
     std::mt19937 generator(bench_seed(20260908u));
     const auto started = std::chrono::steady_clock::now();
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  1. All 31 frames by all 8 output words, at round constant 0\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Only words 0 and 4 are measured, and that restriction is the whole content of\n");
-    std::printf("  this paragraph. A round writes state[0] and state[4]; the other six are pure\n");
-    std::printf("  shifts of the incoming state. Since the incoming pair is constructed exactly\n");
-    std::printf("  rotational, those six are trivially rotational on the way out and report a\n");
-    std::printf("  delta of zero with probability one. An earlier version of this sweep measured\n");
-    std::printf("  all eight and reported P = 1.00000000 across every frame, which was six\n");
-    std::printf("  untouched words outvoting the two real ones.\n");
-    std::printf("\n  62 combinations, 300,000 pairs each. Uniform would be 2.3e-10.\n");
+    printf("\n================================================================\n");
+    printf("  1. All 31 frames by all 8 output words, at round constant 0\n");
+    printf("================================================================\n");
+    printf("\n  Only words 0 and 4 are measured, and that restriction is the whole content of\n");
+    printf("  this paragraph. A round writes state[0] and state[4]; the other six are pure\n");
+    printf("  shifts of the incoming state. Since the incoming pair is constructed exactly\n");
+    printf("  rotational, those six are trivially rotational on the way out and report a\n");
+    printf("  delta of zero with probability one. An earlier version of this sweep measured\n");
+    printf("  all eight and reported P = 1.00000000 across every frame, which was six\n");
+    printf("  untouched words outvoting the two real ones.\n");
+    printf("\n  62 combinations, 300,000 pairs each. Uniform would be 2.3e-10.\n");
 
     Best global = {0.0, 0u, 0u, 0u, 0u};
     std::vector<double> frame_best(32u, 0.0);
@@ -206,27 +206,27 @@ int main()
         }
     }
 
-    std::printf("\n  %8s %16s   %8s %16s\n", "frame", "best P", "frame", "best P");
-    std::printf("  %8s %16s   %8s %16s\n", "--------", "----------------", "--------", "----------------");
+    printf("\n  %8s %16s   %8s %16s\n", "frame", "best P", "frame", "best P");
+    printf("  %8s %16s   %8s %16s\n", "--------", "----------------", "--------", "----------------");
     for (unsigned frame = 1u; frame <= 16u; frame += 1u)
     {
-        std::printf("  %8u %16.8f", frame, frame_best[frame]);
+        printf("  %8u %16.8f", frame, frame_best[frame]);
         if ((frame + 16u) < 32u)
         {
-            std::printf("   %8u %16.8f", frame + 16u, frame_best[frame + 16u]);
+            printf("   %8u %16.8f", frame + 16u, frame_best[frame + 16u]);
         }
-        std::printf("\n");
+        printf("\n");
     }
 
-    std::printf("\n  strongest overall: frame %u, word %u, P = %.8f, delta 0x%08x\n", global.frame, global.word,
+    printf("\n  strongest overall: frame %u, word %u, P = %.8f, delta 0x%08x\n", global.frame, global.word,
                 global.probability, global.delta);
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  2. The same combination against all 64 round constants\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A characteristic that only works at one constant is worth nothing, because a\n");
-    std::printf("  hash uses all 64 in sequence. Same frame and word, every constant.\n");
+    printf("\n================================================================\n");
+    printf("  2. The same combination against all 64 round constants\n");
+    printf("================================================================\n");
+    printf("\n  A characteristic that only works at one constant is worth nothing, because a\n");
+    printf("  hash uses all 64 in sequence. Same frame and word, every constant.\n");
 
     double constant_low = 1.0;
     double constant_high = 0.0;
@@ -240,22 +240,22 @@ int main()
         constant_total += found.probability;
     }
 
-    std::printf("\n  best P across the 64 constants : %.8f\n", constant_high);
-    std::printf("  worst                          : %.8f\n", constant_low);
-    std::printf("  mean                           : %.8f\n", constant_total / 64.0);
-    std::printf("\n  The spread matters more than the peak. A chain must pass every constant, so\n");
-    std::printf("  the compound probability is driven by the mean and not by the best one.\n");
+    printf("\n  best P across the 64 constants : %.8f\n", constant_high);
+    printf("  worst                          : %.8f\n", constant_low);
+    printf("  mean                           : %.8f\n", constant_total / 64.0);
+    printf("\n  The spread matters more than the peak. A chain must pass every constant, so\n");
+    printf("  the compound probability is driven by the mean and not by the best one.\n");
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  3. Chaining: the delta axis, walked because it cannot be swept\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The incoming delta ranges over 2^32 for one word, so it cannot be enumerated.\n");
-    std::printf("  Walk it instead: take the strongest outgoing delta as the next incoming one and\n");
-    std::printf("  chain through consecutive real constants. Greedy, a lower bound.\n");
+    printf("\n================================================================\n");
+    printf("  3. Chaining: the delta axis, walked because it cannot be swept\n");
+    printf("================================================================\n");
+    printf("\n  The incoming delta ranges over 2^32 for one word, so it cannot be enumerated.\n");
+    printf("  Walk it instead: take the strongest outgoing delta as the next incoming one and\n");
+    printf("  chain through consecutive real constants. Greedy, a lower bound.\n");
 
-    std::printf("\n  %8s %16s %20s\n", "round", "P this round", "compound");
-    std::printf("  %8s %16s %20s\n", "--------", "----------------", "--------------------");
+    printf("\n  %8s %16s %20s\n", "round", "P this round", "compound");
+    printf("  %8s %16s %20s\n", "--------", "----------------", "--------------------");
 
     uint32_t carried = 0u;
     double compound = 1.0;
@@ -266,52 +266,52 @@ int main()
         const Best found = strongest_delta(global.frame, global.word, round, carried, 300000u, generator);
         compound *= found.probability;
         carried = found.delta;
-        std::printf("  %8u %16.8f %20.6e\n", round, found.probability, compound);
+        printf("  %8u %16.8f %20.6e\n", round, found.probability, compound);
     }
 
-    const double per_round = std::pow(compound, 1.0 / (double)chain_depth);
+    const double per_round = pow(compound, 1.0 / (double)chain_depth);
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  4. Coverage, and what the number is worth\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  4. Coverage, and what the number is worth\n");
+    printf("================================================================\n");
 
-    std::printf("\n  Swept exhaustively:\n");
-    std::printf("    frames                : 31 of 31\n");
-    std::printf("    output words          : 2 of 8, and the other 6 are not omissions. A round\n");
-    std::printf("                            writes only state[0] and state[4]; the rest are\n");
-    std::printf("                            shifts of the input and carry no measurement.\n");
-    std::printf("    round constants       : 64 of 64\n");
-    std::printf("    combinations measured : %u\n", 31u * 2u * 64u);
+    printf("\n  Swept exhaustively:\n");
+    printf("    frames                : 31 of 31\n");
+    printf("    output words          : 2 of 8, and the other 6 are not omissions. A round\n");
+    printf("                            writes only state[0] and state[4]; the rest are\n");
+    printf("                            shifts of the input and carry no measurement.\n");
+    printf("    round constants       : 64 of 64\n");
+    printf("    combinations measured : %u\n", 31u * 2u * 64u);
 
-    std::printf("\n  Not swept, and not sweepable:\n");
-    std::printf("    incoming delta, one word : 2^32 values, walked greedily at 8 points\n");
-    std::printf("    incoming delta, full     : 2^256 values\n");
-    std::printf("    message-word deltas      : 2^32 per round, held at the rotational value\n");
-    std::printf("    fraction of the delta axis actually visited : %.3e\n", 8.0 / 4294967296.0);
+    printf("\n  Not swept, and not sweepable:\n");
+    printf("    incoming delta, one word : 2^32 values, walked greedily at 8 points\n");
+    printf("    incoming delta, full     : 2^256 values\n");
+    printf("    message-word deltas      : 2^32 per round, held at the rotational value\n");
+    printf("    fraction of the delta axis actually visited : %.3e\n", 8.0 / 4294967296.0);
 
-    std::printf("\n  Resolution floor, which bounds what the chain above can even say. At 300,000\n");
-    std::printf("  pairs the smallest measurable probability is %.3e, and rounds one onward in\n", 1.0 / 300000.0);
-    std::printf("  section 3 sat at 6.67e-06, which is two occurrences. Those rounds are at the\n");
-    std::printf("  floor, so the compound figure is an upper bound on a quantity that may be\n");
-    std::printf("  smaller, not a measurement of it. Distinguishing them needs more samples.\n");
+    printf("\n  Resolution floor, which bounds what the chain above can even say. At 300,000\n");
+    printf("  pairs the smallest measurable probability is %.3e, and rounds one onward in\n", 1.0 / 300000.0);
+    printf("  section 3 sat at 6.67e-06, which is two occurrences. Those rounds are at the\n");
+    printf("  floor, so the compound figure is an upper bound on a quantity that may be\n");
+    printf("  smaller, not a measurement of it. Distinguishing them needs more samples.\n");
 
-    std::printf("\n  So this is a lower bound on what is reachable, not an upper bound on what\n");
-    std::printf("  exists. A better trajectory may sit in the part never visited, and nothing\n");
-    std::printf("  here rules that out. What it does do is price the best trajectory a greedy\n");
-    std::printf("  walk finds, which is the same procedure published characteristic searches use\n");
-    std::printf("  before they add backtracking.\n");
+    printf("\n  So this is a lower bound on what is reachable, not an upper bound on what\n");
+    printf("  exists. A better trajectory may sit in the part never visited, and nothing\n");
+    printf("  here rules that out. What it does do is price the best trajectory a greedy\n");
+    printf("  walk finds, which is the same procedure published characteristic searches use\n");
+    printf("  before they add backtracking.\n");
 
-    std::printf("\n  measured geometric mean per round : %.8f  (2^%.2f)\n", per_round, std::log2(per_round));
-    std::printf("  needed to match brute force over 64 : %.8f  (2^-4)\n", std::pow(2.0, -4.0));
-    std::printf("  shortfall per round                 : %.2f bits\n", -4.0 - std::log2(per_round));
-    std::printf("\n  over 64 rounds at this rate : %.3e\n", std::pow(per_round, 64.0));
-    std::printf("  brute force                 : %.3e\n", std::pow(2.0, -256.0));
-    std::printf("  ratio                       : %.3e\n", std::pow(per_round, 64.0) / std::pow(2.0, -256.0));
+    printf("\n  measured geometric mean per round : %.8f  (2^%.2f)\n", per_round, log2(per_round));
+    printf("  needed to match brute force over 64 : %.8f  (2^-4)\n", pow(2.0, -4.0));
+    printf("  shortfall per round                 : %.2f bits\n", -4.0 - log2(per_round));
+    printf("\n  over 64 rounds at this rate : %.3e\n", pow(per_round, 64.0));
+    printf("  brute force                 : %.3e\n", pow(2.0, -256.0));
+    printf("  ratio                       : %.3e\n", pow(per_round, 64.0) / pow(2.0, -256.0));
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

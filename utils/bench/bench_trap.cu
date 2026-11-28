@@ -26,9 +26,9 @@
 
 #include <cuda_runtime.h>
 
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <vector>
 
 namespace
@@ -359,7 +359,7 @@ __global__ void which_nonces_win(const uint32_t *midstate, const uint32_t *tail,
 
 int main(int argc, char **argv)
 {
-    const unsigned nonce_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 26u;
+    const unsigned nonce_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 26u;
     const uint32_t nonces = (uint32_t)1u << nonce_bits;
 
     // An arbitrary fixed header. Arbitrary is correct, and not lazy. The question is about the
@@ -370,20 +370,20 @@ int main(int argc, char **argv)
                                   0x6a0d0b47u, 0x8a4c4f1eu, 0xd1f2a5c7u, 0x0be3a6e2u};
     const uint32_t tail[3] = {0x4b1e5e4au, 0x29ab5f49u, 0xffff001du};
 
-    std::printf("================================================================\n");
-    std::printf("  Is the funnel visible from inside it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The round is a bijection and every mixing function has full rank, so the\n");
-    std::printf("  reachable set never narrows and there is no funnel in the counting sense. The\n");
-    std::printf("  question that is left is whether one is visible from inside: does the state at\n");
-    std::printf("  round r say anything about how the digest ends?\n");
-    std::printf("\n  If it does, a nonce can be refused at round r instead of at round 128 and the\n");
-    std::printf("  cost of mining falls by the rounds skipped. Every one of the 256 state bits is\n");
-    std::printf("  scored separately, anything a simple early-reject rule could use has to show\n");
-    std::printf("  up here as a bias on at least one bit.\n");
-    std::printf("\n  Winner means the digest's top %u bits are zero, which is far weaker than a\n", WINNING_ZEROS);
-    std::printf("  share and is what makes the question answerable at this sample size.\n");
-    std::printf("\n  Walking 2^%u nonces per watched round.\n", nonce_bits);
+    printf("================================================================\n");
+    printf("  Is the funnel visible from inside it\n");
+    printf("================================================================\n");
+    printf("\n  The round is a bijection and every mixing function has full rank, so the\n");
+    printf("  reachable set never narrows and there is no funnel in the counting sense. The\n");
+    printf("  question that is left is whether one is visible from inside: does the state at\n");
+    printf("  round r say anything about how the digest ends?\n");
+    printf("\n  If it does, a nonce can be refused at round r instead of at round 128 and the\n");
+    printf("  cost of mining falls by the rounds skipped. Every one of the 256 state bits is\n");
+    printf("  scored separately, anything a simple early-reject rule could use has to show\n");
+    printf("  up here as a bias on at least one bit.\n");
+    printf("\n  Winner means the digest's top %u bits are zero, which is far weaker than a\n", WINNING_ZEROS);
+    printf("  share and is what makes the question answerable at this sample size.\n");
+    printf("\n  Walking 2^%u nonces per watched round.\n", nonce_bits);
 
     uint32_t *device_midstate = nullptr;
     uint32_t *device_tail = nullptr;
@@ -416,8 +416,8 @@ int main(int argc, char **argv)
     cudaMemcpy(device_midstate, midstate, sizeof(midstate), cudaMemcpyHostToDevice);
     cudaMemcpy(device_tail, tail, sizeof(tail), cudaMemcpyHostToDevice);
 
-    std::printf("\n  %8s %12s %14s %14s %12s\n", "round", "winners", "strongest bit", "expected max", "verdict");
-    std::printf("  %8s %12s %14s %14s %12s\n", "--------", "------------", "--------------", "--------------",
+    printf("\n  %8s %12s %14s %14s %12s\n", "round", "winners", "strongest bit", "expected max", "verdict");
+    printf("  %8s %12s %14s %14s %12s\n", "--------", "------------", "--------------", "--------------",
                 "------------");
 
     const unsigned WATCHED = 5u;
@@ -457,7 +457,7 @@ int main(int argc, char **argv)
             {
                 const double overall = (double)ones_all[at] / (double)walked;
                 const double among = (double)ones_win[at] / (double)winners;
-                const double spread = std::sqrt((overall * (1.0 - overall)) / (double)winners);
+                const double spread = sqrt((overall * (1.0 - overall)) / (double)winners);
                 if (spread <= 0.0)
                 {
                     continue;
@@ -476,7 +476,7 @@ int main(int argc, char **argv)
         // strongest bit has to beat before it means anything.
         const double expected_max = 2.89;
         const char *verdict = (strongest > (expected_max + 1.5)) ? "SIGNAL" : "nothing";
-        std::printf("  %8u %12llu %8.2f (b%3u) %14.2f %12s\n", watch_at[which], winners, strongest, strongest_bit,
+        printf("  %8u %12llu %8.2f (b%3u) %14.2f %12s\n", watch_at[which], winners, strongest, strongest_bit,
                     expected_max, verdict);
 
         // Pairs. Contamination would show there if it crossed a boundary, and did not sit on one
@@ -523,7 +523,7 @@ int main(int argc, char **argv)
 
                     const double won_rate = (double)won_ones / (double)kept_win;
                     const double con_rate = (double)con_ones / (double)kept_con;
-                    const double spread = std::sqrt((0.25 / (double)kept_win) + (0.25 / (double)kept_con));
+                    const double spread = sqrt((0.25 / (double)kept_win) + (0.25 / (double)kept_con));
                     if (spread <= 0.0)
                     {
                         continue;
@@ -541,9 +541,9 @@ int main(int argc, char **argv)
 
             // Detection reach for the largest of N draws is sqrt(2 ln N), as elsewhere in this tree.
             // There are 32640 pairs. Thus the null peaks near 4.56, whatever is or is not there.
-            const double pair_null = std::sqrt(2.0 * std::log(32640.0));
+            const double pair_null = sqrt(2.0 * log(32640.0));
             const char *pair_verdict = (loudest_pair > (pair_null + 1.5)) ? "SIGNAL" : "nothing";
-            std::printf("  %8s %5u/%-6u %8.2f (%3u^%3u) %10.2f %12s\n", "  pairs", kept_win, kept_con, loudest_pair,
+            printf("  %8s %5u/%-6u %8.2f (%3u^%3u) %10.2f %12s\n", "  pairs", kept_win, kept_con, loudest_pair,
                         loud_left, loud_right, pair_null, pair_verdict);
         }
     }
@@ -559,12 +559,12 @@ int main(int argc, char **argv)
     // C(32,w) of it has weight w. Only winners need a count. A measured count against an exact total
     // is a stronger test than two measured counts against each other.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Which nonces win\n");
-    std::printf("================================================================\n");
-    std::printf("\n  If a nonce carrying few bits wins more often than one carrying many, the cheap\n");
-    std::printf("  nonces should be searched first. The totals here are exact instead of measured:\n");
-    std::printf("  half the space carries any given bit, and C(32,w) of it has weight w.\n");
+    printf("\n================================================================\n");
+    printf("  Which nonces win\n");
+    printf("================================================================\n");
+    printf("\n  If a nonce carrying few bits wins more often than one carrying many, the cheap\n");
+    printf("  nonces should be searched first. The totals here are exact instead of measured:\n");
+    printf("  half the space carries any given bit, and C(32,w) of it has weight w.\n");
 
     {
         unsigned long long *device_by_bit = nullptr;
@@ -591,7 +591,7 @@ int main(int argc, char **argv)
         cudaMemcpy(by_weight, device_by_weight, sizeof(by_weight), cudaMemcpyDeviceToHost);
         cudaMemcpy(&won, device_won, sizeof(won), cudaMemcpyDeviceToHost);
 
-        std::printf("\n  %llu winners over the whole 2^32 nonce space, exhaustively.\n", won);
+        printf("\n  %llu winners over the whole 2^32 nonce space, exhaustively.\n", won);
 
         // Half the space carries each nonce bit. Thus half the winners should carry it too.
         double loudest_bit = 0.0;
@@ -599,7 +599,7 @@ int main(int argc, char **argv)
         for (unsigned bit = 0u; bit < 32u; bit += 1u)
         {
             const double expected = (double)won / 2.0;
-            const double spread = std::sqrt((double)won * 0.25);
+            const double spread = sqrt((double)won * 0.25);
             if (spread <= 0.0)
             {
                 continue;
@@ -629,7 +629,7 @@ int main(int argc, char **argv)
             {
                 continue;
             }
-            const double spread = std::sqrt(expected * (1.0 - share));
+            const double spread = sqrt(expected * (1.0 - share));
             const double score = ((double)by_weight[weight] - expected) / spread;
             const double size = (score < 0.0) ? -score : score;
             if (size > loudest_weight)
@@ -639,23 +639,23 @@ int main(int argc, char **argv)
             }
         }
 
-        const double bit_null = std::sqrt(2.0 * std::log(32.0));
-        const double weight_null = std::sqrt(2.0 * std::log(33.0));
-        std::printf("\n  %-34s %10s %10s %12s\n", "what", "loudest", "null peak", "verdict");
-        std::printf("  %-34s %10s %10s %12s\n", "----------------------------------", "----------", "----------",
+        const double bit_null = sqrt(2.0 * log(32.0));
+        const double weight_null = sqrt(2.0 * log(33.0));
+        printf("\n  %-34s %10s %10s %12s\n", "what", "loudest", "null peak", "verdict");
+        printf("  %-34s %10s %10s %12s\n", "----------------------------------", "----------", "----------",
                     "------------");
-        std::printf("  %-34s %8.2f (b%2u) %10.2f %12s\n", "winners carrying each nonce bit", loudest_bit, loud_bit,
+        printf("  %-34s %8.2f (b%2u) %10.2f %12s\n", "winners carrying each nonce bit", loudest_bit, loud_bit,
                     bit_null, (loudest_bit > (bit_null + 1.5)) ? "SIGNAL" : "nothing");
-        std::printf("  %-34s %8.2f (w%2u) %10.2f %12s\n", "winners at each nonce weight", loudest_weight, loud_weight,
+        printf("  %-34s %8.2f (w%2u) %10.2f %12s\n", "winners at each nonce weight", loudest_weight, loud_weight,
                     weight_null, (loudest_weight > (weight_null + 1.5)) ? "SIGNAL" : "nothing");
 
         cudaFree(device_by_bit);
         cudaFree(device_by_weight);
         cudaFree(device_won);
 
-        std::printf("\n  A signal in either row would mean the nonce space is not flat and the\n");
-        std::printf("  search order matters. Nothing in both means every nonce is equally likely to\n");
-        std::printf("  win whatever it looks like, and enumeration order is free.\n");
+        printf("\n  A signal in either row would mean the nonce space is not flat and the\n");
+        printf("  search order matters. Nothing in both means every nonce is equally likely to\n");
+        printf("  win whatever it looks like, and enumeration order is free.\n");
     }
 
     cudaFree(device_midstate);
@@ -665,10 +665,10 @@ int main(int argc, char **argv)
     cudaFree(device_winners);
     cudaFree(device_walked);
 
-    std::printf("\n  The strongest of 256 bits is a maximum, and the largest of 256 standard normal\n");
-    std::printf("  draws sits near 2.89 whether or not anything is there, a column reading near\n");
-    std::printf("  three is the null and not a weak signal. Only a reading well clear of it would\n");
-    std::printf("  be a funnel visible from inside, and it would mean a nonce could be refused at\n");
-    std::printf("  that round instead of at the end.\n");
+    printf("\n  The strongest of 256 bits is a maximum, and the largest of 256 standard normal\n");
+    printf("  draws sits near 2.89 whether or not anything is there, a column reading near\n");
+    printf("  three is the null and not a weak signal. Only a reading well clear of it would\n");
+    printf("  be a funnel visible from inside, and it would mean a nonce could be refused at\n");
+    printf("  that round instead of at the end.\n");
     return 0;
 }

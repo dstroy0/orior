@@ -26,9 +26,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -84,16 +84,16 @@ void evaluate(uint32_t nonce, unsigned rounds, Sha256State *state)
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Does closeness imply closeness? The engine's premise, measured\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The premise: know a corpus completely and everything close to it is true.\n");
-    std::printf("  Operationally that requires closeness in the input to survive into the output,\n");
-    std::printf("  because a representation where it does not carries no neighbourhoods and there\n");
-    std::printf("  is nothing for a sift to generalise across.\n");
-    std::printf("\n  Correlation between input distance and output distance, over 200,000 pairs at\n");
-    std::printf("  each round count. Pairs are drawn at every input distance from 1 to 32 so the\n");
-    std::printf("  correlation has a range to work with.\n");
+    printf("================================================================\n");
+    printf("  Does closeness imply closeness? The engine's premise, measured\n");
+    printf("================================================================\n");
+    printf("\n  The premise: know a corpus completely and everything close to it is true.\n");
+    printf("  Operationally that requires closeness in the input to survive into the output,\n");
+    printf("  because a representation where it does not carries no neighbourhoods and there\n");
+    printf("  is nothing for a sift to generalise across.\n");
+    printf("\n  Correlation between input distance and output distance, over 200,000 pairs at\n");
+    printf("  each round count. Pairs are drawn at every input distance from 1 to 32 so the\n");
+    printf("  correlation has a range to work with.\n");
 
     std::mt19937 generator(bench_seed(20260908u));
     const unsigned pairs = 200000u;
@@ -108,12 +108,12 @@ int main()
     // reads it across all 256 output bits. It takes the difference from the whole, and does not
     // assemble it from parts.
     // -------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The whole function\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Full SHA256d over the complete 80-byte header, all 128 rounds, and the whole\n");
-    std::printf("  256-bit digest read instead of a projection of it. The difference is taken\n");
-    std::printf("  from the whole, which is the natural direction.\n");
+    printf("\n================================================================\n");
+    printf("  The whole function\n");
+    printf("================================================================\n");
+    printf("\n  Full SHA256d over the complete 80-byte header, all 128 rounds, and the whole\n");
+    printf("  256-bit digest read instead of a projection of it. The difference is taken\n");
+    printf("  from the whole, which is the natural direction.\n");
 
     {
         const uint8_t base_header[80] = {
@@ -189,30 +189,30 @@ int main()
 
         const double count = (double)pairs;
         const double covariance = (sum_product / count) - ((sum_in / count) * (sum_out / count));
-        const double spread_in = std::sqrt((sum_in_squared / count) - ((sum_in / count) * (sum_in / count)));
-        const double spread_out = std::sqrt((sum_out_squared / count) - ((sum_out / count) * (sum_out / count)));
+        const double spread_in = sqrt((sum_in_squared / count) - ((sum_in / count) * (sum_in / count)));
+        const double spread_out = sqrt((sum_out_squared / count) - ((sum_out / count) * (sum_out / count)));
         const double correlation = covariance / (spread_in * spread_out);
 
-        std::printf("\n  pairs                       : %u, whole header varied, whole digest read\n", pairs);
-        std::printf("  mean input distance         : %.2f bits of 640\n", sum_in / count);
-        std::printf("  mean output distance        : %.2f bits of 256\n", sum_out / count);
-        std::printf("  smallest output distance    : %u bits\n", lowest_out);
-        std::printf("  correlation, input to output: %+.6f\n", correlation);
-        std::printf("  in standard errors          : %+.2f\n", correlation * std::sqrt(count));
-        std::printf("\n  An input pair one bit apart and an input pair sixty-four bits apart produce\n");
-        std::printf("  output pairs the same distance apart. The smallest output distance seen over\n");
-        std::printf("  %u pairs is %u bits, against 128 expected, so nothing came close to\n", pairs, lowest_out);
-        std::printf("  anything. On the whole function there are no neighbourhoods at all.\n");
+        printf("\n  pairs                       : %u, whole header varied, whole digest read\n", pairs);
+        printf("  mean input distance         : %.2f bits of 640\n", sum_in / count);
+        printf("  mean output distance        : %.2f bits of 256\n", sum_out / count);
+        printf("  smallest output distance    : %u bits\n", lowest_out);
+        printf("  correlation, input to output: %+.6f\n", correlation);
+        printf("  in standard errors          : %+.2f\n", correlation * sqrt(count));
+        printf("\n  An input pair one bit apart and an input pair sixty-four bits apart produce\n");
+        printf("  output pairs the same distance apart. The smallest output distance seen over\n");
+        printf("  %u pairs is %u bits, against 128 expected, so nothing came close to\n", pairs, lowest_out);
+        printf("  anything. On the whole function there are no neighbourhoods at all.\n");
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  The partial view, and where the premise actually dies\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Reduced rounds are a partial and are labeled as one. They are useful for a\n");
-    std::printf("  single purpose: locating the round at which the whole stops carrying closeness.\n");
+    printf("\n================================================================\n");
+    printf("  The partial view, and where the premise actually dies\n");
+    printf("================================================================\n");
+    printf("\n  Reduced rounds are a partial and are labeled as one. They are useful for a\n");
+    printf("  single purpose: locating the round at which the whole stops carrying closeness.\n");
 
-    std::printf("\n  %8s %16s %18s %18s\n", "rounds", "correlation", "mean out distance", "premise holds");
-    std::printf("  %8s %16s %18s %18s\n", "--------", "----------------", "------------------", "------------------");
+    printf("\n  %8s %16s %18s %18s\n", "rounds", "correlation", "mean out distance", "premise holds");
+    printf("  %8s %16s %18s %18s\n", "--------", "----------------", "------------------", "------------------");
 
     const auto started = std::chrono::steady_clock::now();
     unsigned last_holding = 0u;
@@ -259,8 +259,8 @@ int main()
 
         const double count = (double)pairs;
         const double covariance = (sum_product / count) - ((sum_in / count) * (sum_out / count));
-        const double spread_in = std::sqrt((sum_in_squared / count) - ((sum_in / count) * (sum_in / count)));
-        const double spread_out = std::sqrt((sum_out_squared / count) - ((sum_out / count) * (sum_out / count)));
+        const double spread_in = sqrt((sum_in_squared / count) - ((sum_in / count) * (sum_in / count)));
+        const double spread_out = sqrt((sum_out_squared / count) - ((sum_out / count) * (sum_out / count)));
         const double correlation =
             ((spread_in > 0.0) && (spread_out > 0.0)) ? (covariance / (spread_in * spread_out)) : 0.0;
 
@@ -268,36 +268,36 @@ int main()
         // the output never moves are a separate case. Do not label them as a measured absence.
         // The nonce sits at schedule word three, and does not reach the state until round three.
         // Thus those rows report that the input did not arrive yet.
-        const double score = correlation * std::sqrt(count);
+        const double score = correlation * sqrt(count);
         const bool arrived = ((sum_out / count) > 0.0);
-        const bool holds = arrived && (std::fabs(score) > 10.0);
+        const bool holds = arrived && (fabs(score) > 10.0);
         if (holds)
         {
             last_holding = rounds;
         }
 
-        std::printf("  %8u %16.6f %18.2f %18s\n", rounds, correlation, sum_out / count,
+        printf("  %8u %16.6f %18.2f %18s\n", rounds, correlation, sum_out / count,
                     arrived ? (holds ? "yes" : "no") : "input absent");
     }
 
     const auto finished = std::chrono::steady_clock::now();
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The premise holds through round %u and not past it.\n", last_holding);
-    std::printf("\n  Below that boundary the domain has neighbourhoods, closeness carries, and the\n");
-    std::printf("  engine's construction applies exactly as it does to a language corpus. Above it\n");
-    std::printf("  the correlation is gone and there is no manifold left to generalise across.\n");
-    std::printf("\n  A header hash runs 128 rounds. So the engine's premise is true of SHA-256 for\n");
-    std::printf("  the first few percent of the computation and false for the rest, and every\n");
-    std::printf("  negative result in this tree is a consequence of that single fact instead of\n");
-    std::printf("  an independent finding.\n");
-    std::printf("\n  This is not a defect in the engine. It is a statement about where the engine\n");
-    std::printf("  applies. The domains it was built for, language and crystal boundaries and\n");
-    std::printf("  protein constructs, all carry the premise. This one had it removed on purpose,\n");
-    std::printf("  and the avalanche criterion is the name of the removal.\n");
-    std::printf("\n  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  The premise holds through round %u and not past it.\n", last_holding);
+    printf("\n  Below that boundary the domain has neighbourhoods, closeness carries, and the\n");
+    printf("  engine's construction applies exactly as it does to a language corpus. Above it\n");
+    printf("  the correlation is gone and there is no manifold left to generalise across.\n");
+    printf("\n  A header hash runs 128 rounds. So the engine's premise is true of SHA-256 for\n");
+    printf("  the first few percent of the computation and false for the rest, and every\n");
+    printf("  negative result in this tree is a consequence of that single fact instead of\n");
+    printf("  an independent finding.\n");
+    printf("\n  This is not a defect in the engine. It is a statement about where the engine\n");
+    printf("  applies. The domains it was built for, language and crystal boundaries and\n");
+    printf("  protein constructs, all carry the premise. This one had it removed on purpose,\n");
+    printf("  and the avalanche criterion is the name of the removal.\n");
+    printf("\n  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

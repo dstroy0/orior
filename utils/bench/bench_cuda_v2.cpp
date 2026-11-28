@@ -19,8 +19,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <vector>
 
@@ -141,15 +141,15 @@ void report(const std::string &name, bool passed, const std::string &detail = ""
     g_tests_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_tests_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -291,7 +291,7 @@ void test_device_agrees_with_cpu(CudaMinerContext *context, const BenchArm &arm)
                std::to_string(cpu_winners.size()));
     report(std::string(arm.name) + ": device and CPU find the same winners",
            device_winners == cpu_winners, "the two arms disagree on which nonces win");
-    std::printf("         (%zu winners over %u nonces at a 2^-16 target)\n", cpu_winners.size(),
+    printf("         (%zu winners over %u nonces at a 2^-16 target)\n", cpu_winners.size(),
                 window);
 }
 
@@ -367,7 +367,7 @@ int measure_arm_rates(CudaMinerContext *context, double *medians)
                 return 0;
             }
             rates[which].push_back(hashes / seconds);
-            std::printf("  round %d  %-22s %.0f hashes in %.4f s = %.2f MH/s\n", round + 1,
+            printf("  round %d  %-22s %.0f hashes in %.4f s = %.2f MH/s\n", round + 1,
                         BENCH_ARMS[which].name, hashes, seconds, hashes / seconds / 1.0e6);
         }
     }
@@ -388,25 +388,25 @@ int main()
     char device_text[256];
     const int multiprocessors = cuda_miner_device_report(device_text, sizeof(device_text));
 
-    std::printf("================================================================\n");
-    std::printf("  CUDA v2 arm validation and benchmark\n");
-    std::printf("  device: %s\n", device_text);
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  CUDA v2 arm validation and benchmark\n");
+    printf("  device: %s\n", device_text);
+    printf("================================================================\n");
 
     if (multiprocessors == 0)
     {
-        std::printf("\nNo CUDA device. Nothing to test.\n");
+        printf("\nNo CUDA device. Nothing to test.\n");
         return 1;
     }
 
     CudaMinerContext *const context = cuda_miner_create(4096u);
     if (context == nullptr)
     {
-        std::printf("\nCould not allocate device buffers.\n");
+        printf("\nCould not allocate device buffers.\n");
         return 1;
     }
 
-    std::printf("\n[1] Recovering nonces the chain recorded, every arm\n");
+    printf("\n[1] Recovering nonces the chain recorded, every arm\n");
     for (size_t which = 0u; which < BENCH_ARM_COUNT; which += 1u)
     {
         test_device_finds_nonce(context, BENCH_ARMS[which], GENESIS_HEADER_HEX,
@@ -415,7 +415,7 @@ int main()
                                 BENCH_EXPECTED_NONCE, "block 125552");
     }
 
-    std::printf("\n[2] Agreement with the CPU arm, every arm\n");
+    printf("\n[2] Agreement with the CPU arm, every arm\n");
     for (size_t which = 0u; which < BENCH_ARM_COUNT; which += 1u)
     {
         test_device_agrees_with_cpu(context, BENCH_ARMS[which]);
@@ -423,40 +423,40 @@ int main()
 
     if (g_tests_failed != 0)
     {
-        std::printf("\n%d of %d checks failed. Not reporting a rate for an arm that is wrong.\n",
+        printf("\n%d of %d checks failed. Not reporting a rate for an arm that is wrong.\n",
                     g_tests_failed, g_tests_run);
         cuda_miner_destroy(context);
         return 1;
     }
 
-    std::printf("\n[3] Measured rates, %d interleaved rounds, block 125552's header\n", BENCH_ROUNDS);
+    printf("\n[3] Measured rates, %d interleaved rounds, block 125552's header\n", BENCH_ROUNDS);
     double medians[BENCH_ARM_COUNT];
     if (measure_arm_rates(context, medians) == 0)
     {
-        std::printf("  a timed launch failed, so no rate is reported\n");
+        printf("  a timed launch failed, so no rate is reported\n");
         cuda_miner_destroy(context);
         return 1;
     }
 
-    std::printf("\n[4] Medians, and what each saving buys\n");
+    printf("\n[4] Medians, and what each saving buys\n");
     for (size_t which = 0u; which < BENCH_ARM_COUNT; which += 1u)
     {
-        std::printf("  %-22s %.2f MH/s\n", BENCH_ARMS[which].name, medians[which] / 1.0e6);
+        printf("  %-22s %.2f MH/s\n", BENCH_ARMS[which].name, medians[which] / 1.0e6);
     }
     for (size_t which = 1u; which < BENCH_ARM_COUNT; which += 1u)
     {
-        std::printf("  %-22s over %-22s %.2f / %.2f MH/s = %.4f\n", BENCH_ARMS[which].name,
+        printf("  %-22s over %-22s %.2f / %.2f MH/s = %.4f\n", BENCH_ARMS[which].name,
                     BENCH_ARMS[which - 1u].name, medians[which] / 1.0e6,
                     medians[which - 1u] / 1.0e6, medians[which] / medians[which - 1u]);
     }
-    std::printf("  %-22s over %-22s %.2f / %.2f MH/s = %.4f\n",
+    printf("  %-22s over %-22s %.2f / %.2f MH/s = %.4f\n",
                 BENCH_ARMS[BENCH_ARM_COUNT - 1u].name, BENCH_ARMS[0].name,
                 medians[BENCH_ARM_COUNT - 1u] / 1.0e6, medians[0] / 1.0e6,
                 medians[BENCH_ARM_COUNT - 1u] / medians[0]);
 
-    std::printf("\n================================================================\n");
-    std::printf("  %d run, %d failed\n", g_tests_run, g_tests_failed);
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d run, %d failed\n", g_tests_run, g_tests_failed);
+    printf("================================================================\n");
 
     cuda_miner_destroy(context);
     return 0;

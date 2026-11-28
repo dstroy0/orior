@@ -29,8 +29,8 @@
 #include <cufft.h>
 #include <cuda_runtime.h>
 
-#include <cmath>
-#include <cstdio>
+#include <math.h>
+#include <stdio.h>
 #include <vector>
 
 namespace
@@ -274,34 +274,34 @@ const char *stream_name(int which)
 
 int main(int argc, char **argv)
 {
-    const unsigned length_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 24u;
-    const unsigned rounds = (argc > 2) ? (unsigned)std::atoi(argv[2]) : 64u;
-    const unsigned word = (argc > 3) ? (unsigned)std::atoi(argv[3]) : 7u;
+    const unsigned length_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 24u;
+    const unsigned rounds = (argc > 2) ? (unsigned)atoi(argv[2]) : 64u;
+    const unsigned word = (argc > 3) ? (unsigned)atoi(argv[3]) : 7u;
     const size_t length = (size_t)1u << length_bits;
     const size_t bins = (length / 2u) + 1u;
     const double claimed_rate = 1000000.0;
 
-    std::printf("================================================================\n");
-    std::printf("  The digest on a spectrum analyser, and folded on itself\n");
-    std::printf("================================================================\n");
-    std::printf("\n  One transform gives both instruments. The power spectrum is the analyser;\n");
-    std::printf("  its inverse is the autocorrelation, which is the signal folded on itself at\n");
-    std::printf("  every offset at once. Computing the fold directly would be quadratic in the\n");
-    std::printf("  length; through the transform it is another n log n.\n");
-    std::printf("\n  Samples: 2^%u = %zu, one per nonce, on the device.\n", length_bits, length);
-    std::printf("  Band: every period from 2 samples to %zu. Calling the rate 1 MHz puts that\n", length);
-    std::printf("  at %.4f Hz to %.0f Hz in one sweep, and the rate is a label instead of a\n",
+    printf("================================================================\n");
+    printf("  The digest on a spectrum analyser, and folded on itself\n");
+    printf("================================================================\n");
+    printf("\n  One transform gives both instruments. The power spectrum is the analyser;\n");
+    printf("  its inverse is the autocorrelation, which is the signal folded on itself at\n");
+    printf("  every offset at once. Computing the fold directly would be quadratic in the\n");
+    printf("  length; through the transform it is another n log n.\n");
+    printf("\n  Samples: 2^%u = %zu, one per nonce, on the device.\n", length_bits, length);
+    printf("  Band: every period from 2 samples to %zu. Calling the rate 1 MHz puts that\n", length);
+    printf("  at %.4f Hz to %.0f Hz in one sweep, and the rate is a label instead of a\n",
                 claimed_rate / (double)length, claimed_rate / 2.0);
-    std::printf("  property, since the stream has no native one.\n");
-    std::printf("  Rounds: %u. Word read: %u.\n", rounds, word);
+    printf("  property, since the stream has no native one.\n");
+    printf("  Rounds: %u. Word read: %u.\n", rounds, word);
 
     cudaDeviceProp properties;
     if (cudaGetDeviceProperties(&properties, 0) != cudaSuccess)
     {
-        std::printf("\n  [!] no device.\n");
+        printf("\n  [!] no device.\n");
         return 1;
     }
-    std::printf("  Device: %s, %.1f GB.\n", properties.name,
+    printf("  Device: %s, %.1f GB.\n", properties.name,
                 (double)properties.totalGlobalMem / (1024.0 * 1024.0 * 1024.0));
 
     // Block 125552, the header this tree validates against.
@@ -390,7 +390,7 @@ int main(int argc, char **argv)
     if ((cudaMalloc((void **)&samples, length * sizeof(cufftReal)) != cudaSuccess) ||
         (cudaMalloc((void **)&spectrum, bins * sizeof(cufftComplex)) != cudaSuccess))
     {
-        std::printf("\n  [!] device memory refused %zu samples.\n", length);
+        printf("\n  [!] device memory refused %zu samples.\n", length);
         return 1;
     }
 
@@ -399,9 +399,9 @@ int main(int argc, char **argv)
     cufftPlan1d(&forward, (int)length, CUFFT_R2C, 1);
     cufftPlan1d(&backward, (int)length, CUFFT_C2R, 1);
 
-    std::printf("\n  %-22s %14s %14s %12s %14s %12s\n", "stream", "top line", "at period", "in sigma", "top fold",
+    printf("\n  %-22s %14s %14s %12s %14s %12s\n", "stream", "top line", "at period", "in sigma", "top fold",
                 "at lag");
-    std::printf("  %-22s %14s %14s %12s %14s %12s\n", "----------------------", "--------------", "--------------",
+    printf("  %-22s %14s %14s %12s %14s %12s\n", "----------------------", "--------------", "--------------",
                 "------------", "--------------", "------------");
 
     for (int which = 0; which < 3; which += 1)
@@ -454,7 +454,7 @@ int main(int argc, char **argv)
         Peak folded = {0.0, 0u};
         for (size_t lag = 1u; lag < (length / 2u); lag += 1u)
         {
-            const double here = std::fabs((double)fold[lag] / at_zero);
+            const double here = fabs((double)fold[lag] / at_zero);
             if (here > folded.height)
             {
                 folded.height = here;
@@ -464,9 +464,9 @@ int main(int argc, char **argv)
 
         // For a flat spectrum, each bin has an exponential distribution about the mean. Thus the
         // largest of n sits near ln(n). That is the reference, derived, and not chosen.
-        const double expected = std::log((double)(bins - 1u));
+        const double expected = log((double)(bins - 1u));
 
-        std::printf("  %-22s %14.1f %14.1f %12.2f %14.6f %12zu\n", stream_name(which), line.height,
+        printf("  %-22s %14.1f %14.1f %12.2f %14.6f %12zu\n", stream_name(which), line.height,
                     (line.at > 0u) ? ((double)length / (double)line.at) : 0.0, line.height / expected, folded.height,
                     folded.at);
     }
@@ -483,17 +483,17 @@ int main(int argc, char **argv)
     // in period. A trial period off by one sample smears the spike across the profile, and reads
     // as nothing. Coarse-then-fine searches a wide band, and does not pay for every period in it.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The fold sweep: stacking cycles in phase to amplify\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A transform spreads a spiky periodic signal across every harmonic. A fold\n");
-    std::printf("  stacks them back into one profile, so signal adds linearly over the cycles\n");
-    std::printf("  stacked while noise adds as a square root. Nothing cancels: cycles are summed\n");
-    std::printf("  in phase, a coherent component reinforces and an incoherent one averages\n");
-    std::printf("  toward zero instead of subtracting from anything.\n");
+    printf("\n================================================================\n");
+    printf("  The fold sweep: stacking cycles in phase to amplify\n");
+    printf("================================================================\n");
+    printf("\n  A transform spreads a spiky periodic signal across every harmonic. A fold\n");
+    printf("  stacks them back into one profile, so signal adds linearly over the cycles\n");
+    printf("  stacked while noise adds as a square root. Nothing cancels: cycles are summed\n");
+    printf("  in phase, a coherent component reinforces and an incoherent one averages\n");
+    printf("  toward zero instead of subtracting from anything.\n");
 
-    std::printf("\n  %-22s %14s %12s %14s %14s\n", "stream", "best period", "in sigma", "cycles stacked", "gain");
-    std::printf("  %-22s %14s %12s %14s %14s\n", "----------------------", "--------------", "------------",
+    printf("\n  %-22s %14s %12s %14s %14s\n", "stream", "best period", "in sigma", "cycles stacked", "gain");
+    printf("  %-22s %14s %12s %14s %14s\n", "----------------------", "--------------", "------------",
                 "--------------", "--------------");
 
     {
@@ -541,7 +541,7 @@ int main(int argc, char **argv)
                     // control at several lengths, and can beat the planted period of the comb. A
                     // spurious attractor that survives a change of data comes from the instrument,
                     // and not from the data.
-                    const double whole = std::floor((double)length / (double)period);
+                    const double whole = floor((double)length / (double)period);
                     const unsigned longer = (unsigned)((size_t)length % (size_t)period);
                     const double spread_one = 255.0 * 255.0 / 12.0;
                     double chi = 0.0;
@@ -558,7 +558,7 @@ int main(int argc, char **argv)
                     // Chi-square with period-minus-one degrees of freedom has that mean, and twice it
                     // for variance. Thus this is the count of standard deviations from expectation.
                     const double freedom = (double)period - 1.0;
-                    const double score = (chi - freedom) / std::sqrt(2.0 * freedom);
+                    const double score = (chi - freedom) / sqrt(2.0 * freedom);
                     if (score > best_score)
                     {
                         best_score = score;
@@ -583,25 +583,25 @@ int main(int argc, char **argv)
             }
 
             const double cycles = (best_period > 0u) ? ((double)length / (double)best_period) : 0.0;
-            std::printf("  %-22s %14u %12.2f %14.0f %14.1f\n", stream_name(which), best_period, best_score, cycles,
-                        std::sqrt(cycles));
+            printf("  %-22s %14u %12.2f %14.0f %14.1f\n", stream_name(which), best_period, best_score, cycles,
+                        sqrt(cycles));
         }
         cudaFree(device_profile);
     }
 
-    std::printf("\n  The comb row must find its planted period here as well as in the spectrum,\n");
-    std::printf("  and at a larger significance, because that is the whole claim about folding.\n");
-    std::printf("  The gain column is the square root of the cycles stacked, which is what the\n");
-    std::printf("  amplification is worth before any of it is read.\n");
+    printf("\n  The comb row must find its planted period here as well as in the spectrum,\n");
+    printf("  and at a larger significance, because that is the whole claim about folding.\n");
+    printf("  The gain column is the square root of the cycles stacked, which is what the\n");
+    printf("  amplification is worth before any of it is read.\n");
 
-    std::printf("\n  The comb row must show a line at period %.0f and nowhere else. If it does\n", COMB_PERIOD);
-    std::printf("  not, this analyser cannot find a period that was deliberately written in and a\n");
-    std::printf("  flat reading on SHA256d means nothing. The splitmix row must come out near the\n");
-    std::printf("  expected column, because an analyser that finds a line in everything is as\n");
-    std::printf("  useless as one that finds none.\n");
-    std::printf("\n  The fold column is the autocorrelation at its strongest lag, as a fraction of\n");
-    std::printf("  lag zero. A stream with no repeat at any offset reads near the reciprocal of\n");
-    std::printf("  the square root of the length, which here is %.6f.\n", 1.0 / std::sqrt((double)length));
+    printf("\n  The comb row must show a line at period %.0f and nowhere else. If it does\n", COMB_PERIOD);
+    printf("  not, this analyser cannot find a period that was deliberately written in and a\n");
+    printf("  flat reading on SHA256d means nothing. The splitmix row must come out near the\n");
+    printf("  expected column, because an analyser that finds a line in everything is as\n");
+    printf("  useless as one that finds none.\n");
+    printf("\n  The fold column is the autocorrelation at its strongest lag, as a fraction of\n");
+    printf("  lag zero. A stream with no repeat at any offset reads near the reciprocal of\n");
+    printf("  the square root of the length, which here is %.6f.\n", 1.0 / sqrt((double)length));
 
     cufftDestroy(forward);
     cufftDestroy(backward);

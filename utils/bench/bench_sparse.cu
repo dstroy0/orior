@@ -20,8 +20,8 @@
 
 #include <cuda_runtime.h>
 
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 
 namespace
@@ -157,7 +157,7 @@ void fill_block(uint32_t *block, const char *header_hex)
         {
             const unsigned offset = ((64u + (slot * 4u) + byte_at) * 2u);
             char pair[3] = {header_hex[offset], header_hex[offset + 1u], '\0'};
-            word = (word << 8) | (uint32_t)std::strtoul(pair, nullptr, 16);
+            word = (word << 8) | (uint32_t)strtoul(pair, nullptr, 16);
         }
         block[slot] = word;
     }
@@ -247,35 +247,35 @@ void trace_linear(unsigned from, unsigned bit, unsigned *weight, int *tainted)
 
 int main(int argc, char **argv)
 {
-    const unsigned nonce_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 20u;
+    const unsigned nonce_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 20u;
     const uint32_t nonces = (uint32_t)1u << nonce_bits;
 
-    std::printf("================================================================\n");
-    std::printf("  How sparse a nonce difference stays in a real header\n");
-    std::printf("================================================================\n");
-    std::printf("\n  bench_space asked this with sixteen random schedule words and found a one-bit\n");
-    std::printf("  difference surviving to W27. A real mining block is not sixteen random words:\n");
-    std::printf("  four words of header, then 0x80000000, ten zero words, and the length. Ten of\n");
-    std::printf("  sixteen inputs are zero and one more is a constant.\n");
-    std::printf("\n  The headers are the tree's own known-answer vectors, so these are blocks that\n");
-    std::printf("  really were solved. Sparsity is the total weight of the expanded difference over\n");
-    std::printf("  all sixty-four words, which is what a schedule differential costs.\n");
-    std::printf("\n  Walking 2^%u nonces by 32 bit positions each.\n", nonce_bits);
+    printf("================================================================\n");
+    printf("  How sparse a nonce difference stays in a real header\n");
+    printf("================================================================\n");
+    printf("\n  bench_space asked this with sixteen random schedule words and found a one-bit\n");
+    printf("  difference surviving to W27. A real mining block is not sixteen random words:\n");
+    printf("  four words of header, then 0x80000000, ten zero words, and the length. Ten of\n");
+    printf("  sixteen inputs are zero and one more is a constant.\n");
+    printf("\n  The headers are the tree's own known-answer vectors, so these are blocks that\n");
+    printf("  really were solved. Sparsity is the total weight of the expanded difference over\n");
+    printf("  all sixty-four words, which is what a schedule differential costs.\n");
+    printf("\n  Walking 2^%u nonces by 32 bit positions each.\n", nonce_bits);
 
     // The exact trace first. It costs nothing, and it decides what the sample below can mean. A word
     // whose linearized weight is one carries a real path. A word whose linearized weight is nine,
     // and reaches one, is a cancel of carries, and costs what that costs.
-    std::printf("\n================================================================\n");
-    std::printf("  The path with no carries, traced exactly\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Addition replaced by exclusive-or, which is exact whenever no carry fires. A\n");
-    std::printf("  word cannot come out below its linearised weight except by a carry cancelling\n");
-    std::printf("  something, so this is the floor and it needs no pairs at all.\n");
-    std::printf("\n  Smallest linearised weight over the 32 input bits, by difference position.\n");
+    printf("\n================================================================\n");
+    printf("  The path with no carries, traced exactly\n");
+    printf("================================================================\n");
+    printf("\n  Addition replaced by exclusive-or, which is exact whenever no carry fires. A\n");
+    printf("  word cannot come out below its linearised weight except by a carry cancelling\n");
+    printf("  something, so this is the floor and it needs no pairs at all.\n");
+    printf("\n  Smallest linearised weight over the 32 input bits, by difference position.\n");
 
-    std::printf("\n  %6s %14s %14s %14s %14s\n", "word", "in W0 (merkle)", "in W1 (time)", "in W2 (nbits)",
+    printf("\n  %6s %14s %14s %14s %14s\n", "word", "in W0 (merkle)", "in W1 (time)", "in W2 (nbits)",
                 "in W3 (nonce)");
-    std::printf("  %6s %14s %14s %14s %14s\n", "------", "--------------", "--------------", "--------------",
+    printf("  %6s %14s %14s %14s %14s\n", "------", "--------------", "--------------", "--------------",
                 "--------------");
 
     unsigned floor_at[4][64];
@@ -305,30 +305,30 @@ int main(int argc, char **argv)
 
     for (unsigned at = 16u; at < 40u; at += 1u)
     {
-        std::printf("  %6u", at);
+        printf("  %6u", at);
         for (unsigned from = 0u; from < 4u; from += 1u)
         {
             if (reached[from][at] == 0)
             {
-                std::printf(" %14s", "untouched");
+                printf(" %14s", "untouched");
             }
             else if (floor_at[from][at] == 33u)
             {
                 // Reached, but every one of the thirty-two input bits cancels to zero over GF(2).
                 // The real word still differs, through the carries that the linearization drops.
-                std::printf(" %14s", "cancels");
+                printf(" %14s", "cancels");
             }
             else
             {
-                std::printf(" %14u", floor_at[from][at]);
+                printf(" %14u", floor_at[from][at]);
             }
         }
-        std::printf("\n");
+        printf("\n");
     }
 
-    std::printf("\n  A one in this table is a word that carries a genuine one-bit path. Anything\n");
-    std::printf("  larger reaching one bit in the sampled table below is carries cancelling, and\n");
-    std::printf("  the two must not be read as the same finding.\n");
+    printf("\n  A one in this table is a word that carries a genuine one-bit path. Anything\n");
+    printf("  larger reaching one bit in the sampled table below is carries cancelling, and\n");
+    printf("  the two must not be read as the same finding.\n");
 
     uint32_t *device_base = nullptr;
     unsigned *device_lightest = nullptr;
@@ -343,8 +343,8 @@ int main(int argc, char **argv)
     cudaMalloc((void **)&device_counted, sizeof(unsigned long long));
     cudaMalloc((void **)&device_at_word, 64u * sizeof(unsigned));
 
-    std::printf("\n  %-26s %10s %10s %10s %12s\n", "block", "min bits", "mean bits", "deepest", "at nonce");
-    std::printf("  %-26s %10s %10s %10s %12s\n", "--------------------------", "----------", "----------", "----------",
+    printf("\n  %-26s %10s %10s %10s %12s\n", "block", "min bits", "mean bits", "deepest", "at nonce");
+    printf("  %-26s %10s %10s %10s %12s\n", "--------------------------", "----------", "----------", "----------",
                 "------------");
 
     unsigned per_word[3][64];
@@ -399,33 +399,33 @@ int main(int argc, char **argv)
         char where[16];
         if (which < 2u)
         {
-            std::snprintf(where, sizeof(where), "%u", VECTORS[which].nonce);
+            snprintf(where, sizeof(where), "%u", VECTORS[which].nonce);
         }
         else
         {
-            std::snprintf(where, sizeof(where), "%s", "-");
+            snprintf(where, sizeof(where), "%s", "-");
         }
-        std::printf("  %-26s %10u %10.1f %10u %12s\n", label, lightest,
+        printf("  %-26s %10u %10.1f %10u %12s\n", label, lightest,
                     (counted > 0u) ? ((double)total / (double)counted) : 0.0, deepest, where);
     }
 
     // The trace is exact. Thus it predicts, and does not only describe. A word that it floors at one
     // should show a large count below. A word that it floors at two should show a small one, or
     // none. That check is the difference between a law and a story.
-    std::printf("\n================================================================\n");
-    std::printf("  The trace against the sampling, on genesis\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A word the trace floors at one carries a real path and should show a large\n");
-    std::printf("  count. A word it floors at two can only reach one bit by a carry cancelling,\n");
-    std::printf("  and should show few or none. A disagreement means one of the two is wrong.\n");
+    printf("\n================================================================\n");
+    printf("  The trace against the sampling, on genesis\n");
+    printf("================================================================\n");
+    printf("\n  A word the trace floors at one carries a real path and should show a large\n");
+    printf("  count. A word it floors at two can only reach one bit by a carry cancelling,\n");
+    printf("  and should show few or none. A disagreement means one of the two is wrong.\n");
 
     {
         uint32_t block[BLOCK_WORDS];
         fill_block(block, VECTORS[0].header_hex);
         cudaMemcpy(device_base, block, sizeof(block), cudaMemcpyHostToDevice);
 
-        std::printf("\n  %-14s %8s %10s %14s %12s\n", "difference in", "word", "trace", "counted", "agrees");
-        std::printf("  %-14s %8s %10s %14s %12s\n", "--------------", "--------", "----------", "--------------",
+        printf("\n  %-14s %8s %10s %14s %12s\n", "difference in", "word", "trace", "counted", "agrees");
+        printf("  %-14s %8s %10s %14s %12s\n", "--------------", "--------", "----------", "--------------",
                     "------------");
 
         const char *named[4] = {"W0 merkle", "W1 time", "W2 nbits", "W3 nonce"};
@@ -477,25 +477,25 @@ int main(int argc, char **argv)
                 char trace_text[16];
                 if (reached[from][at] == 0)
                 {
-                    std::snprintf(trace_text, sizeof(trace_text), "%s", "untouched");
+                    snprintf(trace_text, sizeof(trace_text), "%s", "untouched");
                 }
                 else if (floored == 33u)
                 {
-                    std::snprintf(trace_text, sizeof(trace_text), "%s", "cancels");
+                    snprintf(trace_text, sizeof(trace_text), "%s", "cancels");
                 }
                 else
                 {
-                    std::snprintf(trace_text, sizeof(trace_text), "%u", floored);
+                    snprintf(trace_text, sizeof(trace_text), "%u", floored);
                 }
-                std::printf("  %-14s %8u %10s %14u %12s\n", named[from], at, trace_text, counts[at],
+                printf("  %-14s %8u %10s %14u %12s\n", named[from], at, trace_text, counts[at],
                             (agrees != 0) ? "yes" : "NO");
             }
         }
 
-        std::printf("\n  Every row agreeing means the trace is the law and the sampling was only\n");
-        std::printf("  ever reading it through carries. The deepest one-bit path a miner can reach\n");
-        std::printf("  is then a fact about which header word is moved, not about how many nonces\n");
-        std::printf("  are tried.\n");
+        printf("\n  Every row agreeing means the trace is the law and the sampling was only\n");
+        printf("  ever reading it through carries. The deepest one-bit path a miner can reach\n");
+        printf("  is then a fact about which header word is moved, not about how many nonces\n");
+        printf("  are tried.\n");
     }
 
     cudaFree(device_base);
@@ -515,14 +515,14 @@ int main(int argc, char **argv)
     const double pairs = (double)nonces * 32.0;
     const double by_chance = pairs * (33.0 / 4294967296.0);
 
-    std::printf("\n  How often each word comes out at one bit or fewer\n");
-    std::printf("\n  Pairs per word: %.0f. Chance alone gives %.3f such words, since 33 of the\n", pairs, by_chance);
-    std::printf("  2^32 possible differences weigh zero or one. A count near that is no path; a\n");
-    std::printf("  count far above it is a difference the schedule is carrying instead of mixing.\n");
-    std::printf("\n  Only words beating chance by tenfold are listed, plus every word up to 27.\n");
+    printf("\n  How often each word comes out at one bit or fewer\n");
+    printf("\n  Pairs per word: %.0f. Chance alone gives %.3f such words, since 33 of the\n", pairs, by_chance);
+    printf("  2^32 possible differences weigh zero or one. A count near that is no path; a\n");
+    printf("  count far above it is a difference the schedule is carrying instead of mixing.\n");
+    printf("\n  Only words beating chance by tenfold are listed, plus every word up to 27.\n");
 
-    std::printf("\n  %6s %14s %14s %14s %12s\n", "word", "genesis", "125552", "invented", "vs chance");
-    std::printf("  %6s %14s %14s %14s %12s\n", "------", "--------------", "--------------", "--------------",
+    printf("\n  %6s %14s %14s %14s %12s\n", "word", "genesis", "125552", "invented", "vs chance");
+    printf("  %6s %14s %14s %14s %12s\n", "------", "--------------", "--------------", "--------------",
                 "------------");
     for (unsigned at = 0u; at < 64u; at += 1u)
     {
@@ -533,13 +533,13 @@ int main(int argc, char **argv)
             continue;
         }
         const double ratio = (by_chance > 0.0) ? ((double)highest / by_chance) : 0.0;
-        std::printf("  %6u %14u %14u %14u %12.1fx\n", at, per_word[0][at], per_word[1][at], per_word[2][at], ratio);
+        printf("  %6u %14u %14u %14u %12.1fx\n", at, per_word[0][at], per_word[1][at], per_word[2][at], ratio);
     }
 
-    std::printf("\n  bench_space read one bit through W27 with sixteen random words, at 131072\n");
-    std::printf("  pairs per word where chance gives 0.001 - so those were real. This asks the\n");
-    std::printf("  same question of a real block at a sample where chance gives a quarter, which\n");
-    std::printf("  is why it counts instead of minimising. A word only carries a path where its\n");
-    std::printf("  count stands clear of the chance figure printed above.\n");
+    printf("\n  bench_space read one bit through W27 with sixteen random words, at 131072\n");
+    printf("  pairs per word where chance gives 0.001 - so those were real. This asks the\n");
+    printf("  same question of a real block at a sample where chance gives a quarter, which\n");
+    printf("  is why it counts instead of minimising. A word only carries a path where its\n");
+    printf("  count stands clear of the chance figure printed above.\n");
     return 0;
 }

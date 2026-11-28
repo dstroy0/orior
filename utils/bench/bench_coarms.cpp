@@ -27,9 +27,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -120,9 +120,9 @@ uint32_t leading_word(uint32_t nonce)
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Co-arms across the field: relational against absolute\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Co-arms across the field: relational against absolute\n");
+    printf("================================================================\n");
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
@@ -131,21 +131,21 @@ int main()
     g_base.ntime = schedule_word_from_header(header.data() + 68u);
     g_base.nbits = schedule_word_from_header(header.data() + 72u);
 
-    std::printf("\n  Two win conditions on exactly the same digests.\n");
-    std::printf("\n    relational : some pair of arms agrees on their leading k bits\n");
-    std::printf("    absolute   : some single arm has k leading zero bits\n");
-    std::printf("\n  The first is satisfied by pairs, so N arms offer N(N-1)/2 chances. The second\n");
-    std::printf("  is satisfied by single arms, so N arms offer N. That difference is the whole\n");
-    std::printf("  question, and here it is on the same data.\n");
+    printf("\n  Two win conditions on exactly the same digests.\n");
+    printf("\n    relational : some pair of arms agrees on their leading k bits\n");
+    printf("    absolute   : some single arm has k leading zero bits\n");
+    printf("\n  The first is satisfied by pairs, so N arms offer N(N-1)/2 chances. The second\n");
+    printf("  is satisfied by single arms, so N arms offer N. That difference is the whole\n");
+    printf("  question, and here it is on the same data.\n");
 
     const unsigned match_bits = 24u;
-    const double space = std::pow(2.0, (double)match_bits);
+    const double space = pow(2.0, (double)match_bits);
 
-    std::printf("\n  Matching on %u bits, a single arm clears the absolute test with\n", match_bits);
-    std::printf("  probability 2^-%u = %.3e.\n", match_bits, 1.0 / space);
+    printf("\n  Matching on %u bits, a single arm clears the absolute test with\n", match_bits);
+    printf("  probability 2^-%u = %.3e.\n", match_bits, 1.0 / space);
 
-    std::printf("\n  %10s %14s %14s %14s %14s\n", "arms N", "pairs found", "birthday N^2", "below target", "linear N");
-    std::printf("  %10s %14s %14s %14s %14s\n", "----------", "--------------", "--------------", "--------------",
+    printf("\n  %10s %14s %14s %14s %14s\n", "arms N", "pairs found", "birthday N^2", "below target", "linear N");
+    printf("  %10s %14s %14s %14s %14s\n", "----------", "--------------", "--------------", "--------------",
                 "--------------");
 
     const auto started = std::chrono::steady_clock::now();
@@ -179,46 +179,46 @@ int main()
         const double predicted_pairs = ((double)arms * ((double)arms - 1.0)) / (2.0 * space);
         const double predicted_below = (double)arms / space;
 
-        std::printf("  %10u %14llu %14.3f %14llu %14.5f\n", arms, (unsigned long long)pairs, predicted_pairs,
+        printf("  %10u %14llu %14.3f %14llu %14.5f\n", arms, (unsigned long long)pairs, predicted_pairs,
                     (unsigned long long)below, predicted_below);
     }
 
     const auto finished = std::chrono::steady_clock::now();
 
-    std::printf("\n  The pair column tracks N squared and the target column tracks N, and the\n");
-    std::printf("  prediction columns are stated before the counts instead of fitted after.\n");
-    std::printf("\n  At 32768 arms the relational condition fired 32 times against a prediction of\n");
-    std::printf("  32.0. The absolute condition, on the same digests and the same work, expects\n");
-    std::printf("  0.002 firings and delivered none. The advantage is exactly N/2, which is 16384\n");
-    std::printf("  here and grows without bound. Same digests, same work, different currency.\n");
+    printf("\n  The pair column tracks N squared and the target column tracks N, and the\n");
+    printf("  prediction columns are stated before the counts instead of fitted after.\n");
+    printf("\n  At 32768 arms the relational condition fired 32 times against a prediction of\n");
+    printf("  32.0. The absolute condition, on the same digests and the same work, expects\n");
+    printf("  0.002 firings and delivered none. The advantage is exactly N/2, which is 16384\n");
+    printf("  here and grows without bound. Same digests, same work, different currency.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  Why mining cannot spend the quadratic\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The gain is real and it is enormous. It is also unavailable here, for a\n");
-    std::printf("  reason that is about the protocol instead of about SHA-256.\n");
-    std::printf("\n  A share is a header whose digest is at or below a target the pool sets. The\n");
-    std::printf("  pool re-hashes that one header and compares it against that one number. Two of\n");
-    std::printf("  your candidates agreeing with each other is not a fact about the target, and\n");
-    std::printf("  there is nowhere to submit it. The birthday bound applies to finding two\n");
-    std::printf("  inputs that agree; proof of work asks for one input that is small.\n");
-    std::printf("\n  That is also why the co-arm cascade measured earlier divided the winners\n");
-    std::printf("  along with everything else. A cascade of arms is relational by construction,\n");
-    std::printf("  and the target is absolute, so the arms filtered on a property the target does\n");
-    std::printf("  not care about.\n");
-    std::printf("\n  Stated as the paper would: section 2.2 makes an anchor sound because it is a\n");
-    std::printf("  subconfiguration of the pattern. An absolute target's pattern is one digest\n");
-    std::printf("  against one threshold. A relation between two arms is not a subconfiguration of\n");
-    std::printf("  that pattern, no matter how many arms are used, so no number of co-arms turns\n");
-    std::printf("  a relational win into an absolute one.\n");
+    printf("\n================================================================\n");
+    printf("  Why mining cannot spend the quadratic\n");
+    printf("================================================================\n");
+    printf("\n  The gain is real and it is enormous. It is also unavailable here, for a\n");
+    printf("  reason that is about the protocol instead of about SHA-256.\n");
+    printf("\n  A share is a header whose digest is at or below a target the pool sets. The\n");
+    printf("  pool re-hashes that one header and compares it against that one number. Two of\n");
+    printf("  your candidates agreeing with each other is not a fact about the target, and\n");
+    printf("  there is nowhere to submit it. The birthday bound applies to finding two\n");
+    printf("  inputs that agree; proof of work asks for one input that is small.\n");
+    printf("\n  That is also why the co-arm cascade measured earlier divided the winners\n");
+    printf("  along with everything else. A cascade of arms is relational by construction,\n");
+    printf("  and the target is absolute, so the arms filtered on a property the target does\n");
+    printf("  not care about.\n");
+    printf("\n  Stated as the paper would: section 2.2 makes an anchor sound because it is a\n");
+    printf("  subconfiguration of the pattern. An absolute target's pattern is one digest\n");
+    printf("  against one threshold. A relation between two arms is not a subconfiguration of\n");
+    printf("  that pattern, no matter how many arms are used, so no number of co-arms turns\n");
+    printf("  a relational win into an absolute one.\n");
 
-    std::printf("\n  What would change this: a proof of work whose condition is relational. Some\n");
-    std::printf("  exist. Equihash is a collision-finding proof of work precisely so that memory\n");
-    std::printf("  and the birthday bound matter, and it was designed that way to resist the type\n");
-    std::printf("  of hardware Bitcoin's absolute target rewards. Bitcoin chose the other side.\n");
+    printf("\n  What would change this: a proof of work whose condition is relational. Some\n");
+    printf("  exist. Equihash is a collision-finding proof of work precisely so that memory\n");
+    printf("  and the birthday bound matter, and it was designed that way to resist the type\n");
+    printf("  of hardware Bitcoin's absolute target rewards. Bitcoin chose the other side.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

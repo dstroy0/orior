@@ -18,8 +18,8 @@
  *       and Sigma1.
  */
 
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 
 namespace
 {
@@ -283,17 +283,17 @@ int main(void)
                             {"sigma0", 7u, 18u, 3u, 1, "schedule"},
                             {"sigma1", 17u, 19u, 10u, 1, "schedule"}};
 
-    std::printf("================================================================\n");
-    std::printf("  How much space each mixing function throws away\n");
-    std::printf("================================================================\n");
-    std::printf("\n  All four are GF(2)-linear, so none of this is sampled. Each is a 32 by 32\n");
-    std::printf("  matrix over GF(2), its rank is an elimination away, and the size of its image\n");
-    std::printf("  is two to that rank exactly.\n");
-    std::printf("\n  The state functions are rotations only. A rotation permutes bit positions and\n");
-    std::printf("  loses nothing. The schedule functions each carry a shift, which does not.\n");
+    printf("================================================================\n");
+    printf("  How much space each mixing function throws away\n");
+    printf("================================================================\n");
+    printf("\n  All four are GF(2)-linear, so none of this is sampled. Each is a 32 by 32\n");
+    printf("  matrix over GF(2), its rank is an elimination away, and the size of its image\n");
+    printf("  is two to that rank exactly.\n");
+    printf("\n  The state functions are rotations only. A rotation permutes bit positions and\n");
+    printf("  loses nothing. The schedule functions each carry a shift, which does not.\n");
 
-    std::printf("\n  %-8s %-10s %-18s %8s %8s %14s\n", "function", "serves", "terms", "rank", "kernel", "image");
-    std::printf("  %-8s %-10s %-18s %8s %8s %14s\n", "--------", "----------", "------------------", "--------",
+    printf("\n  %-8s %-10s %-18s %8s %8s %14s\n", "function", "serves", "terms", "rank", "kernel", "image");
+    printf("  %-8s %-10s %-18s %8s %8s %14s\n", "--------", "----------", "------------------", "--------",
                 "--------", "--------------");
 
     for (unsigned which = 0u; which < 4u; which += 1u)
@@ -308,47 +308,47 @@ int main(void)
         const unsigned kernel = WORD_BITS - rank;
 
         char terms[32];
-        std::snprintf(terms, sizeof(terms), "ROTR%u^ROTR%u^%s%u", mixer.first, mixer.second,
+        snprintf(terms, sizeof(terms), "ROTR%u^ROTR%u^%s%u", mixer.first, mixer.second,
                       (mixer.third_is_shift != 0) ? "SHR" : "ROTR", mixer.third);
 
         char image[16];
-        std::snprintf(image, sizeof(image), "2^%u", rank);
-        std::printf("  %-8s %-10s %-18s %8u %8u %14s\n", mixer.name, mixer.belongs_to, terms, rank, kernel, image);
+        snprintf(image, sizeof(image), "2^%u", rank);
+        printf("  %-8s %-10s %-18s %8u %8u %14s\n", mixer.name, mixer.belongs_to, terms, rank, kernel, image);
     }
 
-    std::printf("\n  A kernel of zero is a bijection: every input reaches its own output and nothing\n");
-    std::printf("  has collided yet. A kernel above zero means that many bits of input are already\n");
-    std::printf("  unrecoverable from the output of this one function, before the round it sits in\n");
-    std::printf("  has done anything else.\n");
+    printf("\n  A kernel of zero is a bijection: every input reaches its own output and nothing\n");
+    printf("  has collided yet. A kernel above zero means that many bits of input are already\n");
+    printf("  unrecoverable from the output of this one function, before the round it sits in\n");
+    printf("  has done anything else.\n");
 
     // The same four, narrowed. bench_narrow sweeps only the state pair across widths. Also, the
     // amounts move with the width, and their arithmetic relation to it moves with them.
-    std::printf("\n================================================================\n");
-    std::printf("  The same four, narrowed\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Amounts scaled the way bench_narrow scales the state pair, a narrowed sigma\n");
-    std::printf("  is the same type of object as a narrowed Sigma. A rank short of the width is a\n");
-    std::printf("  function that has stopped being a bijection at that width.\n");
+    printf("\n================================================================\n");
+    printf("  The same four, narrowed\n");
+    printf("================================================================\n");
+    printf("\n  Amounts scaled the way bench_narrow scales the state pair, a narrowed sigma\n");
+    printf("  is the same type of object as a narrowed Sigma. A rank short of the width is a\n");
+    printf("  function that has stopped being a bijection at that width.\n");
 
     const unsigned WIDTHS = 8u;
     const unsigned width_of[WIDTHS] = {4u, 6u, 8u, 12u, 16u, 20u, 24u, 32u};
 
-    std::printf("\n  %8s", "width");
+    printf("\n  %8s", "width");
     for (unsigned which = 0u; which < 4u; which += 1u)
     {
-        std::printf(" %16s", every[which].name);
+        printf(" %16s", every[which].name);
     }
-    std::printf("\n  %8s", "--------");
+    printf("\n  %8s", "--------");
     for (unsigned which = 0u; which < 4u; which += 1u)
     {
-        std::printf(" %16s", "----------------");
+        printf(" %16s", "----------------");
     }
-    std::printf("\n");
+    printf("\n");
 
     for (unsigned at = 0u; at < WIDTHS; at += 1u)
     {
         const unsigned width = width_of[at];
-        std::printf("  %8u", width);
+        printf("  %8u", width);
         for (unsigned which = 0u; which < 4u; which += 1u)
         {
             uint32_t columns[32];
@@ -359,38 +359,38 @@ int main(void)
             const unsigned rank = rank_of(columns, width);
 
             char cell[24];
-            std::snprintf(cell, sizeof(cell), "%u of %u%s", rank, width, (rank < width) ? " lossy" : "");
-            std::printf(" %16s", cell);
+            snprintf(cell, sizeof(cell), "%u of %u%s", rank, width, (rank < width) ? " lossy" : "");
+            printf(" %16s", cell);
         }
-        std::printf("\n");
+        printf("\n");
     }
 
-    std::printf("\n  A row where the schedule pair loses rank and the state pair does not is the\n");
-    std::printf("  shift doing it, since that is the only structural difference between them.\n");
-    std::printf("\n  These amounts are the raw scaled ones and an amount can come out zero, which\n");
-    std::printf("  makes a term the identity. bench_narrow forces its amounts nonzero and distinct\n");
-    std::printf("  instead, so its narrowed object and this one are not the same object and their\n");
-    std::printf("  rows should not be read against each other.\n");
+    printf("\n  A row where the schedule pair loses rank and the state pair does not is the\n");
+    printf("  shift doing it, since that is the only structural difference between them.\n");
+    printf("\n  These amounts are the raw scaled ones and an amount can come out zero, which\n");
+    printf("  makes a term the identity. bench_narrow forces its amounts nonzero and distinct\n");
+    printf("  instead, so its narrowed object and this one are not the same object and their\n");
+    printf("  rows should not be read against each other.\n");
 
     // The rank deficit above is not an empirical curiosity. A rotation right by a on a w-bit word
     // is multiplication by x^(w-a) in GF(2)[x]/(x^w + 1). Thus an exclusive-or of three rotations
     // is multiplication by a three-term polynomial. Its kernel equals the degree of its gcd
     // with x^w + 1. That is a closed form for the whole column. The bench checks it here against
     // the elimination that produced the table above, and does not assert it.
-    std::printf("\n================================================================\n");
-    std::printf("  The rank deficit in closed form\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A rotation right by a is multiplication by x^(w-a) in GF(2)[x]/(x^w + 1), so\n");
-    std::printf("  three rotations exclusive-ored is multiplication by a three-term polynomial and\n");
-    std::printf("  the kernel is the degree of its gcd with x^w + 1, exactly. This checks that\n");
-    std::printf("  against the elimination instead of asserting it.\n");
-    std::printf("\n  The law covers the state pair, which is rotations only. The schedule pair\n");
-    std::printf("  carries a shift, which is multiplication modulo x^w instead of x^w + 1, so the\n");
-    std::printf("  law does not apply to it and it is not claimed to.\n");
+    printf("\n================================================================\n");
+    printf("  The rank deficit in closed form\n");
+    printf("================================================================\n");
+    printf("\n  A rotation right by a is multiplication by x^(w-a) in GF(2)[x]/(x^w + 1), so\n");
+    printf("  three rotations exclusive-ored is multiplication by a three-term polynomial and\n");
+    printf("  the kernel is the degree of its gcd with x^w + 1, exactly. This checks that\n");
+    printf("  against the elimination instead of asserting it.\n");
+    printf("\n  The law covers the state pair, which is rotations only. The schedule pair\n");
+    printf("  carries a shift, which is multiplication modulo x^w instead of x^w + 1, so the\n");
+    printf("  law does not apply to it and it is not claimed to.\n");
 
-    std::printf("\n  %8s %10s %10s %10s %10s %10s\n", "width", "Sig0 meas", "Sig0 pred", "Sig1 meas", "Sig1 pred",
+    printf("\n  %8s %10s %10s %10s %10s %10s\n", "width", "Sig0 meas", "Sig0 pred", "Sig1 meas", "Sig1 pred",
                 "agrees");
-    std::printf("  %8s %10s %10s %10s %10s %10s\n", "--------", "----------", "----------", "----------", "----------",
+    printf("  %8s %10s %10s %10s %10s %10s\n", "--------", "----------", "----------", "----------", "----------",
                 "----------");
 
     unsigned disagreements = 0u;
@@ -411,7 +411,7 @@ int main(void)
         }
         const int agrees = ((measured[0] == predicted[0]) && (measured[1] == predicted[1])) ? 1 : 0;
         disagreements += (agrees == 0) ? 1u : 0u;
-        std::printf("  %8u %10u %10u %10u %10u %10s\n", width, measured[0], predicted[0], measured[1], predicted[1],
+        printf("  %8u %10u %10u %10u %10u %10s\n", width, measured[0], predicted[0], measured[1], predicted[1],
                     (agrees != 0) ? "yes" : "NO");
     }
 
@@ -419,13 +419,13 @@ int main(void)
     // nonzero by a clamp, and distinct by force. That may repair the damaged widths, or move the
     // damage elsewhere. That question is about the rows of that bench. Measure it, and do not
     // assume it from these.
-    std::printf("\n  The same widths for the object bench_narrow narrows, whose amounts are clamped\n");
-    std::printf("  nonzero and forced distinct instead of left raw. Its rows are the ones the\n");
-    std::printf("  width sweep reports, so its deficits are the ones that bear on that table.\n");
+    printf("\n  The same widths for the object bench_narrow narrows, whose amounts are clamped\n");
+    printf("  nonzero and forced distinct instead of left raw. Its rows are the ones the\n");
+    printf("  width sweep reports, so its deficits are the ones that bear on that table.\n");
 
-    std::printf("\n  %6s %11s %7s %11s %7s %11s %7s %11s %7s\n", "width", "Sig0 amts", "kernel", "Sig1 amts", "kernel",
+    printf("\n  %6s %11s %7s %11s %7s %11s %7s %11s %7s\n", "width", "Sig0 amts", "kernel", "Sig1 amts", "kernel",
                 "sig0 amts", "kernel", "sig1 amts", "kernel");
-    std::printf("  %6s %11s %7s %11s %7s %11s %7s %11s %7s\n", "------", "-----------", "-------", "-----------",
+    printf("  %6s %11s %7s %11s %7s %11s %7s %11s %7s\n", "------", "-----------", "-------", "-----------",
                 "-------", "-----------", "-------", "-----------", "-------");
 
     unsigned damaged_widths = 0u;
@@ -434,7 +434,7 @@ int main(void)
     for (unsigned at = 0u; at < WIDTHS; at += 1u)
     {
         const unsigned width = width_of[at];
-        std::printf("  %6u", width);
+        printf("  %6u", width);
         unsigned worst_here = 0u;
         for (unsigned which = 0u; which < 4u; which += 1u)
         {
@@ -479,35 +479,35 @@ int main(void)
             real_consecutive += (width == 32u) ? adjacent : 0u;
 
             char text[16];
-            std::snprintf(text, sizeof(text), "%u,%u,%u", amounts[0], amounts[1], amounts[2]);
-            std::printf(" %11s %7u", text, kernel);
+            snprintf(text, sizeof(text), "%u,%u,%u", amounts[0], amounts[1], amounts[2]);
+            printf(" %11s %7u", text, kernel);
         }
         damaged_widths += (worst_here > 0u) ? 1u : 0u;
-        std::printf("\n");
+        printf("\n");
     }
 
-    std::printf("\n  %u of %u widths carry a kernel in bench_narrow's object.\n", damaged_widths, WIDTHS);
-    std::printf("  %u pairs of amounts sit one apart across the narrowed widths, against %u at\n", consecutive_total,
+    printf("\n  %u of %u widths carry a kernel in bench_narrow's object.\n", damaged_widths, WIDTHS);
+    printf("  %u pairs of amounts sit one apart across the narrowed widths, against %u at\n", consecutive_total,
                 real_consecutive);
-    std::printf("  width 32. Two amounts one apart is a regularity the standard has at none of its\n");
-    std::printf("  four functions, and the distinctness rule manufactures it whenever two amounts\n");
-    std::printf("  scale onto the same value. Every narrowed row therefore carries structure the\n");
-    std::printf("  real thing does not, which is a fourth reason the width sweep compares different\n");
-    std::printf("  constructions instead of one at several sizes.\n");
+    printf("  width 32. Two amounts one apart is a regularity the standard has at none of its\n");
+    printf("  four functions, and the distinctness rule manufactures it whenever two amounts\n");
+    printf("  scale onto the same value. Every narrowed row therefore carries structure the\n");
+    printf("  real thing does not, which is a fourth reason the width sweep compares different\n");
+    printf("  constructions instead of one at several sizes.\n");
 
     if (disagreements == 0u)
     {
-        std::printf("\n  Every row agrees, so the deficit is the gcd and not a coincidence of these\n");
-        std::printf("  particular amounts. A width sharing a factor with the polynomial loses that\n");
-        std::printf("  much rank and a width coprime to it loses none, which is why the narrowed\n");
-        std::printf("  sweep in bench_narrow is measuring seven different constructions.\n");
+        printf("\n  Every row agrees, so the deficit is the gcd and not a coincidence of these\n");
+        printf("  particular amounts. A width sharing a factor with the polynomial loses that\n");
+        printf("  much rank and a width coprime to it loses none, which is why the narrowed\n");
+        printf("  sweep in bench_narrow is measuring seven different constructions.\n");
     }
     else
     {
-        std::printf("\n  [!] %u rows disagree, so either the law is wrong here or the elimination is,\n",
+        printf("\n  [!] %u rows disagree, so either the law is wrong here or the elimination is,\n",
                     disagreements);
-        std::printf("  and nothing above that leans on either of them should be believed until it\n");
-        std::printf("  is settled.\n");
+        printf("  and nothing above that leans on either of them should be believed until it\n");
+        printf("  is settled.\n");
     }
 
     // Rank shows no schedule weakness. The weakness of a linear schedule is sparsity. A difference
@@ -517,15 +517,15 @@ int main(void)
     // The expansion adds, and does not exclusive-or. Thus the difference that a flip produces
     // depends on the header of the flip, through carries. That makes the minimum over headers the honest
     // figure and the mean the typical one, and the two apart is the carry structure.
-    std::printf("\n================================================================\n");
-    std::printf("  How sparse a nonce difference stays\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Rank found no weakness, so this asks the question a linear schedule is actually\n");
-    std::printf("  weak at: how long a one-bit nonce flip stays low-weight as it expands. A word\n");
-    std::printf("  whose difference is zero is a word the nonce has not reached at all; a word whose\n");
-    std::printf("  difference stays at one or two bits is one an attacker can follow.\n");
-    std::printf("\n  Expansion adds instead of exclusive-ors, so the difference depends on the\n");
-    std::printf("  header through carries. The minimum over headers is the honest figure.\n");
+    printf("\n================================================================\n");
+    printf("  How sparse a nonce difference stays\n");
+    printf("================================================================\n");
+    printf("\n  Rank found no weakness, so this asks the question a linear schedule is actually\n");
+    printf("  weak at: how long a one-bit nonce flip stays low-weight as it expands. A word\n");
+    printf("  whose difference is zero is a word the nonce has not reached at all; a word whose\n");
+    printf("  difference stays at one or two bits is one an attacker can follow.\n");
+    printf("\n  Expansion adds instead of exclusive-ors, so the difference depends on the\n");
+    printf("  header through carries. The minimum over headers is the honest figure.\n");
 
     {
         const unsigned HEADERS = 4096u;
@@ -592,14 +592,14 @@ int main(void)
             counted += (double)WORD_BITS;
         }
 
-        std::printf("\n  %6s %10s %10s %14s   %6s %10s %10s %14s\n", "word", "min bits", "mean bits", "never reached",
+        printf("\n  %6s %10s %10s %14s   %6s %10s %10s %14s\n", "word", "min bits", "mean bits", "never reached",
                     "word", "min bits", "mean bits", "never reached");
-        std::printf("  %6s %10s %10s %14s   %6s %10s %10s %14s\n", "------", "----------", "----------",
+        printf("  %6s %10s %10s %14s   %6s %10s %10s %14s\n", "------", "----------", "----------",
                     "--------------", "------", "----------", "----------", "--------------");
         for (unsigned at = 0u; at < 32u; at += 1u)
         {
             const unsigned other = at + 32u;
-            std::printf("  %6u %10u %10.2f %13.1f%%   %6u %10u %10.2f %13.1f%%\n", at, smallest[at],
+            printf("  %6u %10u %10.2f %13.1f%%   %6u %10u %10.2f %13.1f%%\n", at, smallest[at],
                         running[at] / counted, (100.0 * (double)never[at]) / counted, other, smallest[other],
                         running[other] / counted, (100.0 * (double)never[other]) / counted);
         }
@@ -619,14 +619,14 @@ int main(void)
                 first_full = at;
             }
         }
-        std::printf("\n  %-52s %8u\n", "first word the nonce always reaches", first_forced);
-        std::printf("  %-52s %8u\n", "first word averaging over 15 bits of difference", first_full);
-        std::printf("  %-52s %8u\n", "rounds between those two", first_full - first_forced);
+        printf("\n  %-52s %8u\n", "first word the nonce always reaches", first_forced);
+        printf("  %-52s %8u\n", "first word averaging over 15 bits of difference", first_full);
+        printf("  %-52s %8u\n", "rounds between those two", first_full - first_forced);
 
-        std::printf("\n  A min column holding at one for several words is a one-bit difference the\n");
-        std::printf("  schedule carries without fanning out, which is the shape a differential\n");
-        std::printf("  attack follows. A mean near sixteen is a word behaving like an unrelated\n");
-        std::printf("  word, since half of thirty-two is what two unrelated words differ by.\n");
+        printf("\n  A min column holding at one for several words is a one-bit difference the\n");
+        printf("  schedule carries without fanning out, which is the shape a differential\n");
+        printf("  attack follows. A mean near sixteen is a word behaving like an unrelated\n");
+        printf("  word, since half of thirty-two is what two unrelated words differ by.\n");
     }
     return 0;
 }

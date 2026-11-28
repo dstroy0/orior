@@ -22,9 +22,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -53,15 +53,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -88,11 +88,11 @@ uint32_t rotate_right(uint32_t value, unsigned distance)
  */
 void measure_basis_linearity()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Which operation is linear in which module?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  For each operation, the fraction of random pairs satisfying linearity in\n");
-    std::printf("  each of the two structures. 100%% means linear, near 0%% means not.\n");
+    printf("\n================================================================\n");
+    printf("  1. Which operation is linear in which module?\n");
+    printf("================================================================\n");
+    printf("\n  For each operation, the fraction of random pairs satisfying linearity in\n");
+    printf("  each of the two structures. 100%% means linear, near 0%% means not.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 100000u;
@@ -143,13 +143,13 @@ void measure_basis_linearity()
     }
 
     const double scale = 100.0 / (double)trials;
-    std::printf("\n  %-24s %22s %20s\n", "operation", "GF(2)^32 (xor basis)", "Z/2^32 (add basis)");
-    std::printf("  %-24s %22s %20s\n", "------------------------", "----------------------", "--------------------");
-    std::printf("  %-24s %21.2f%% %19.2f%%\n", "rotate right by 7", (double)rotate_xor_linear * scale,
+    printf("\n  %-24s %22s %20s\n", "operation", "GF(2)^32 (xor basis)", "Z/2^32 (add basis)");
+    printf("  %-24s %22s %20s\n", "------------------------", "----------------------", "--------------------");
+    printf("  %-24s %21.2f%% %19.2f%%\n", "rotate right by 7", (double)rotate_xor_linear * scale,
                 (double)rotate_add_linear * scale);
-    std::printf("  %-24s %21.2f%% %19.2f%%\n", "xor a constant", (double)xor_xor_linear * scale,
+    printf("  %-24s %21.2f%% %19.2f%%\n", "xor a constant", (double)xor_xor_linear * scale,
                 (double)xor_add_linear * scale);
-    std::printf("  %-24s %21.2f%% %19.2f%%\n", "add a constant", (double)add_xor_linear * scale,
+    printf("  %-24s %21.2f%% %19.2f%%\n", "add a constant", (double)add_xor_linear * scale,
                 (double)add_add_linear * scale);
 
     check("rotation is linear over GF(2)^32", rotate_xor_linear == trials);
@@ -157,8 +157,8 @@ void measure_basis_linearity()
     check("adding a constant is linear over Z/2^32", add_add_linear == trials);
     check("adding a constant is not linear over GF(2)^32", add_xor_linear < (trials / 2u));
 
-    std::printf("\n  So the set carries two structures and each operation is linear in one of\n");
-    std::printf("  them. A projection that diagonalises one necessarily fails on the other.\n");
+    printf("\n  So the set carries two structures and each operation is linear in one of\n");
+    printf("  them. A projection that diagonalises one necessarily fails on the other.\n");
 }
 
 /**
@@ -169,14 +169,14 @@ void measure_basis_linearity()
  */
 void measure_carry_structure()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. The lift. What does the carry actually do?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  z_i = x_i xor y_i xor c_i, with c_0 = 0 and c_{i+1} = MAJ(x_i, y_i, c_i).\n");
-    std::printf("  The exclusive or stays in the GF(2) basis. The carry is what leaves it.\n");
-    std::printf("\n  P(carry into position i) for uniform random x and y:\n");
-    std::printf("\n  %10s %14s %14s %12s\n", "position", "measured", "exact", "bias from 1/2");
-    std::printf("  %10s %14s %14s %12s\n", "----------", "--------------", "--------------", "------------");
+    printf("\n================================================================\n");
+    printf("  2. The lift. What does the carry actually do?\n");
+    printf("================================================================\n");
+    printf("\n  z_i = x_i xor y_i xor c_i, with c_0 = 0 and c_{i+1} = MAJ(x_i, y_i, c_i).\n");
+    printf("  The exclusive or stays in the GF(2) basis. The carry is what leaves it.\n");
+    printf("\n  P(carry into position i) for uniform random x and y:\n");
+    printf("\n  %10s %14s %14s %12s\n", "position", "measured", "exact", "bias from 1/2");
+    printf("  %10s %14s %14s %12s\n", "----------", "--------------", "--------------", "------------");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 4000000u;
@@ -208,25 +208,25 @@ void measure_carry_structure()
         const double measured = (double)carry_set[position] / (double)trials;
         const double deviation = measured - 0.5;
 
-        std::printf("  %10u %14.6f %14.6f %+12.6f\n", position, measured, exact, deviation);
-        if (std::fabs(measured - exact) > 0.002)
+        printf("  %10u %14.6f %14.6f %+12.6f\n", position, measured, exact, deviation);
+        if (fabs(measured - exact) > 0.002)
         {
             all_close = false;
         }
         exact = (exact / 2.0) + 0.25;
     }
-    std::printf("  %10s %14s %14s %12s\n", "...", "", "", "");
-    std::printf("  %10u %14.6f %14.6f %+12.6f\n", 31u, (double)carry_set[31] / (double)trials, 0.5,
+    printf("  %10s %14s %14s %12s\n", "...", "", "", "");
+    printf("  %10u %14.6f %14.6f %+12.6f\n", 31u, (double)carry_set[31] / (double)trials, 0.5,
                 ((double)carry_set[31] / (double)trials) - 0.5);
 
     check("carry probability follows p_{i+1} = p_i/2 + 1/4", all_close);
 
-    std::printf("\n  The carry into position 1 is a quarter, not a half, and the bias halves\n");
-    std::printf("  each position upward. This is real structure and it is exactly the surface\n");
-    std::printf("  that differential cryptanalysis of ARX constructions works on.\n");
-    std::printf("\n  It is also local. By position 8 the deviation is under 0.2%%, and one\n");
-    std::printf("  addition is followed by a rotation that moves those low positions somewhere\n");
-    std::printf("  the next addition treats as high ones.\n");
+    printf("\n  The carry into position 1 is a quarter, not a half, and the bias halves\n");
+    printf("  each position upward. This is real structure and it is exactly the surface\n");
+    printf("  that differential cryptanalysis of ARX constructions works on.\n");
+    printf("\n  It is also local. By position 8 the deviation is under 0.2%%, and one\n");
+    printf("  addition is followed by a rotation that moves those low positions somewhere\n");
+    printf("  the next addition treats as high ones.\n");
 }
 
 /**
@@ -258,14 +258,14 @@ void fill_tail_block(uint32_t *block, uint32_t nonce)
  */
 void measure_difference_survival()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. Racing the bases. Which difference survives more rounds?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Introduce a difference in one basis, run r rounds, read the output\n");
-    std::printf("  difference back in the same basis, and measure the largest per-bit bias\n");
-    std::printf("  across all 256 state bits. A function with nothing left to leak sits at 0.\n");
-    std::printf("\n  %8s %22s %22s\n", "rounds", "xor difference", "modular difference");
-    std::printf("  %8s %22s %22s\n", "--------", "----------------------", "----------------------");
+    printf("\n================================================================\n");
+    printf("  3. Racing the bases. Which difference survives more rounds?\n");
+    printf("================================================================\n");
+    printf("\n  Introduce a difference in one basis, run r rounds, read the output\n");
+    printf("  difference back in the same basis, and measure the largest per-bit bias\n");
+    printf("  across all 256 state bits. A function with nothing left to leak sits at 0.\n");
+    printf("\n  %8s %22s %22s\n", "rounds", "xor difference", "modular difference");
+    printf("  %8s %22s %22s\n", "--------", "----------------------", "----------------------");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 8192u;
@@ -313,14 +313,14 @@ void measure_difference_survival()
             }
         }
 
-        const double standard_error = 0.5 / std::sqrt((double)trials);
+        const double standard_error = 0.5 / sqrt((double)trials);
         double xor_worst = 0.0;
         double add_worst = 0.0;
 
         for (unsigned position = 0u; position < 256u; position += 1u)
         {
-            xor_worst = std::max(xor_worst, std::fabs(((double)xor_ones[position] / (double)trials) - 0.5));
-            add_worst = std::max(add_worst, std::fabs(((double)add_ones[position] / (double)trials) - 0.5));
+            xor_worst = std::max(xor_worst, fabs(((double)xor_ones[position] / (double)trials) - 0.5));
+            add_worst = std::max(add_worst, fabs(((double)add_ones[position] / (double)trials) - 0.5));
         }
 
         const double xor_score = xor_worst / standard_error;
@@ -334,15 +334,15 @@ void measure_difference_survival()
             add_last_alive = rounds;
         }
 
-        std::printf("  %8u %14.4f %6.1fs %14.4f %6.1fs\n", rounds, xor_worst, xor_score, add_worst, add_score);
+        printf("  %8u %14.4f %6.1fs %14.4f %6.1fs\n", rounds, xor_worst, xor_score, add_worst, add_score);
     }
 
-    std::printf("\n  Last round with a bias above five sigma:\n");
-    std::printf("    xor basis     : round %u\n", xor_last_alive);
-    std::printf("    modular basis : round %u\n", add_last_alive);
-    std::printf("\n  Neither basis carries a difference far. Choosing the structure an operation\n");
-    std::printf("  is linear in does not help, because the next operation is linear in the other\n");
-    std::printf("  one and the round applies both.\n");
+    printf("\n  Last round with a bias above five sigma:\n");
+    printf("    xor basis     : round %u\n", xor_last_alive);
+    printf("    modular basis : round %u\n", add_last_alive);
+    printf("\n  Neither basis carries a difference far. Choosing the structure an operation\n");
+    printf("  is linear in does not help, because the next operation is linear in the other\n");
+    printf("  one and the round applies both.\n");
 }
 
 /**
@@ -375,12 +375,12 @@ void walsh_hadamard(double *row)
  */
 void measure_walsh_flatness()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. The other projection. Walsh-Hadamard instead of Fourier.\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Sequency power across the 8 by 32 boundary. Flat is 1.0.\n");
-    std::printf("\n  %8s %20s %14s\n", "rounds", "sequency flatness", "peak / mean");
-    std::printf("  %8s %20s %14s\n", "--------", "--------------------", "--------------");
+    printf("\n================================================================\n");
+    printf("  4. The other projection. Walsh-Hadamard instead of Fourier.\n");
+    printf("================================================================\n");
+    printf("\n  Sequency power across the 8 by 32 boundary. Flat is 1.0.\n");
+    printf("\n  %8s %20s %14s\n", "rounds", "sequency flatness", "peak / mean");
+    printf("  %8s %20s %14s\n", "--------", "--------------------", "--------------");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 4096u;
@@ -424,30 +424,30 @@ void measure_walsh_flatness()
         for (unsigned frequency = 1u; frequency < WORD_BITS; frequency += 1u)
         {
             const double value = power[frequency];
-            log_sum += std::log(std::max(value, 1e-300));
+            log_sum += log(std::max(value, 1e-300));
             linear_sum += value;
             peak = std::max(peak, value);
         }
         const double count = (double)(WORD_BITS - 1u);
-        const double geometric = std::exp(log_sum / count);
+        const double geometric = exp(log_sum / count);
         const double arithmetic = linear_sum / count;
 
-        std::printf("  %8u %19.6f %14.4f\n", rounds, (arithmetic > 0.0) ? (geometric / arithmetic) : 0.0,
+        printf("  %8u %19.6f %14.4f\n", rounds, (arithmetic > 0.0) ? (geometric / arithmetic) : 0.0,
                     (arithmetic > 0.0) ? (peak / arithmetic) : 0.0);
     }
 
-    std::printf("\n  Same shape as the Fourier result in bench_transform. Neither projection\n");
-    std::printf("  leaves a bin standing by the depth a real hash reaches.\n");
+    printf("\n  Same shape as the Fourier result in bench_transform. Neither projection\n");
+    printf("  leaves a bin standing by the depth a real hash reaches.\n");
 }
 
 } // namespace
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Two module structures on one set\n");
-    std::printf("  What a mod does dimensionally, and how far the lift carries\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Two module structures on one set\n");
+    printf("  What a mod does dimensionally, and how far the lift carries\n");
+    printf("================================================================\n");
 
     const auto started = std::chrono::steady_clock::now();
 
@@ -457,9 +457,9 @@ int main()
     measure_walsh_flatness();
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

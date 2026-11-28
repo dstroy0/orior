@@ -24,9 +24,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -49,15 +49,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -107,7 +107,7 @@ double addition_differential(uint32_t alpha, uint32_t beta, uint32_t gamma, unsi
     const uint32_t disagreeing = (~all_agree(alpha, beta, gamma)) & below_top;
     const unsigned weight = (unsigned)__builtin_popcount(disagreeing);
 
-    return std::pow(2.0, -(double)weight);
+    return pow(2.0, -(double)weight);
 }
 
 /**
@@ -145,21 +145,21 @@ double addition_differential_counted(uint32_t alpha, uint32_t beta, uint32_t gam
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Exact differentials: removing the sampling floor entirely\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Every earlier measurement here was bounded by its sample. bench_canary could\n");
-    std::printf("  not tell two strategies apart because both sat at two occurrences in four\n");
-    std::printf("  hundred thousand, which describes the sample and not the function.\n");
-    std::printf("\n  That floor is not physical. These are closed forms over a finite ring, a\n");
-    std::printf("  probability of 2^-60 reads exactly as well as one of 2^-2.\n");
+    printf("================================================================\n");
+    printf("  Exact differentials: removing the sampling floor entirely\n");
+    printf("================================================================\n");
+    printf("\n  Every earlier measurement here was bounded by its sample. bench_canary could\n");
+    printf("  not tell two strategies apart because both sat at two occurrences in four\n");
+    printf("  hundred thousand, which describes the sample and not the function.\n");
+    printf("\n  That floor is not physical. These are closed forms over a finite ring, a\n");
+    printf("  probability of 2^-60 reads exactly as well as one of 2^-2.\n");
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  1. The closed form against exhaustive enumeration\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Checked before it is trusted. Every triple at width 6 and 8, counted by\n");
-    std::printf("  brute force and compared against the formula.\n");
+    printf("\n================================================================\n");
+    printf("  1. The closed form against exhaustive enumeration\n");
+    printf("================================================================\n");
+    printf("\n  Checked before it is trusted. Every triple at width 6 and 8, counted by\n");
+    printf("  brute force and compared against the formula.\n");
 
     for (unsigned width : {4u, 6u, 8u})
     {
@@ -176,8 +176,8 @@ int main()
                     const double formula = addition_differential(alpha, beta, gamma, width);
                     const double counted = addition_differential_counted(alpha, beta, gamma, width);
 
-                    worst = std::max(worst, std::fabs(formula - counted));
-                    if (std::fabs(formula - counted) > 1e-12)
+                    worst = std::max(worst, fabs(formula - counted));
+                    if (fabs(formula - counted) > 1e-12)
                     {
                         matched = false;
                     }
@@ -189,14 +189,14 @@ int main()
     }
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  2. What the floor was hiding\n");
-    std::printf("================================================================\n");
-    std::printf("\n  bench_canary read every round past zero as 2/400000 = 5.0e-06. Here are exact\n");
-    std::printf("  values in that range and far below it, at the full 32-bit width.\n");
+    printf("\n================================================================\n");
+    printf("  2. What the floor was hiding\n");
+    printf("================================================================\n");
+    printf("\n  bench_canary read every round past zero as 2/400000 = 5.0e-06. Here are exact\n");
+    printf("  values in that range and far below it, at the full 32-bit width.\n");
 
-    std::printf("\n  %12s %12s %12s %22s %10s\n", "alpha", "beta", "gamma", "exact probability", "log2");
-    std::printf("  %12s %12s %12s %22s %10s\n", "------------", "------------", "------------",
+    printf("\n  %12s %12s %12s %22s %10s\n", "alpha", "beta", "gamma", "exact probability", "log2");
+    printf("  %12s %12s %12s %22s %10s\n", "------------", "------------", "------------",
                 "----------------------", "----------");
 
     const struct
@@ -215,24 +215,24 @@ int main()
     for (const auto &entry : cases)
     {
         const double probability = addition_differential(entry.alpha, entry.beta, entry.gamma, 32u);
-        std::printf("  0x%010x 0x%010x 0x%010x %22.10e %10.2f\n", entry.alpha, entry.beta, entry.gamma, probability,
-                    (probability > 0.0) ? std::log2(probability) : -1000.0);
+        printf("  0x%010x 0x%010x 0x%010x %22.10e %10.2f\n", entry.alpha, entry.beta, entry.gamma, probability,
+                    (probability > 0.0) ? log2(probability) : -1000.0);
     }
 
-    std::printf("\n  The row at 2^-30 is a probability no sample of four hundred thousand could\n");
-    std::printf("  ever have seen, and it is exact here. That is the whole difference: the floor\n");
-    std::printf("  was a property of how the question was being asked.\n");
+    printf("\n  The row at 2^-30 is a probability no sample of four hundred thousand could\n");
+    printf("  ever have seen, and it is exact here. That is the whole difference: the floor\n");
+    printf("  was a property of how the question was being asked.\n");
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  3. The best differential, found exactly instead of sampled\n");
-    std::printf("================================================================\n");
-    std::printf("\n  For a fixed input pair, search all output differences for the most probable\n");
-    std::printf("  one. Sampling would need runs proportional to one over the probability; this\n");
-    std::printf("  is a closed form evaluated on candidates.\n");
+    printf("\n================================================================\n");
+    printf("  3. The best differential, found exactly instead of sampled\n");
+    printf("================================================================\n");
+    printf("\n  For a fixed input pair, search all output differences for the most probable\n");
+    printf("  one. Sampling would need runs proportional to one over the probability; this\n");
+    printf("  is a closed form evaluated on candidates.\n");
 
-    std::printf("\n  %14s %14s %22s %10s\n", "alpha", "beta", "best gamma probability", "log2");
-    std::printf("  %14s %14s %22s %10s\n", "--------------", "--------------", "----------------------", "----------");
+    printf("\n  %14s %14s %22s %10s\n", "alpha", "beta", "best gamma probability", "log2");
+    printf("  %14s %14s %22s %10s\n", "--------------", "--------------", "----------------------", "----------");
 
     std::mt19937 generator(20260908u);
     for (unsigned trial = 0u; trial < 8u; trial += 1u)
@@ -255,30 +255,30 @@ int main()
                 best_gamma = gamma;
             }
         }
-        std::printf("  0x%012x 0x%012x %22.10e %10.2f\n", alpha, beta, best, (best > 0.0) ? std::log2(best) : -1000.0);
+        printf("  0x%012x 0x%012x %22.10e %10.2f\n", alpha, beta, best, (best > 0.0) ? log2(best) : -1000.0);
         (void)best_gamma;
     }
 
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  4. Where exactness stops helping\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The closed form is exact for one addition. Chaining it across rounds assumes\n");
-    std::printf("  the additions are independent, which is the Markov-cipher assumption, and that\n");
-    std::printf("  is a structural claim instead of a precision one. Exact numbers composed under\n");
-    std::printf("  a false assumption give a precise answer to a different question.\n");
-    std::printf("\n  So test it. Two chained additions, z = (x + y) + w. Predict by multiplying two\n");
-    std::printf("  exact single-addition probabilities, then count the composed differential by\n");
-    std::printf("  enumerating every input at a width small enough to enumerate.\n");
+    printf("\n================================================================\n");
+    printf("  4. Where exactness stops helping\n");
+    printf("================================================================\n");
+    printf("\n  The closed form is exact for one addition. Chaining it across rounds assumes\n");
+    printf("  the additions are independent, which is the Markov-cipher assumption, and that\n");
+    printf("  is a structural claim instead of a precision one. Exact numbers composed under\n");
+    printf("  a false assumption give a precise answer to a different question.\n");
+    printf("\n  So test it. Two chained additions, z = (x + y) + w. Predict by multiplying two\n");
+    printf("  exact single-addition probabilities, then count the composed differential by\n");
+    printf("  enumerating every input at a width small enough to enumerate.\n");
 
     {
         const unsigned width = 8u;
         const uint32_t span = 1u << width;
         const uint32_t mask = span - 1u;
 
-        std::printf("\n  %10s %10s %10s %10s %16s %16s %10s\n", "da", "db", "dw", "dz", "product", "enumerated",
+        printf("\n  %10s %10s %10s %10s %16s %16s %10s\n", "da", "db", "dw", "dz", "product", "enumerated",
                     "ratio");
-        std::printf("  %10s %10s %10s %10s %16s %16s %10s\n", "----------", "----------", "----------", "----------",
+        printf("  %10s %10s %10s %10s %16s %16s %10s\n", "----------", "----------", "----------", "----------",
                     "----------------", "----------------", "----------");
 
         std::mt19937 chain_generator(4242u);
@@ -327,33 +327,33 @@ int main()
                 worst_ratio_low = std::min(worst_ratio_low, ratio);
                 worst_ratio_high = std::max(worst_ratio_high, ratio);
             }
-            std::printf("  0x%08x 0x%08x 0x%08x 0x%08x %16.8e %16.8e %10.4f\n", da, db, dw, dz, predicted, enumerated,
+            printf("  0x%08x 0x%08x 0x%08x 0x%08x %16.8e %16.8e %10.4f\n", da, db, dw, dz, predicted, enumerated,
                         ratio);
         }
 
-        std::printf("\n  ratio range across these cases: %.4f to %.4f\n", worst_ratio_low, worst_ratio_high);
+        printf("\n  ratio range across these cases: %.4f to %.4f\n", worst_ratio_low, worst_ratio_high);
         check("composing exact single-addition probabilities predicts the chain",
               (worst_ratio_low > 0.9) && (worst_ratio_high < 1.1),
               "ratio ranged " + std::to_string(worst_ratio_low) + " to " + std::to_string(worst_ratio_high));
 
-        std::printf("\n  A ratio away from one is the modeling floor, and no amount of precision in\n");
-        std::printf("  the factors moves it. It is the independence assumption failing, which is a\n");
-        std::printf("  statement about the function instead of about the measurement.\n");
+        printf("\n  A ratio away from one is the modeling floor, and no amount of precision in\n");
+        printf("  the factors moves it. It is the independence assumption failing, which is a\n");
+        printf("  statement about the function instead of about the measurement.\n");
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  What this changes\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The sampling floor was never a fact about SHA-256. It was a fact about how\n");
-    std::printf("  every measurement in this tree had been posed, and it silently capped what any\n");
-    std::printf("  of them could report. A closed form has no floor, a characteristic search\n");
-    std::printf("  built on this can price a trajectory at 2^-60 as readily as at 2^-6.\n");
-    std::printf("\n  What it does not change: the price itself. Exact arithmetic reads the numbers\n");
-    std::printf("  the function already had, and reading them more precisely does not make them\n");
-    std::printf("  larger. The 12 bit per round shortfall from H30 is now measurable instead of\n");
-    std::printf("  estimated, and it is still 12 bits.\n");
+    printf("\n================================================================\n");
+    printf("  What this changes\n");
+    printf("================================================================\n");
+    printf("\n  The sampling floor was never a fact about SHA-256. It was a fact about how\n");
+    printf("  every measurement in this tree had been posed, and it silently capped what any\n");
+    printf("  of them could report. A closed form has no floor, a characteristic search\n");
+    printf("  built on this can price a trajectory at 2^-60 as readily as at 2^-6.\n");
+    printf("\n  What it does not change: the price itself. Exact arithmetic reads the numbers\n");
+    printf("  the function already had, and reading them more precisely does not make them\n");
+    printf("  larger. The 12 bit per round shortfall from H30 is now measurable instead of\n");
+    printf("  estimated, and it is still 12 bits.\n");
 
-    std::printf("\n  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("================================================================\n");
+    printf("\n  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

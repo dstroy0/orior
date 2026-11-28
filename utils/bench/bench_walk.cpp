@@ -22,9 +22,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -145,13 +145,13 @@ unsigned fitness(uint32_t nonce)
  */
 void measure_landscape_correlation()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Does a step land near where it started?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A walk needs f(neighbor) to carry information about f(current). Pearson\n");
-    std::printf("  correlation between the two, over 200000 pairs, for each step definition.\n");
-    std::printf("\n  %-28s %14s %12s\n", "step", "correlation", "z");
-    std::printf("  %-28s %14s %12s\n", "----------------------------", "--------------", "------------");
+    printf("\n================================================================\n");
+    printf("  1. Does a step land near where it started?\n");
+    printf("================================================================\n");
+    printf("\n  A walk needs f(neighbor) to carry information about f(current). Pearson\n");
+    printf("  correlation between the two, over 200000 pairs, for each step definition.\n");
+    printf("\n  %-28s %14s %12s\n", "step", "correlation", "z");
+    printf("  %-28s %14s %12s\n", "----------------------------", "--------------", "------------");
 
     std::mt19937 generator(20260908u);
     const unsigned pairs = 200000u;
@@ -194,21 +194,21 @@ void measure_landscape_correlation()
 
         const double count = (double)pairs;
         const double covariance = (sum_product / count) - ((sum_here / count) * (sum_there / count));
-        const double spread_here = std::sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
+        const double spread_here = sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
         const double spread_there =
-            std::sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
+            sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
         const double correlation = covariance / (spread_here * spread_there);
-        const double score = correlation * std::sqrt(count);
+        const double score = correlation * sqrt(count);
 
         const char *name = (mode == 0)   ? "nonce + 1"
                            : (mode == 1) ? "flip one nonce bit"
                                          : "an unrelated nonce (control)";
-        std::printf("  %-28s %14.6f %+12.2f\n", name, correlation, score);
+        printf("  %-28s %14.6f %+12.2f\n", name, correlation, score);
     }
 
-    std::printf("\n  The control is two unrelated nonces and must read zero. A step that carried\n");
-    std::printf("  information would read above it. If every row matches the control, the domain\n");
-    std::printf("  has no neighbourhoods and a step is a fresh draw.\n");
+    printf("\n  The control is two unrelated nonces and must read zero. A step that carried\n");
+    printf("  information would read above it. If every row matches the control, the domain\n");
+    printf("  has no neighbourhoods and a step is a fresh draw.\n");
 }
 
 /**
@@ -216,12 +216,12 @@ void measure_landscape_correlation()
  */
 void measure_step_magnitude()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. Is the most probable step larger in magnitude than the rest?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  At each position, score all 32 single-bit steps. If the landscape has slope,\n");
-    std::printf("  the best step stands out from its 31 siblings by more than 32 unrelated\n");
-    std::printf("  candidates would. Both distributions measured over 20000 positions.\n");
+    printf("\n================================================================\n");
+    printf("  2. Is the most probable step larger in magnitude than the rest?\n");
+    printf("================================================================\n");
+    printf("\n  At each position, score all 32 single-bit steps. If the landscape has slope,\n");
+    printf("  the best step stands out from its 31 siblings by more than 32 unrelated\n");
+    printf("  candidates would. Both distributions measured over 20000 positions.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned positions = 20000u;
@@ -253,14 +253,14 @@ void measure_step_magnitude()
     }
 
     const double count = (double)positions;
-    std::printf("\n  %-34s %14s %14s\n", "", "32 neighbors", "32 unrelated");
-    std::printf("  %-34s %14s %14s\n", "----------------------------------", "--------------", "--------------");
-    std::printf("  %-34s %14.4f %14.4f\n", "mean best score", neighbour_best_total / count, random_best_total / count);
-    std::printf("  %-34s %14.4f %14.4f\n", "mean gap, best to second", neighbour_gap_total / count,
+    printf("\n  %-34s %14s %14s\n", "", "32 neighbors", "32 unrelated");
+    printf("  %-34s %14s %14s\n", "----------------------------------", "--------------", "--------------");
+    printf("  %-34s %14.4f %14.4f\n", "mean best score", neighbour_best_total / count, random_best_total / count);
+    printf("  %-34s %14.4f %14.4f\n", "mean gap, best to second", neighbour_gap_total / count,
                 random_gap_total / count);
 
-    std::printf("\n  Matching columns mean the best of 32 neighbors is exactly the best of 32\n");
-    std::printf("  unrelated draws, so choosing a step by score is choosing at random.\n");
+    printf("\n  Matching columns mean the best of 32 neighbors is exactly the best of 32\n");
+    printf("  unrelated draws, so choosing a step by score is choosing at random.\n");
 }
 
 /**
@@ -272,9 +272,9 @@ void measure_step_magnitude()
  */
 void measure_walk_against_enumeration()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. Head to head. Walk against enumeration, equal budget.\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  3. Head to head. Walk against enumeration, equal budget.\n");
+    printf("================================================================\n");
 
     const uint64_t budget = 1u << 20;
     const unsigned runs = 24u;
@@ -286,8 +286,8 @@ void measure_walk_against_enumeration()
     unsigned enumerate_wins = 0u;
     unsigned ties = 0u;
 
-    std::printf("\n  %6s %18s %18s\n", "run", "walk best", "enumeration best");
-    std::printf("  %6s %18s %18s\n", "------", "------------------", "------------------");
+    printf("\n  %6s %18s %18s\n", "run", "walk best", "enumeration best");
+    printf("  %6s %18s %18s\n", "------", "------------------", "------------------");
 
     for (unsigned run = 0u; run < runs; run += 1u)
     {
@@ -362,20 +362,20 @@ void measure_walk_against_enumeration()
 
         if (run < 8u)
         {
-            std::printf("  %6u %18u %18u\n", run, walk_best, enumerate_best);
+            printf("  %6u %18u %18u\n", run, walk_best, enumerate_best);
         }
     }
 
-    std::printf("  %6s %18s %18s\n", "...", "", "");
-    std::printf("\n  Over %u runs of %llu hashes each:\n", runs, (unsigned long long)budget);
-    std::printf("    walk, mean best leading zeros        : %.3f\n", walk_total / (double)runs);
-    std::printf("    enumeration, mean best leading zeros : %.3f\n", enumerate_total / (double)runs);
-    std::printf("    walk wins %u, enumeration wins %u, ties %u\n", walk_wins, enumerate_wins, ties);
+    printf("  %6s %18s %18s\n", "...", "", "");
+    printf("\n  Over %u runs of %llu hashes each:\n", runs, (unsigned long long)budget);
+    printf("    walk, mean best leading zeros        : %.3f\n", walk_total / (double)runs);
+    printf("    enumeration, mean best leading zeros : %.3f\n", enumerate_total / (double)runs);
+    printf("    walk wins %u, enumeration wins %u, ties %u\n", walk_wins, enumerate_wins, ties);
 
-    const double expected = std::log2((double)budget);
-    std::printf("\n  Both arms should land near %.1f, which is log2 of the budget: the best of N\n", expected);
-    std::printf("  draws from a flat digest carries about log2(N) leading zeros. An arm that\n");
-    std::printf("  beat that would be extracting information the domain is not supposed to have.\n");
+    const double expected = log2((double)budget);
+    printf("\n  Both arms should land near %.1f, which is log2 of the budget: the best of N\n", expected);
+    printf("  draws from a flat digest carries about log2(N) leading zeros. An arm that\n");
+    printf("  beat that would be extracting information the domain is not supposed to have.\n");
 }
 
 /**
@@ -425,19 +425,19 @@ unsigned set_bits(uint32_t value)
  */
 void measure_injection_floor()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  5. Sensitivity floor. Inject a gradient, fade it until this bench loses it.\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  5. Sensitivity floor. Inject a gradient, fade it until this bench loses it.\n");
+    printf("================================================================\n");
 
     const unsigned pairs = 200000u;
     const double ladder[] = {1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0};
     const unsigned rungs = (unsigned)(sizeof(ladder) / sizeof(ladder[0]));
 
-    std::printf("\n  alpha is the injected gradient in leading-zero bits per single-bit step.\n");
-    std::printf("  alpha = 0 is the un-injected bench, which is the result being calibrated.\n");
-    std::printf("\n  %10s %14s %12s %14s %12s %10s\n", "alpha", "flip corr", "flip z", "control corr", "control z",
+    printf("\n  alpha is the injected gradient in leading-zero bits per single-bit step.\n");
+    printf("  alpha = 0 is the un-injected bench, which is the result being calibrated.\n");
+    printf("\n  %10s %14s %12s %14s %12s %10s\n", "alpha", "flip corr", "flip z", "control corr", "control z",
                 "verdict");
-    std::printf("  %10s %14s %12s %14s %12s %10s\n", "----------", "--------------", "------------", "--------------",
+    printf("  %10s %14s %12s %14s %12s %10s\n", "----------", "--------------", "------------", "--------------",
                 "------------", "----------");
 
     double floor_found = 0.0;
@@ -475,40 +475,40 @@ void measure_injection_floor()
             const double count = (double)pairs;
             const double covariance = (sum_product / count) - ((sum_here / count) * (sum_there / count));
             const double spread_here =
-                std::sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
+                sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
             const double spread_there =
-                std::sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
-            score[mode] = (covariance / (spread_here * spread_there)) * std::sqrt(count);
+                sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
+            score[mode] = (covariance / (spread_here * spread_there)) * sqrt(count);
         }
 
         // The control is the bar. The bench DRAWS it, and does not derive it. Whatever the injection does to the
         // spread, it does to both columns. Thus the control carries it too.
-        const bool seen = score[0] > (std::fabs(score[1]) + 5.0);
+        const bool seen = score[0] > (fabs(score[1]) + 5.0);
         if (seen)
         {
             floor_found = alpha;
         }
-        std::printf("  %10.6f %14.6f %12.2f %14.6f %12.2f %10s\n", alpha, score[0] / std::sqrt((double)pairs), score[0],
-                    score[1] / std::sqrt((double)pairs), score[1], seen ? "SEEN" : "lost");
+        printf("  %10.6f %14.6f %12.2f %14.6f %12.2f %10s\n", alpha, score[0] / sqrt((double)pairs), score[0],
+                    score[1] / sqrt((double)pairs), score[1], seen ? "SEEN" : "lost");
     }
 
-    std::printf("\n  The smallest alpha still marked SEEN is this bench's detection floor.\n");
+    printf("\n  The smallest alpha still marked SEEN is this bench's detection floor.\n");
     if (floor_found > 0.0)
     {
-        std::printf("  Floor: %.6f leading-zero bits per single-bit step.\n", floor_found);
-        std::printf("\n  So sections 1 and 3 exclude a gradient of that size and larger, and say\n");
-        std::printf("  NOTHING about a weaker one, or about any structure that does not show up in\n");
-        std::printf("  the leading-zero count at all. That is the honest scope of the flat result,\n");
-        std::printf("  and it is narrower than 'the landscape is flat'.\n");
+        printf("  Floor: %.6f leading-zero bits per single-bit step.\n", floor_found);
+        printf("\n  So sections 1 and 3 exclude a gradient of that size and larger, and say\n");
+        printf("  NOTHING about a weaker one, or about any structure that does not show up in\n");
+        printf("  the leading-zero count at all. That is the honest scope of the flat result,\n");
+        printf("  and it is narrower than 'the landscape is flat'.\n");
     }
     else
     {
-        std::printf("  Nothing on the ladder was seen, which makes the whole bench uninformative\n");
-        std::printf("  and is itself the finding. Do not quote the flat result until this fires.\n");
+        printf("  Nothing on the ladder was seen, which makes the whole bench uninformative\n");
+        printf("  and is itself the finding. Do not quote the flat result until this fires.\n");
     }
-    std::printf("\n  For mining specifically the narrower claim is still the whole answer, because\n");
-    std::printf("  the target test IS the leading-zero count: a landscape invisible to this readout\n");
-    std::printf("  is a landscape that cannot lower the cost of finding a block.\n");
+    printf("\n  For mining specifically the narrower claim is still the whole answer, because\n");
+    printf("  the target test IS the leading-zero count: a landscape invisible to this readout\n");
+    printf("  is a landscape that cannot lower the cost of finding a block.\n");
 }
 
 /**
@@ -525,17 +525,17 @@ void measure_injection_floor()
  */
 void measure_pin_retention()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. Does the lock retain a set pin?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Find a nonce whose digest already has k leading zeros, perturb it, and ask\n");
-    std::printf("  whether the zeros survive. Chance is 2^-k. Anything above chance is a pin\n");
-    std::printf("  that stays set, which is what a rake exploits.\n");
+    printf("\n================================================================\n");
+    printf("  4. Does the lock retain a set pin?\n");
+    printf("================================================================\n");
+    printf("\n  Find a nonce whose digest already has k leading zeros, perturb it, and ask\n");
+    printf("  whether the zeros survive. Chance is 2^-k. Anything above chance is a pin\n");
+    printf("  that stays set, which is what a rake exploits.\n");
 
     std::mt19937 generator(20260908u);
 
-    std::printf("\n  %6s %12s %14s %14s %14s %10s\n", "k", "chance", "flip 1 bit", "nonce + 1", "unrelated", "verdict");
-    std::printf("  %6s %12s %14s %14s %14s %10s\n", "------", "------------", "--------------", "--------------",
+    printf("\n  %6s %12s %14s %14s %14s %10s\n", "k", "chance", "flip 1 bit", "nonce + 1", "unrelated", "verdict");
+    printf("  %6s %12s %14s %14s %14s %10s\n", "------", "------------", "--------------", "--------------",
                 "--------------", "----------");
 
     // The k values serve statistical power alone. A test at k=16 with a few hundred set states
@@ -583,45 +583,45 @@ void measure_pin_retention()
         }
 
         const double count = (double)set_states.size();
-        const double chance = std::pow(0.5, (double)zeros);
+        const double chance = pow(0.5, (double)zeros);
         const double flip_rate = (double)held_flip / count;
         const double step_rate = (double)held_step / count;
         const double free_rate = (double)held_free / count;
 
         // A retained pin would show as a rate above chance by more than sampling allows.
-        const double standard_error = std::sqrt(chance * (1.0 - chance) / count);
+        const double standard_error = sqrt(chance * (1.0 - chance) / count);
         const bool retained =
             ((flip_rate - chance) > (5.0 * standard_error)) || ((step_rate - chance) > (5.0 * standard_error));
 
-        std::printf("  %6u %11.4f%% %13.4f%% %13.4f%% %13.4f%% %10s\n", zeros, chance * 100.0, flip_rate * 100.0,
+        printf("  %6u %11.4f%% %13.4f%% %13.4f%% %13.4f%% %10s\n", zeros, chance * 100.0, flip_rate * 100.0,
                     step_rate * 100.0, free_rate * 100.0, retained ? "RETAINED" : "none");
-        std::printf("  %6s %11s  (%zu set states, %.0f expected under chance, detects a %.1fx "
+        printf("  %6s %11s  (%zu set states, %.0f expected under chance, detects a %.1fx "
                     "effect at 5 sigma)\n",
                     "", "", set_states.size(), chance * count, 1.0 + ((5.0 * standard_error) / chance));
     }
 
-    std::printf("\n  Every perturbation column sits on the chance column, and on the unrelated\n");
-    std::printf("  control. A nonce that already clears k zeros gives its neighbors no better\n");
-    std::printf("  odds of clearing them than a nonce picked at random does.\n");
+    printf("\n  Every perturbation column sits on the chance column, and on the unrelated\n");
+    printf("  control. A nonce that already clears k zeros gives its neighbors no better\n");
+    printf("  odds of clearing them than a nonce picked at random does.\n");
 
-    std::printf("\n  So the lock has no binding order, no feedback, and no retention. All 76 or\n");
-    std::printf("  so pins must be set in the same instant, and setting 40 of them is worth\n");
-    std::printf("  exactly nothing toward the next one. That is the same fact the geometric\n");
-    std::printf("  hitting time reports from the other side: a memoryless process is precisely\n");
-    std::printf("  one with no partial progress to retain.\n");
-    std::printf("\n  A rake beats a lock whose tolerances leak information about which pin is\n");
-    std::printf("  binding. This lock has no tolerances. It is closer to a combination dial with\n");
-    std::printf("  no click, where the only way to know is to try the whole combination.\n");
+    printf("\n  So the lock has no binding order, no feedback, and no retention. All 76 or\n");
+    printf("  so pins must be set in the same instant, and setting 40 of them is worth\n");
+    printf("  exactly nothing toward the next one. That is the same fact the geometric\n");
+    printf("  hitting time reports from the other side: a memoryless process is precisely\n");
+    printf("  one with no partial progress to retain.\n");
+    printf("\n  A rake beats a lock whose tolerances leak information about which pin is\n");
+    printf("  binding. This lock has no tolerances. It is closer to a combination dial with\n");
+    printf("  no click, where the only way to know is to try the whole combination.\n");
 }
 
 } // namespace
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Vector walk against the digest domain\n");
-    std::printf("  Does this domain have the neighbourhoods a walk needs?\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  Vector walk against the digest domain\n");
+    printf("  Does this domain have the neighbourhoods a walk needs?\n");
+    printf("================================================================\n");
 
     const std::vector<uint8_t> header = bytes_from_hex(WALK_HEADER_HEX);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
@@ -639,8 +639,8 @@ int main()
     measure_injection_floor();
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

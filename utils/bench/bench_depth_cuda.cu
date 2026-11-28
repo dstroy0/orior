@@ -22,9 +22,9 @@
 
 #include <cuda_runtime.h>
 
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <vector>
 
 namespace
@@ -509,7 +509,7 @@ Decay fit_decay(const double *readings, unsigned deepest, double floor_at, doubl
     double counted = 0.0;
     for (unsigned round_at = first; round_at <= last; round_at += 1u)
     {
-        const double bits = std::log2(readings[round_at]);
+        const double bits = log2(readings[round_at]);
         const double where = (double)round_at;
         sum_round += where;
         sum_bits += bits;
@@ -535,18 +535,18 @@ Decay fit_decay(const double *readings, unsigned deepest, double floor_at, doubl
 
 int main(int argc, char **argv)
 {
-    const unsigned trial_bits = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 24u;
-    const unsigned deepest = (argc > 2) ? (unsigned)std::atoi(argv[2]) : 24u;
+    const unsigned trial_bits = (argc > 1) ? (unsigned)atoi(argv[1]) : 24u;
+    const unsigned deepest = (argc > 2) ? (unsigned)atoi(argv[2]) : 24u;
     const uint64_t trials = (uint64_t)1u << trial_bits;
 
-    std::printf("================================================================\n");
-    std::printf("  The depth sweep on the device, deep enough to find the end\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The host sweep found the forward direction dying at nine rounds and the\n");
-    std::printf("  inverse still reading 51.8 standard errors at twelve, where it stopped for want\n");
-    std::printf("  of samples. Every envelope figure quoting the inverse is therefore a lower\n");
-    std::printf("  bound instead of a measurement, and this exists to end that.\n");
-    std::printf("\n  Pairs per cell: 2^%u = %llu. Depth swept to %u rounds. Every word read.\n", trial_bits,
+    printf("================================================================\n");
+    printf("  The depth sweep on the device, deep enough to find the end\n");
+    printf("================================================================\n");
+    printf("\n  The host sweep found the forward direction dying at nine rounds and the\n");
+    printf("  inverse still reading 51.8 standard errors at twelve, where it stopped for want\n");
+    printf("  of samples. Every envelope figure quoting the inverse is therefore a lower\n");
+    printf("  bound instead of a measurement, and this exists to end that.\n");
+    printf("\n  Pairs per cell: 2^%u = %llu. Depth swept to %u rounds. Every word read.\n", trial_bits,
                 (unsigned long long)trials, deepest);
 
     unsigned long long *device_wrong = nullptr;
@@ -561,10 +561,10 @@ int main(int argc, char **argv)
     cudaDeviceSynchronize();
     unsigned long long wrong = 0u;
     cudaMemcpy(&wrong, device_wrong, sizeof(wrong), cudaMemcpyDeviceToHost);
-    std::printf("\n  round trips forward then back : 1000000, of those that did not return: %llu\n", wrong);
+    printf("\n  round trips forward then back : 1000000, of those that did not return: %llu\n", wrong);
     if (wrong != 0u)
     {
-        std::printf("\n  [!] the inverse is not the inverse, so nothing below it means anything.\n");
+        printf("\n  [!] the inverse is not the inverse, so nothing below it means anything.\n");
         return 1;
     }
 
@@ -572,8 +572,8 @@ int main(int argc, char **argv)
     const unsigned low[STRATA] = {1u, 2u, 3u, 5u, 9u};
     const unsigned high[STRATA] = {1u, 2u, 4u, 8u, 16u};
 
-    std::printf("\n  %12s %16s %16s\n", "bits differ", "forward dies", "inverted dies");
-    std::printf("  %12s %16s %16s\n", "------------", "----------------", "----------------");
+    printf("\n  %12s %16s %16s\n", "bits differ", "forward dies", "inverted dies");
+    printf("  %12s %16s %16s\n", "------------", "----------------", "----------------");
 
     for (unsigned band = 0u; band < STRATA; band += 1u)
     {
@@ -614,21 +614,21 @@ int main(int argc, char **argv)
         char label[16];
         if (low[band] == high[band])
         {
-            std::snprintf(label, sizeof(label), "%u", low[band]);
+            snprintf(label, sizeof(label), "%u", low[band]);
         }
         else
         {
-            std::snprintf(label, sizeof(label), "%u to %u", low[band], high[band]);
+            snprintf(label, sizeof(label), "%u to %u", low[band], high[band]);
         }
 
         char forward_label[16];
         char backward_label[16];
-        std::snprintf(forward_label, sizeof(forward_label), "%s%u", (dies[0] == 0u) ? "past " : "",
+        snprintf(forward_label, sizeof(forward_label), "%s%u", (dies[0] == 0u) ? "past " : "",
                       (dies[0] == 0u) ? deepest : dies[0]);
-        std::snprintf(backward_label, sizeof(backward_label), "%s%u", (dies[1] == 0u) ? "past " : "",
+        snprintf(backward_label, sizeof(backward_label), "%s%u", (dies[1] == 0u) ? "past " : "",
                       (dies[1] == 0u) ? deepest : dies[1]);
 
-        std::printf("  %12s %16s %16s\n", label, forward_label, backward_label);
+        printf("  %12s %16s %16s\n", label, forward_label, backward_label);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -643,25 +643,25 @@ int main(int argc, char **argv)
     // column flat near zero across sample sizes is exactly zero. A column that grows like the
     // square root of the sample is nonzero, and merely small.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Exactly zero, or merely tiny\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The statistic grows as the square root of the sample, an exactly zero signal\n");
-    std::printf("  cannot be pushed past a threshold by more pairs and a small nonzero one always\n");
-    std::printf("  can. Reading the statistic instead of its crossing separates the two.\n");
-    std::printf("\n  Weight one. Doubling the pairs multiplies a real signal by 1.414 and leaves a\n");
-    std::printf("  zero one alone.\n");
+    printf("\n================================================================\n");
+    printf("  Exactly zero, or merely tiny\n");
+    printf("================================================================\n");
+    printf("\n  The statistic grows as the square root of the sample, an exactly zero signal\n");
+    printf("  cannot be pushed past a threshold by more pairs and a small nonzero one always\n");
+    printf("  can. Reading the statistic instead of its crossing separates the two.\n");
+    printf("\n  Weight one. Doubling the pairs multiplies a real signal by 1.414 and leaves a\n");
+    printf("  zero one alone.\n");
 
     for (int backward = 0; backward < 2; backward += 1)
     {
-        std::printf("\n  %s\n", (backward != 0) ? "inverse" : "forward");
-        std::printf("\n  %8s", "rounds");
+        printf("\n  %s\n", (backward != 0) ? "inverse" : "forward");
+        printf("\n  %8s", "rounds");
         for (unsigned shift = 0u; shift < 3u; shift += 1u)
         {
-            std::printf(" %14s", (shift == 0u) ? "at 2^22" : ((shift == 1u) ? "at 2^24" : "at 2^26"));
+            printf(" %14s", (shift == 0u) ? "at 2^22" : ((shift == 1u) ? "at 2^24" : "at 2^26"));
         }
-        std::printf(" %12s\n", "ratio");
-        std::printf("  %8s %14s %14s %14s %12s\n", "--------", "--------------", "--------------", "--------------",
+        printf(" %12s\n", "ratio");
+        printf("  %8s %14s %14s %14s %12s\n", "--------", "--------------", "--------------", "--------------",
                     "------------");
 
         for (unsigned rounds = 9u; rounds <= 18u; rounds += 1u)
@@ -693,13 +693,13 @@ int main(int argc, char **argv)
 
             // Sixteenfold more pairs multiplies a real signal by four and a zero one by nothing.
             const double ratio = (seen[0] > 0.0) ? (seen[2] / seen[0]) : 0.0;
-            std::printf("  %8u %14.3f %14.3f %14.3f %12.2f\n", rounds, seen[0], seen[1], seen[2], ratio);
+            printf("  %8u %14.3f %14.3f %14.3f %12.2f\n", rounds, seen[0], seen[1], seen[2], ratio);
         }
     }
 
-    std::printf("\n  Sixteen times the pairs multiplies a real signal by four. A ratio near four is\n");
-    std::printf("  a signal that was always there and was merely under the threshold; a ratio near\n");
-    std::printf("  one is noise, and noise means exactly zero instead of small.\n");
+    printf("\n  Sixteen times the pairs multiplies a real signal by four. A ratio near four is\n");
+    printf("  a signal that was always there and was merely under the threshold; a ratio near\n");
+    printf("  one is noise, and noise means exactly zero instead of small.\n");
 
     // ---------------------------------------------------------------------------------------
     // Is the forward zero the function, or the statistic?
@@ -717,29 +717,29 @@ int main(int argc, char **argv)
     // If the zero is blindness, the bit reading carries past the stop of the word reading. If the
     // zero is the function, both stop in the same round, and the candidate drops out.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The function, or the statistic\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Forward fell from sixty-nine standard errors to noise in one round. The inverse\n");
-    std::printf("  beside it falls by about three and a half per round and needs seven rounds to\n");
-    std::printf("  cover the same ground. A cliff after a sixty-nine sigma reading is structure,\n");
-    std::printf("  not sample size, and there are two candidates for what the structure is.\n");
-    std::printf("\n  A word's mean Hamming distance is the sum of thirty-two bit rates, and summing\n");
-    std::printf("  cancels two positions leaning opposite ways. Reading the same walk one bit\n");
-    std::printf("  position at a time removes only the summation. If the word statistic went blind,\n");
-    std::printf("  this carries past where it stopped; if the function did, both stop together.\n");
-    std::printf("\n  The bit null is a coin, so the noise floor is the largest of 256 draws rather\n");
-    std::printf("  than of 8, near 2.9 instead of near 1.9. Both columns are strongest of their\n");
-    std::printf("  own type, so they are compared by where each leaves its own floor.\n");
+    printf("\n================================================================\n");
+    printf("  The function, or the statistic\n");
+    printf("================================================================\n");
+    printf("\n  Forward fell from sixty-nine standard errors to noise in one round. The inverse\n");
+    printf("  beside it falls by about three and a half per round and needs seven rounds to\n");
+    printf("  cover the same ground. A cliff after a sixty-nine sigma reading is structure,\n");
+    printf("  not sample size, and there are two candidates for what the structure is.\n");
+    printf("\n  A word's mean Hamming distance is the sum of thirty-two bit rates, and summing\n");
+    printf("  cancels two positions leaning opposite ways. Reading the same walk one bit\n");
+    printf("  position at a time removes only the summation. If the word statistic went blind,\n");
+    printf("  this carries past where it stopped; if the function did, both stop together.\n");
+    printf("\n  The bit null is a coin, so the noise floor is the largest of 256 draws rather\n");
+    printf("  than of 8, near 2.9 instead of near 1.9. Both columns are strongest of their\n");
+    printf("  own type, so they are compared by where each leaves its own floor.\n");
 
     unsigned long long *device_bits = nullptr;
     cudaMalloc((void **)&device_bits, 256u * sizeof(unsigned long long));
 
     for (int backward = 0; backward < 2; backward += 1)
     {
-        std::printf("\n  %s, at 2^24 pairs, one bit flipped\n", (backward != 0) ? "inverse" : "forward");
-        std::printf("\n  %8s %16s %16s %14s\n", "rounds", "by word", "by bit position", "which sees");
-        std::printf("  %8s %16s %16s %14s\n", "--------", "----------------", "----------------", "--------------");
+        printf("\n  %s, at 2^24 pairs, one bit flipped\n", (backward != 0) ? "inverse" : "forward");
+        printf("\n  %8s %16s %16s %14s\n", "rounds", "by word", "by bit position", "which sees");
+        printf("  %8s %16s %16s %14s\n", "--------", "----------------", "----------------", "--------------");
 
         for (unsigned rounds = 8u; rounds <= 18u; rounds += 1u)
         {
@@ -797,16 +797,16 @@ int main(int argc, char **argv)
             {
                 reads = "word only";
             }
-            std::printf("  %8u %16.3f %16.3f %14s\n", rounds, by_word, by_bit, reads);
+            printf("  %8u %16.3f %16.3f %14s\n", rounds, by_word, by_bit, reads);
         }
     }
 
     cudaFree(device_bits);
 
-    std::printf("\n  A row reading bit only is the word statistic going blind instead of the\n");
-    std::printf("  function going ideal, and the envelope quoted from the word reading is short by\n");
-    std::printf("  however many such rows there are. A table with no such row subtracts the\n");
-    std::printf("  candidate and leaves the cliff standing as a fact about SHA-256.\n");
+    printf("\n  A row reading bit only is the word statistic going blind instead of the\n");
+    printf("  function going ideal, and the envelope quoted from the word reading is short by\n");
+    printf("  however many such rows there are. A table with no such row subtracts the\n");
+    printf("  candidate and leaves the cliff standing as a fact about SHA-256.\n");
 
     // ---------------------------------------------------------------------------------------
     // A cliff, or a steeper slope?
@@ -822,15 +822,15 @@ int main(int argc, char **argv)
     // sample, and a zero does not. At 2^30, the slope predicts near ten, and the zero predicts the
     // floor. That is not a close call.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  A cliff, or a steeper slope\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Forward falls by a factor near thirty per round where the inverse falls by two.\n");
-    std::printf("  A slope that steep puts round ten at 1.2, underneath the 1.9 floor of a\n");
-    std::printf("  largest-of-eight statistic, a genuine zero and a merely steeper slope predict\n");
-    std::printf("  the same unreadable row and the sweep above cannot separate them.\n");
-    std::printf("\n  More pairs separate them, because only one of the two grows. The slope column\n");
-    std::printf("  is what round nine would become at this depth if the factor held.\n");
+    printf("\n================================================================\n");
+    printf("  A cliff, or a steeper slope\n");
+    printf("================================================================\n");
+    printf("\n  Forward falls by a factor near thirty per round where the inverse falls by two.\n");
+    printf("  A slope that steep puts round ten at 1.2, underneath the 1.9 floor of a\n");
+    printf("  largest-of-eight statistic, a genuine zero and a merely steeper slope predict\n");
+    printf("  the same unreadable row and the sweep above cannot separate them.\n");
+    printf("\n  More pairs separate them, because only one of the two grows. The slope column\n");
+    printf("  is what round nine would become at this depth if the factor held.\n");
 
     {
         const double anchor[2] = {36.035, 8428.069}; // round nine at 2^24, both directions.
@@ -838,9 +838,9 @@ int main(int argc, char **argv)
 
         for (int backward = 0; backward < 2; backward += 1)
         {
-            std::printf("\n  %s, round ten, one bit flipped\n", (backward != 0) ? "inverse" : "forward");
-            std::printf("\n  %10s %14s %14s %14s\n", "pairs", "observed", "if slope held", "verdict");
-            std::printf("  %10s %14s %14s %14s\n", "----------", "--------------", "--------------", "--------------");
+            printf("\n  %s, round ten, one bit flipped\n", (backward != 0) ? "inverse" : "forward");
+            printf("\n  %10s %14s %14s %14s\n", "pairs", "observed", "if slope held", "verdict");
+            printf("  %10s %14s %14s %14s\n", "----------", "--------------", "--------------", "--------------");
 
             for (unsigned power = 26u; power <= 30u; power += 2u)
             {
@@ -866,7 +866,7 @@ int main(int argc, char **argv)
 
                 // Round nine's reading, divided by one more round of its own decay, then carried
                 // from 2^24 to here by the square root of the sample ratio.
-                const double carried = std::sqrt((double)many / (double)((uint64_t)1u << 24u));
+                const double carried = sqrt((double)many / (double)((uint64_t)1u << 24u));
                 const double predicted = (anchor[backward] / factor[backward]) * carried;
 
                 const char *verdict = "floor";
@@ -878,15 +878,15 @@ int main(int argc, char **argv)
                 {
                     verdict = "something";
                 }
-                std::printf("  %10s %14.3f %14.3f %14s\n", (power == 26u) ? "2^26" : ((power == 28u) ? "2^28" : "2^30"),
+                printf("  %10s %14.3f %14.3f %14s\n", (power == 26u) ? "2^26" : ((power == 28u) ? "2^28" : "2^30"),
                             strongest, predicted, verdict);
             }
         }
     }
 
-    std::printf("\n  The inverse row is the control: its slope is known to hold at round ten, a\n");
-    std::printf("  reading near its prediction says the method works and a forward row at the floor\n");
-    std::printf("  beneath a prediction near ten is a cliff instead of a slope.\n");
+    printf("\n  The inverse row is the control: its slope is known to hold at round ten, a\n");
+    printf("  reading near its prediction says the method works and a forward row at the floor\n");
+    printf("  beneath a prediction near ten is a cliff instead of a slope.\n");
 
     // ---------------------------------------------------------------------------------------
     // Each slope, projected onto the cliff.
@@ -903,13 +903,13 @@ int main(int argc, char **argv)
     //   The two lines against each other: the round where both directions are equally visible.
     //   Each line at the wall of the other: what one direction predicts at the depth of the other.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Projecting each slope onto the cliff\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A cliff is only a cliff against a trend, and everything above measured the\n");
-    std::printf("  forward trend from a single round. Both directions are swept from round one at\n");
-    std::printf("  2^26 pairs, the floor is measured instead of assumed, and a line is fitted to\n");
-    std::printf("  the rounds standing a hundredfold clear of that floor.\n");
+    printf("\n================================================================\n");
+    printf("  Projecting each slope onto the cliff\n");
+    printf("================================================================\n");
+    printf("\n  A cliff is only a cliff against a trend, and everything above measured the\n");
+    printf("  forward trend from a single round. Both directions are swept from round one at\n");
+    printf("  2^26 pairs, the floor is measured instead of assumed, and a line is fitted to\n");
+    printf("  the rounds standing a hundredfold clear of that floor.\n");
 
     {
         const unsigned PROJECT_DEEPEST = 20u;
@@ -963,11 +963,11 @@ int main(int argc, char **argv)
         curve[0][0] = 0.0;
         curve[1][0] = 0.0;
 
-        std::printf("\n  Measured noise floor, rounds %u to %u, both directions: %.3f\n", FLOOR_FROM, FLOOR_TO,
+        printf("\n  Measured noise floor, rounds %u to %u, both directions: %.3f\n", FLOOR_FROM, FLOOR_TO,
                     floor_at);
 
-        std::printf("\n  %8s %16s %10s %16s %10s\n", "rounds", "forward", "fwd x/rd", "inverse", "inv x/rd");
-        std::printf("  %8s %16s %10s %16s %10s\n", "--------", "----------------", "----------", "----------------",
+        printf("\n  %8s %16s %10s %16s %10s\n", "rounds", "forward", "fwd x/rd", "inverse", "inv x/rd");
+        printf("  %8s %16s %10s %16s %10s\n", "--------", "----------------", "----------", "----------------",
                     "----------");
         for (unsigned rounds = 1u; rounds <= PROJECT_DEEPEST; rounds += 1u)
         {
@@ -978,45 +978,45 @@ int main(int argc, char **argv)
                 char *const into = (backward != 0) ? inverse_step : forward_step;
                 if ((rounds > 1u) && (curve[backward][rounds] > 0.0))
                 {
-                    std::snprintf(into, sizeof(forward_step), "%.2f",
+                    snprintf(into, sizeof(forward_step), "%.2f",
                                   curve[backward][rounds - 1u] / curve[backward][rounds]);
                 }
                 else
                 {
-                    std::snprintf(into, sizeof(forward_step), "%s", "-");
+                    snprintf(into, sizeof(forward_step), "%s", "-");
                 }
             }
-            std::printf("  %8u %16.3f %10s %16.3f %10s\n", rounds, curve[0][rounds], forward_step, curve[1][rounds],
+            printf("  %8u %16.3f %10s %16.3f %10s\n", rounds, curve[0][rounds], forward_step, curve[1][rounds],
                         inverse_step);
         }
 
         const double ceiling = bench_depth_ceiling((double)many, BENCH_DEPTH_WORD_BITS);
-        std::printf("  Saturation ceiling, a word no difference has reached yet: %.3f\n", ceiling);
-        std::printf("\n  A run of rounds pinned at that ceiling is the shift chain holding an\n");
-        std::printf("  untouched word, not a decay, and it is kept out of the fit below.\n");
+        printf("  Saturation ceiling, a word no difference has reached yet: %.3f\n", ceiling);
+        printf("\n  A run of rounds pinned at that ceiling is the shift chain holding an\n");
+        printf("  untouched word, not a decay, and it is kept out of the fit below.\n");
 
         const Decay forward_line = fit_decay(curve[0], PROJECT_DEEPEST, floor_at, ceiling);
         const Decay inverse_line = fit_decay(curve[1], PROJECT_DEEPEST, floor_at, ceiling);
 
-        std::printf("\n  %10s %14s %14s %10s %10s\n", "direction", "factor/round", "fitted over", "rounds",
+        printf("\n  %10s %14s %14s %10s %10s\n", "direction", "factor/round", "fitted over", "rounds",
                     "at round 0");
-        std::printf("  %10s %14s %14s %10s %10s\n", "----------", "--------------", "--------------", "----------",
+        printf("  %10s %14s %14s %10s %10s\n", "----------", "--------------", "--------------", "----------",
                     "----------");
         for (int backward = 0; backward < 2; backward += 1)
         {
             const Decay line = (backward != 0) ? inverse_line : forward_line;
             char window[16];
-            std::snprintf(window, sizeof(window), "%u-%u", line.first, line.last);
-            std::printf("  %10s %14.3f %14s %10u %10.1f\n", (backward != 0) ? "inverse" : "forward",
-                        std::pow(2.0, -line.per_round), window, line.used, line.at_zero);
+            snprintf(window, sizeof(window), "%u-%u", line.first, line.last);
+            printf("  %10s %14.3f %14s %10u %10.1f\n", (backward != 0) ? "inverse" : "forward",
+                        pow(2.0, -line.per_round), window, line.used, line.at_zero);
         }
 
         // Where a fitted line falls to the floor. This is the round where the direction would die,
         // had it kept its trend. The distance from where it actually dies is what "cliff" means.
-        const double floor_bits = std::log2(floor_at);
-        std::printf("\n  Intersections\n");
-        std::printf("\n  %-44s %12s %12s %10s\n", "what crosses what", "at round", "actually", "shortfall");
-        std::printf("  %-44s %12s %12s %10s\n", "--------------------------------------------", "------------",
+        const double floor_bits = log2(floor_at);
+        printf("\n  Intersections\n");
+        printf("\n  %-44s %12s %12s %10s\n", "what crosses what", "at round", "actually", "shortfall");
+        printf("  %-44s %12s %12s %10s\n", "--------------------------------------------", "------------",
                     "------------", "----------");
 
         const unsigned died[2] = {10u, 15u};
@@ -1029,9 +1029,9 @@ int main(int argc, char **argv)
             }
             const double crosses = (floor_bits - line.at_zero) / line.per_round;
             char label[64];
-            std::snprintf(label, sizeof(label), "%s trend, projected onto the floor",
+            snprintf(label, sizeof(label), "%s trend, projected onto the floor",
                           (backward != 0) ? "inverse" : "forward");
-            std::printf("  %-44s %12.2f %12u %10.2f\n", label, crosses, died[backward],
+            printf("  %-44s %12.2f %12u %10.2f\n", label, crosses, died[backward],
                         crosses - (double)died[backward]);
         }
 
@@ -1042,8 +1042,8 @@ int main(int argc, char **argv)
             {
                 const double meets = (inverse_line.at_zero - forward_line.at_zero) / apart;
                 const double height = (forward_line.per_round * meets) + forward_line.at_zero;
-                std::printf("  %-44s %12.2f %12s %10s\n", "the two trends, against each other", meets, "-", "-");
-                std::printf("  %-44s %12.2f %12s %10s\n", "  ...where they read (bits)", height, "-", "-");
+                printf("  %-44s %12.2f %12s %10s\n", "the two trends, against each other", meets, "-", "-");
+                printf("  %-44s %12.2f %12s %10s\n", "  ...where they read (bits)", height, "-", "-");
             }
 
             // What each direction's trend predicts at the depth the other actually reached. A trend
@@ -1055,15 +1055,15 @@ int main(int argc, char **argv)
                 const unsigned there = died[1 - backward];
                 const double bits = (line.per_round * (double)there) + line.at_zero;
                 char label[64];
-                std::snprintf(label, sizeof(label), "%s trend, at the %s wall (round %u)",
+                snprintf(label, sizeof(label), "%s trend, at the %s wall (round %u)",
                               (backward != 0) ? "inverse" : "forward", (backward != 0) ? "forward" : "inverse", there);
-                std::printf("  %-44s %12.3f %12s %10s\n", label, std::pow(2.0, bits), "-", "-");
+                printf("  %-44s %12.3f %12s %10s\n", label, pow(2.0, bits), "-", "-");
             }
         }
 
-        std::printf("\n  A shortfall near zero says a direction died where its own trend said it\n");
-        std::printf("  would, which is a sample limit and no structure at all. A large negative\n");
-        std::printf("  shortfall says it died early against its own trend, and that is the cliff.\n");
+        printf("\n  A shortfall near zero says a direction died where its own trend said it\n");
+        printf("  would, which is a sample limit and no structure at all. A large negative\n");
+        printf("  shortfall says it died early against its own trend, and that is the cliff.\n");
     }
 
     // ---------------------------------------------------------------------------------------
@@ -1080,15 +1080,15 @@ int main(int argc, char **argv)
     // message word three, where the nonce of a header sits. It runs the expansion of the standard,
     // and reads the same statistic. The question: is the wall in the same place?
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The nonce, which does not elide\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Every arm above hands both members of a pair the same schedule word, and in\n");
-    std::printf("  the additive difference that word cancels identically. The schedule contributed\n");
-    std::printf("  nothing, so those arms measured the state chain unwinding alone - one mechanism,\n");
-    std::printf("  which is why it comes out a smooth slope.\n");
-    std::printf("\n  A miner varies the nonce, not the state. One bit of message word three, run\n");
-    std::printf("  through the standard's expansion, cannot cancel and reaches every later word.\n");
+    printf("\n================================================================\n");
+    printf("  The nonce, which does not elide\n");
+    printf("================================================================\n");
+    printf("\n  Every arm above hands both members of a pair the same schedule word, and in\n");
+    printf("  the additive difference that word cancels identically. The schedule contributed\n");
+    printf("  nothing, so those arms measured the state chain unwinding alone - one mechanism,\n");
+    printf("  which is why it comes out a smooth slope.\n");
+    printf("\n  A miner varies the nonce, not the state. One bit of message word three, run\n");
+    printf("  through the standard's expansion, cannot cancel and reaches every later word.\n");
 
     // Which words the nonce reaches is exact, and not statistical. Thus the bench computes it, and
     // does not sample it. W[at] draws on at-16, at-15, at-7 and at-2. Thus taint propagates by those
@@ -1121,23 +1121,23 @@ int main(int argc, char **argv)
             }
         }
 
-        std::printf("\n  Exact schedule dependency, one nonce word\n");
-        std::printf("\n  %-46s %14u\n", "first schedule word the nonce reaches", first_touched);
-        std::printf("  %-46s %14u\n", "schedule words independent of the nonce", clean_count);
-        std::printf("  %-46s %14u\n", "deepest nonce-independent word", last_clean);
+        printf("\n  Exact schedule dependency, one nonce word\n");
+        printf("\n  %-46s %14u\n", "first schedule word the nonce reaches", first_touched);
+        printf("  %-46s %14u\n", "schedule words independent of the nonce", clean_count);
+        printf("  %-46s %14u\n", "deepest nonce-independent word", last_clean);
 
-        std::printf("\n  ");
+        printf("\n  ");
         for (unsigned at = 0u; at < 64u; at += 1u)
         {
-            std::printf("%c", (tainted[at] != 0) ? 'n' : '.');
+            printf("%c", (tainted[at] != 0) ? 'n' : '.');
             if (((at + 1u) % 16u) == 0u)
             {
-                std::printf("\n  ");
+                printf("\n  ");
             }
         }
-        std::printf("\n  A dot is a schedule word every nonce shares, computed once per header\n");
-        std::printf("  instead of once per nonce. Rounds before the first n do identical state\n");
-        std::printf("  work for every nonce and belong outside the inner loop with the midstate.\n");
+        printf("\n  A dot is a schedule word every nonce shares, computed once per header\n");
+        printf("  instead of once per nonce. Rounds before the first n do identical state\n");
+        printf("  work for every nonce and belong outside the inner loop with the midstate.\n");
 
         // The other side of the same curve. Forward taint says which rounds every nonce shares. The
         // backward cone says which rounds do not need all eight words, because the difficulty test
@@ -1159,9 +1159,9 @@ int main(int argc, char **argv)
             0x40u  // Word h' is g.
         };
 
-        std::printf("\n  Exact backward cone, from the one word a rejection reads\n");
-        std::printf("\n  %-22s %14s %14s\n", "rounds from the end", "words needed", "of eight");
-        std::printf("  %-22s %14s %14s\n", "----------------------", "--------------", "--------------");
+        printf("\n  Exact backward cone, from the one word a rejection reads\n");
+        printf("\n  %-22s %14s %14s\n", "rounds from the end", "words needed", "of eight");
+        printf("  %-22s %14s %14s\n", "----------------------", "--------------", "--------------");
 
         unsigned wanted = 1u << 7;
         unsigned narrow_area = 0u;
@@ -1188,34 +1188,34 @@ int main(int argc, char **argv)
             }
             if (back <= 10u)
             {
-                std::printf("  %-22u %14u %14u\n", back, width, WORDS);
+                printf("  %-22u %14u %14u\n", back, width, WORDS);
             }
         }
 
-        std::printf("\n  %-46s %14u\n", "tail rounds needing fewer than eight words", narrow_rounds);
-        std::printf("  %-46s %14u\n", "word-rounds in that tail, against eight each", narrow_area);
-        std::printf("  %-46s %14u\n", "front rounds every nonce shares", first_touched);
+        printf("\n  %-46s %14u\n", "tail rounds needing fewer than eight words", narrow_rounds);
+        printf("  %-46s %14u\n", "word-rounds in that tail, against eight each", narrow_area);
+        printf("  %-46s %14u\n", "front rounds every nonce shares", first_touched);
 
         // What a nonce cannot avoid: the sixty-four rounds, less the shared front rounds, and less
         // the words that the tail never needs.
         const unsigned full = 64u * WORDS;
         const unsigned saved_front = first_touched * WORDS;
         const unsigned saved_tail = (narrow_rounds * WORDS) - narrow_area;
-        std::printf("  %-46s %14u\n", "word-rounds per nonce, all sixty-four rounds", full);
-        std::printf("  %-46s %14u\n", "  less the shared front", saved_front);
-        std::printf("  %-46s %14u\n", "  less the narrow tail", saved_tail);
-        std::printf("  %-46s %14u\n", "smallest area a nonce must actually cross", full - saved_front - saved_tail);
-        std::printf("\n  That last figure is the floor this arithmetic gives for one SHA-256 block\n");
-        std::printf("  of a nonce loop. It is a count of word-rounds, not of instructions, and\n");
-        std::printf("  nothing here has yet checked it against what the miner does per nonce.\n");
+        printf("  %-46s %14u\n", "word-rounds per nonce, all sixty-four rounds", full);
+        printf("  %-46s %14u\n", "  less the shared front", saved_front);
+        printf("  %-46s %14u\n", "  less the narrow tail", saved_tail);
+        printf("  %-46s %14u\n", "smallest area a nonce must actually cross", full - saved_front - saved_tail);
+        printf("\n  That last figure is the floor this arithmetic gives for one SHA-256 block\n");
+        printf("  of a nonce loop. It is a count of word-rounds, not of instructions, and\n");
+        printf("  nothing here has yet checked it against what the miner does per nonce.\n");
     }
 
     {
         const uint64_t many = (uint64_t)1u << 24u;
         const double ceiling = bench_depth_ceiling((double)many, BENCH_DEPTH_WORD_BITS);
 
-        std::printf("\n  %8s %16s %10s %14s\n", "rounds", "state difference", "x/round", "nonce difference");
-        std::printf("  %8s %16s %10s %14s\n", "--------", "----------------", "----------", "--------------");
+        printf("\n  %8s %16s %10s %14s\n", "rounds", "state difference", "x/round", "nonce difference");
+        printf("  %8s %16s %10s %14s\n", "--------", "----------------", "----------", "--------------");
 
         double before_state = 0.0;
         for (unsigned rounds = 1u; rounds <= 20u; rounds += 1u)
@@ -1255,26 +1255,26 @@ int main(int argc, char **argv)
             char step_size[16];
             if ((rounds > 1u) && (reading[0] > 0.0) && (before_state < ceiling * 0.95))
             {
-                std::snprintf(step_size, sizeof(step_size), "%.2f", before_state / reading[0]);
+                snprintf(step_size, sizeof(step_size), "%.2f", before_state / reading[0]);
             }
             else
             {
-                std::snprintf(step_size, sizeof(step_size), "%s", "-");
+                snprintf(step_size, sizeof(step_size), "%s", "-");
             }
             before_state = reading[0];
 
-            std::printf("  %8u %16.3f %10s %14.3f\n", rounds, reading[0], step_size, reading[1]);
+            printf("  %8u %16.3f %10s %14.3f\n", rounds, reading[0], step_size, reading[1]);
         }
 
-        std::printf("\n  A nonce column that stays at the ceiling for longer than the state column\n");
-        std::printf("  is the expansion delaying arrival instead of the round function mixing\n");
-        std::printf("  harder, and a nonce column that outlives the state column is the schedule\n");
-        std::printf("  carrying difference the state chain had already destroyed.\n");
+        printf("\n  A nonce column that stays at the ceiling for longer than the state column\n");
+        printf("  is the expansion delaying arrival instead of the round function mixing\n");
+        printf("  harder, and a nonce column that outlives the state column is the schedule\n");
+        printf("  carrying difference the state chain had already destroyed.\n");
     }
 
-    std::printf("\n  A column reading past the sweep is still a lower bound and says so. A column\n");
-    std::printf("  with a number in it is where four standard errors was no longer cleared, at\n");
-    std::printf("  this many pairs, reading whichever word held the difference longest.\n");
+    printf("\n  A column reading past the sweep is still a lower bound and says so. A column\n");
+    printf("  with a number in it is where four standard errors was no longer cleared, at\n");
+    printf("  this many pairs, reading whichever word held the difference longest.\n");
 
     cudaFree(device_wrong);
     cudaFree(device_sums);

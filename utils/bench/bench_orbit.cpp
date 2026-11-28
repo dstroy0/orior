@@ -28,9 +28,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <thread>
@@ -254,15 +254,15 @@ uint64_t count_survivors(const std::vector<unsigned> &positions, uint32_t span)
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  The orbit test: do independent anchors multiply?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  anchor_sift's bench_scaling found the probe bound failing by 4096x on a\n");
-    std::printf("  periodic corpus, because every anchor offset cancels and four probes ask one\n");
-    std::printf("  question four times. H2 read exactly 4.0 throughout and could not see it.\n");
-    std::printf("\n  So H2 = 7.999999 on this domain rules out nothing, and the question has to be\n");
-    std::printf("  asked directly. k anchors, each demanding a zero bit. Independent anchors leave\n");
-    std::printf("  2^-k survivors. Anchors collapsed onto one orbit leave far more.\n");
+    printf("================================================================\n");
+    printf("  The orbit test: do independent anchors multiply?\n");
+    printf("================================================================\n");
+    printf("\n  anchor_sift's bench_scaling found the probe bound failing by 4096x on a\n");
+    printf("  periodic corpus, because every anchor offset cancels and four probes ask one\n");
+    printf("  question four times. H2 read exactly 4.0 throughout and could not see it.\n");
+    printf("\n  So H2 = 7.999999 on this domain rules out nothing, and the question has to be\n");
+    printf("  asked directly. k anchors, each demanding a zero bit. Independent anchors leave\n");
+    printf("  2^-k survivors. Anchors collapsed onto one orbit leave far more.\n");
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
@@ -289,36 +289,36 @@ int main()
 
     for (const auto &rule : rules)
     {
-        std::printf("\n================================================================\n");
-        std::printf("  %s\n", rule.name);
-        std::printf("================================================================\n");
-        std::printf("\n  %8s %16s %16s %12s\n", "anchors", "predicted", "survivors", "ratio");
-        std::printf("  %8s %16s %16s %12s\n", "--------", "----------------", "----------------", "------------");
+        printf("\n================================================================\n");
+        printf("  %s\n", rule.name);
+        printf("================================================================\n");
+        printf("\n  %8s %16s %16s %12s\n", "anchors", "predicted", "survivors", "ratio");
+        printf("  %8s %16s %16s %12s\n", "--------", "----------------", "----------------", "------------");
 
         for (unsigned count = 1u; count <= rule.ceiling; count += (count < 4u) ? 1u : 4u)
         {
             const std::vector<unsigned> positions = choose_positions(count, rule.placement, generator);
             const uint64_t survivors = count_survivors(positions, span);
-            const double predicted = (double)span * std::pow(0.5, (double)count);
+            const double predicted = (double)span * pow(0.5, (double)count);
 
-            std::printf("  %8u %16.1f %16llu %12.4f\n", count, predicted, (unsigned long long)survivors,
+            printf("  %8u %16.1f %16llu %12.4f\n", count, predicted, (unsigned long long)survivors,
                         (predicted > 0.0) ? ((double)survivors / predicted) : 0.0);
         }
     }
 
     const auto finished = std::chrono::steady_clock::now();
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A ratio near 1.0 in every row means the anchors are independent and no orbit\n");
-    std::printf("  collapse is present at this placement. A ratio far above 1.0 in one placement\n");
-    std::printf("  and not the others names the group the orbit sits under, exactly as periodic16\n");
-    std::printf("  named translation.\n");
-    std::printf("\n  The nested row is the control. It must scale, because k=16 implies k=8 there,\n");
-    std::printf("  and it would scale on an orbit too. That is precisely why H1 could not answer\n");
-    std::printf("  this question and why the other three rows exist.\n");
-    std::printf("\n  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  A ratio near 1.0 in every row means the anchors are independent and no orbit\n");
+    printf("  collapse is present at this placement. A ratio far above 1.0 in one placement\n");
+    printf("  and not the others names the group the orbit sits under, exactly as periodic16\n");
+    printf("  named translation.\n");
+    printf("\n  The nested row is the control. It must scale, because k=16 implies k=8 there,\n");
+    printf("  and it would scale on an orbit too. That is precisely why H1 could not answer\n");
+    printf("  this question and why the other three rows exist.\n");
+    printf("\n  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

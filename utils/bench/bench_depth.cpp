@@ -39,9 +39,9 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <vector>
 
@@ -252,7 +252,7 @@ double correlation_of(const Correlation &from)
     const double top = (count * from.sum_product) - (from.sum_left * from.sum_right);
     const double left_spread = (count * from.sum_left_squared) - (from.sum_left * from.sum_left);
     const double right_spread = (count * from.sum_right_squared) - (from.sum_right * from.sum_right);
-    const double bottom = std::sqrt(left_spread * right_spread);
+    const double bottom = sqrt(left_spread * right_spread);
     return (bottom > 0.0) ? (top / bottom) : 0.0;
 }
 
@@ -267,7 +267,7 @@ double correlation_of(const Correlation &from)
 double bits_of(double value)
 {
     const double squared = value * value;
-    return (squared >= 1.0) ? 64.0 : (-0.5 * std::log2(1.0 - squared));
+    return (squared >= 1.0) ? 64.0 : (-0.5 * log2(1.0 - squared));
 }
 
 } // namespace
@@ -276,28 +276,28 @@ int main(int argc, char **argv)
 {
     bench_lower_priority();
 
-    const unsigned pairs = (argc > 1) ? (unsigned)std::atoi(argv[1]) : 400000u;
+    const unsigned pairs = (argc > 1) ? (unsigned)atoi(argv[1]) : 400000u;
 
-    std::printf("================================================================\n");
-    std::printf("  Where the closeness premise is worth spending, by depth\n");
-    std::printf("================================================================\n");
-    std::printf("\n  bench_closeness measured the premise on the whole function and found nothing.\n");
-    std::printf("  Reading that as the premise being false was too strong. It has a depth: the\n");
-    std::printf("  correlation runs 0.798 at four rounds and is noise from ten. It expires rather\n");
-    std::printf("  than fails, and where it expires is a number.\n");
-    std::printf("\n  Every round costs the same and returns a different amount, so there is a depth\n");
-    std::printf("  where bits bought per round of work is largest. Correlations are turned into\n");
-    std::printf("  bits through the mutual information of a bivariate normal, because a\n");
-    std::printf("  correlation is not additive and a bit is.\n");
-    std::printf("\n  Two co-arms, coupled by construction: a round writes state[0] and state[4] and\n");
-    std::printf("  shifts the rest along, so those are the only two places it puts anything, and\n");
-    std::printf("  both are driven by the same input difference on the same pair. An earlier\n");
-    std::printf("  attempt here used independent arms and was guaranteed to null.\n");
-    std::printf("\n  Pairs per depth: %u.\n", pairs);
+    printf("================================================================\n");
+    printf("  Where the closeness premise is worth spending, by depth\n");
+    printf("================================================================\n");
+    printf("\n  bench_closeness measured the premise on the whole function and found nothing.\n");
+    printf("  Reading that as the premise being false was too strong. It has a depth: the\n");
+    printf("  correlation runs 0.798 at four rounds and is noise from ten. It expires rather\n");
+    printf("  than fails, and where it expires is a number.\n");
+    printf("\n  Every round costs the same and returns a different amount, so there is a depth\n");
+    printf("  where bits bought per round of work is largest. Correlations are turned into\n");
+    printf("  bits through the mutual information of a bivariate normal, because a\n");
+    printf("  correlation is not additive and a bit is.\n");
+    printf("\n  Two co-arms, coupled by construction: a round writes state[0] and state[4] and\n");
+    printf("  shifts the rest along, so those are the only two places it puts anything, and\n");
+    printf("  both are driven by the same input difference on the same pair. An earlier\n");
+    printf("  attempt here used independent arms and was guaranteed to null.\n");
+    printf("\n  Pairs per depth: %u.\n", pairs);
 
-    std::printf("\n  %6s %10s %10s %10s %12s %12s %10s %10s\n", "rounds", "arm A", "arm B", "A with B", "joint R",
+    printf("\n  %6s %10s %10s %10s %12s %12s %10s %10s\n", "rounds", "arm A", "arm B", "A with B", "joint R",
                 "bits", "per round", "control");
-    std::printf("  %6s %10s %10s %10s %12s %12s %10s %10s\n", "------", "----------", "----------", "----------",
+    printf("  %6s %10s %10s %10s %12s %12s %10s %10s\n", "------", "----------", "----------", "----------",
                 "------------", "------------", "----------", "----------");
 
     double best_efficiency = 0.0;
@@ -344,7 +344,7 @@ int main(int argc, char **argv)
             {
                 // Distinct positions make this exact, a mismatch is a defect in the mutation
                 // instead of a pair to skip. Said out loud instead of silently dropped.
-                std::printf("  [!] asked for %u differing bits and got %u, the mutation is wrong\n", flips,
+                printf("  [!] asked for %u differing bits and got %u, the mutation is wrong\n", flips,
                             input_distance);
                 return 1;
             }
@@ -383,7 +383,7 @@ int main(int argc, char **argv)
                 : (reading_a * reading_a);
         joint_squared = (joint_squared < 0.0) ? 0.0 : ((joint_squared > 1.0) ? 1.0 : joint_squared);
 
-        const double joint = std::sqrt(joint_squared);
+        const double joint = sqrt(joint_squared);
         const double bits = bits_of(joint);
         const double efficiency = bits / (double)rounds;
 
@@ -393,11 +393,11 @@ int main(int argc, char **argv)
             best_depth = rounds;
         }
 
-        std::printf("  %6u %10.4f %10.4f %10.4f %12.4f %12.6f %10.6f %10.4f\n", rounds, reading_a, reading_b, between,
+        printf("  %6u %10.4f %10.4f %10.4f %12.4f %12.6f %10.6f %10.4f\n", rounds, reading_a, reading_b, between,
                     joint, bits, efficiency, reading_control);
     }
 
-    std::printf("\n  most efficient depth : %u rounds, at %.6f bits per round\n", best_depth, best_efficiency);
+    printf("\n  most efficient depth : %u rounds, at %.6f bits per round\n", best_depth, best_efficiency);
 
     // ---------------------------------------------------------------------------------------
     // The same curve, without the average.
@@ -416,15 +416,15 @@ int main(int argc, char **argv)
     const unsigned stratum_low[STRATA] = {1u, 2u, 3u, 5u, 9u};
     const unsigned stratum_high[STRATA] = {1u, 2u, 4u, 8u, 16u};
 
-    std::printf("\n================================================================\n");
-    std::printf("  The same curve stratified by how many bits differ\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A one-bit difference has one active bit to diffuse and a sixteen-bit one has\n");
-    std::printf("  sixteen. Pooling them reports neither, and if any weight survives deeper than\n");
-    std::printf("  the pooled curve says, the pooled curve was hiding it.\n");
-    std::printf("\n  %10s %8s %8s %8s %8s %8s %8s %10s\n", "bits differ", "r=1", "r=2", "r=3", "r=4", "r=5", "r=6",
+    printf("\n================================================================\n");
+    printf("  The same curve stratified by how many bits differ\n");
+    printf("================================================================\n");
+    printf("\n  A one-bit difference has one active bit to diffuse and a sixteen-bit one has\n");
+    printf("  sixteen. Pooling them reports neither, and if any weight survives deeper than\n");
+    printf("  the pooled curve says, the pooled curve was hiding it.\n");
+    printf("\n  %10s %8s %8s %8s %8s %8s %8s %10s\n", "bits differ", "r=1", "r=2", "r=3", "r=4", "r=5", "r=6",
                 "dies at");
-    std::printf("  %10s %8s %8s %8s %8s %8s %8s %10s\n", "-----------", "--------", "--------", "--------", "--------",
+    printf("  %10s %8s %8s %8s %8s %8s %8s %10s\n", "-----------", "--------", "--------", "--------", "--------",
                 "--------", "--------", "----------");
 
     for (unsigned band = 0u; band < STRATA; band += 1u)
@@ -469,7 +469,7 @@ int main(int argc, char **argv)
                 {
                     // A stratum whose members are not the weight that it claims has a wrong label. That
                     // is worse than an absent row, because it still prints a number.
-                    std::printf("  [!] stratum asked for %u bits and got %u\n", flips, input_distance);
+                    printf("  [!] stratum asked for %u bits and got %u\n", flips, input_distance);
                     return 1;
                 }
 
@@ -494,12 +494,12 @@ int main(int argc, char **argv)
 
             const double seen = joint_arm.count;
             const double mean_out = (seen > 0.0) ? (joint_arm.sum_right / seen) : 16.0;
-            const double standard_error = (std::sqrt(32.0) / 2.0) / std::sqrt(seen);
+            const double standard_error = (sqrt(32.0) / 2.0) / sqrt(seen);
             reading[rounds] = (standard_error > 0.0) ? ((mean_out - 16.0) / standard_error) : 0.0;
 
             // Four standard errors: the floor that this estimator can see past. Below it, a reading is
             // a draw, and not a measurement.
-            if ((dies_at == 0u) && (std::fabs(reading[rounds]) < 4.0))
+            if ((dies_at == 0u) && (fabs(reading[rounds]) < 4.0))
             {
                 dies_at = rounds;
             }
@@ -508,24 +508,24 @@ int main(int argc, char **argv)
         char band_label[16];
         if (stratum_low[band] == stratum_high[band])
         {
-            std::snprintf(band_label, sizeof(band_label), "%u", stratum_low[band]);
+            snprintf(band_label, sizeof(band_label), "%u", stratum_low[band]);
         }
         else
         {
-            std::snprintf(band_label, sizeof(band_label), "%u to %u", stratum_low[band], stratum_high[band]);
+            snprintf(band_label, sizeof(band_label), "%u to %u", stratum_low[band], stratum_high[band]);
         }
 
         char dies_label[12];
         if (dies_at == 0u)
         {
-            std::snprintf(dies_label, sizeof(dies_label), "past %u", STRATUM_DEEPEST);
+            snprintf(dies_label, sizeof(dies_label), "past %u", STRATUM_DEEPEST);
         }
         else
         {
-            std::snprintf(dies_label, sizeof(dies_label), "%u", dies_at);
+            snprintf(dies_label, sizeof(dies_label), "%u", dies_at);
         }
 
-        std::printf("  %10s %8.1f %8.1f %8.1f %8.1f %8.1f %8.1f %10s\n", band_label, reading[1], reading[2], reading[3],
+        printf("  %10s %8.1f %8.1f %8.1f %8.1f %8.1f %8.1f %10s\n", band_label, reading[1], reading[2], reading[3],
                     reading[4], reading[5], reading[6], dies_label);
     }
 
@@ -543,9 +543,9 @@ int main(int argc, char **argv)
     // majority. Backward, the shifted word is the cheap one, and the heavily mixed word is the
     // other. A backward reading that did not mirror would show an error in the read of the forward one.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The same operation from the other end, as a control\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  The same operation from the other end, as a control\n");
+    printf("================================================================\n");
 
     {
         std::mt19937 generator(bench_seed(20260908u) + 5000u);
@@ -578,17 +578,17 @@ int main(int argc, char **argv)
             }
         }
 
-        std::printf("\n  %-46s %10u\n", "round trips forward then back", round_trips);
-        std::printf("  %-46s %10u\n", "of those that did not return", round_trip_failures);
+        printf("\n  %-46s %10u\n", "round trips forward then back", round_trips);
+        printf("  %-46s %10u\n", "of those that did not return", round_trip_failures);
         if (round_trip_failures != 0u)
         {
-            std::printf("\n  [!] the inverse is not the inverse, so nothing below it means anything.\n");
+            printf("\n  [!] the inverse is not the inverse, so nothing below it means anything.\n");
             return 1;
         }
     }
 
-    std::printf("\n  %10s %10s %10s %10s %10s\n", "rounds", "forward", "backward", "fwd cheap", "back cheap");
-    std::printf("  %10s %10s %10s %10s %10s\n", "----------", "----------", "----------", "----------", "----------");
+    printf("\n  %10s %10s %10s %10s %10s\n", "rounds", "forward", "backward", "fwd cheap", "back cheap");
+    printf("  %10s %10s %10s %10s %10s\n", "----------", "----------", "----------", "----------", "----------");
 
     for (unsigned rounds = 1u; rounds <= 6u; rounds += 1u)
     {
@@ -662,18 +662,18 @@ int main(int argc, char **argv)
         const double backward_mean = backward_arm.sum_right / backward_arm.count;
         const double forward_cheap_mean = forward_cheap.sum_right / forward_cheap.count;
         const double backward_cheap_mean = backward_cheap.sum_right / backward_cheap.count;
-        const double standard_error = (std::sqrt(32.0) / 2.0) / std::sqrt(forward_arm.count);
+        const double standard_error = (sqrt(32.0) / 2.0) / sqrt(forward_arm.count);
 
-        std::printf("  %10u %10.1f %10.1f %10.1f %10.1f\n", rounds, (forward_mean - 16.0) / standard_error,
+        printf("  %10u %10.1f %10.1f %10.1f %10.1f\n", rounds, (forward_mean - 16.0) / standard_error,
                     (backward_mean - 16.0) / standard_error, (forward_cheap_mean - 16.0) / standard_error,
                     (backward_cheap_mean - 16.0) / standard_error);
     }
 
-    std::printf("\n  Columns are the distance of the mean output distance from 16, in standard\n");
-    std::printf("  errors, for the heavily mixed word and the cheap word in each direction. The\n");
-    std::printf("  two directions should track each other and the two cheap columns should track\n");
-    std::printf("  each other, because it is one bijection read from two ends. Where they do, the\n");
-    std::printf("  forward reading is understood; where they do not, it is not.\n");
+    printf("\n  Columns are the distance of the mean output distance from 16, in standard\n");
+    printf("  errors, for the heavily mixed word and the cheap word in each direction. The\n");
+    printf("  two directions should track each other and the two cheap columns should track\n");
+    printf("  each other, because it is one bijection read from two ends. Where they do, the\n");
+    printf("  forward reading is understood; where they do not, it is not.\n");
 
     // ---------------------------------------------------------------------------------------
     // The same strata, inverted.
@@ -684,12 +684,12 @@ int main(int argc, char **argv)
     // not in one direction. Test that claim, and do not assume it. Backward diffusion measures
     // about twice as slow, and a different rate can carry a different order.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The same strata inverted, to see whether scarcity still wins\n");
-    std::printf("================================================================\n");
-    std::printf("\n  %10s %8s %8s %8s %8s %8s %8s %10s\n", "bits differ", "r=1", "r=2", "r=3", "r=4", "r=6", "r=8",
+    printf("\n================================================================\n");
+    printf("  The same strata inverted, to see whether scarcity still wins\n");
+    printf("================================================================\n");
+    printf("\n  %10s %8s %8s %8s %8s %8s %8s %10s\n", "bits differ", "r=1", "r=2", "r=3", "r=4", "r=6", "r=8",
                 "dies at");
-    std::printf("  %10s %8s %8s %8s %8s %8s %8s %10s\n", "----------", "--------", "--------", "--------", "--------",
+    printf("  %10s %8s %8s %8s %8s %8s %8s %10s\n", "----------", "--------", "--------", "--------", "--------",
                 "--------", "--------", "----------");
 
     for (unsigned band = 0u; band < STRATA; band += 1u)
@@ -737,10 +737,10 @@ int main(int argc, char **argv)
 
             const double seen = arm.count;
             const double mean_out = (seen > 0.0) ? (arm.sum_right / seen) : 16.0;
-            const double standard_error = (std::sqrt(32.0) / 2.0) / std::sqrt(seen);
+            const double standard_error = (sqrt(32.0) / 2.0) / sqrt(seen);
             reading[rounds] = (mean_out - 16.0) / standard_error;
 
-            if ((dies_at == 0u) && (std::fabs(reading[rounds]) < 4.0))
+            if ((dies_at == 0u) && (fabs(reading[rounds]) < 4.0))
             {
                 dies_at = rounds;
             }
@@ -749,30 +749,30 @@ int main(int argc, char **argv)
         char band_label[16];
         if (stratum_low[band] == stratum_high[band])
         {
-            std::snprintf(band_label, sizeof(band_label), "%u", stratum_low[band]);
+            snprintf(band_label, sizeof(band_label), "%u", stratum_low[band]);
         }
         else
         {
-            std::snprintf(band_label, sizeof(band_label), "%u to %u", stratum_low[band], stratum_high[band]);
+            snprintf(band_label, sizeof(band_label), "%u to %u", stratum_low[band], stratum_high[band]);
         }
 
         char dies_label[12];
         if (dies_at == 0u)
         {
-            std::snprintf(dies_label, sizeof(dies_label), "past %u", BACK_DEEPEST);
+            snprintf(dies_label, sizeof(dies_label), "past %u", BACK_DEEPEST);
         }
         else
         {
-            std::snprintf(dies_label, sizeof(dies_label), "%u", dies_at);
+            snprintf(dies_label, sizeof(dies_label), "%u", dies_at);
         }
 
-        std::printf("  %10s %8.1f %8.1f %8.1f %8.1f %8.1f %8.1f %10s\n", band_label, reading[1], reading[2], reading[3],
+        printf("  %10s %8.1f %8.1f %8.1f %8.1f %8.1f %8.1f %10s\n", band_label, reading[1], reading[2], reading[3],
                     reading[4], reading[6], reading[8], dies_label);
     }
 
-    std::printf("\n  If the ordering here matches the forward one, scarcity is optimal over the\n");
-    std::printf("  whole set and not in one direction only. If it inverts, there is a region where\n");
-    std::printf("  the abundant strata are the better place to be and the rule has an exception.\n");
+    printf("\n  If the ordering here matches the forward one, scarcity is optimal over the\n");
+    printf("  whole set and not in one direction only. If it inverts, there is a region where\n");
+    printf("  the abundant strata are the better place to be and the rule has an exception.\n");
 
     // ---------------------------------------------------------------------------------------
     // Is the backward gain real, or did the choice of which word to read create it?
@@ -783,11 +783,11 @@ int main(int argc, char **argv)
     // it. If the backward advantage holds when neither direction has a favorite, it comes from the
     // function. If it collapses, it came from the choice.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The same asymmetry with no word chosen, weight one only\n");
-    std::printf("================================================================\n");
-    std::printf("\n  %10s %10s %10s %12s %12s\n", "rounds", "forward", "backward", "fwd word", "back word");
-    std::printf("  %10s %10s %10s %12s %12s\n", "----------", "----------", "----------", "------------",
+    printf("\n================================================================\n");
+    printf("  The same asymmetry with no word chosen, weight one only\n");
+    printf("================================================================\n");
+    printf("\n  %10s %10s %10s %12s %12s\n", "rounds", "forward", "backward", "fwd word", "back word");
+    printf("  %10s %10s %10s %12s %12s\n", "----------", "----------", "----------", "------------",
                 "------------");
 
     for (unsigned rounds = 4u; rounds <= 12u; rounds += 1u)
@@ -837,9 +837,9 @@ int main(int argc, char **argv)
                 observe(&behind, 1.0, (double)population(left_behind.word[word] ^ right_behind.word[word]));
             }
 
-            const double error = (std::sqrt(32.0) / 2.0) / std::sqrt(ahead.count);
-            const double ahead_score = std::fabs(((ahead.sum_right / ahead.count) - 16.0) / error);
-            const double behind_score = std::fabs(((behind.sum_right / behind.count) - 16.0) / error);
+            const double error = (sqrt(32.0) / 2.0) / sqrt(ahead.count);
+            const double ahead_score = fabs(((ahead.sum_right / ahead.count) - 16.0) / error);
+            const double behind_score = fabs(((behind.sum_right / behind.count) - 16.0) / error);
 
             if (ahead_score > best_forward)
             {
@@ -853,7 +853,7 @@ int main(int argc, char **argv)
             }
         }
 
-        std::printf("  %10u %10.1f %10.1f %12u %12u\n", rounds, best_forward, best_backward, forward_word,
+        printf("  %10u %10.1f %10.1f %12u %12u\n", rounds, best_forward, best_backward, forward_word,
                     backward_word);
     }
 
@@ -866,11 +866,11 @@ int main(int argc, char **argv)
     // reads every stratum the same way. But the depths are lower bounds. These are the depths
     // themselves.
     // ---------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  Every stratum, both directions, best of all eight words\n");
-    std::printf("================================================================\n");
-    std::printf("\n  %12s %14s %16s %16s\n", "bits differ", "differences", "forward dies", "inverted dies");
-    std::printf("  %12s %14s %16s %16s\n", "------------", "--------------", "----------------", "----------------");
+    printf("\n================================================================\n");
+    printf("  Every stratum, both directions, best of all eight words\n");
+    printf("================================================================\n");
+    printf("\n  %12s %14s %16s %16s\n", "bits differ", "differences", "forward dies", "inverted dies");
+    printf("  %12s %14s %16s %16s\n", "------------", "--------------", "----------------", "----------------");
 
     for (unsigned band = 0u; band < STRATA; band += 1u)
     {
@@ -924,9 +924,9 @@ int main(int argc, char **argv)
                     observe(&behind, 1.0, (double)population(left_behind.word[word] ^ right_behind.word[word]));
                 }
 
-                const double error = (std::sqrt(32.0) / 2.0) / std::sqrt(ahead.count);
-                best_forward = std::max(best_forward, std::fabs(((ahead.sum_right / ahead.count) - 16.0) / error));
-                best_backward = std::max(best_backward, std::fabs(((behind.sum_right / behind.count) - 16.0) / error));
+                const double error = (sqrt(32.0) / 2.0) / sqrt(ahead.count);
+                best_forward = std::max(best_forward, fabs(((ahead.sum_right / ahead.count) - 16.0) / error));
+                best_backward = std::max(best_backward, fabs(((behind.sum_right / behind.count) - 16.0) / error));
             }
 
             if ((forward_dies == 0u) && (best_forward < 4.0))
@@ -942,11 +942,11 @@ int main(int argc, char **argv)
         char band_label[16];
         if (stratum_low[band] == stratum_high[band])
         {
-            std::snprintf(band_label, sizeof(band_label), "%u", stratum_low[band]);
+            snprintf(band_label, sizeof(band_label), "%u", stratum_low[band]);
         }
         else
         {
-            std::snprintf(band_label, sizeof(band_label), "%u to %u", stratum_low[band], stratum_high[band]);
+            snprintf(band_label, sizeof(band_label), "%u to %u", stratum_low[band], stratum_high[band]);
         }
 
         // How many differences of this weight exist: the scarcity that pays for the depth.
@@ -963,43 +963,43 @@ int main(int argc, char **argv)
 
         char forward_label[12];
         char backward_label[12];
-        std::snprintf(forward_label, sizeof(forward_label), "%s%u", (forward_dies == 0u) ? "past " : "",
+        snprintf(forward_label, sizeof(forward_label), "%s%u", (forward_dies == 0u) ? "past " : "",
                       (forward_dies == 0u) ? 16u : forward_dies);
-        std::snprintf(backward_label, sizeof(backward_label), "%s%u", (backward_dies == 0u) ? "past " : "",
+        snprintf(backward_label, sizeof(backward_label), "%s%u", (backward_dies == 0u) ? "past " : "",
                       (backward_dies == 0u) ? 16u : backward_dies);
 
-        std::printf("  %12s %14.3g %16s %16s\n", band_label, (double)population_here, forward_label, backward_label);
+        printf("  %12s %14.3g %16s %16s\n", band_label, (double)population_here, forward_label, backward_label);
     }
 
-    std::printf("\n  Scarcity is not a trade here. The scarce stratum has fewer members to search\n");
-    std::printf("  and stays visible longer, so both axes improve together, which is what makes\n");
-    std::printf("  the gain read as exponential instead of as a bargain struck.\n");
+    printf("\n  Scarcity is not a trade here. The scarce stratum has fewer members to search\n");
+    printf("  and stays visible longer, so both axes improve together, which is what makes\n");
+    printf("  the gain read as exponential instead of as a bargain struck.\n");
 
-    std::printf("\n  Both directions now get the best of all eight words, so neither is favoured\n");
-    std::printf("  by a choice made in advance. A backward advantage that survives this is the\n");
-    std::printf("  function being genuinely asymmetric under inversion, which a bijection is\n");
-    std::printf("  entitled to be: invertible does not mean symmetric, and a map is not its own\n");
-    std::printf("  inverse. A backward advantage that vanishes here was the readout all along.\n");
+    printf("\n  Both directions now get the best of all eight words, so neither is favoured\n");
+    printf("  by a choice made in advance. A backward advantage that survives this is the\n");
+    printf("  function being genuinely asymmetric under inversion, which a bijection is\n");
+    printf("  entitled to be: invertible does not mean symmetric, and a map is not its own\n");
+    printf("  inverse. A backward advantage that vanishes here was the readout all along.\n");
 
-    std::printf("\n  A row that dies later than the pooled curve is a region a search should steer\n");
-    std::printf("  toward, and it would be invisible to the mean. A table where every row dies at\n");
-    std::printf("  the same depth says the pooled reading was not hiding anything and the\n");
-    std::printf("  efficiency really is one number instead of a distribution.\n");
+    printf("\n  A row that dies later than the pooled curve is a region a search should steer\n");
+    printf("  toward, and it would be invisible to the mean. A table where every row dies at\n");
+    printf("  the same depth says the pooled reading was not hiding anything and the\n");
+    printf("  efficiency really is one number instead of a distribution.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The control column is what this estimator returns when the true correlation\n");
-    std::printf("  is zero, at this sample size. A depth whose arms do not exceed it has not been\n");
-    std::printf("  measured, it has been sampled, and its bits are sampling noise dressed as\n");
-    std::printf("  discrimination.\n");
-    std::printf("\n  The joint column against the better single arm is the co-arm claim, in a form\n");
-    std::printf("  that can come out zero. Two arms carrying the same information give a joint\n");
-    std::printf("  equal to the better of them and reading them together buys nothing. Only where\n");
-    std::printf("  they carry different parts does the joint exceed both.\n");
-    std::printf("\n  The efficient depth is where bits per round peaks. It is not the depth with\n");
-    std::printf("  the most signal, which is always the shallowest, and it is not the depth where\n");
-    std::printf("  the signal dies. It is where the trade between them turns, and steering there\n");
-    std::printf("  is what keeps the premise instead of rejecting it.\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  The control column is what this estimator returns when the true correlation\n");
+    printf("  is zero, at this sample size. A depth whose arms do not exceed it has not been\n");
+    printf("  measured, it has been sampled, and its bits are sampling noise dressed as\n");
+    printf("  discrimination.\n");
+    printf("\n  The joint column against the better single arm is the co-arm claim, in a form\n");
+    printf("  that can come out zero. Two arms carrying the same information give a joint\n");
+    printf("  equal to the better of them and reading them together buys nothing. Only where\n");
+    printf("  they carry different parts does the joint exceed both.\n");
+    printf("\n  The efficient depth is where bits per round peaks. It is not the depth with\n");
+    printf("  the most signal, which is always the shallowest, and it is not the depth where\n");
+    printf("  the signal dies. It is where the trade between them turns, and steering there\n");
+    printf("  is what keeps the premise instead of rejecting it.\n");
     return 0;
 }

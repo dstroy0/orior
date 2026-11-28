@@ -38,8 +38,8 @@
 #include "sha256_core.h"
 
 #include <bitset>
-#include <cstdint>
-#include <cstdio>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <vector>
 
@@ -355,35 +355,35 @@ void compress_to(const uint32_t *message, const uint32_t *input, unsigned rounds
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  Exact reachability over the SHA-256 round graph\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Failure mode one: measuring an effect along a path that does not exist and\n");
-    std::printf("  reading the resulting nothing as a result. It has produced three defects here.\n");
-    std::printf("  H6 rotated the nonce instead of the chaining value. H23 measured through\n");
-    std::printf("  W[17], which does not depend on W[3], and reported 100.000%% agreement.\n");
-    std::printf("  bench_closeness graded rounds one to three before the nonce had arrived.\n");
-    std::printf("\n  This is computed, not sampled. Every state bit carries the set of input bits\n");
-    std::printf("  that can reach it. Addition is the only operation that widens a set, upward\n");
-    std::printf("  through the carry, a path here may carry no influence but the absence of a\n");
-    std::printf("  path is exact. That is the right side to err on for a precondition.\n");
+    printf("================================================================\n");
+    printf("  Exact reachability over the SHA-256 round graph\n");
+    printf("================================================================\n");
+    printf("\n  Failure mode one: measuring an effect along a path that does not exist and\n");
+    printf("  reading the resulting nothing as a result. It has produced three defects here.\n");
+    printf("  H6 rotated the nonce instead of the chaining value. H23 measured through\n");
+    printf("  W[17], which does not depend on W[3], and reported 100.000%% agreement.\n");
+    printf("  bench_closeness graded rounds one to three before the nonce had arrived.\n");
+    printf("\n  This is computed, not sampled. Every state bit carries the set of input bits\n");
+    printf("  that can reach it. Addition is the only operation that widens a set, upward\n");
+    printf("  through the carry, a path here may carry no influence but the absence of a\n");
+    printf("  path is exact. That is the right side to err on for a precondition.\n");
 
     std::vector<WordCone> schedule;
     std::vector<std::vector<WordCone>> history;
     build_schedule(schedule);
     run_rounds(schedule, history);
 
-    std::printf("\n================================================================\n");
-    std::printf("  Where the nonce reaches, round by round\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The nonce occupies W[%u] of the header's second block. A round writes only\n", NONCE_WORD);
-    std::printf("  state[0] and state[4]; the other six are shifted copies. Both are shown.\n");
-    std::printf("\n  The column counts rounds completed, not a round index. W[%u] is consumed by\n", NONCE_WORD);
-    std::printf("  the fourth round, which is index %u counting from zero, so the first row that\n", NONCE_WORD);
-    std::printf("  can carry it is the one reading 4. The two conventions name the same round and\n");
-    std::printf("  confusing them is how this was got wrong before.\n");
-    std::printf("\n  %14s %18s %18s %14s\n", "rounds done", "bits of state[0]", "bits of state[4]", "verdict");
-    std::printf("  %14s %18s %18s %14s\n", "--------------", "------------------", "------------------",
+    printf("\n================================================================\n");
+    printf("  Where the nonce reaches, round by round\n");
+    printf("================================================================\n");
+    printf("\n  The nonce occupies W[%u] of the header's second block. A round writes only\n", NONCE_WORD);
+    printf("  state[0] and state[4]; the other six are shifted copies. Both are shown.\n");
+    printf("\n  The column counts rounds completed, not a round index. W[%u] is consumed by\n", NONCE_WORD);
+    printf("  the fourth round, which is index %u counting from zero, so the first row that\n", NONCE_WORD);
+    printf("  can carry it is the one reading 4. The two conventions name the same round and\n");
+    printf("  confusing them is how this was got wrong before.\n");
+    printf("\n  %14s %18s %18s %14s\n", "rounds done", "bits of state[0]", "bits of state[4]", "verdict");
+    printf("  %14s %18s %18s %14s\n", "--------------", "------------------", "------------------",
                 "--------------");
 
     unsigned first_arrival = ROUNDS + 1u;
@@ -398,32 +398,32 @@ int main()
         {
             first_arrival = round;
         }
-        std::printf("  %14u %18u %18u %14s\n", round, in_zero, in_four, verdict);
+        printf("  %14u %18u %18u %14s\n", round, in_zero, in_four, verdict);
     }
 
-    std::printf("\n  The nonce reaches no state bit until %u rounds have run, and saturates both\n", first_arrival);
-    std::printf("  written words immediately on arriving. Any measurement of its effect at fewer\n");
-    std::printf("  rounds than that is a measurement of absence, and no sample size fixes it.\n");
-    std::printf("  This is the precondition H6, H23 and bench_closeness each needed and none had.\n");
+    printf("\n  The nonce reaches no state bit until %u rounds have run, and saturates both\n", first_arrival);
+    printf("  written words immediately on arriving. Any measurement of its effect at fewer\n");
+    printf("  rounds than that is a measurement of absence, and no sample size fixes it.\n");
+    printf("  This is the precondition H6, H23 and bench_closeness each needed and none had.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  Which schedule words carry the nonce\n");
-    std::printf("================================================================\n");
-    std::printf("\n  H23 measured through W[17]. The expansion is\n");
-    std::printf("  W[t] = sigma1(W[t-2]) + W[t-7] + sigma0(W[t-15]) + W[t-16], so W[17] reads\n");
-    std::printf("  W[15], W[10], W[2] and W[1], and W[3] is in none of them.\n");
-    std::printf("\n  %8s %28s\n", "schedule", "bits reachable from W[3]");
-    std::printf("  %8s %28s\n", "--------", "----------------------------");
+    printf("\n================================================================\n");
+    printf("  Which schedule words carry the nonce\n");
+    printf("================================================================\n");
+    printf("\n  H23 measured through W[17]. The expansion is\n");
+    printf("  W[t] = sigma1(W[t-2]) + W[t-7] + sigma0(W[t-15]) + W[t-16], so W[17] reads\n");
+    printf("  W[15], W[10], W[2] and W[1], and W[3] is in none of them.\n");
+    printf("\n  %8s %28s\n", "schedule", "bits reachable from W[3]");
+    printf("  %8s %28s\n", "--------", "----------------------------");
     for (unsigned word = 16u; word < 26u; word += 1u)
     {
-        std::printf("  %8u %28u\n", word, bits_reached_from(schedule[word], NONCE_WORD));
+        printf("  %8u %28u\n", word, bits_reached_from(schedule[word], NONCE_WORD));
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  Full diffusion: when does every output bit read every input bit\n");
-    std::printf("================================================================\n");
-    std::printf("\n  %6s %22s %22s\n", "round", "state[0] input bits", "all eight words");
-    std::printf("  %6s %22s %22s\n", "------", "----------------------", "----------------------");
+    printf("\n================================================================\n");
+    printf("  Full diffusion: when does every output bit read every input bit\n");
+    printf("================================================================\n");
+    printf("\n  %6s %22s %22s\n", "round", "state[0] input bits", "all eight words");
+    printf("  %6s %22s %22s\n", "------", "----------------------", "----------------------");
 
     unsigned saturated_at = 0u;
     for (unsigned round = 1u; round <= ROUNDS; round += 1u)
@@ -449,11 +449,11 @@ int main()
         }
         if ((round <= 12u) || (complete != 0 && saturated_at == round))
         {
-            std::printf("  %6u %22u %22.4f%%\n", round, widest,
+            printf("  %6u %22u %22.4f%%\n", round, widest,
                         100.0 * (double)total / (double)((size_t)8u * 32u * INPUT_BITS));
         }
     }
-    std::printf("\n  Every one of the 256 state bits reads all %u input bits from round %u on.\n", INPUT_BITS,
+    printf("\n  Every one of the 256 state bits reads all %u input bits from round %u on.\n", INPUT_BITS,
                 saturated_at);
 
     // -------------------------------------------------------------------------------------
@@ -471,14 +471,14 @@ int main()
     // graph. The same analysis on the inverse says whether the slower backward diffusion, measured
     // statistically, is a slower cone, measured exactly.
     // -------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  The cone in both directions, computed instead of sampled\n");
-    std::printf("================================================================\n");
-    std::printf("\n  A round writes state[0] and state[4] going forward and state[3] and state[7]\n");
-    std::printf("  coming back, so the two directions are different functions and entitled to\n");
-    std::printf("  different cones. This is reachability, so it is exact.\n");
-    std::printf("\n  %8s %20s %20s %14s\n", "rounds", "forward cone", "backward cone", "ratio");
-    std::printf("  %8s %20s %20s %14s\n", "--------", "--------------------", "--------------------", "--------------");
+    printf("\n================================================================\n");
+    printf("  The cone in both directions, computed instead of sampled\n");
+    printf("================================================================\n");
+    printf("\n  A round writes state[0] and state[4] going forward and state[3] and state[7]\n");
+    printf("  coming back, so the two directions are different functions and entitled to\n");
+    printf("  different cones. This is reachability, so it is exact.\n");
+    printf("\n  %8s %20s %20s %14s\n", "rounds", "forward cone", "backward cone", "ratio");
+    printf("  %8s %20s %20s %14s\n", "--------", "--------------------", "--------------------", "--------------");
 
     {
         std::vector<WordCone> backward(8u);
@@ -537,31 +537,31 @@ int main()
 
             if ((round <= 12u) || ((round % 4u) == 0u))
             {
-                std::printf("  %8u %20zu %20zu %14.3f\n", round, forward_widest, backward_widest,
+                printf("  %8u %20zu %20zu %14.3f\n", round, forward_widest, backward_widest,
                             (backward_widest > 0u) ? ((double)forward_widest / (double)backward_widest) : 0.0);
             }
         }
     }
 
-    std::printf("\n  A backward cone that grows more slowly is the statistical asymmetry in\n");
-    std::printf("  bench_depth stated as a graph property, and it would say the saturation floor\n");
-    std::printf("  is topology instead of anything about the differences fed through it. A\n");
-    std::printf("  backward cone that grows at the same rate leaves that asymmetry unexplained\n");
-    std::printf("  and means the cause is elsewhere.\n");
+    printf("\n  A backward cone that grows more slowly is the statistical asymmetry in\n");
+    printf("  bench_depth stated as a graph property, and it would say the saturation floor\n");
+    printf("  is topology instead of anything about the differences fed through it. A\n");
+    printf("  backward cone that grows at the same rate leaves that asymmetry unexplained\n");
+    printf("  and means the cause is elsewhere.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  The write mask: how much of the output a round did not write\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Failure mode four. A SHA-256 round computes state[0] and state[4]; the other\n");
-    std::printf("  six words are the previous state shifted along. A measurement that reads all\n");
-    std::printf("  eight words after one round is reading six words that were carried through\n");
-    std::printf("  unchanged, and they agree with themselves for free. H30 did exactly that and\n");
-    std::printf("  reported P = 1.00000000.\n");
-    std::printf("\n  Established by running the real rounds and asking which output words are\n");
-    std::printf("  bit-identical to an input word on every one of many random inputs.\n");
-    std::printf("\n  %14s %14s %14s %28s\n", "rounds done", "words written", "words carried",
+    printf("\n================================================================\n");
+    printf("  The write mask: how much of the output a round did not write\n");
+    printf("================================================================\n");
+    printf("\n  Failure mode four. A SHA-256 round computes state[0] and state[4]; the other\n");
+    printf("  six words are the previous state shifted along. A measurement that reads all\n");
+    printf("  eight words after one round is reading six words that were carried through\n");
+    printf("  unchanged, and they agree with themselves for free. H30 did exactly that and\n");
+    printf("  reported P = 1.00000000.\n");
+    printf("\n  Established by running the real rounds and asking which output words are\n");
+    printf("  bit-identical to an input word on every one of many random inputs.\n");
+    printf("\n  %14s %14s %14s %28s\n", "rounds done", "words written", "words carried",
                 "fraction of a read that is free");
-    std::printf("  %14s %14s %14s %28s\n", "--------------", "--------------", "--------------",
+    printf("  %14s %14s %14s %28s\n", "--------------", "--------------", "--------------",
                 "----------------------------");
 
     {
@@ -622,21 +622,21 @@ int main()
                 }
             }
 
-            std::printf("  %14u %14u %14u %27.1f%%\n", depth, 8u - free_words, free_words,
+            printf("  %14u %14u %14u %27.1f%%\n", depth, 8u - free_words, free_words,
                         100.0 * (double)free_words / 8.0);
         }
     }
 
-    std::printf("\n  Read the last column as the share of an eight-word comparison that agrees\n");
-    std::printf("  before the round function is consulted. At one round it is most of the read.\n");
+    printf("\n  Read the last column as the share of an eight-word comparison that agrees\n");
+    printf("  before the round function is consulted. At one round it is most of the read.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  The control, run in the opposite direction\n");
-    std::printf("================================================================\n");
-    std::printf("\n  An analysis that claimed reachability everywhere would pass an absence test\n");
-    std::printf("  trivially, so both halves are needed. Where the analysis says no path exists,\n");
-    std::printf("  flipping the input bit must never change the output bit. Where it says a path\n");
-    std::printf("  exists, some flips must land.\n");
+    printf("\n================================================================\n");
+    printf("  The control, run in the opposite direction\n");
+    printf("================================================================\n");
+    printf("\n  An analysis that claimed reachability everywhere would pass an absence test\n");
+    printf("  trivially, so both halves are needed. Where the analysis says no path exists,\n");
+    printf("  flipping the input bit must never change the output bit. Where it says a path\n");
+    printf("  exists, some flips must land.\n");
 
     std::mt19937 generator(20260908u);
     const unsigned trials = 4000u;
@@ -688,24 +688,24 @@ int main()
         }
     }
 
-    std::printf("\n  %-40s %12u\n", "pairs the analysis called unreachable", absent_checked);
-    std::printf("  %-40s %12u\n", "of those, a flip that changed the bit", absent_violated);
-    std::printf("  %-40s %12u\n", "pairs the analysis called reachable", present_checked);
-    std::printf("  %-40s %11.4f%%\n", "of those, a flip that landed",
+    printf("\n  %-40s %12u\n", "pairs the analysis called unreachable", absent_checked);
+    printf("  %-40s %12u\n", "of those, a flip that changed the bit", absent_violated);
+    printf("  %-40s %12u\n", "pairs the analysis called reachable", present_checked);
+    printf("  %-40s %11.4f%%\n", "of those, a flip that landed",
                 (present_checked > 0u) ? (100.0 * (double)present_landed / (double)present_checked) : 0.0);
 
-    std::printf("\n  A single violation in the first count would falsify the analysis outright,\n");
-    std::printf("  since it claims no path exists. The second count must sit well below one\n");
-    std::printf("  hundred percent and well above zero: an over-approximation admits paths that\n");
-    std::printf("  carry nothing, and a value at either extreme would mean the analysis is not\n");
-    std::printf("  discriminating.\n");
+    printf("\n  A single violation in the first count would falsify the analysis outright,\n");
+    printf("  since it claims no path exists. The second count must sit well below one\n");
+    printf("  hundred percent and well above zero: an over-approximation admits paths that\n");
+    printf("  carry nothing, and a value at either extreme would mean the analysis is not\n");
+    printf("  discriminating.\n");
 
-    std::printf("\n================================================================\n");
-    std::printf("  Using it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Before measuring how much of input X reaches output Y, ask this first. Where\n");
-    std::printf("  the answer is that no path exists, the measurement is of absence and belongs\n");
-    std::printf("  in no table. Where a path exists, the measurement is of its strength and the\n");
-    std::printf("  result means what it says.\n");
+    printf("\n================================================================\n");
+    printf("  Using it\n");
+    printf("================================================================\n");
+    printf("\n  Before measuring how much of input X reaches output Y, ask this first. Where\n");
+    printf("  the answer is that no path exists, the measurement is of absence and belongs\n");
+    printf("  in no table. Where a path exists, the measurement is of its strength and the\n");
+    printf("  result means what it says.\n");
     return 0;
 }

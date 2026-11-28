@@ -30,9 +30,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -212,19 +212,19 @@ double joint_estimate(std::mt19937 &generator, unsigned arms, unsigned per_arm, 
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  The tail as error, and periodic disturbance on a co-arm\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  The tail as error, and periodic disturbance on a co-arm\n");
+    printf("================================================================\n");
 
     std::mt19937 generator(bench_seed(20260908u));
     const auto started = std::chrono::steady_clock::now();
 
     // -------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  1. Head and tail, separated\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The tail is the error term instead of an undersampled part of the signal, so\n");
-    std::printf("  it gets separated and measured instead of apologised for.\n");
+    printf("\n================================================================\n");
+    printf("  1. Head and tail, separated\n");
+    printf("================================================================\n");
+    printf("\n  The tail is the error term instead of an undersampled part of the signal, so\n");
+    printf("  it gets separated and measured instead of apologised for.\n");
 
     {
         const unsigned drawn = 4000000u;
@@ -262,11 +262,11 @@ int main()
             }
         }
 
-        std::printf("\n  %-34s %14s %14s\n", "", "deltas", "mass");
-        std::printf("  %-34s %14s %14s\n", "----------------------------------", "--------------", "--------------");
-        std::printf("  %-34s %14zu %13.4f%%\n", "head, count above two", head,
+        printf("\n  %-34s %14s %14s\n", "", "deltas", "mass");
+        printf("  %-34s %14s %14s\n", "----------------------------------", "--------------", "--------------");
+        printf("  %-34s %14zu %13.4f%%\n", "head, count above two", head,
                     100.0 * (double)head_mass / (double)drawn);
-        std::printf("  %-34s %14zu %13.4f%%\n", "tail, count at or below two", singletons + doubletons,
+        printf("  %-34s %14zu %13.4f%%\n", "tail, count at or below two", singletons + doubletons,
                     100.0 * (double)singleton_mass / (double)drawn);
 
         // The code keeps the tail here, and must keep it. The unbiased collision estimator below
@@ -280,31 +280,31 @@ int main()
             (double)counts.size() +
             ((doubletons > 0u) ? (((double)singletons * (double)singletons) / (2.0 * (double)doubletons)) : 0.0);
 
-        std::printf("\n  Read through the tail instead of past it:\n");
-        std::printf("    singletons f1              : %zu\n", singletons);
-        std::printf("    doubletons f2              : %zu\n", doubletons);
-        std::printf("    Good-Turing coverage       : %.8f\n", coverage);
-        std::printf("    unseen mass, f1/N          : %.8e\n", unseen_mass);
-        std::printf("    distinct deltas observed   : %zu\n", counts.size());
-        std::printf("    Chao1 estimate of the total: %.0f\n", chao_total);
-        std::printf("    never observed             : %.0f\n", chao_total - (double)counts.size());
+        printf("\n  Read through the tail instead of past it:\n");
+        printf("    singletons f1              : %zu\n", singletons);
+        printf("    doubletons f2              : %zu\n", doubletons);
+        printf("    Good-Turing coverage       : %.8f\n", coverage);
+        printf("    unseen mass, f1/N          : %.8e\n", unseen_mass);
+        printf("    distinct deltas observed   : %zu\n", counts.size());
+        printf("    Chao1 estimate of the total: %.0f\n", chao_total);
+        printf("    never observed             : %.0f\n", chao_total - (double)counts.size());
 
-        std::printf("\n  Those last four lines exist only because the tail was kept. f1 and f2 are\n");
-        std::printf("  the sole part of a sample that says anything about what the sample missed,\n");
-        std::printf("  and an estimator that zeroes them can report a distribution it has barely\n");
-        std::printf("  seen as though it had seen all of it.\n");
+        printf("\n  Those last four lines exist only because the tail was kept. f1 and f2 are\n");
+        printf("  the sole part of a sample that says anything about what the sample missed,\n");
+        printf("  and an estimator that zeroes them can report a distribution it has barely\n");
+        printf("  seen as though it had seen all of it.\n");
     }
 
     // -------------------------------------------------------------------------------------
-    std::printf("\n================================================================\n");
-    std::printf("  2. hourly_supposition item 1, tested\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Claim: introducing a periodic disturbance adjusts the joint error toward zero\n");
-    std::printf("  by several orders of magnitude on an undisturbed co-arm.\n");
-    std::printf("\n  Eight co-arms estimate the collision probability of the delta distribution.\n");
-    std::printf("  Only arm zero is ever disturbed. The reference is a single large run, and the\n");
-    std::printf("  error is the distance from it. Three conditions, so periodicity is separable\n");
-    std::printf("  from the mere presence of a disturbance.\n");
+    printf("\n================================================================\n");
+    printf("  2. hourly_supposition item 1, tested\n");
+    printf("================================================================\n");
+    printf("\n  Claim: introducing a periodic disturbance adjusts the joint error toward zero\n");
+    printf("  by several orders of magnitude on an undisturbed co-arm.\n");
+    printf("\n  Eight co-arms estimate the collision probability of the delta distribution.\n");
+    printf("  Only arm zero is ever disturbed. The reference is a single large run, and the\n");
+    printf("  error is the distance from it. Three conditions, so periodicity is separable\n");
+    printf("  from the mere presence of a disturbance.\n");
 
     // The reference, from one large undisturbed run.
     double reference = 0.0;
@@ -318,7 +318,7 @@ int main()
         }
         reference = collision_probability(counts, drawn);
     }
-    std::printf("\n  reference collision probability : %.8e   (8,000,000 draws)\n", reference);
+    printf("\n  reference collision probability : %.8e   (8,000,000 draws)\n", reference);
 
     const unsigned repeats = 24u;
     const unsigned arms = 8u;
@@ -326,8 +326,8 @@ int main()
     const unsigned period = 64u;
     const uint32_t magnitude = 0x00000001u;
 
-    std::printf("\n  %-24s %18s %18s\n", "condition", "mean |error|", "vs undisturbed");
-    std::printf("  %-24s %18s %18s\n", "------------------------", "------------------", "------------------");
+    printf("\n  %-24s %18s %18s\n", "condition", "mean |error|", "vs undisturbed");
+    printf("  %-24s %18s %18s\n", "------------------------", "------------------", "------------------");
 
     double baseline = 0.0;
 
@@ -344,7 +344,7 @@ int main()
         for (unsigned repeat = 0u; repeat < repeats; repeat += 1u)
         {
             const double estimate = joint_estimate(generator, arms, per_arm, type, period, magnitude);
-            error_total += std::fabs(estimate - reference);
+            error_total += fabs(estimate - reference);
         }
         const double mean_error = error_total / (double)repeats;
         if (condition == 0)
@@ -352,19 +352,19 @@ int main()
             baseline = mean_error;
         }
 
-        std::printf("  %-24s %18.8e %17.4fx\n", name, mean_error, (mean_error > 0.0) ? (baseline / mean_error) : 0.0);
+        printf("  %-24s %18.8e %17.4fx\n", name, mean_error, (mean_error > 0.0) ? (baseline / mean_error) : 0.0);
     }
 
-    std::printf("\n  Reading it. A ratio above one means the disturbance reduced the joint error,\n");
-    std::printf("  which is the claim. Several orders of magnitude would be a ratio in the\n");
-    std::printf("  thousands. A ratio near one means the disturbance did nothing here, and a\n");
-    std::printf("  ratio below one means it hurt.\n");
-    std::printf("\n  If periodic and random come out together, any dither is doing the work and\n");
-    std::printf("  the periodicity is not the mechanism. If periodic wins alone, the period is.\n");
+    printf("\n  Reading it. A ratio above one means the disturbance reduced the joint error,\n");
+    printf("  which is the claim. Several orders of magnitude would be a ratio in the\n");
+    printf("  thousands. A ratio near one means the disturbance did nothing here, and a\n");
+    printf("  ratio below one means it hurt.\n");
+    printf("\n  If periodic and random come out together, any dither is doing the work and\n");
+    printf("  the periodicity is not the mechanism. If periodic wins alone, the period is.\n");
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }

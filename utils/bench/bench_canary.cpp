@@ -25,9 +25,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -240,15 +240,15 @@ Step take_step(std::mt19937 &generator, uint32_t input_delta, unsigned round, un
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  The vector walk through delta space, tail error as canary\n");
-    std::printf("================================================================\n");
-    std::printf("\n  H13 walked nonce space by fitness and found it flat. This walks delta space,\n");
-    std::printf("  and the signal is the tail error of the distribution a step produces rather\n");
-    std::printf("  than the height of its peak.\n");
-    std::printf("\n  H30's chain was greedy on the peak and collapsed 300-fold right after round\n");
-    std::printf("  zero. If the tail error leads, steering by it should chain further, and the\n");
-    std::printf("  tail should show the collapse arriving before the probability does.\n");
+    printf("================================================================\n");
+    printf("  The vector walk through delta space, tail error as canary\n");
+    printf("================================================================\n");
+    printf("\n  H13 walked nonce space by fitness and found it flat. This walks delta space,\n");
+    printf("  and the signal is the tail error of the distribution a step produces rather\n");
+    printf("  than the height of its peak.\n");
+    printf("\n  H30's chain was greedy on the peak and collapsed 300-fold right after round\n");
+    printf("  zero. If the tail error leads, steering by it should chain further, and the\n");
+    printf("  tail should show the collapse arriving before the probability does.\n");
 
     const unsigned draws = 400000u;
     const unsigned depth = 7u;
@@ -256,11 +256,11 @@ int main()
     for (int strategy = 0; strategy < 2; strategy += 1)
     {
         const bool by_tail = (strategy == 1);
-        std::printf("\n================================================================\n");
-        std::printf("  Walk steered by %s\n", by_tail ? "tail error" : "the peak");
-        std::printf("================================================================\n");
-        std::printf("\n  %6s %16s %18s %18s %14s\n", "round", "peak", "tail error", "compound", "tied at peak");
-        std::printf("  %6s %16s %18s %18s %14s\n", "------", "----------------", "------------------",
+        printf("\n================================================================\n");
+        printf("  Walk steered by %s\n", by_tail ? "tail error" : "the peak");
+        printf("================================================================\n");
+        printf("\n  %6s %16s %18s %18s %14s\n", "round", "peak", "tail error", "compound", "tied at peak");
+        printf("  %6s %16s %18s %18s %14s\n", "------", "----------------", "------------------",
                     "------------------", "--------------");
 
         std::mt19937 generator(bench_seed(20260908u));
@@ -272,32 +272,32 @@ int main()
             const Step step = take_step(generator, carried, round, draws);
             compound *= step.peak;
 
-            std::printf("  %6u %16.8f %18.8f %18.6e %14zu\n", round, step.peak, step.tail_error, compound, step.tied);
+            printf("  %6u %16.8f %18.8f %18.6e %14zu\n", round, step.peak, step.tail_error, compound, step.tied);
 
             carried = by_tail ? step.best_tail : step.best_peak;
         }
 
-        std::printf("\n  compound over %u rounds : %.6e\n", depth, compound);
-        std::printf("  geometric mean per round: %.8f  (2^%.2f)\n", std::pow(compound, 1.0 / (double)depth),
-                    std::log2(std::pow(compound, 1.0 / (double)depth)));
+        printf("\n  compound over %u rounds : %.6e\n", depth, compound);
+        printf("  geometric mean per round: %.8f  (2^%.2f)\n", pow(compound, 1.0 / (double)depth),
+                    log2(pow(compound, 1.0 / (double)depth)));
     }
 
-    std::printf("\n================================================================\n");
-    std::printf("  Reading it\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Two things are being tested and they are separable.\n");
-    std::printf("\n  Is the tail a canary? It leads if it moves before the peak does. Compare the\n");
-    std::printf("  round where tail error jumps against the round where the peak falls, in the\n");
-    std::printf("  peak-steered table. A canary that moves at the same time is a thermometer.\n");
-    std::printf("\n  Is it a better objective? The two compound figures answer that directly, and\n");
-    std::printf("  they were produced over identical candidate sets with the same seed, so the\n");
-    std::printf("  only difference between the runs is which delta got followed.\n");
-    std::printf("\n  Read the tied column before either of those. It counts how many deltas share\n");
-    std::printf("  the top count. Where it is above one there is no single most common delta, and\n");
-    std::printf("  whichever one gets followed is picked by the sort's tiebreak on numeric value\n");
-    std::printf("  instead of by anything measured. A walk steered by an argmax over a tied set\n");
-    std::printf("  is steered by its tiebreak, and comparing two such walks compares two\n");
-    std::printf("  tiebreaks. The peak figure itself is unaffected, since a tie does not change\n");
-    std::printf("  the height of the maximum, only which delta carries it.\n");
+    printf("\n================================================================\n");
+    printf("  Reading it\n");
+    printf("================================================================\n");
+    printf("\n  Two things are being tested and they are separable.\n");
+    printf("\n  Is the tail a canary? It leads if it moves before the peak does. Compare the\n");
+    printf("  round where tail error jumps against the round where the peak falls, in the\n");
+    printf("  peak-steered table. A canary that moves at the same time is a thermometer.\n");
+    printf("\n  Is it a better objective? The two compound figures answer that directly, and\n");
+    printf("  they were produced over identical candidate sets with the same seed, so the\n");
+    printf("  only difference between the runs is which delta got followed.\n");
+    printf("\n  Read the tied column before either of those. It counts how many deltas share\n");
+    printf("  the top count. Where it is above one there is no single most common delta, and\n");
+    printf("  whichever one gets followed is picked by the sort's tiebreak on numeric value\n");
+    printf("  instead of by anything measured. A walk steered by an argmax over a tied set\n");
+    printf("  is steered by its tiebreak, and comparing two such walks compares two\n");
+    printf("  tiebreaks. The peak figure itself is unaffected, since a tie does not change\n");
+    printf("  the height of the maximum, only which delta carries it.\n");
     return 0;
 }

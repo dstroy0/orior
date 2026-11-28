@@ -21,9 +21,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -97,15 +97,15 @@ void check(const std::string &name, bool passed, const std::string &detail = "")
     g_checks_run += 1;
     if (passed)
     {
-        std::printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name.c_str());
     }
     else
     {
         g_checks_failed += 1;
-        std::printf("  [FAIL] %s\n", name.c_str());
+        printf("  [FAIL] %s\n", name.c_str());
         if (!detail.empty())
         {
-            std::printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail.c_str());
         }
     }
 }
@@ -222,9 +222,9 @@ unsigned fitness(uint64_t extranonce2, uint32_t nonce)
  */
 void check_path_is_live()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  0. Control. Does moving extranonce2 actually move the header?\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  0. Control. Does moving extranonce2 actually move the header?\n");
+    printf("================================================================\n");
 
     uint8_t header_one[BITCOIN_HEADER_BYTES];
     uint8_t header_two[BITCOIN_HEADER_BYTES];
@@ -251,8 +251,8 @@ void check_path_is_live()
           EMBED_CALL(memor.cmp, MemoriaCfg, .src = midstate_one.word, .other = midstate_two.word,
                      .bytes = sizeof(midstate_one.word)) != 0);
 
-    std::printf("\n  a step in this dimension is real and it is expensive: one coinbase double\n");
-    std::printf("  hash plus %zu merkle folds, then the midstate is invalid and must be rebuilt.\n", JOB_BRANCH_COUNT);
+    printf("\n  a step in this dimension is real and it is expensive: one coinbase double\n");
+    printf("  hash plus %zu merkle folds, then the midstate is invalid and must be rebuilt.\n", JOB_BRANCH_COUNT);
 }
 
 /**
@@ -260,13 +260,13 @@ void check_path_is_live()
  */
 void measure_extranonce_landscape()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Does the extranonce2 dimension have neighbourhoods?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  The same test H13 ran on the nonce, run here. Pearson correlation between\n");
-    std::printf("  f(current) and f(neighbor) over 40000 pairs.\n");
-    std::printf("\n  %-34s %14s %12s\n", "step", "correlation", "z");
-    std::printf("  %-34s %14s %12s\n", "----------------------------------", "--------------", "------------");
+    printf("\n================================================================\n");
+    printf("  1. Does the extranonce2 dimension have neighbourhoods?\n");
+    printf("================================================================\n");
+    printf("\n  The same test H13 ran on the nonce, run here. Pearson correlation between\n");
+    printf("  f(current) and f(neighbor) over 40000 pairs.\n");
+    printf("\n  %-34s %14s %12s\n", "step", "correlation", "z");
+    printf("  %-34s %14s %12s\n", "----------------------------------", "--------------", "------------");
 
     std::mt19937_64 generator(20260908u);
     const unsigned pairs = 40000u;
@@ -313,20 +313,20 @@ void measure_extranonce_landscape()
 
         const double count = (double)pairs;
         const double covariance = (sum_product / count) - ((sum_here / count) * (sum_there / count));
-        const double spread_here = std::sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
+        const double spread_here = sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
         const double spread_there =
-            std::sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
+            sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
         const double correlation = covariance / (spread_here * spread_there);
 
         const char *name = (mode == 0)   ? "extranonce2 + 1"
                            : (mode == 1) ? "flip one extranonce2 bit"
                            : (mode == 2) ? "complement every bit"
                                          : "unrelated extranonce2 (control)";
-        std::printf("  %-34s %14.6f %+12.2f\n", name, correlation, correlation * std::sqrt(count));
+        printf("  %-34s %14.6f %+12.2f\n", name, correlation, correlation * sqrt(count));
     }
 
-    std::printf("\n  A row above the control would be a neighbourhood in a dimension the nonce\n");
-    std::printf("  tests never reached.\n");
+    printf("\n  A row above the control would be a neighbourhood in a dimension the nonce\n");
+    printf("  tests never reached.\n");
 }
 
 /**
@@ -334,9 +334,9 @@ void measure_extranonce_landscape()
  */
 void compare_dimension_cost()
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. What a step costs in each dimension\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  2. What a step costs in each dimension\n");
+    printf("================================================================\n");
 
     const unsigned samples = 20000u;
 
@@ -375,28 +375,28 @@ void compare_dimension_cost()
     finished = std::chrono::steady_clock::now();
     const double nonce_seconds = std::chrono::duration<double>(finished - started).count();
 
-    std::printf("\n  %-40s %16s\n", "dimension", "candidates/s");
-    std::printf("  %-40s %16s\n", "----------------------------------------", "----------------");
-    std::printf("  %-40s %16.0f\n", "nonce, midstate reused",
+    printf("\n  %-40s %16s\n", "dimension", "candidates/s");
+    printf("  %-40s %16s\n", "----------------------------------------", "----------------");
+    printf("  %-40s %16.0f\n", "nonce, midstate reused",
                 (nonce_seconds > 0.0) ? ((double)samples / nonce_seconds) : 0.0);
-    std::printf("  %-40s %16.0f\n", "extranonce2, coinbase and merkle rebuilt",
+    printf("  %-40s %16.0f\n", "extranonce2, coinbase and merkle rebuilt",
                 (extranonce_seconds > 0.0) ? ((double)samples / extranonce_seconds) : 0.0);
-    std::printf("\n  extranonce2 costs %.1fx a nonce step, and spends %llu extra double hashes\n",
+    printf("\n  extranonce2 costs %.1fx a nonce step, and spends %llu extra double hashes\n",
                 (nonce_seconds > 0.0) ? (extranonce_seconds / nonce_seconds) : 0.0,
                 (unsigned long long)(extranonce_side_hashes / samples));
-    std::printf("  per candidate on the coinbase and merkle path alone.\n");
-    std::printf("\n  So even if this dimension carried a landscape, a search would want to spend\n");
-    std::printf("  its budget on the cheap dimension unless the landscape paid for the cost.\n");
+    printf("  per candidate on the coinbase and merkle path alone.\n");
+    printf("\n  So even if this dimension carried a landscape, a search would want to spend\n");
+    printf("  its budget on the cheap dimension unless the landscape paid for the cost.\n");
 }
 
 } // namespace
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  The extranonce2 dimension\n");
-    std::printf("  Measuring what the workbook had only asserted\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  The extranonce2 dimension\n");
+    printf("  Measuring what the workbook had only asserted\n");
+    printf("================================================================\n");
 
     g_coinbase_head = bytes_from_hex(JOB_COINBASE_HEAD);
     g_coinbase_tail = bytes_from_hex(JOB_COINBASE_TAIL);
@@ -417,9 +417,9 @@ int main()
     compare_dimension_cost();
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    std::printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
+    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

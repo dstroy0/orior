@@ -36,13 +36,13 @@
 
 #include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
 #endif
-#include <cstdint>
+#include <stdint.h>
 #include <vector>
 
 #define CHECK(call)                                                                                                    \
@@ -51,8 +51,8 @@
         cudaError_t status_ = (call);                                                                                  \
         if (status_ != cudaSuccess)                                                                                    \
         {                                                                                                              \
-            std::fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, cudaGetErrorString(status_));                       \
-            std::exit(1);                                                                                              \
+            fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, cudaGetErrorString(status_));                       \
+            exit(1);                                                                                              \
         }                                                                                                              \
     } while (0)
 
@@ -423,35 +423,35 @@ __global__ void garner(const uint32_t *first, const uint32_t *second, const uint
 /** @brief Read a whole file into a limb vector, or stop with a message naming the file. */
 static std::vector<uint32_t> limbs_from(const char *path)
 {
-    std::FILE *handle = std::fopen(path, "rb");
+    std::FILE *handle = fopen(path, "rb");
     if (handle == nullptr)
     {
-        std::fprintf(stderr, "cannot open %s\n", path);
-        std::exit(1);
+        fprintf(stderr, "cannot open %s\n", path);
+        exit(1);
     }
-    std::fseek(handle, 0, SEEK_END);
-    long size = std::ftell(handle);
-    std::fseek(handle, 0, SEEK_SET);
+    fseek(handle, 0, SEEK_END);
+    long size = ftell(handle);
+    fseek(handle, 0, SEEK_SET);
     std::vector<uint32_t> out((size_t)size / sizeof(uint32_t), 0u);
-    if (std::fread(out.data(), 1, (size_t)size, handle) != (size_t)size)
+    if (fread(out.data(), 1, (size_t)size, handle) != (size_t)size)
     {
-        std::fprintf(stderr, "short read on %s\n", path);
-        std::exit(1);
+        fprintf(stderr, "short read on %s\n", path);
+        exit(1);
     }
-    std::fclose(handle);
+    fclose(handle);
     return out;
 }
 
 static void limbs_into(const char *path, const std::vector<uint32_t> &values)
 {
-    std::FILE *handle = std::fopen(path, "wb");
+    std::FILE *handle = fopen(path, "wb");
     if (handle == nullptr)
     {
-        std::fprintf(stderr, "cannot write %s\n", path);
-        std::exit(1);
+        fprintf(stderr, "cannot write %s\n", path);
+        exit(1);
     }
-    std::fwrite(values.data(), sizeof(uint32_t), values.size(), handle);
-    std::fclose(handle);
+    fwrite(values.data(), sizeof(uint32_t), values.size(), handle);
+    fclose(handle);
 }
 
 /**
@@ -469,11 +469,11 @@ static std::vector<uint32_t> limbs_from_stream(size_t count)
     char *into = (char *)out.data();
     while (got < want)
     {
-        size_t step = std::fread(into + got, 1, want - got, stdin);
+        size_t step = fread(into + got, 1, want - got, stdin);
         if (step == 0u)
         {
-            std::fprintf(stderr, "short read on stdin, wanted %zu got %zu\n", want, got);
-            std::exit(1);
+            fprintf(stderr, "short read on stdin, wanted %zu got %zu\n", want, got);
+            exit(1);
         }
         got += step;
     }
@@ -487,11 +487,11 @@ static void limbs_to_stream(const std::vector<uint32_t> &values)
     const char *from = (const char *)values.data();
     while (put < want)
     {
-        size_t step = std::fwrite(from + put, 1, want - put, stdout);
+        size_t step = fwrite(from + put, 1, want - put, stdout);
         if (step == 0u)
         {
-            std::fprintf(stderr, "short write on stdout\n");
-            std::exit(1);
+            fprintf(stderr, "short write on stdout\n");
+            exit(1);
         }
         put += step;
     }
@@ -566,7 +566,7 @@ static float run_multiply(const char *left_path, const char *right_path, const c
     if (piped)
     {
         uint64_t counts[2] = {0u, 0u};
-        if (std::fread(counts, sizeof(uint64_t), 2u, stdin) != 2u)
+        if (fread(counts, sizeof(uint64_t), 2u, stdin) != 2u)
         {
             return -1.0f; /* the caller closed the pipe: a run ends that way */
         }
@@ -593,9 +593,9 @@ static float run_multiply(const char *left_path, const char *right_path, const c
     {
         if (length > (1u << MODULI[at].adic))
         {
-            std::fprintf(stderr, "length %u exceeds modulus %u, whose order is 2^%u\n", length, MODULI[at].prime,
+            fprintf(stderr, "length %u exceeds modulus %u, whose order is 2^%u\n", length, MODULI[at].prime,
                          MODULI[at].adic);
-            std::exit(1);
+            exit(1);
         }
     }
 
@@ -684,7 +684,7 @@ static float run_multiply(const char *left_path, const char *right_path, const c
         else
         {
             char path[1024];
-            std::snprintf(path, sizeof(path), "%s.%s.bin", prefix, names[at]);
+            snprintf(path, sizeof(path), "%s.%s.bin", prefix, names[at]);
             limbs_into(path, back);
         }
     }
@@ -699,12 +699,12 @@ static float run_multiply(const char *left_path, const char *right_path, const c
     CHECK(cudaFree(table));
     if (piped)
     {
-        std::fflush(stdout);
-        std::fprintf(stderr, "%u %zu %zu %.3f multiplied\n", length, left.size(), right.size(), spent);
+        fflush(stdout);
+        fprintf(stderr, "%u %zu %zu %.3f multiplied\n", length, left.size(), right.size(), spent);
     }
     else
     {
-        std::printf("%u %zu %zu %.3f multiplied\n", length, left.size(), right.size(), spent);
+        printf("%u %zu %zu %.3f multiplied\n", length, left.size(), right.size(), spent);
     }
     return spent;
 }
@@ -743,7 +743,7 @@ static void run_domain(void)
     uint32_t threads = 256u;
     uint32_t blocks = 0u;
 
-    while (std::fread(&word, sizeof(uint64_t), 1u, stdin) == 1u)
+    while (fread(&word, sizeof(uint64_t), 1u, stdin) == 1u)
     {
         if (word == 0u)
         {
@@ -752,23 +752,23 @@ static void run_domain(void)
         if (word == 1u)
         {
             uint64_t header[2] = {0u, 0u};
-            if (std::fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
+            if (fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
             {
                 break;
             }
             length = (uint32_t)header[0];
             if ((length & (length - 1u)) != 0u || length < 2u)
             {
-                std::fprintf(stderr, "a transform length is a power of two\n");
-                std::exit(1);
+                fprintf(stderr, "a transform length is a power of two\n");
+                exit(1);
             }
             for (uint32_t at = 0u; at < 3u; ++at)
             {
                 if (length > (1u << MODULI[at].adic))
                 {
-                    std::fprintf(stderr, "length %u exceeds modulus %u, whose order is 2^%u\n", length,
+                    fprintf(stderr, "length %u exceeds modulus %u, whose order is 2^%u\n", length,
                                  MODULI[at].prime, MODULI[at].adic);
-                    std::exit(1);
+                    exit(1);
                 }
             }
             size_t bytes = (size_t)length * sizeof(uint32_t);
@@ -786,13 +786,13 @@ static void run_domain(void)
             CHECK(cudaMalloc(&scratch, bytes));
             CHECK(cudaMalloc(&table, bytes));
             CHECK(cudaMalloc(&raw, bytes));
-            std::fprintf(stderr, "%u %zu opened\n", length, slots.size());
+            fprintf(stderr, "%u %zu opened\n", length, slots.size());
             continue;
         }
         if (word == 2u)
         {
             uint64_t header[2] = {0u, 0u};
-            if (std::fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
+            if (fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
             {
                 break;
             }
@@ -818,7 +818,7 @@ static void run_domain(void)
              * value of the ordinary shape.
              */
             uint64_t header[2] = {0u, 0u};
-            if (std::fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
+            if (fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
             {
                 break;
             }
@@ -839,7 +839,7 @@ static void run_domain(void)
         if (word == 3u)
         {
             uint64_t header[2] = {0u, 0u};
-            if (std::fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
+            if (fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
             {
                 break;
             }
@@ -858,7 +858,7 @@ static void run_domain(void)
         if (word == 4u)
         {
             uint64_t header[2] = {0u, 0u};
-            if (std::fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
+            if (fread(header, sizeof(uint64_t), 2u, stdin) != 2u)
             {
                 break;
             }
@@ -890,22 +890,22 @@ static void run_domain(void)
                                  cudaMemcpyDeviceToHost));
                 limbs_to_stream(back);
             }
-            std::fflush(stdout);
+            fflush(stdout);
             slots[slot].live = false;
             continue;
         }
         if (word == 5u)
         {
             uint64_t header[1] = {0u};
-            if (std::fread(header, sizeof(uint64_t), 1u, stdin) != 1u)
+            if (fread(header, sizeof(uint64_t), 1u, stdin) != 1u)
             {
                 break;
             }
             slots[(size_t)header[0]].live = false;
             continue;
         }
-        std::fprintf(stderr, "unknown command %llu\n", (unsigned long long)word);
-        std::exit(1);
+        fprintf(stderr, "unknown command %llu\n", (unsigned long long)word);
+        exit(1);
     }
 
     for (size_t slot = 0u; slot < slots.size(); ++slot)
@@ -946,13 +946,13 @@ int main(int argc, char **argv)
                        .other = "--length", .ci = EMBED_FALSE) &&
             at + 1 < argc)
         {
-            length = (uint32_t)std::strtoul(argv[++at], nullptr, 10);
+            length = (uint32_t)strtoul(argv[++at], nullptr, 10);
         }
         else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
                             .other = "--modulus", .ci = EMBED_FALSE) &&
                  at + 1 < argc)
         {
-            which = (uint32_t)std::strtoul(argv[++at], nullptr, 10);
+            which = (uint32_t)strtoul(argv[++at], nullptr, 10);
         }
         else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
                             .other = "--check", .ci = EMBED_FALSE))
@@ -1026,19 +1026,19 @@ int main(int argc, char **argv)
 
     if (which > 2u)
     {
-        std::fprintf(stderr, "there are three moduli, 0 through 2\n");
+        fprintf(stderr, "there are three moduli, 0 through 2\n");
         return 1;
     }
     if ((length & (length - 1u)) != 0u || length < 2u)
     {
-        std::fprintf(stderr, "a transform length is a power of two\n");
+        fprintf(stderr, "a transform length is a power of two\n");
         return 1;
     }
 
     const Modulus modulus = MODULI[which];
     if (length > (1u << modulus.adic))
     {
-        std::fprintf(stderr, "modulus %u admits no root of unity of order %u\n", modulus.prime, length);
+        fprintf(stderr, "modulus %u admits no root of unity of order %u\n", modulus.prime, length);
         return 1;
     }
 
@@ -1104,7 +1104,7 @@ int main(int argc, char **argv)
         verdict = (wrong == 0u) ? "agrees" : "DISAGREES";
         if (wrong != 0u)
         {
-            std::fprintf(stderr, "%zu of %u slots differ\n", wrong, length);
+            fprintf(stderr, "%zu of %u slots differ\n", wrong, length);
         }
     }
 
@@ -1116,7 +1116,7 @@ int main(int argc, char **argv)
         digest *= 1099511628211ull;
     }
 
-    std::printf("%u %u %u %u %016llx %.3f %s\n", length, modulus.prime, modulus.witness, bits_of(length),
+    printf("%u %u %u %u %016llx %.3f %s\n", length, modulus.prime, modulus.witness, bits_of(length),
                 (unsigned long long)digest, spent, verdict);
 
     CHECK(cudaFree(one));

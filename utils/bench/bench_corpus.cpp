@@ -24,9 +24,9 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <thread>
 #include <vector>
@@ -151,13 +151,13 @@ void survey_threaded(const Sha256ScanRequest &base, uint32_t count, Sha256Survey
  */
 void test_corpus_size(const Sha256ScanRequest &base)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  1. Corpus size. Does survivor count track N * 2^-k?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Section 2.5 prices an anchor at q = 2^-H2 per symbol. For a flat digest a\n");
-    std::printf("  k-bit anchor has q = 2^-k, a range of N should leave N*2^-k survivors.\n");
-    std::printf("\n  %10s %6s %14s %14s %10s\n", "N", "k bits", "predicted", "measured", "ratio");
-    std::printf("  %10s %6s %14s %14s %10s\n", "----------", "------", "--------------", "--------------",
+    printf("\n================================================================\n");
+    printf("  1. Corpus size. Does survivor count track N * 2^-k?\n");
+    printf("================================================================\n");
+    printf("\n  Section 2.5 prices an anchor at q = 2^-H2 per symbol. For a flat digest a\n");
+    printf("  k-bit anchor has q = 2^-k, a range of N should leave N*2^-k survivors.\n");
+    printf("\n  %10s %6s %14s %14s %10s\n", "N", "k bits", "predicted", "measured", "ratio");
+    printf("  %10s %6s %14s %14s %10s\n", "----------", "------", "--------------", "--------------",
                 "----------");
 
     for (unsigned magnitude = 20u; magnitude <= 26u; magnitude += 2u)
@@ -169,17 +169,17 @@ void test_corpus_size(const Sha256ScanRequest &base)
 
         for (unsigned width : {8u, 12u, 16u, 20u})
         {
-            const double predicted = (double)survey.nonces_evaluated / std::pow(2.0, (double)width);
+            const double predicted = (double)survey.nonces_evaluated / pow(2.0, (double)width);
             const double measured = (double)survey.leading_zero_count[width];
             const double ratio = (predicted > 0.0) ? (measured / predicted) : 0.0;
 
-            std::printf("  %10llu %6u %14.1f %14.0f %10.4f\n", (unsigned long long)survey.nonces_evaluated, width,
+            printf("  %10llu %6u %14.1f %14.0f %10.4f\n", (unsigned long long)survey.nonces_evaluated, width,
                         predicted, measured, ratio);
         }
-        std::printf("\n");
+        printf("\n");
     }
-    std::printf("  A ratio near one means the anchor behaves exactly as a flat domain predicts.\n");
-    std::printf("  A ratio persistently away from one at some k would be structure worth mining.\n");
+    printf("  A ratio near one means the anchor behaves exactly as a flat domain predicts.\n");
+    printf("  A ratio persistently away from one at some k would be structure worth mining.\n");
 }
 
 /**
@@ -189,17 +189,17 @@ void test_corpus_size(const Sha256ScanRequest &base)
  */
 void test_entropy_eddies(const Sha256Survey &survey)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  2. Entropy eddies. Is any position in the whole digest not flat?\n");
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  2. Entropy eddies. Is any position in the whole digest not flat?\n");
+    printf("================================================================\n");
 
     const double samples = (double)survey.nonces_evaluated;
-    std::printf("\n  Sample size: %llu digests, %llu bits per position.\n", (unsigned long long)survey.nonces_evaluated,
+    printf("\n  Sample size: %llu digests, %llu bits per position.\n", (unsigned long long)survey.nonces_evaluated,
                 (unsigned long long)survey.nonces_evaluated);
 
     // Bit bias. Under a flat model, each position is a fair coin. Thus the count of ones has standard
     // error sqrt(N)/2, and the z score below is directly comparable across positions.
-    const double bit_standard_error = std::sqrt(samples) / 2.0;
+    const double bit_standard_error = sqrt(samples) / 2.0;
     double worst_bit_z = 0.0;
     unsigned worst_bit_position = 0u;
 
@@ -209,18 +209,18 @@ void test_entropy_eddies(const Sha256Survey &survey)
         const double deviation = ones - (samples / 2.0);
         const double score = (bit_standard_error > 0.0) ? (deviation / bit_standard_error) : 0.0;
 
-        if (std::fabs(score) > std::fabs(worst_bit_z))
+        if (fabs(score) > fabs(worst_bit_z))
         {
             worst_bit_z = score;
             worst_bit_position = position;
         }
     }
 
-    std::printf("\n  Per-bit bias across all 256 positions:\n");
-    std::printf("    largest deviation : bit %u, z = %+.2f\n", worst_bit_position, worst_bit_z);
-    std::printf("    detection floor   : a bias of %.2e would show at 4 sigma\n", 4.0 / (2.0 * std::sqrt(samples)));
-    std::printf("    expected worst |z| over 256 fair coins is about 3.0\n");
-    std::printf("    verdict           : %s\n", (std::fabs(worst_bit_z) < 5.0)
+    printf("\n  Per-bit bias across all 256 positions:\n");
+    printf("    largest deviation : bit %u, z = %+.2f\n", worst_bit_position, worst_bit_z);
+    printf("    detection floor   : a bias of %.2e would show at 4 sigma\n", 4.0 / (2.0 * sqrt(samples)));
+    printf("    expected worst |z| over 256 fair coins is about 3.0\n");
+    printf("    verdict           : %s\n", (fabs(worst_bit_z) < 5.0)
                                                     ? "no bit position departs from flat"
                                                     : "A BIT POSITION IS BIASED, worth investigating");
 
@@ -252,11 +252,11 @@ void test_entropy_eddies(const Sha256Survey &survey)
     }
 
     // Chi-square with 255 degrees of freedom has mean 255 and standard deviation sqrt(510).
-    const double chi_z = (worst_chi - 255.0) / std::sqrt(510.0);
-    std::printf("\n  Per-byte-position distribution, chi-square against uniform (255 df):\n");
-    std::printf("    largest           : position %u, X2 = %.1f (z = %+.2f)\n", worst_chi_position, worst_chi, chi_z);
-    std::printf("    expected under flat: X2 near 255\n");
-    std::printf("    verdict           : %s\n", (chi_z < 5.0) ? "no byte position departs from flat"
+    const double chi_z = (worst_chi - 255.0) / sqrt(510.0);
+    printf("\n  Per-byte-position distribution, chi-square against uniform (255 df):\n");
+    printf("    largest           : position %u, X2 = %.1f (z = %+.2f)\n", worst_chi_position, worst_chi, chi_z);
+    printf("    expected under flat: X2 near 255\n");
+    printf("    verdict           : %s\n", (chi_z < 5.0) ? "no byte position departs from flat"
                                                               : "A BYTE POSITION IS SKEWED, worth investigating");
 
     // Global collision entropy, the quantity section 2.5 prices anchors with.
@@ -271,16 +271,16 @@ void test_entropy_eddies(const Sha256Survey &survey)
         const double share = (double)survey.byte_histogram[value] / total_bytes;
         collision_probability += share * share;
     }
-    const double collision_entropy = -std::log2(collision_probability);
+    const double collision_entropy = -log2(collision_probability);
 
-    std::printf("\n  Collision entropy of the digest byte stream:\n");
-    std::printf("    H2 measured       : %.6f bits per byte\n", collision_entropy);
-    std::printf("    H2 maximum        : 8.000000 bits per byte\n");
-    std::printf("    shortfall         : %.2e bits\n", 8.0 - collision_entropy);
-    std::printf("\n  Section 2.4 calls maximum entropy the base case for this construction. The\n");
-    std::printf("  digest domain sits on it. That is the case where an informed anchor measure\n");
-    std::printf("  can buy nothing over an uninformed one, because there is nothing to be\n");
-    std::printf("  informed about.\n");
+    printf("\n  Collision entropy of the digest byte stream:\n");
+    printf("    H2 measured       : %.6f bits per byte\n", collision_entropy);
+    printf("    H2 maximum        : 8.000000 bits per byte\n");
+    printf("    shortfall         : %.2e bits\n", 8.0 - collision_entropy);
+    printf("\n  Section 2.4 calls maximum entropy the base case for this construction. The\n");
+    printf("  digest domain sits on it. That is the case where an informed anchor measure\n");
+    printf("  can buy nothing over an uninformed one, because there is nothing to be\n");
+    printf("  informed about.\n");
 }
 
 /**
@@ -290,12 +290,12 @@ void test_entropy_eddies(const Sha256Survey &survey)
  */
 void test_repeating_curve(const Sha256ScanRequest &base)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  3. A repeating curve. Do the rotations leave a period in the nonce?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  SHA-256 rotates by 2, 6, 7, 10, 11, 13, 17, 18, 19, 22 and 25. Each is\n");
-    std::printf("  periodic on its own. If that periodicity survived composition, digests at\n");
-    std::printf("  some nonce lag would agree on more than half their bits.\n");
+    printf("\n================================================================\n");
+    printf("  3. A repeating curve. Do the rotations leave a period in the nonce?\n");
+    printf("================================================================\n");
+    printf("\n  SHA-256 rotates by 2, 6, 7, 10, 11, 13, 17, 18, 19, 22 and 25. Each is\n");
+    printf("  periodic on its own. If that periodicity survived composition, digests at\n");
+    printf("  some nonce lag would agree on more than half their bits.\n");
 
     const uint32_t sample_count = 1u << 22;
     std::vector<uint64_t> digest_prefix(sample_count);
@@ -352,11 +352,11 @@ void test_repeating_curve(const Sha256ScanRequest &base)
         worker.join();
     }
 
-    std::printf("\n  Bit agreement between digest(n) and digest(n+lag), over %u pairs.\n", sample_count / 2u);
-    std::printf("  Under independence this is 0.5 with standard error %.2e.\n",
-                0.5 / std::sqrt((double)(sample_count / 2u) * 64.0));
-    std::printf("\n  %8s %14s %10s\n", "lag", "agreement", "z");
-    std::printf("  %8s %14s %10s\n", "--------", "--------------", "----------");
+    printf("\n  Bit agreement between digest(n) and digest(n+lag), over %u pairs.\n", sample_count / 2u);
+    printf("  Under independence this is 0.5 with standard error %.2e.\n",
+                0.5 / sqrt((double)(sample_count / 2u) * 64.0));
+    printf("\n  %8s %14s %10s\n", "lag", "agreement", "z");
+    printf("  %8s %14s %10s\n", "--------", "--------------", "----------");
 
     const uint32_t lags[] = {1u,  2u,  3u,  6u,  7u,  10u,  11u,   13u,   17u,    18u,
                              19u, 22u, 25u, 32u, 64u, 256u, 1024u, 4096u, 65536u, 1048576u};
@@ -381,24 +381,24 @@ void test_repeating_curve(const Sha256ScanRequest &base)
 
         const double total_bits = (double)pairs * 64.0;
         const double agreement = (double)agreeing_bits / total_bits;
-        const double standard_error = 0.5 / std::sqrt(total_bits);
+        const double standard_error = 0.5 / sqrt(total_bits);
         const double score = (agreement - 0.5) / standard_error;
 
-        if (std::fabs(score) > std::fabs(worst_z))
+        if (fabs(score) > fabs(worst_z))
         {
             worst_z = score;
             worst_lag = lag;
         }
-        std::printf("  %8u %14.8f %+10.2f\n", lag, agreement, score);
+        printf("  %8u %14.8f %+10.2f\n", lag, agreement, score);
     }
 
-    std::printf("\n  largest deviation: lag %u at z = %+.2f\n", worst_lag, worst_z);
-    std::printf("  verdict          : %s\n",
-                (std::fabs(worst_z) < 5.0) ? "no lag shows a repeating curve" : "A LAG REPEATS, worth investigating");
-    std::printf("\n  Why the rotations do not survive. Each round mixes rotation with addition\n");
-    std::printf("  mod 2^32, whose carries do not commute with rotation, and adds a round\n");
-    std::printf("  constant that differs every round. A period would have to survive 64 such\n");
-    std::printf("  rounds twice. The measurement above is what that costs in practice.\n");
+    printf("\n  largest deviation: lag %u at z = %+.2f\n", worst_lag, worst_z);
+    printf("  verdict          : %s\n",
+                (fabs(worst_z) < 5.0) ? "no lag shows a repeating curve" : "A LAG REPEATS, worth investigating");
+    printf("\n  Why the rotations do not survive. Each round mixes rotation with addition\n");
+    printf("  mod 2^32, whose carries do not commute with rotation, and adds a round\n");
+    printf("  constant that differs every round. A period would have to survive 64 such\n");
+    printf("  rounds twice. The measurement above is what that costs in practice.\n");
 }
 
 /**
@@ -408,11 +408,11 @@ void test_repeating_curve(const Sha256ScanRequest &base)
  */
 void test_hitting_time(const Sha256ScanRequest &base)
 {
-    std::printf("\n================================================================\n");
-    std::printf("  4. Hitting time. Is first success geometric with mean 1/q?\n");
-    std::printf("================================================================\n");
-    std::printf("\n  Section 2.5 reads E[S] = 1/q as Kac's lemma, the expected return time to a\n");
-    std::printf("  set of measure q. Here q = 2^-16, so first success should average 65536.\n");
+    printf("\n================================================================\n");
+    printf("  4. Hitting time. Is first success geometric with mean 1/q?\n");
+    printf("================================================================\n");
+    printf("\n  Section 2.5 reads E[S] = 1/q as Kac's lemma, the expected return time to a\n");
+    printf("  set of measure q. Here q = 2^-16, so first success should average 65536.\n");
 
     const unsigned trials = 512u;
     std::vector<uint32_t> first_success;
@@ -440,7 +440,7 @@ void test_hitting_time(const Sha256ScanRequest &base)
 
     if (first_success.empty())
     {
-        std::printf("\n  No trial succeeded, which itself contradicts the model.\n");
+        printf("\n  No trial succeeded, which itself contradicts the model.\n");
         return;
     }
 
@@ -457,31 +457,31 @@ void test_hitting_time(const Sha256ScanRequest &base)
         const double deviation = (double)value - mean;
         variance_sum += deviation * deviation;
     }
-    const double standard_deviation = std::sqrt(variance_sum / (double)first_success.size());
+    const double standard_deviation = sqrt(variance_sum / (double)first_success.size());
 
     std::vector<uint32_t> sorted = first_success;
     std::sort(sorted.begin(), sorted.end());
     const double median = (double)sorted[sorted.size() / 2u];
 
-    std::printf("\n  trials succeeding : %zu of %u\n", first_success.size(), trials);
-    std::printf("  mean first success: %.0f   (predicted 65536)\n", mean);
-    std::printf("  ratio to predicted: %.4f\n", mean / 65536.0);
-    std::printf("  std deviation     : %.0f   (geometric predicts ~mean, 65536)\n", standard_deviation);
-    std::printf("  median            : %.0f   (geometric predicts %.0f)\n", median, 65536.0 * std::log(2.0));
-    std::printf("\n  A geometric distribution has standard deviation equal to its mean and a\n");
-    std::printf("  median at ln(2) times the mean. Both hold here, which is what a memoryless\n");
-    std::printf("  source looks like. It also means the search cannot be shortened: every nonce\n");
-    std::printf("  is a fresh draw and no history predicts the next one.\n");
+    printf("\n  trials succeeding : %zu of %u\n", first_success.size(), trials);
+    printf("  mean first success: %.0f   (predicted 65536)\n", mean);
+    printf("  ratio to predicted: %.4f\n", mean / 65536.0);
+    printf("  std deviation     : %.0f   (geometric predicts ~mean, 65536)\n", standard_deviation);
+    printf("  median            : %.0f   (geometric predicts %.0f)\n", median, 65536.0 * log(2.0));
+    printf("\n  A geometric distribution has standard deviation equal to its mean and a\n");
+    printf("  median at ln(2) times the mean. Both hold here, which is what a memoryless\n");
+    printf("  source looks like. It also means the search cannot be shortened: every nonce\n");
+    printf("  is a fresh draw and no history predicts the next one.\n");
 }
 
 } // namespace
 
 int main()
 {
-    std::printf("================================================================\n");
-    std::printf("  The digest domain as a corpus\n");
-    std::printf("  Testing four hypotheses about structure in SHA256d over nonces\n");
-    std::printf("================================================================\n");
+    printf("================================================================\n");
+    printf("  The digest domain as a corpus\n");
+    printf("  Testing four hypotheses about structure in SHA256d over nonces\n");
+    printf("================================================================\n");
 
     const std::vector<uint8_t> header = bytes_from_hex(CORPUS_HEADER_HEX);
     Sha256ScanRequest base;
@@ -492,7 +492,7 @@ int main()
 
     test_corpus_size(base);
 
-    std::printf("\n  Surveying the full digest for the eddy test...\n");
+    printf("\n  Surveying the full digest for the eddy test...\n");
     Sha256Survey survey;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &survey, .bytes = sizeof(survey), .val = 0);
     survey_threaded(base, 1u << 24, survey);
@@ -502,8 +502,8 @@ int main()
     test_hitting_time(base);
 
     const auto finished = std::chrono::steady_clock::now();
-    std::printf("\n================================================================\n");
-    std::printf("  total elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
-    std::printf("================================================================\n");
+    printf("\n================================================================\n");
+    printf("  total elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("================================================================\n");
     return 0;
 }
