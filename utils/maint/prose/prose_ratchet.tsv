@@ -481,7 +481,7 @@ src/cu/engine/runtime/daemon/tessera_run_windows.c	16
 src/cu/engine/runtime/device_pool/device_pool.cu	2
 src/cu/scaffolding/c_target.h	1
 src/cu/scaffolding/record_vhdl_bench.vhd	2
-src/cu/scaffolding/yosys_script.h	2
+src/cu/scaffolding/yosys_script.h	1
 src/cu/transpiler/lstar/interface/platform/interface_internal.h	7
 src/cu/transpiler/lstar/interface/platform/posix.c	16
 src/cu/transpiler/lstar/interface/platform/windows.c	20
