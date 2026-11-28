@@ -1,18 +1,25 @@
 krs 1
-# VHDL-2008, a language of the register lane (code_generator.h), which GHDL analyzes and runs. The format is the comment at
-# the head of ptx.krs. The lane is one clocked process in the entity cycle_lane_unit, cut into states a clock each by
-# the state forms at the end of this file: its registers are the process's variables, a word unsigned(31 downto 0)
-# and a wide word unsigned(63 downto 0), its predicates booleans, and its carry a variable the chains set and read, as
-# PTX's carry flag is set and read. Memory is one array of words the process holds, the launch positioned in it as the
-# device positions CycleCompiledLaunch, with one write site and one read site so a part can hold it as a RAM: the bottom of
-# each clock writes the one word a state names, then reads the word asked for and the one after it into the registers
-# the next clock takes them from: each read is a registered read, as a block RAM reads. While
-# idle, the unit's ports load it and read it back. The text holds its own conversions (word_of, wide_of, signed_of,
-# word_index) in the package cycle_program; the file needs no package but ieee's. A word's value is the bank
-# immediate, a 32-bit literal; a count, an offset or a shift is a VHDL integer. How much one state holds is the
-# target's construction set's and the refinement loop's, not this file's. Around the lane, the entity
-# cycle_program_unit (program_unit, at the end of this file) runs a launch's lanes as the kernel written by ptx.krs and c.krs does,
-# and the two are the whole circuit.
+# VHDL-2008, a language of the register lane (code_generator.h), which GHDL analyzes and runs. The format is the
+# comment at the head of ptx.krs.
+#
+# The lane is one clocked process in the entity cycle_lane_unit. The state forms at the end of this file cut it into
+# states, one clock each. Its registers are the variables of the process: a word `unsigned(31 downto 0)` and a wide
+# word `unsigned(63 downto 0)`. Its predicates are booleans. Its carry is a variable that the chains set and read, as
+# PTX sets and reads its carry flag.
+#
+# Memory is one array of words that the process holds, with the launch arranged in it as the device arranges
+# CycleCompiledLaunch. It has one write site and one read site, so that a part can hold it as a RAM. The bottom of each
+# clock writes the one word that a state names. It then reads the word asked for, and the one after it, into the
+# registers that the next clock takes them from. Each read is a registered read, as a block RAM reads. While the unit
+# is idle, its ports load the memory and read it back.
+#
+# The text holds its own conversions (word_of, wide_of, signed_of, word_index) in the package cycle_program. The file
+# needs no package but that of ieee. The value of a word is the bank immediate, a 32-bit literal. A count, an offset or
+# a shift is a VHDL integer. The construction set of the target and the refinement loop decide how much one state
+# holds, not this file.
+#
+# Around the lane, the entity cycle_program_unit (program_unit, at the end of this file) runs the lanes of a launch.
+# It does so as the kernel that ptx.krs and c.krs write does, and the two are the whole circuit.
 ruleset vhdl
 toolchain ghdl
 header lane_open
@@ -64,9 +71,9 @@ form declare_fixed_words =         variable zero, thread, threads, sign_base : c
 form declare_fixed_wides =         variable launch, lane_number, record_address, index_address, body_number, bodies, tables : cycle_wide;\n
 form declare_members count =         variable member : cycle_wides(0 to {count} - 1);\n
 
-# the lane's opening and close: an error sets error to its step (-1 at the open) and ends its state, which then
-# goes to the dispatch state and on to that error's states; the success path and each error's stores end in
-# state_exit, and a label only notes where an error's states begin
+# the opening and close of the lane. An error sets error to its step (-1 at the open) and ends its state. That state
+# then goes to the dispatch state, and on to the states of that error. The success path and the stores of each error
+# end in state_exit, and a label only notes where the states of an error start
 form launch_open =             launch := launch_given;\n            lane_number := lane_given;\n            zero := (others => '0');\n
 form launch_load_wide to _offset =             {to} := high_word & low_word;\n
 nop cast_global to
@@ -82,8 +89,8 @@ form global_add_atomic_word address =             write_at := word_index({addres
 nop return
 form step_note at operation =             -- step {at}, operation {operation}\n
 
-# carry chains through a register's limbs: alone for a register of one limb, else first, middle and last; the carry is
-# a variable each link sets and the next reads, as PTX's carry flag
+# carry chains through the limbs of a register: alone for a register of one limb, else first, middle and last. The
+# carry is a variable that each link sets and the next reads, as the carry flag of PTX is
 form word_add to left right =             {to} := word_of({left}) + word_of({right});\n
 form word_add_first to left right =             total := resize(word_of({left}), 33) + word_of({right});\n            {to} := total(31 downto 0);\n            carry := to_integer(total(32 downto 32));\n
 form word_add_middle to left right =             total := resize(word_of({left}), 33) + word_of({right}) + carry;\n            {to} := total(31 downto 0);\n            carry := to_integer(total(32 downto 32));\n
@@ -159,9 +166,9 @@ form wide_div to left right =             {to} := wide_of({left}) / wide_of({rig
 form global_load_constant_word to _address _offset =             {to} := low_word;\n
 form record_store_word offset from =             write_at := word_index(record_address + {offset});\n            write_word := word_of({from});\n            writing := true;\n
 
-# the states the lane is cut into, a clock each (code_generator.h): state 0 waits to begin, state 1 sends an errored lane
-# to its error's states, and the lane's opening begins in the state state_start names. A state goes on to the next
-# unless the lane errored in it, and a lane that is done goes back to 0
+# the states that the core cuts the lane into, one clock each (code_generator.h). State 0 waits to start. State 1 sends
+# a lane in error to the states of its error. The opening of the lane starts in the state that state_start names. A
+# state goes on to the next unless the lane gave an error in it, and a lane at its end goes back to 0
 form declare_states count =         variable state : natural range 0 to {count};\n
 form state_start state =                     if start = '1' then\n                        error := -2;\n                        carry := 0;\n                        state := {state};\n                    end if;\n
 form state_open state =                 when {state} =>\n
@@ -169,25 +176,27 @@ form state_next state error =             if error = -2 then\n                st
 form state_exit =             state := 0;\n
 form state_dispatch error state =             if error = {error} then\n                state := {state};\n            end if;\n
 
-# memory read by asking: an ask names the word's address and ends its state, and the take in the next state reads
-# the word, and the one after it, that the bottom of the asking clock read
+# memory read by an ask. An ask names the address of the word and ends its state. The take in the next state reads the
+# word, and the one after it, that the bottom of the clock of the ask read
 form launch_load offset =             asked := word_index(launch + {offset});\n
 form global_load address offset =             asked := word_index({address} + {offset});\n
 form global_load_if where address =             if {where} then\n                asked := word_index({address});\n            end if;\n
 form global_atomic address =             asked := word_index({address});\n
 
-# a loop: its label begins a state, and its branch back ends the state going back to the label's state where the
-# predicate holds and on to the next where not
+# a loop: its label starts a state, and its branch back ends the state. The lane goes back to the state of the label
+# where the predicate holds, and on to the next where it does not
 form label_loop loop =             -- loop {loop}\n
 nop loop_back_if loop where
 form state_loop back where next =             if {where} then\n                state := {back};\n            else\n                state := {next};\n            end if;\n
 
-# the program resident around the lane, as the resident kernel is on NVIDIA: the entity cycle_program_unit,
-# which takes the launch, runs its lanes on cycle_lane_unit one at a time from the hot word's next lane to the
-# launch's count, holds each to the program block's owner and command, and writes where the program is as it
-# leaves. It and the lane unit are the whole circuit a part is built from; the bench only loads it, starts it and
-# reads it back. The offsets are bytes, of the launch, its hot words and its block, and the commands and states the
-# engine's (engine_config.h), as the code generator gives them
+# the program resident around the lane, as the resident kernel is on NVIDIA: the entity cycle_program_unit. It takes
+# the launch, and runs its lanes on cycle_lane_unit one at a time. It starts from the next lane of the hot word, and
+# goes to the count of the launch. It holds each to the owner and command of the program block, and writes where the program is as it
+# leaves. It and the lane unit are the whole circuit that a part builds from. The bench only loads it, starts it and
+# reads it back.
+#
+# The offsets are bytes, of the launch, its hot words and its block. The commands and states are those of the engine
+# (engine_config.h), as the code generator gives them
 form program_unit _launch_bytes count_offset hot_offset block_offset number_offset _ttl_offset _checkin_every_offset next_offset _start_offset _finished_offset _checkins_offset owner_at command_at state_at offset_at step_at _launch_time_at _exectime_at _checkin_at _checkin_time_at run_command stop_command done_state stopped_state yielded_state = \nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\nuse work.cycle_program.all;\n\n-- the program resident, as the resident kernel is on NVIDIA. A clock with run at 1 begins the launch at\n-- launch_given, which holds until done is 1 again, and the unit runs its lanes on the lane unit one at a time, from\n-- the hot word next_lane to the launch's count, each to the lane unit's idle. Before each lane it reads the program's\n-- block, and leaves where the block's owner is not this launch, writing nothing, or where its command is not run. A\n-- launch that owns the block leaves by writing where the program is: the next lane to the hot word and to the\n-- block's offset, 0 to the block's step, and the block's state last, done, stopped or yielded. The block's times and\n-- check-ins, which the device's timer gives on NVIDIA, are not retained: the unit reads no timer. While done is 1 the\n-- unit's ports load the memory and read it back, as the lane unit's do while it is idle\nentity cycle_program_unit is\n    generic (words : positive);\n    port (clock : in std_ulogic;\n          run : in std_ulogic;\n          launch_given : in cycle_wide;\n          load : in std_ulogic;\n          load_at : in natural range 0 to words - 1;\n          load_word : in cycle_word;\n          read_at : in natural range 0 to words - 1;\n          read_word : out cycle_word;\n          done : out std_ulogic);\nend entity cycle_program_unit;\n\narchitecture resident of cycle_program_unit is\n    type cycle_phase is (waiting, asking, taking, count_low, count_high, hot_low, hot_high, next_low, next_high,\n                         block_low, block_high, number_low, number_high, checking, owner_low, owner_high,\n                         command_low, command_high, choosing, starting, started, running, finishing, leaving);\n    signal resting : std_ulogic := '1';\n    signal owning : std_ulogic := '0';\n    signal start : std_ulogic := '0';\n    signal lane_given : cycle_wide := (others => '0');\n    signal own_load : std_ulogic := '0';\n    signal own_load_at : natural range 0 to words - 1 := 0;\n    signal own_load_word : cycle_word := (others => '0');\n    signal own_read_at : natural range 0 to words - 1 := 0;\n    signal unit_load : std_ulogic;\n    signal unit_load_at : natural range 0 to words - 1;\n    signal unit_load_word : cycle_word;\n    signal unit_read_at : natural range 0 to words - 1;\n    signal unit_read_word : cycle_word;\n    signal idle : std_ulogic;\nbegin\n    -- the lane unit's ports are the unit's own while it runs a launch, and the caller's while it rests\n    unit_load <= own_load when owning = '1' else load;\n    unit_load_at <= own_load_at when owning = '1' else load_at;\n    unit_load_word <= own_load_word when owning = '1' else load_word;\n    unit_read_at <= own_read_at when owning = '1' else read_at;\n    read_word <= unit_read_word;\n    done <= resting;\n\n    lanes : entity work.cycle_lane_unit\n        generic map (words => words)\n        port map (clock => clock, start => start, launch_given => launch_given, lane_given => lane_given,\n                  load => unit_load, load_at => unit_load_at, load_word => unit_load_word, read_at => unit_read_at,\n                  read_word => unit_read_word, idle => idle);\n\n    -- a word is read by asking: its address goes to the lane unit, which reads it at the next clock and gives it the\n    -- clock after: the word is taken three clocks after the ask; each phase named for a word takes it, and asks the\n    -- next\n    order : process (clock)\n        variable phase : cycle_phase := waiting;\n        variable following : cycle_phase := waiting;\n        variable address : cycle_wide := (others => '0');\n        variable taken : cycle_word := (others => '0');\n        variable pause : natural range 0 to 2 := 0;\n        variable count, hot, program_block, number, owner, command, lane : cycle_wide := (others => '0');\n        variable located : cycle_word := (others => '0');\n        variable written : natural range 0 to 7 := 0;\n    begin\n        if rising_edge(clock) then\n            case phase is\n                when waiting =>\n                    if run = '1' then\n                        resting <= '0';\n                        owning <= '1';\n                        address := launch_given + {count_offset};\n                        following := count_low;\n                        phase := asking;\n                    end if;\n                when asking =>\n                    own_read_at <= word_index(address);\n                    pause := 2;\n                    phase := taking;\n                when taking =>\n                    if pause = 0 then\n                        taken := unit_read_word;\n                        phase := following;\n                    else\n                        pause := pause - 1;\n                    end if;\n                when count_low =>\n                    count(31 downto 0) := taken;\n                    address := launch_given + {count_offset} + 4;\n                    following := count_high;\n                    phase := asking;\n                when count_high =>\n                    count(63 downto 32) := taken;\n                    address := launch_given + {hot_offset};\n                    following := hot_low;\n                    phase := asking;\n                when hot_low =>\n                    hot(31 downto 0) := taken;\n                    address := launch_given + {hot_offset} + 4;\n                    following := hot_high;\n                    phase := asking;\n                when hot_high =>\n                    hot(63 downto 32) := taken;\n                    address := hot + {next_offset};\n                    following := next_low;\n                    phase := asking;\n                when next_low =>\n                    lane(31 downto 0) := taken;\n                    address := hot + {next_offset} + 4;\n                    following := next_high;\n                    phase := asking;\n                when next_high =>\n                    lane(63 downto 32) := taken;\n                    address := launch_given + {block_offset};\n                    following := block_low;\n                    phase := asking;\n                when block_low =>\n                    program_block(31 downto 0) := taken;\n                    address := launch_given + {block_offset} + 4;\n                    following := block_high;\n                    phase := asking;\n                when block_high =>\n                    program_block(63 downto 32) := taken;\n                    address := launch_given + {number_offset};\n                    following := number_low;\n                    phase := asking;\n                when number_low =>\n                    number(31 downto 0) := taken;\n                    address := launch_given + {number_offset} + 4;\n                    following := number_high;\n                    phase := asking;\n                when number_high =>\n                    number(63 downto 32) := taken;\n                    phase := checking;\n                when checking =>\n                    address := program_block + {owner_at};\n                    following := owner_low;\n                    phase := asking;\n                when owner_low =>\n                    owner(31 downto 0) := taken;\n                    address := program_block + {owner_at} + 4;\n                    following := owner_high;\n                    phase := asking;\n                when owner_high =>\n                    owner(63 downto 32) := taken;\n                    address := program_block + {command_at};\n                    following := command_low;\n                    phase := asking;\n                when command_low =>\n                    command(31 downto 0) := taken;\n                    address := program_block + {command_at} + 4;\n                    following := command_high;\n                    phase := asking;\n                when command_high =>\n                    command(63 downto 32) := taken;\n                    phase := choosing;\n                when choosing =>\n                    if lane >= count then\n                        located := word_of({done_state});\n                    elsif command = {stop_command} then\n                        located := word_of({stopped_state});\n                    else\n                        located := word_of({yielded_state});\n                    end if;\n                    if owner /= number then\n                        phase := leaving;\n                    elsif (command /= {run_command}) or (lane >= count) then\n                        written := 0;\n                        phase := finishing;\n                    else\n                        phase := starting;\n                    end if;\n                when starting =>\n                    start <= '1';\n                    lane_given <= lane;\n                    phase := started;\n                when started =>\n                    -- the lane unit took start at this clock and is not idle from it on\n                    start <= '0';\n                    phase := running;\n                when running =>\n                    if idle = '1' then\n                        lane := lane + 1;\n                        phase := checking;\n                    end if;\n                when finishing =>\n                    own_load <= '1';\n                    case written is\n                        when 0 =>\n                            own_load_at <= word_index(hot + {next_offset});\n                            own_load_word <= lane(31 downto 0);\n                        when 1 =>\n                            own_load_at <= word_index(hot + {next_offset}) + 1;\n                            own_load_word <= lane(63 downto 32);\n                        when 2 =>\n                            own_load_at <= word_index(program_block + {offset_at});\n                            own_load_word <= lane(31 downto 0);\n                        when 3 =>\n                            own_load_at <= word_index(program_block + {offset_at}) + 1;\n                            own_load_word <= lane(63 downto 32);\n                        when 4 =>\n                            own_load_at <= word_index(program_block + {step_at});\n                            own_load_word <= (others => '0');\n                        when 5 =>\n                            own_load_at <= word_index(program_block + {step_at}) + 1;\n                            own_load_word <= (others => '0');\n                        when 6 =>\n                            own_load_at <= word_index(program_block + {state_at}) + 1;\n                            own_load_word <= (others => '0');\n                        when others =>\n                            own_load_at <= word_index(program_block + {state_at});\n                            own_load_word <= located;\n                    end case;\n                    if written = 7 then\n                        phase := leaving;\n                    else\n                        written := written + 1;\n                    end if;\n                when leaving =>\n                    own_load <= '0';\n                    owning <= '0';\n                    resting <= '1';\n                    phase := waiting;\n            end case;\n        end if;\n    end process order;\nend architecture resident;\n
 
 # a kernel of its own, which this language does not write
