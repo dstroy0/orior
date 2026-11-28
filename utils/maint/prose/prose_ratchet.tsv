@@ -986,7 +986,7 @@ ui/cli/src/servers/servers_emit.c	15
 ui/cli/src/servers/servers_files.c	10
 ui/cli/src/servers/servers_findings.c	5
 ui/cli/src/servers/servers_hints.c	5
-ui/cli/src/servers/servers_internal.h	55
+ui/cli/src/servers/servers_internal.h	37
 ui/cli/src/servers/servers_keep.c	12
 ui/cli/src/servers/servers_launch.c	6
 ui/cli/src/servers/servers_offers.c	3

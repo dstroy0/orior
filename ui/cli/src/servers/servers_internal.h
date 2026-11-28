@@ -417,92 +417,93 @@ void cli_servers_recv(const CliLspRecvCfg *args);
 // each server
 #define CLI_SERVERS_METHODS 9u
 extern const char *const g_cli_servers_methods[CLI_SERVERS_METHODS];
-// a server stopped on a thread of its own, its reference given back, or here where no thread is free
+// a server stopped on a thread of its own, with its reference given back, or here where no thread is free
 // (servers_running.c)
 void cli_servers_stop_later(const CliServersPathLspCtx *args);
 
-// `size` bytes of JSON read into `read_state`'s tree, taken to their size, the tree it contained given back: its root,
-// or CLI_JSON_NONE where it is no JSON or the cells cannot meet it; a server's answer read the same way and its message
-// given back; a number as a whole number, `otherwise` where the node is none or no number; and the place
-// `{"line", "character"}` (servers_shapes.c)
+// `size` bytes of JSON, read into the tree of `read_state`, taken to their size. The call gives back the tree that it
+// held. The return is its root, or CLI_JSON_NONE where it is no JSON or the cells cannot meet it (servers_shapes.c)
 unsigned int cli_servers_read(const CliServersReadStateCtx *args);
+// the answer of a server, read in the same way, with its message given back
 unsigned int cli_servers_answer_read(const CliServersReadStateAnswerCtx *args);
-// `method` sent to `server` with the params the line `params` holds, its answer passed over in `answer`: 1, or 0 with
-// why given, a line that did not fit its params refused with no server reached; and the same with the params of a
-// request about the place `line`, `col` of `path`, `added` after the place where it is given
+// `method` sent to `server` with the params that the line `params` holds, with its answer passed over in `answer`. The
+// return is 1, or 0 with the reason. The call refuses a line that did not fit its params, and reaches no server
 int cli_servers_request(const CliServersErrMsgCtx *args);
+// the same, with the params of a request about the place `line`, `col` of `path`, and `added` after the place where it
+// gets them
 int cli_servers_request_at(const CliServersPathCtx *args);
+// a number as a whole number, or `otherwise` where the node is none or no number (servers_shapes.c)
 unsigned long long cli_servers_json_integer(const CliServersJsonNodeOtherwiseCtx *args);
+// the place `{"line", "character"}`
 CliTextPosition cli_servers_position(const CliServersJsonNodeOtherwiseCtx *args);
 // a path written as a JSON string as it is in `tree` (servers_shapes.c)
 void cli_servers_path_write(const CliServersPathErrMsgCtx *args);
-// a workspace edit, in either of the shapes the protocol allows, as each file's edits, `[{"path", "edits"}]`, each
-// file's first in the file first, a file made, moved or removed not among them; and the cells one occupies while it is
-// written (servers_edits.c)
+// a workspace edit, in either of the shapes that the protocol allows, as the edits of each file,
+// `[{"path", "edits"}]`. The first edit of each file in the file comes first. A file made, moved or removed is not
+// among them (servers_edits.c)
 void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args);
-// every file named `name` in the tree at `root`, outside the folders a build writes and at max six folders down,
-// sorted, written as a JSON array into `out`; and the cells a server's start occupies while it starts
-// (servers_launch.c)
+// every file named `name` in the tree at `root`, outside the folders that a build writes, and at max six folders down.
+// The call sorts them, and writes them as a JSON array into `out` (servers_launch.c)
 void cli_servers_projects_in(const CliServersRootOutCtx *args);
-// a hover's contents as Markdown, from any of the shapes the protocol allows, its characters as they are
+// the contents of a hover as Markdown, from any of the shapes that the protocol allows, with its characters as they are
 void cli_servers_markdown_get(const CliServersJsonOutCtx *args);
-// a completion item of the server's put among `items`
+// a completion item of the server, put among `items`
 void cli_servers_item_get(const CliServersJsonOneCtx *args);
-// a call's signature written, `null` where the server gave none; a code action written, `{"orior_plugin", "action"}`
-// its raw where the server of the plugin `plugin` offers it: 1, or 0 where it has no title; and whether the span
-// `from`, `to` shares a place with `range`, a span with no width touching the other counting (servers_offers.c)
+// the signature of a call, written as a panel into `store` (servers_offers.c). The return is 1, or 0 where the server
+// gave none with a label
 int cli_servers_signature_get(const CliServersJsonOutHelpCtx *args);
+// whether the span `from`, `to` shares a place with `range`. A span with no width that touches the other counts
 int cli_servers_overlaps(const CliServersJsonFromCtx *args);
-// a diagnostic of the server's written as orior's, `{"from", "to", "severity", "message", "markdown", "source",
-// "code", "href"}`; and a location written as `{"path", "line", "col"}`: 1, or 0 where it names no file
+// a diagnostic of the server, written as one of orior: `{"from", "to", "severity", "message", "markdown", "source",
+// "code", "href"}`
 void cli_servers_diagnostic_get(const CliServersJsonCtx *args);
 
-// whether the server's capabilities name `name` as on, as neither absent, null nor false; and the spans of the
-// editor's text of `path` that contain `from` to `to` and are more than it, the least first, the tree's, read off the
-// branch under `key` where one is stored and `key` is not NULL, else off the text the servers were told, written as
-// `[[from, to]]`, `[]` where neither holds a text of it or its grammar names none: 1, or 0 with why given
-// (servers_hints.c)
+// whether the capabilities of the server name `name` as on: not absent, null or false (servers_hints.c)
 int cli_servers_capable(const CliServersServerCtx *args);
 // whether the member `inner` of the capability `name` is true
 int cli_servers_capable_true(const CliServersServerCtx *args);
 // whether the server runs the command `command` itself, as its executeCommandProvider lists it
 int cli_servers_capable_command(const CliServersServerCommandCtx *args);
+// the spans of the text of `path` in the editor that hold `from` to `to` and are more than it, the least first. They
+// come from the tree, off the branch under `key` where the store has one and `key` is not NULL. Else they come off the
+// text that the servers got. The call writes them as `[[from, to]]`, or `[]` where neither holds a text of it or its
+// grammar names none. The return is 1, or 0 with the reason
 int cli_servers_selection(const CliServersPathErrMsgOutCtx *args);
 
-// the hash of `size` bytes of `text`, FNV-1a over its bytes, to determine whether what was read of a text is still
+// the hash of `size` bytes of `text`, FNV-1a over its bytes. It tells whether what the call read of a text is still
 // what it reads (servers_parse.c)
 unsigned long long cli_servers_hash_get(const CliServersReadStateCtx *args);
 
-// a file the editor has open, `size` bytes of `text`, given `server` as the tree's slice for its view, the lines 0 to
-// 63 until the page passes one, as the file opened as `id` where `id` is not NULL, else as its next version, the
-// slice's map stored by its key, in the tree at `root`, or the tree it was first given in where `root` is NULL: 1, or 0
-// with why given; whether the file at `path` is given its server as a slice; whether any slice given a server owes its
-// diagnostics, its version above the last its server published of it; and its slice let go as it closes
-// (servers_slice.c)
+// a file that the editor has open, `size` bytes of `text`, given to `server` as the slice of the tree for its view
+// (servers_slice.c). That is the lines 0 to 63 until the page passes one. The file opens as `id` where `id` is not
+// NULL, else as its next version. The call stores the map of the slice by its key. It is in the tree at `root`, or in
+// the tree that it first went in where `root` is NULL. The return is 1, or 0 with the reason
 int cli_servers_slice_send(const CliServersPathSizeRootCtx *args);
+// whether the server of the file at `path` gets it as a slice
 int cli_servers_slice(const CliServersPathLspCtx *args);
+// whether any slice that a server got owes its diagnostics: its version is above the last that its server published of
+// it
 int cli_servers_slices_pending(void);
+// the slice of a file, let go as it closes
 void cli_servers_slice_close(const CliServersPathLspCtx *args);
-// the line of the slice of the file at `path` that came from its own line `line` into `into`: 1, or 0 where none did,
-// a file given whole its own line; and a line of the slice moved to the file and line it came from, `from` the file's
-// path, sized for CLI_PATH_MAX_LEN: 1 where it is the file's own, 2 where another file's, 0 where none, a bracket the
-// slice closes, a file given whole its own
+// the line of the slice of the file at `path` that came from its own line `line`, into `into`. The return is 1, or 0
+// where none did. A file that the server got whole has its own line
 int cli_servers_slice_in(const CliServersPathLineCtx *args);
+// a line of the slice, moved to the file and line that it came from, with the path of the file into `from`, sized for
+// CLI_PATH_MAX_LEN. The return is 1 for the own line of the file, 2 for the line of another file, and 0 for none. A
+// bracket that the slice closes is none. A file that the server got whole has its own
 int cli_servers_slice_out(const CliServersPathLineFromCtx *args);
-// the object `one` of `json`, about the file at `path`, written with the lines of its range moved to the slice's: 1, or
-// 0 with nothing written where the slice holds none of them; and the diagnostics `all`, `size` bytes, the server
-// published with `params`, `params_size` bytes, about the sliced file at `path`, moved to the file's own lines, those
-// on another file's lines left out: their JSON in a cell counted to `owner` the caller gives back, its size into
-// `mapped_size`, or NULL where they are of a version given before the slice stored was or the cells cannot meet them
+// the object `one` of `json`, about the file at `path`, written with the lines of its range moved to those of the
+// slice. The return is 1, or 0 with nothing written where the slice holds none of them
 int cli_servers_slice_ranged_in(const CliServersPathJsonCtx *args);
+// the diagnostics `all`, `size` bytes, that the server published with `params`, `params_size` bytes, about the sliced
+// file at `path`. The call moves them to the own lines of the file, and leaves out those on the lines of another file.
+// The return is their JSON in a cell counted to `owner` that the caller gives back, with its size into `mapped_size`.
+// It is NULL where they are of a version before the stored slice, or the cells cannot meet them
 char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args);
-// A window's slice of a file the check gives its server in slices; what each window is passed to with its slice and
-// its first and last lines, 1 to cut the next, 0 to stop; the file at `path` in the tree at `root`, `size` bytes of
-// `text`, cut in one walk into the slices of its windows, a view's height each, each passed to `window` as the walk
-// reaches it: 1, or 0 with why given where the cells cannot meet them; and a window's slice `cut` stored by the file's
-// key with its map and given `server` as the file opened as `id` where `id` is not NULL, else as its next version: 1,
-// or 0 with why given (servers_slice.c)
+// The slice of a window of a file that the check gives its server in slices (servers_slice.c)
 typedef struct CliServersCut CliServersCut;
+// what the call passes each window with: its slice, and its first and last lines
 typedef struct
 {
     void *context;
@@ -511,16 +512,23 @@ typedef struct
     unsigned int last;
 } CliServersWindowCfg;
 
+// what each window goes to. The return is 1 to cut the next, 0 to stop
 typedef int (*CliServersWindow)(const CliServersWindowCfg *args);
+// the file at `path` in the tree at `root`, `size` bytes of `text`, cut in one walk into the slices of its windows, a
+// view tall each. The call passes each to `window` as the walk reaches it. The return is 1, or 0 with the reason where
+// the cells cannot meet them
 int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args);
+// the slice of a window `cut`, stored by the key of the file with its map, and given to `server`. The file opens as
+// `id` where `id` is not NULL, else as its next version. The return is 1, or 0 with the reason
 int cli_servers_cut_send(const CliServersErrMsgServerCtx *args);
 
-// The editor's text of a file goes into a temporary cell of the servers with a 0 after it, and its size into `size`.
-// Returns the cell, or NULL where the editor has no text or the pool cannot meet the cell. The call that asks gives
-// the cell back (servers_files.c)
+// The text of a file in the editor goes into a temporary cell of the servers with a 0 after it, and its size into
+// `size`. The return is the cell, or NULL where the editor has no text or the pool cannot meet the cell. The call that
+// asks gives the cell back (servers_files.c)
 char *cli_servers_text_alloc(const CliServersPathSizeTypeCtx *args);
-// a file's key and its URI, each into what is sized for CLI_PATH_MAX_LEN (servers_emit.c)
+// the key of a file, into a line of CLI_PATH_MAX_LEN (servers_emit.c)
 void cli_servers_key_get(const CliServersPathKeyCtx *args);
+// the URI of a file, into a line of CLI_PATH_MAX_LEN
 void cli_servers_uri_get(const CliServersPathUriCtx *args);
 // a file's diagnostics passed on whole: its server's, less its reports of an attribute a class's family sets and of a
 // name a build tool gives it, then each checker's; and a checker's findings stored, `[[path,
