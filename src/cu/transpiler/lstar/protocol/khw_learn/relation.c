@@ -64,11 +64,11 @@ void khw_union_written(void)
     }
 }
 
-// The relation `question`, put over the cases khw_union_written writes, answers, read by the gate (P2). Each case of
-// each candidate is read as P11 reads it against the host's answer, and a candidate fails a case it does not read
-// alike: no cost enters S, and the survivors are the conjunction over every case. The first survivor in the ladder's
-// order, in order before swapped and plain before signed, is retained in `form` with the count of survivors, its
-// reading (Q11). 1 where one survived, 0 where none did
+// The relation that `question` answers, put over the cases that khw_union_written writes, and read by the gate (P2).
+// The gate reads each case of each candidate as P11 reads it, against the answer of the host. A candidate fails a case
+// that it does not read alike, and no cost enters S, and the survivors are the conjunction over every case. The call
+// keeps in `form` the first survivor in the order of the ladder, in order before swapped and plain before signed. It
+// keeps it with the count of survivors and its reading (Q11). The return is 1 where one survived, 0 where none did
 int khw_relation_of(const RunQuestion *question, KhwAnswered *form, int guarded)
 {
     static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
@@ -80,8 +80,8 @@ int khw_relation_of(const RunQuestion *question, KhwAnswered *form, int guarded)
     form->survivors = 0u;
     for (unsigned int candidate = 0u; candidate < s_candidates; candidate += 1u)
     {
-        // a question put plain is read against the register relations alone, and one put with the store guarded
-        // against the predicate relations alone: each kernel reads the other's relations as nothing
+        // the call reads a question put plain against the register relations alone. It reads one put with the store
+        // guarded against the predicate relations alone. Each kernel reads the relations of the other as nothing
         const int predicate = ladder_predicate(s_candidate[candidate].anchor);
         for (unsigned int place = 0u; place < s_union_cases; place += 1u)
         {
@@ -127,8 +127,9 @@ static int khw_relation_read(KhwAnswered *form)
     return khw_relation_of(&s_question, form, khw_store_is_guarded());
 }
 
-// 1 where `question`, put plain, answered the second word on every case: the probe left the register the kernel
-// stores alone, as a form that writes a predicate does, and the question is put again with the store guarded
+// 1 where `question`, put plain, answered the second word on every case. The probe did not change the register that
+// the kernel stores, as a form that writes a predicate does. The call then puts the question again with the store
+// guarded
 int khw_second_word_located(const RunQuestion *question)
 {
     if (question->outcome != RUN_ANSWERED)
@@ -145,8 +146,9 @@ int khw_second_word_located(const RunQuestion *question)
     return 1;
 }
 
-// the relation `low` and `high` at the probe place answers, read as khw_relation_read reads it, plain and then, where
-// no relation answered and the second word was on every case, with the store guarded. 1 where one relation answered
+// the relation that `low` and `high` at the probe place answers, read as khw_relation_read reads it. The call reads it
+// plain. Where no relation answered and the second word stayed as it was on every case, it reads it with the store
+// guarded. The return is 1 where one relation answered
 int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAnswered *form)
 {
     form->low = low;
@@ -164,15 +166,19 @@ int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAns
     return answered;
 }
 
-// The first round: the kernel's own relation and the probe place, put together, since neither waits on the other's
-// answer. The kernel's question is the kernel the system accepted, every instruction of it waiting on all six barriers
-// and otherwise unchanged, over the cases khw_union_written writes, its relation read by the gate. The probe place is
-// the kernel listing's where it names one, the part's answer in its .ksc, and nothing is put for it; otherwise the
-// probe place's questions are the kernel with each place but the unreached in turn containing the encoding its
-// unreached places contain, over one case, and the probe place is the first place whose answer comes back as the case's
-// second word, because nothing then wrote the register the kernel stores. The relation that answered is then put once
-// more over its own cases, its launches timed into `nanoseconds`, 0 where the part gave no time. 1 where the kernel
-// answered a relation, its probe place through `kernel_place`, past every place where none answered so
+// The first round: the own relation of the kernel and the probe place, put together, because neither waits on the
+// answer of the other. The question of the kernel is the kernel that the system accepted, over the cases that
+// khw_union_written writes. Every instruction of it waits on all six barriers, and nothing else changes. The gate reads
+// its relation.
+//
+// Where the kernel listing names a probe place, that is the probe place, the answer of the part in its .ksc. The call
+// puts nothing for it. Else the questions of the probe place are the kernel over one case. In turn, each place but the
+// unreached ones holds the encoding of its unreached places. The probe place is the first place whose answer comes back
+// as the second word of the case. Then nothing wrote the register that the kernel stores.
+//
+// The call then puts the relation that answered once more, over its own cases, and times its launches into
+// `nanoseconds`, 0 where the part gave no time. The return is 1 where the kernel answered a relation, with its probe
+// place through `kernel_place`. Where none answered so, the probe place is past every place
 int khw_first_round(KhwAnswered *kernel, unsigned int *kernel_place, unsigned long long *nanoseconds)
 {
     static unsigned int s_word[RUN_CASES_MAX][2];
@@ -188,8 +194,8 @@ int khw_first_round(KhwAnswered *kernel, unsigned int *kernel_place, unsigned lo
     khw_union_written();
     s_pooled = 0u;
     const unsigned int kernel_at = khw_pooled(s_kernel_places, 0ULL, 0ULL, s_union_word, s_union_cases);
-    // the places are put only where the kernel listing names no probe place: a place put with the unreached encoding
-    // runs the kernel without that place, and a place the addresses depend on faults the part
+    // the call puts the places only where the kernel listing names no probe place. A place put with the unreached
+    // encoding runs the kernel without that place, and a place that the addresses depend on faults the part
     for (unsigned int place = 0u; (s_kernel_probe_place >= s_kernel_places) && (place < s_kernel_places); place += 1u)
     {
         const unsigned long long low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
