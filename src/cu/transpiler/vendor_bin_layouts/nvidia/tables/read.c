@@ -172,9 +172,10 @@ static int tables_field_line(const char *line, TablesField *field)
     return (unsigned long)field->width == count;
 }
 
-// An ENCODING line's fields added to `class_`: one field, or several joined by commas on the line's left and
-// written from one operand, `BITS_5_58_54_Sc_bank,BITS_14_53_40_Sc_addr=ConstBankAddress2(Sb_bank,Sb_addr)`, where
-// each field takes the operand's argument in its place, and the whole operand where it has none to give
+// The fields of an ENCODING line, added to `class_`. That is one field, or several joined by commas on the left of
+// the line and written from one operand, as
+// `BITS_5_58_54_Sc_bank,BITS_14_53_40_Sc_addr=ConstBankAddress2(Sb_bank,Sb_addr)`. There, each field takes the argument
+// of the operand in its place, and the whole operand where it has none to give
 static void tables_fields_line(const char *line, TablesClass *class_)
 {
     const char *const equals =
@@ -289,9 +290,9 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
     return 0u;
 }
 
-// a FORMAT line containing a size operand, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: the choices between `SZ_` and the
-// parenthesis, each a width in bits after any characters, in the order the field counts them, and the operand's name
-// after the colon
+// a FORMAT line that holds a size operand, `/SZ_U8_S8_U16_S16_32_64("32"):sz`. It has the choices between `SZ_` and
+// the parenthesis, each a width in bits after any characters, in the order that the field counts them. Then the name
+// of the operand after the colon
 static void tables_size_read(const char *line, TablesClass *class_)
 {
     const char *const size = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
@@ -404,9 +405,9 @@ unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long lo
     return (choice < class_->sizes) ? class_->size_bytes[choice] : 4u;
 }
 
-// a FORMAT line containing a constant-bank operand, `C:<name>[...:<bank>]...[...:<offset>]`: the bank the name
-// after the first bracket's last colon, the offset the name after the last bracket's last colon, and the offset
-// operand's width the immediate's inside that bracket
+// a FORMAT line that holds a constant-bank operand, `C:<name>[...:<bank>]...[...:<offset>]`. The bank is the name after
+// the last colon of the first bracket. The offset is the name after the last colon of the last bracket. The width of
+// the offset operand is that of the immediate inside that bracket
 static void tables_constant_read(const char *line, TablesClass *class_)
 {
     const char *const constant =
@@ -523,8 +524,8 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         }
         if (part == CONDITIONS)
         {
-            // a condition is a line ending in a colon, under a type on the registers. The line after it, in quotes, is
-            // its message, and a condition longer than its room is not stored
+            // a condition is a line that ends in a colon, under a type on the registers. The line after it, in
+            // quotes, is its message. The reader does not store a condition longer than its room
             const char *const text_at = tables_past_spaces(line);
             size_t copied = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text_at, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             while ((copied != 0u) && ((text_at[copied - 1u] == ' ') || (text_at[copied - 1u] == ':')))
@@ -655,7 +656,7 @@ unsigned long long tables_field_read(const TablesField *field, unsigned long lon
 void tables_field_write(const TablesField *field, unsigned long long *low, unsigned long long *high,
                         unsigned long long value)
 {
-    // the low run takes the value's low bits: the runs are written last first
+    // the low run takes the low bits of the value, because the table writes the runs last first
     unsigned int run = field->runs;
     while (run != 0u)
     {
@@ -667,8 +668,9 @@ void tables_field_write(const TablesField *field, unsigned long long *low, unsig
     }
 }
 
-// A condition read: the text walked, the class and the encoding it is judged over, and whether anything it names is
-// past this reader's judgment; a condition naming one such thing is not judged at all
+// A condition read: the text walked, and the class and the encoding that the reader judges it over. Then whether a
+// thing that it names is past the judgment of this reader. The reader does not judge a condition that names one such
+// thing
 typedef struct
 {
     const char *at;
@@ -693,7 +695,7 @@ static void tables_condition_spaces(TablesCondition *condition)
     }
 }
 
-// 1 where the text at the condition's place begins with `word`, which is then stepped over
+// 1 where the text at the place of the condition starts with `word`, and the call then steps over it
 static int tables_condition_word(TablesCondition *condition, const char *word)
 {
     tables_condition_spaces(condition);
@@ -712,8 +714,8 @@ static int tables_condition_name_char(char character)
     return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (uint8_t)character) || (character == '_');
 }
 
-// a constant after the backquote, `` `Register@RZ ``, `` `SZ_U8_S8_U16_S16_32_64@"64" ``: the registers' own by
-// name, a choice of the class's size list by its place in the list, and anything else left undecided
+// a constant after the backquote, `` `Register@RZ ``, `` `SZ_U8_S8_U16_S16_32_64@"64" ``. It is the own constant of the
+// registers by name, or a choice of the size list of the class by its list place. The reader leaves all else undecided
 static long long tables_condition_constant(TablesCondition *condition)
 {
     char list[TABLES_NAME];
@@ -818,8 +820,8 @@ static long long tables_condition_constant(TablesCondition *condition)
 
 static long long tables_condition_implies(TablesCondition *condition);
 
-// a primary: a parenthesized condition, a number, a constant after a backquote, a register count after a percent,
-// or an operand of the class read off the encoding; anything else is left undecided
+// a primary: a parenthesized condition, a number, a constant after a backquote, or a register count after a percent.
+// Else it is an operand of the class, read from the encoding. The reader leaves all else undecided
 static long long tables_condition_primary(TablesCondition *condition)
 {
     tables_condition_spaces(condition);
@@ -884,7 +886,7 @@ static long long tables_condition_primary(TablesCondition *condition)
     const TablesField *const field = (length != 0u) ? tables_field_by_operand(condition->class_, operand) : NULL;
     if (field == NULL)
     {
-        // a name no field of the class is written from, or no name at all where one was due
+        // a name that no field of the class comes from, or no name at all where the line must have one
         condition->at += (length == 0u && *condition->at != '\0') ? 1 : 0;
         condition->unjudged = 1;
         return 0LL;

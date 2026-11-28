@@ -673,7 +673,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_turn_bits.py	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_widen_ask.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.h	4
-src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c	15
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.h	14
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_capture.sh	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/tables/tables_funnel.c	4
