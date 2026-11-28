@@ -571,7 +571,6 @@ src/cu/transpiler/lstar/protocol/order/query_order.c	10
 src/cu/transpiler/lstar/protocol/order/query_order.h	14
 src/cu/transpiler/lstar/protocol/order/scheduler.c	1
 src/cu/transpiler/lstar/protocol/order/scheduler.h	13
-src/cu/transpiler/lstar/protocol/order/stem_group.h	18
 src/cu/transpiler/lstar/protocol/overseer/accounts.c	6
 src/cu/transpiler/lstar/protocol/overseer/overseer_internal.h	2
 src/cu/transpiler/lstar/protocol/overseer/ruling.c	5
