@@ -5,12 +5,12 @@
 
     sass_turn_bits.py <low> <high> <binary> [--without <address>,<address>,...]
 
-`low` and `high` are the instruction's two 64-bit words in hex, low first, as a listing prints them. The encoding
-itself goes first. The disassembler's line at address 0 is then the form given, and the line at address 16*(bit+1)
-is that form with bit `bit` turned over.
+`low` and `high` are the two 64-bit words of the instruction in hex, low first, as a listing prints them. The
+encoding itself goes first. The line of the disassembler at address 0 is then the form given. The line at address
+`16*(bit+1)` is that form with bit `bit` turned over.
 
-`--without` names, in hex, the addresses of encodings the disassembler refused. Each is written as a NOP instead of
-being dropped, and every other encoding then retains the address that says which bit it is. Their bits read as NOP,
+`--without` names, in hex, the addresses of encodings that the disassembler refused. The script writes each as a NOP,
+and does not drop it. Thus every other encoding keeps the address that says which bit it is. Their bits read as NOP,
 and by that the caller tells a refused encoding from a decoded one.
 """
 
