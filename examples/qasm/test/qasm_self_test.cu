@@ -4,7 +4,7 @@
 // states, each lane equal to the dense port's run from the same start amplitude for amplitude; then the same programs
 // on the device inside one tessera job, their records equal to the host's word for word; then the errors.
 #include "../src/qasm.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>

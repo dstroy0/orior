@@ -7,7 +7,7 @@
 // Every value is allocated from the heap. The test runs at any width the header accepts.
 
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 #include <cstdio>

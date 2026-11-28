@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// preview.h: the live preview of the view displayed, as the window draws it beside the text or alone over it: the type of
-// preview a file's path has, the mode chosen once for every file and saved, the view the preview is bound to, and the
-// step that positions the view's text out again as it changes, at max once a look, a Markdown text as items (preview.c,
-// preview_markdown.c). The items are in two movable cells sized to them, the items with the blocks after them and the
-// text the items draw, read out by copy at each site, each item a row of the first cell sorted by its top: a run of
-// text, a box, a rule, a line segment, or a block's rectangle, outlined while the cursor's line is in the block.
-// The item row passed out is a copy, with its text copied beside it, that the next row read replaces. The preview's
-// scroll top is here alone: the wheel moves it and leads the view's top along, the view's top moved by the editor
-// moves it in turn and leads nothing back, and the source line at a top and the top of a source line answer each other
-// between two blocks. A press on a link answers where it goes: a place in the preview, scrolled to, a file of the tree
-// to open, or an address opened in the reader's browser here
+// preview.h: the live preview of the view displayed, as the window draws it beside the text or alone over it: the type
+// of preview a file's path has, the mode chosen once for every file and saved, the view the preview is bound to, and
+// the step that positions the view's text out again as it changes, at max once a look, a Markdown text as items
+// (preview.c, preview_markdown.c). The items are in two movable cells sized to them, the items with the blocks after
+// them and the text the items draw, read out by copy at each site, each item a row of the first cell sorted by its top:
+// a run of text, a box, a rule, a line segment, or a block's rectangle, outlined while the cursor's line is in the
+// block. The item row passed out is a copy, with its text copied beside it, that the next row read replaces. The
+// preview's scroll top is here alone: the wheel moves it and leads the view's top along, the view's top moved by the
+// editor moves it in turn and leads nothing back, and the source line at a top and the top of a source line answer each
+// other between two blocks. A press on a link answers where it goes: a place in the preview, scrolled to, a file of the
+// tree to open, or an address opened in the reader's browser here
 #ifndef CLI_PREVIEW_H
 #define CLI_PREVIEW_H
 #include "../command_line/cli_internal.h"
@@ -153,10 +153,10 @@ typedef struct
 // off, beside or alone, where it is not NULL, else `mode` where the preview is in another, and off where it is
 // in `mode` already; the view under `key` bound, its path read from the views, the items let go and the top put at 0
 // where the view, its path or its type changed: 1 where it did, NULL unbinding; and the step at `now_ms` for the view
-// under `key` displayed in a rectangle `width_px` by `height_px` frame pixels at `scale`: the view bound, the text arranged
-// again where it changed since the last look and a look is owed or the width moved, the top following the view's
-// where the editor moved it, and the block of the cursor's line marked: 1 where the preview draws anew; and when the
-// next look is owed, 0 for none
+// under `key` displayed in a rectangle `width_px` by `height_px` frame pixels at `scale`: the view bound, the text
+// arranged again where it changed since the last look and a look is owed or the width moved, the top following the
+// view's where the editor moved it, and the block of the cursor's line marked: 1 where the preview draws anew; and when
+// the next look is owed, 0 for none
 void cli_preview_begin(const CliPreviewCfg *args);
 unsigned int cli_preview_type(const CliPreviewCfg *args);
 unsigned int cli_preview_mode_get(const CliPreviewCfg *args);

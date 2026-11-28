@@ -2,20 +2,29 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """harness.py cli test: impero's Unity suites generated, built and run.
 
-    harness.py cli test [name...]        every suite, or the suites named
-    harness.py cli test --sanitize address|thread   the same built and run under that sanitizer, a report failing its suite
-    harness.py cli test --cases name     what the generator registers in a suite, and what it would skip
-    harness.py cli coverage build       the library, the suites, the program and the window built with --coverage
-    harness.py cli coverage test         the suites built for coverage run
-    harness.py cli coverage report       their counts merged through gcovr into build/sonarqube/coverage.xml
+    harness.py cli test [name...]
+    harness.py cli test --sanitize address|thread
+    harness.py cli test --cases name
 
-A suite is a directory, utils/test/src/ui/cli/unit/<module>/test_<module>/, holding one test_<module>.c with file-scope
-`void test_<name>(void)` cases and the generated unity_runner.c beside it. The generator reads case names out of the source
-text: a function it does not collect never runs and the suite still passes. A near miss is reported and fails the run.
-Unity is fetched once into build/unity at the tag MMgr's suites pin.
+    harness.py cli coverage build
+    harness.py cli coverage test
+    harness.py cli coverage report
+
+The first runs every suite, or the suites named. With --sanitize, it builds and runs the same under that sanitizer,
+and a report fails its suite. With --cases, it prints what the generator registers in a suite, and what it would skip.
+The coverage build builds the library, the suites, the program and the window with --coverage. The coverage test runs
+the suites built for coverage. The coverage report merges their counts through gcovr into
+build/sonarqube/coverage.xml.
+
+A suite is a directory, utils/test/src/ui/cli/unit/<module>/test_<module>/. It holds one test_<module>.c with
+file-scope `void test_<name>(void)` cases, and the generated unity_runner.c beside it. The generator reads case names out
+of the source text: a function it does not collect never runs and the suite still passes. The command reports a near
+miss, which fails the run. It fetches Unity once into build/unity at the tag that MMgr's suites pin.
 """
 
 import collections
+import concurrent.futures
+import hashlib
 import os
 import re
 import shutil
@@ -32,7 +41,7 @@ RUNNER_OPTIONS = os.path.join(SUITES, "support", "unity_runner.yml")
 # The suffix of a coverage build's folders, as ORIOR_COVERAGE names them in ui/cli/build.sh.
 COVERAGE = "-coverage"
 
-# What Unity's generate_test_runner.rb collects, and the shape a case has to have to be collected.
+# What Unity's generate_test_runner.rb collects, and the shape that a case has to have, which the generator collects.
 UNITY_CASE = re.compile(r"^[ \t]*void[ \t]+(test_\w+)[ \t]*\([ \t]*(?:void)?[ \t]*\)", re.M)
 NEAR_MISS = re.compile(r"^[ \t]*void[ \t]+(\w+)[ \t]*\([ \t]*(?:void)?[ \t]*\)[ \t]*\r?\n[ \t]*\{", re.M)
 NOT_A_CASE = ("setUp", "tearDown", "main", "suiteSetUp", "suiteTearDown")
@@ -139,13 +148,13 @@ def suite_dirs(root, names, suites=SUITES, extension=".c"):
 
 
 def plain_words(root):
-    """The compile and link flags of a suite, the library being bitcode that a suite links through LTO."""
+    """The compile and link flags of a suite, as the library is bitcode that a suite links through LTO."""
     return ["-O1", "-g", "-flto=thin", *link_words(root)]
 
 
 def sanitize_words(root, sanitize):
-    """The compile and link flags of a suite built under a sanitizer, matching ORIOR_SANITIZE in ui/cli/build.sh: on Windows the C
-    runtime's DLL and no bitcode."""
+    """The compile and link flags of a suite built under a sanitizer, as ORIOR_SANITIZE has them in ui/cli/build.sh. On
+    Windows they take the C runtime's DLL and no bitcode."""
     words = ["-fsanitize=" + sanitize, "-fsanitize-recover=" + sanitize, "-fno-omit-frame-pointer"]
     if sys.platform == "win32":
         return ["-O1", "-g", "-fuse-ld=lld", *words, "-fms-runtime-lib=dll", "-D_DLL"]
@@ -154,7 +163,7 @@ def sanitize_words(root, sanitize):
 
 def sanitize_env(sanitize, report_path, env):
     """`env` with a sanitizer's reports not halting and written from `report_path`, and on Windows the address sanitizer's
-    runtime, which lies beside the compiler's libraries, on the PATH. `env` as it is where no sanitizer is named."""
+    runtime, which lies beside the compiler's libraries, on the PATH. `env` as it is where the call names no sanitizer."""
     if not sanitize:
         return env
     for name in ("ASAN_OPTIONS", "TSAN_OPTIONS"):
@@ -173,27 +182,102 @@ def coverage_words():
 
 
 def run_folder(root, build_suffix):
-    """The folder a suite's program is built and run in: a coverage or sanitizer build's is apart from the plain build's."""
+    """The folder that a suite's program builds and runs in: a coverage or sanitizer build's is apart from the plain
+    build's."""
     return os.path.join(root, "build", "cli_unit" + build_suffix)
 
 
-def build_suite(root, suite_dir, unity, library, target, suffix, libraries, run, flags):
-    """The suite's program built in `run` with `flags`: its path, or None with the compiler's output printed."""
+# The folders under the top of the tree whose files a suite's build reads, which git's object ids key
+KEYED_TOPS = ("ui", "includes", "src", SUITES.replace("\\", "/"))
+
+
+def tree_ids(root):
+    """Every file under KEYED_TOPS by its path from the top of the tree, with its git object id. A file that the working
+    tree leaves as the index holds it has the id of the index. A file that the working tree changed, or that git does not
+    track, has the id that git hash-object gives it as it stands. The ids leave out a file that the working tree
+    removed."""
+    def listed(*words):
+        out = subprocess.run(["git", *words, "-z", "--", *KEYED_TOPS], cwd=root, capture_output=True, check=True).stdout
+        return [path for path in out.decode("utf-8", "surrogateescape").split("\0") if path]
+
+    ids = {}
+    for entry in listed("ls-files", "-s"):
+        described, path = entry.split("\t", 1)
+        ids[path] = described.split()[1]
+    changed = sorted(set(listed("diff", "--name-only") + listed("ls-files", "--others", "--exclude-standard")))
+    present = [path for path in changed if os.path.isfile(os.path.join(root, path))]
+    for path in changed:
+        ids.pop(path, None)
+    if present:
+        hashed = subprocess.run(["git", "hash-object", "--stdin-paths"], cwd=root, input="\n".join(present).encode("utf-8", "surrogateescape"),
+                                capture_output=True, check=True).stdout.decode().split()
+        ids.update(zip(present, hashed))
+    return ids
+
+
+def suite_keys(root, library):
+    """What every suite's key shares. It holds the ids of every header that a suite can include, the tag of Unity, and
+    the library's bytes, which git does not track. The ids of every file under KEYED_TOPS ride along for each
+    suite's own."""
+    ids = tree_ids(root)
+    shared = hashlib.sha1()
+    for path in sorted(path for path in ids if path.endswith((".h", ".inc"))):
+        shared.update(("%s %s\n" % (path, ids[path])).encode("utf-8", "surrogateescape"))
+    shared.update(UNITY_TAG.encode())
+    with open(library, "rb") as archive:
+        for piece in iter(lambda: archive.read(1 << 20), b""):
+            shared.update(piece)
+    return ids, shared.hexdigest()
+
+
+def suite_key(root, suite_dir, keys, command):
+    """The key of one suite's build. It holds the shared key, the ids of the suite's files, the support file and the
+    runner's options, and the command's words. The generated runner comes from the source, the options and Unity, and
+    those stand for it."""
+    ids, shared = keys
+    key = hashlib.sha1(shared.encode())
+    folder = os.path.relpath(suite_dir, root).replace("\\", "/") + "/"
+    named = [path for path in ids if path.startswith(folder) and not path.endswith("/" + GENERATED_RUNNER)]
+    for path in sorted(named) + [SUPPORT.replace("\\", "/"), RUNNER_OPTIONS.replace("\\", "/")]:
+        key.update(("%s %s\n" % (path, ids.get(path, ""))).encode("utf-8", "surrogateescape"))
+    key.update("\0".join(command).encode("utf-8", "surrogateescape"))
+    return key.hexdigest()[:16]
+
+
+def suite_built(root, suite_dir, unity, library, target, suffix, libraries, run, flags, keys=None):
+    """The suite's program built in `run` with `flags`: its path and None, or None and the report of why it did not build.
+    Where `keys` come from suite_keys, the program's name carries the key of its build. A program of the same key stays,
+    and the programs of the suite's other keys go."""
     name = os.path.basename(suite_dir)
     source = generate_runner(root, suite_dir, unity)
     _, missed = runner_cases(source)
     if missed:
-        print("  %s: the generator skips %s; rename each to test_<name>" % (name, ", ".join(missed)), flush=True)
-        return None
-    program = os.path.join(run, name + suffix)
+        return None, "  %s: the generator skips %s; rename each to test_<name>" % (name, ", ".join(missed))
+    runner = os.path.join(suite_dir, GENERATED_RUNNER)
     command = [os.environ.get("CC", "clang"), "--target=" + target, "-std=c11", *flags, *compile_words(root),
                # Unity's default includes <stdnoreturn.h>, whose `noreturn` macro breaks `__declspec(noreturn)` in the MSVC headers
-               "-I", os.path.join(unity, "src"), "-DUNITY_INCLUDE_DOUBLE", "-DUNITY_NORETURN=_Noreturn", "-o", program, source, os.path.join(suite_dir, GENERATED_RUNNER),
+               "-I", os.path.join(unity, "src"), "-DUNITY_INCLUDE_DOUBLE", "-DUNITY_NORETURN=_Noreturn", source, runner,
                os.path.join(unity, "src", "unity.c"), os.path.join(root, SUPPORT), library, *libraries]
-    built = subprocess.run(command, capture_output=True, text=True, check=False)
+    key = suite_key(root, suite_dir, keys, command) if keys is not None else None
+    program = os.path.join(run, name + (("-" + key) if key else "") + suffix)
+    if key and os.path.isfile(program):
+        return program, None
+    built = subprocess.run([*command, "-o", program], capture_output=True, text=True, check=False)
     if built.returncode != 0:
-        print("  %s did not compile:\n%s" % (name, "\n".join((built.stdout + built.stderr).splitlines()[-24:])), flush=True)
-        return None
+        return None, "  %s did not compile:\n%s" % (name, "\n".join((built.stdout + built.stderr).splitlines()[-24:]))
+    if key:
+        kept = name + "-" + key
+        for entry in os.listdir(run):
+            if entry.startswith(name + "-") and not entry.startswith(kept):
+                os.remove(os.path.join(run, entry))
+    return program, None
+
+
+def build_suite(root, suite_dir, unity, library, target, suffix, libraries, run, flags):
+    """The suite's program built in `run` with `flags`: its path, or None with the compiler's output printed."""
+    program, report = suite_built(root, suite_dir, unity, library, target, suffix, libraries, run, flags)
+    if report is not None:
+        print(report, flush=True)
     return program
 
 
@@ -209,7 +293,8 @@ def lowered_priority():
 
 
 def suite_env():
-    """A suite's environment: its fixtures' commits and tags are not signed, and git leaves their line ends as written."""
+    """A suite's environment: git signs none of its fixtures' commits and tags, and git leaves their line ends as
+    written."""
     return dict(os.environ, GIT_CONFIG_COUNT="3", GIT_CONFIG_KEY_0="commit.gpgsign", GIT_CONFIG_VALUE_0="false", GIT_CONFIG_KEY_1="tag.gpgsign", GIT_CONFIG_VALUE_1="false", GIT_CONFIG_KEY_2="core.autocrlf", GIT_CONFIG_VALUE_2="false")
 
 
@@ -227,11 +312,12 @@ def sanitizer_reports(name, run):
 
 
 def program_ran(name, program, run, env):
-    """A suite's program run in `run`, a line printed for it: its tests, its failures, and whether the suite failed. A sanitizer's
-    report fails it, and the pool's and owners' lines it prints under ORIOR_CELLS_OWNERS are printed.
-    The program writes into files and never into pipes. A process a suite starts and leaves behind inherits the suite's output handles,
-    and a pipe stays open while that process lives, which a read of the pipe would wait out; a file's end is read as the
-    program ends whatever else holds the file."""
+    """A suite's program run in `run`, with a line for it: its tests, its failures, and whether the suite failed. A
+    sanitizer's report fails it, and the call prints the pool's and owners' lines that it prints under
+    ORIOR_CELLS_OWNERS.
+    The program writes into files and never into pipes. A process that a suite starts and leaves behind inherits the
+    suite's output handles. A pipe stays open while that process lives, which a read of the pipe would wait out. A
+    read meets a file's end as the program ends, whatever else holds the file."""
     out_path = os.path.join(run, name + ".out.txt")
     err_path = os.path.join(run, name + ".err.txt")
     with open(out_path, "w", encoding="utf-8") as out, open(err_path, "w", encoding="utf-8") as err:
@@ -286,27 +372,33 @@ def run_suites(root, names, library_built, sanitize=""):
     failures = 0
     failing = []
     suites = suite_dirs(root, names)
-    for suite_dir in suites:
-        name = os.path.basename(suite_dir)
-        program = build_suite(root, suite_dir, unity, library, target, suffix, libraries, run, flags)
-        if program is None:
-            failing.append(name)
-            continue
-        ran_tests, ran_failures, failed = program_ran(name, program, run, env)
-        tests += ran_tests
-        failures += ran_failures
-        if failed:
-            failing.append(name)
+    keys = suite_keys(root, library)
+    # The suites build at once, one build to a processor, and each runs in its order as soon as its build ends. The
+    # runs go one at a time, as suites share the fixtures of the tree
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
+        builds = [pool.submit(suite_built, root, suite_dir, unity, library, target, suffix, libraries, run, flags, keys) for suite_dir in suites]
+        for suite_dir, build in zip(suites, builds):
+            name = os.path.basename(suite_dir)
+            program, report = build.result()
+            if program is None:
+                print(report, flush=True)
+                failing.append(name)
+                continue
+            ran_tests, ran_failures, failed = program_ran(name, program, run, env)
+            tests += ran_tests
+            failures += ran_failures
+            if failed:
+                failing.append(name)
     return totals_printed(len(suites), tests, failures, failing)
 
 
 def coverage_folders(root, target):
-    """The folders holding a coverage build's objects and programs, where each writes its .gcno and .gcda."""
+    """The folders that hold a coverage build's objects and programs, where each writes its .gcno and .gcda."""
     return [os.path.join(root, "build", "cli", target + COVERAGE), run_folder(root, COVERAGE)]
 
 
 def coverage_built(root, names, library_built):
-    """Every suite named built for coverage and not run, for a build wrapper to record without recording what a test compiles.
+    """Every suite named built for coverage and not run, for a build wrapper to record, apart from what a test compiles.
     `library_built(target)` builds impero for coverage and answers its archive, or None. Answers the process's exit code."""
     lowered_priority()
     target, suffix, libraries = host_target()
@@ -318,7 +410,17 @@ def coverage_built(root, names, library_built):
     os.makedirs(run, exist_ok=True)
     flags = coverage_words()
     suites = suite_dirs(root, names)
-    failing = [os.path.basename(suite_dir) for suite_dir in suites if build_suite(root, suite_dir, unity, library, target, suffix, libraries, run, flags) is None]
+    # coverage_ran finds each program by the suite's name alone, and a coverage build carries no key
+    keys = None
+    failing = []
+    # the suites build at once, one build to a processor, and the reports print in the suites' order
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
+        builds = [pool.submit(suite_built, root, suite_dir, unity, library, target, suffix, libraries, run, flags, keys) for suite_dir in suites]
+        for suite_dir, build in zip(suites, builds):
+            program, report = build.result()
+            if program is None:
+                print(report, flush=True)
+                failing.append(os.path.basename(suite_dir))
     print("cli coverage: %d suites built, %d did not%s" % (len(suites) - len(failing), len(failing), (": " + ", ".join(failing)) if failing else ""), flush=True)
     return 1 if failing else 0
 
@@ -355,8 +457,9 @@ def coverage_ran(root, names):
 
 
 def coverage_report(root):
-    """The .gcda merged through gcovr into build/sonarqube/coverage.xml, SonarQube's generic coverage format, the summary printed.
-    llvm-cov reads the counts clang's --coverage writes, and test code, build products and MMgr, which has its own scan, are not counted."""
+    """The .gcda merged through gcovr into build/sonarqube/coverage.xml, in SonarQube's generic coverage format. The call
+    prints the summary. llvm-cov reads the counts that clang's --coverage writes. The count leaves out test code, build
+    products and MMgr, which has its own scan."""
     target = host_target()[0]
     os.makedirs(os.path.join(root, "build", "sonarqube"), exist_ok=True)
     command = [sys.executable, "-m", "gcovr", "--root", ".", "--gcov-executable", "llvm-cov gcov", "--sonarqube", "build/sonarqube/coverage.xml",

@@ -123,7 +123,7 @@ for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement 
 done
 # the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
 PORTABLE_SOURCES+=("$ENGINE/../../../includes/file_defs/qry/writer/qry_member.c"
-    "$ENGINE/../../../includes/file_defs/qry/writer/platform/"*.c "$ENGINE/../../../includes/file_defs/qry/qry_read.c")
+    "${PLATFORM_QRY_RUN[@]}" "$ENGINE/../../../includes/file_defs/qry/qry_read.c")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         PORTABLE_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}")

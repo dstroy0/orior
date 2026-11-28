@@ -35,7 +35,7 @@ static void head_read_job(const CliServersJobCfg *args)
     }
     GitHeadRead read;
     memor.cpy(&(MemoriaCfg){.dst = &read, .src = args->job, .bytes = sizeof(read)});
-    char *const scratch = g_cli_guard->temporary_buf_alloc(GIT_HEAD_MAX, g_cli_git_owner);
+    char *const scratch = g_platform_guard->temporary_buf_alloc(GIT_HEAD_MAX, g_cli_git_owner);
     if (scratch == NULL)
     {
         return;
@@ -47,7 +47,7 @@ static void head_read_job(const CliServersJobCfg *args)
     (void)EMBED_CALL(cli_document_out_key_head_input.changes, CliDocumentOutKeyHeadInputCfg, .key = read.key,
                      .head_given = 1, .head = tracked ? scratch : NULL, .head_size = tracked ? out.at : 0ULL,
                      .each = head_stored_each, .context = NULL);
-    g_cli_guard->persistent_buf_release(scratch, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_git_owner);
     cli_document_colored_wake();
 }
 

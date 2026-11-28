@@ -133,7 +133,7 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
     CliSearch search_copy = {0};
     CliSearch *const search = &search_copy;
     const unsigned long long pending_bytes = (unsigned long long)CLI_GIT_PENDING * sizeof(*search->pending);
-    char *const cell = g_cli_guard->temporary_buf_alloc(
+    char *const cell = g_platform_guard->temporary_buf_alloc(
         pending_bytes + ((unsigned long long)CLI_GIT_REPOSITORIES * sizeof(*search->nested)), g_cli_git_owner);
     if (cell != NULL)
     {
@@ -193,6 +193,6 @@ void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args)
         EMBED_CALL(cli_repository_append, GitRepositoriesCtx, .found = args->found_repositories_pointer,
                    .relative = relative, .folder = search->nested[at]);
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_git_owner);
     EMBED_CALL(cli_git_text.text_end, CliGitTextCfg, .text = &args->found_repositories_pointer->text);
 }

@@ -8,7 +8,7 @@
  * RLE_DICTIONARY values; RLE and bit-packed hybrid levels. Data pages V1 and V2; uncompressed,
  * Snappy and Zstd bodies. A refusal is a return of ENGINE_BYTES_ERROR, never a partial column.
  */
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "casmi_config.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

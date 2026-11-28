@@ -592,7 +592,8 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
     mmgr_line_put(args->out, ",\"bytes\":[");
     // the bytes read from memory, in a cell of the max the base64 text decodes to
     const unsigned long long max = ((length / 4ULL) + 1ULL) * 3ULL;
-    unsigned char *const decoded = (data != NULL) ? g_cli_guard->temporary_buf_alloc(max, g_cli_debug_owner) : NULL;
+    unsigned char *const decoded =
+        (data != NULL) ? g_platform_guard->temporary_buf_alloc(max, g_cli_debug_owner) : NULL;
     const unsigned long long bytes = (decoded != NULL)
                                          ? EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = data,
                                                       .size = length, .out_bytes = decoded, .capacity = max)
@@ -602,7 +603,7 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
         mmgr_line_put(args->out, (at > 0ULL) ? "," : "");
         mmgr_line_decimal(args->out, decoded[at], 1u);
     }
-    g_cli_guard->persistent_buf_release(decoded, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(decoded, g_cli_debug_owner);
     mmgr_line_put(args->out, "],\"unreadable\":");
     mmgr_line_decimal(args->out, unreadable, 1u);
     mmgr_line_ch(args->out, '}');

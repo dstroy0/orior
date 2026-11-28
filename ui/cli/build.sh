@@ -30,6 +30,9 @@ BUNDLE_NAME="$(bin_named plugins_bundle)"
 CC="${CC:-clang}"
 # the archiver: LLVM's where the machine has it, else the system's ar, which takes the same words
 AR="${AR:-$(command -v llvm-ar > /dev/null 2>&1 && echo llvm-ar || echo ar)}"
+# the copier of objects that splits off the debug information of a program. It is LLVM's where the machine has it.
+# Else it is the objcopy of the system, which takes the same words
+OBJCOPY="${OBJCOPY:-$(command -v llvm-objcopy > /dev/null 2>&1 && echo llvm-objcopy || echo objcopy)}"
 # two compiles at once: this host faults under more clang processes than that
 JOBS="${JOBS:-2}"
 # every object bitcode and every program optimized whole at its link; the archive left is bitcode, for an LTO link
@@ -138,12 +141,18 @@ while IFS= read -r source; do
     esac
 done < <(find "$TOP/ui/cli/src" "$TOP/ui/query/src" "$TOP/includes/arith" "$TOP/includes/regexp" "$TOP/includes/utf8" "$TOP/includes/coverage" "$TOP/includes/font" "$TOP/includes/raster" "$TOP/includes/frame_buffer" \
               "$TOP/includes/glass" "$TOP/includes/window" "$TOP/includes/compositor" -name '*.c' -not -path '*/bundle/*' -not -path '*/regexp/platform/*' | sort)
+# the calls of the command line into the system, from the folders of the platform. They are the files of each
+# system, but not those of the probe, tessera_run and the window, which other programs link
+while IFS= read -r source; do
+    SOURCES+=("$source")
+done < <(find "$TOP/includes/platform/windows" "$TOP/includes/platform/posix" -name '*.c' -not -name '*_probe.c' \
+              -not -name '*_tessera_run.c' -not -name '*_window.c' | sort)
+SOURCES+=("$TOP/includes/platform/folder_watch.c" "$TOP/includes/platform/platform_shared.c"
+          "$TOP/includes/platform/platform_pool.c")
 # the one input's dispatch, which the window and the view's thread share
 SOURCES+=("$TOP/ui/gui/src/input_event.c")
-for folder in includes/file_defs/qry/writer includes/file_defs/qry/writer/platform; do
-    for source in "$TOP/$folder"/*.c; do
-        [[ -f "$source" ]] && SOURCES+=("$source")
-    done
+for source in "$TOP/includes/file_defs/qry/writer"/*.c; do
+    [[ -f "$source" ]] && SOURCES+=("$source")
 done
 SOURCES+=("$TOP/includes/file_defs/qry/qry_read.c" "$TOP/includes/formats/cfg_json/cfg_json.c"
           "$TOP/includes/parsers/line_read.c" "$TOP/includes/file_defs/ksg/ksg_seal.c"
@@ -267,6 +276,24 @@ archived() {
     esac
 }
 
+# The debug information of the program `program` kept in a file next to it, as the linker writes a PDB next to a
+# program on Windows. On Linux the file is `<program>.debug`, and the program keeps a link to it by name and checksum,
+# which a debugger follows. On macOS the file is the bundle `<program>.dSYM`. The program itself then holds its code
+# and data alone. On Windows the PDB is there already, and the function does nothing
+debug_kept() {
+    local program="$1"
+    case "$TARGET" in
+        *windows*) ;;
+        *darwin*)
+            dsymutil "$program" -o "$program.dSYM" && strip -S "$program" \
+                || { echo "  build failed: the debug information of $(basename "$program") was not kept apart"; exit 1; } ;;
+        *)
+            "$OBJCOPY" --only-keep-debug "$program" "$program.debug" &&
+                "$OBJCOPY" --strip-debug --add-gnu-debuglink="$program.debug" "$program" \
+                || { echo "  build failed: the debug information of $(basename "$program") was not kept apart"; exit 1; } ;;
+    esac
+}
+
 OUT="$TOP/build/cli/$TARGET$BUILD_SUFFIX"
 mkdir -p "$OUT"
 
@@ -310,14 +337,13 @@ fi
 # at main, which opens no console with it
 if [[ "$WINDOW" = 1 ]]; then
     case "$TARGET" in
-        *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
+        *windows*) BODY="windows/windows_window.c"; GUI_LIBRARIES=(-lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
         *darwin*) echo "  build failed: the window has no body for $TARGET"; exit 1 ;;
-        *) BODY="system_x11.c"; GUI_LIBRARIES=(-lX11 -lXext -lXi) ;;
+        *) BODY="posix/linux/x11_window.c"; GUI_LIBRARIES=(-lX11 -lXext -lXi) ;;
     esac
-    GUI_SOURCES=()
+    GUI_SOURCES=("$TOP/includes/platform/$BODY")
     while IFS= read -r source; do
         case "$source" in
-            */system_*.c) [[ "$(basename "$source")" = "$BODY" ]] && GUI_SOURCES+=("$source") ;;
             */input_event.c) ;;
             *) GUI_SOURCES+=("$source") ;;
         esac
@@ -336,10 +362,12 @@ if [[ "$WINDOW" = 1 ]]; then
     ( cd "$TOP" && "$CC" "--target=$TARGET" -g "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$GUI_NAME$SUFFIX" \
         "@${OUT#"$TOP/"}/$GUI_NAME.objects" "${LIBRARIES[@]}" "${GUI_LIBRARIES[@]}" ) \
         || { echo "  build failed: $GUI_NAME did not link"; exit 1; }
+    debug_kept "$OUT/$GUI_NAME$SUFFIX"
     echo "  built ${OUT#"$TOP/"}/$GUI_NAME$SUFFIX"
     exit 0
 fi
 listed_into "$OUT/$CLI_NAME.objects" "$OUT/impero.o" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}"
-( cd "$TOP" && "$CC" "--target=$TARGET" "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$CLI_NAME$SUFFIX" "@${OUT#"$TOP/"}/$CLI_NAME.objects" \
+( cd "$TOP" && "$CC" "--target=$TARGET" -g "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$CLI_NAME$SUFFIX" "@${OUT#"$TOP/"}/$CLI_NAME.objects" \
     "${LIBRARIES[@]}" ) || { echo "  build failed: $CLI_NAME did not link"; exit 1; }
+debug_kept "$OUT/$CLI_NAME$SUFFIX"
 echo "  built ${OUT#"$TOP/"}/$CLI_NAME$SUFFIX"

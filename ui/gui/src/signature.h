@@ -22,8 +22,8 @@ typedef struct GuiSignatureCfg GuiSignatureCfg;
 #define GUI_SIGNATURE_PAD_X 10
 #define GUI_SIGNATURE_GAP 4
 
-// The signature: the panel displayed, NULL for none, the panels' and read alone; and the box's rectangle where it was drawn
-// last
+// The signature: the panel displayed, NULL for none, the panels' and read alone; and the box's rectangle where it was
+// drawn last
 typedef struct
 {
     const CliSignaturePanel *panel;

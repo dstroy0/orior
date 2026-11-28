@@ -6,7 +6,7 @@
 
 #include "tower.h"
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/device_pool/device_pool.h"
 

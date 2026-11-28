@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // container_pattern.c: a pattern's tables, sections and attributes read where the layout specifies, each place checked
 // inside the pattern
-#include "../../../platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "container_write_internal.h"
 #include "memoria_operor/memoria_operor.h"

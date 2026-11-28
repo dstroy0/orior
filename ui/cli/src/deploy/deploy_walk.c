@@ -289,7 +289,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
             VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ULL};
             EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &hash);
             mmgr_line_finish(&hash);
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
         }
     }
     return 1;

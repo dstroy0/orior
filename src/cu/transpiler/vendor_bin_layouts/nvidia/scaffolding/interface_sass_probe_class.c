@@ -4,7 +4,7 @@
 // the system contains; this one records how that was learned - which channel each question went out on, and whether
 // what came back was an answer, nothing, or a refusal. The pipes the system writes on are the part's and are written
 // into <part>.kdm
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "interface_sass_probe.h"
 #include "memoria_operor/memoria_operor.h"

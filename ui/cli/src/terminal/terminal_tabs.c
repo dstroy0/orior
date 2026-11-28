@@ -834,7 +834,8 @@ EMBED_INLINE void terminal_send(const TerminalCtx *args)
 EMBED_INLINE void terminal_paste(const TerminalCtx *args)
 {
     const int at = terminal_target();
-    char *const text = (at >= 0) ? g_cli_guard->temporary_buf_alloc(TERMINAL_PASTE_MAX, g_cli_terminal_owner) : NULL;
+    char *const text =
+        (at >= 0) ? g_platform_guard->temporary_buf_alloc(TERMINAL_PASTE_MAX, g_cli_terminal_owner) : NULL;
     if (text == NULL)
     {
         return;
@@ -867,7 +868,7 @@ EMBED_INLINE void terminal_paste(const TerminalCtx *args)
     {
         EMBED_CALL(terminal_send, TerminalCtx, .bytes = text, .size = line.at);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_terminal_owner);
 }
 
 int cli_terminal_tabs_command(const CliTerminalTabsCfg *args)
@@ -1069,7 +1070,7 @@ EMBED_INLINE void terminal_point(const TerminalCtx *args)
         (units != NULL) ? EMBED_CALL(cli_terminal_xterm_column_unit, CliTerminalXtermUnitsCfg, .units = units,
                                      .count = count, .column = (unsigned int)args->column)
                         : args->column;
-    g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
     const CliViewInput pointed = {.type = CLI_VIEW_POINTER,
                                   .pointer = args->pointer,
                                   .row = args->row,
@@ -1181,7 +1182,7 @@ EMBED_INLINE void terminal_place_save(void)
         return;
     }
     const unsigned long long bytes = 64ULL + ((unsigned long long)s_terminal.tabs * (CLI_PATH_MAX_LEN + 16ULL));
-    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_terminal_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(bytes, g_cli_terminal_owner);
     if (text == NULL)
     {
         return;
@@ -1212,7 +1213,7 @@ EMBED_INLINE void terminal_place_save(void)
         (void)cli_state_value_save(
             &(CliStateValueCfg){.folder = folder, .key = TERMINAL_PLACE_KEY, .value = text, .err_msg = &err_msg});
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_terminal_owner);
 }
 
 int cli_terminal_tabs_step(void)
@@ -1363,12 +1364,12 @@ void cli_terminal_tabs_restore(const CliTerminalTabsCfg *args)
     const unsigned long long size =
         cli_state_entry_size(&(CliStateEntryCfg){.entries = args->entries, .key = TERMINAL_PLACE_KEY});
     char *const place =
-        (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_terminal_owner) : NULL;
+        (size != CLI_STATE_NONE) ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_terminal_owner) : NULL;
     if ((place == NULL) ||
         (cli_state_entry_value(&(CliStateEntryCfg){
              .entries = args->entries, .key = TERMINAL_PLACE_KEY, .out = place, .capacity = size + 1ULL}) == NULL))
     {
-        g_cli_guard->persistent_buf_release(place, g_cli_terminal_owner);
+        g_platform_guard->persistent_buf_release(place, g_cli_terminal_owner);
         return;
     }
     unsigned long long at = 0ULL;
@@ -1421,7 +1422,7 @@ void cli_terminal_tabs_restore(const CliTerminalTabsCfg *args)
     {
         EMBED_CALL(terminal_toggle, TerminalCtx, .on = 1);
     }
-    g_cli_guard->persistent_buf_release(place, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(place, g_cli_terminal_owner);
     terminal_dirty();
 }
 

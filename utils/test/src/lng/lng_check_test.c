@@ -8,7 +8,7 @@
 // it must pass and a broken one it must catch. A check that catches nothing looks the same as a check that cannot
 // catch.
 #include "../../../../src/lng/lng.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>

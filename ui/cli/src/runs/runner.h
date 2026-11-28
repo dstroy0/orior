@@ -51,7 +51,7 @@ typedef struct
     CliWords words;
     char folder[CLI_PATH_MAX_LEN];
     int has_folder;
-    CliSetting setting[CLI_COMMAND_SETTINGS];
+    PlatformSetting setting[CLI_COMMAND_SETTINGS];
     unsigned int settings;
     char text[CLI_COMMAND_TEXT];
     unsigned int used;

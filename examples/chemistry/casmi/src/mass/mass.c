@@ -5,7 +5,7 @@
  * @brief Exact masses over NIST's isotope table, and a measured m/z set against them exactly.
  */
 #include "mass.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

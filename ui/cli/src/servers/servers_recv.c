@@ -98,13 +98,13 @@ EMBED_INLINE void recv_diagnostics(const ServersRecvCtx *args)
         EMBED_CALL(cli_servers_size_key_internal.gather, CliServersSizeKeyCtx, .key = key, .all = all,
                    .size = all_length))
     {
-        g_cli_guard->persistent_buf_release(mapped, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(mapped, g_cli_servers_owner);
         return;
     }
     EMBED_CALL(cli_servers_key_checker_internal.wake, CliServersKeyCheckerCtx, .key = key);
     (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_published,
                      .key = key, .adjacent_value = uri, .text = all, .size_value = all_length);
-    g_cli_guard->persistent_buf_release(mapped, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(mapped, g_cli_servers_owner);
     EMBED_CALL(cli_servers_sink_key_internal.emit_file, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
 }
 
@@ -116,8 +116,8 @@ EMBED_INLINE void recv_edit(const ServersRecvCtx *args)
                .read_state = &s_read_state);
     const unsigned int root = EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx,
                                          .read_state = &s_read_state, .text = args->params, .size = size);
-    CliGrownLine edits;
-    cli_grown_begin(&edits, CLI_SERVERS_ANSWER, g_cli_servers_owner);
+    PlatformText edits;
+    platform_text_begun(&edits, CLI_SERVERS_ANSWER, platform_place_g_cli_servers_owner, PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_servers_json_tree_out_internal.workspace_edit_get, CliServersJsonTreeOutCtx,
                .json = &s_read_state.json,
                .edit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -126,11 +126,11 @@ EMBED_INLINE void recv_edit(const ServersRecvCtx *args)
     if (mmgr_line_ok(&edits.line) && (args->sink->emit != NULL))
     {
         EMBED_CALL(args->sink->emit, CliEachEventJsonSizeCfg, .context = args->sink->context, .event = "lsp-edits",
-                   .json = edits.cell, .size = cli_grown_size(&edits));
+                   .json = edits.cell, .size = platform_text_size(&edits));
     }
-    cli_grown_end(&edits);
-    g_cli_guard->persistent_buf_release(s_read_state.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read_state.json.node));
+    platform_text_ended(&edits);
+    g_platform_guard->persistent_buf_release(s_read_state.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -238,8 +238,8 @@ EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
         }
     }
     mmgr_line_ch(args->answer, ']');
-    g_cli_guard->persistent_buf_release(s_read_state.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read_state.json.node));
+    g_platform_guard->persistent_buf_release(s_read_state.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

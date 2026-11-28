@@ -109,28 +109,29 @@ EMBED_INLINE void ring_locked(const NotebookCellsCtx *args)
 EMBED_INLINE int ring_grown(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
-    const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(args->size, g_cli_notebook_open_owner);
+    const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(args->size, g_cli_notebook_open_owner);
     if (grown == NULL)
     {
         return 0;
     }
     if (model->ring_used != 0ULL)
     {
-        unsigned char *const carried = g_cli_guard->temporary_buf_alloc(model->ring_used, g_cli_notebook_open_owner);
+        unsigned char *const carried =
+            g_platform_guard->temporary_buf_alloc(model->ring_used, g_cli_notebook_open_owner);
         if (carried == NULL)
         {
-            (void)g_cli_guard->movable_buf_release(grown, g_cli_notebook_open_owner);
+            (void)g_platform_guard->movable_buf_release(grown, g_cli_notebook_open_owner);
             return 0;
         }
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = model->ring_cell, .offset = 0ULL, .dst = carried, .bytes = (embed_word)model->ring_used});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = grown, .offset = 0ULL, .src = carried, .bytes = (embed_word)model->ring_used});
-        g_cli_guard->persistent_buf_release(carried, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(carried, g_cli_notebook_open_owner);
     }
     if (model->ring_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(model->ring_cell, g_cli_notebook_open_owner);
+        (void)g_platform_guard->movable_buf_release(model->ring_cell, g_cli_notebook_open_owner);
     }
     model->ring_cell = grown;
     model->ring_capacity = args->size;
@@ -155,9 +156,9 @@ EMBED_INLINE int ring_put(const NotebookCellsCtx *args)
     if (put)
     {
         const unsigned long long size = args->size;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = model->ring_cell, .offset = (embed_word)model->ring_used, .src = &size, .bytes = sizeof(size)});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = model->ring_cell,
                                 .offset = (embed_word)(model->ring_used + sizeof(size)),
                                 .src = args->text,
@@ -193,7 +194,7 @@ void cli_notebook_model_ring_cleared(const CliNotebookModelCtx *args)
     cli_gate_opened(&model->ring_lock);
     if (ring != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(ring, g_cli_notebook_open_owner);
+        (void)g_platform_guard->movable_buf_release(ring, g_cli_notebook_open_owner);
     }
 }
 
@@ -202,10 +203,10 @@ CliNotebookModel *cli_notebook_model_of(const CliNotebookModelCtx *args)
     for (unsigned int at = 0u; (args->key != NULL) && (at < s_models); at += 1u)
     {
         CliNotebookModel *model = NULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
-                                                                .offset = CLI_NOTEBOOK_MODEL_AT(at),
-                                                                .dst = &model,
-                                                                .bytes = sizeof(CliNotebookModel *)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
+                                                                     .offset = CLI_NOTEBOOK_MODEL_AT(at),
+                                                                     .dst = &model,
+                                                                     .bytes = sizeof(CliNotebookModel *)});
         if (cellul.eq(&(CatenaFinitaCfg){.src = model->key, .other = args->key, .cap = CLI_PATH_MAX_LEN}))
         {
             return model;
@@ -219,10 +220,10 @@ CliNotebookModel *cli_notebook_model_at(const CliNotebookModelCtx *args)
     CliNotebookModel *model = NULL;
     if (args->at < s_models)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
-                                                                .offset = CLI_NOTEBOOK_MODEL_AT(args->at),
-                                                                .dst = &model,
-                                                                .bytes = sizeof(CliNotebookModel *)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
+                                                                     .offset = CLI_NOTEBOOK_MODEL_AT(args->at),
+                                                                     .dst = &model,
+                                                                     .bytes = sizeof(CliNotebookModel *)});
     }
     return model;
 }
@@ -232,7 +233,7 @@ unsigned int cli_notebook_model_first_row(const CliNotebookModelCtx *args)
     unsigned int row = 0u;
     if (args->model->cells_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->model->cells_cell,
                                 .offset = CLI_NOTEBOOK_FIRST_ROW_AT(args->model, args->cell),
                                 .dst = &row,
@@ -250,18 +251,18 @@ void cli_notebook_model_key(const CliNotebookModelCtx *args)
     mmgr_line_put(&line, model->key);
     mmgr_line_ch(&line, '#');
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     mmgr_line_decimal(&line, cell.serial, 1u);
     if (args->output != CLI_NOTEBOOK_NONE)
     {
         CliNotebookOutput output;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->outputs_cell,
-                                                                .offset = CLI_NOTEBOOK_OUTPUT_AT(args->output),
-                                                                .dst = &output,
-                                                                .bytes = sizeof(CliNotebookOutput)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->outputs_cell,
+                                                                     .offset = CLI_NOTEBOOK_OUTPUT_AT(args->output),
+                                                                     .dst = &output,
+                                                                     .bytes = sizeof(CliNotebookOutput)});
         mmgr_line_ch(&line, '.');
         mmgr_line_decimal(&line, output.serial, 1u);
     }
@@ -288,10 +289,10 @@ int cli_notebook_model_source_stored(const CliNotebookModelCtx *args)
 {
     CliNotebookModel *const model = args->model;
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
     EMBED_CALL(cli_notebook_model_internal.key, CliNotebookModelCtx, .model = model, .cell = args->cell,
                .output = CLI_NOTEBOOK_NONE, .out = key);
@@ -307,10 +308,10 @@ int cli_notebook_model_source_stored(const CliNotebookModelCtx *args)
     EMBED_CALL(text_colored, NotebookCellsCtx, .name = grammar, .text = key);
     // a cell's lines are bounded by the document store's lines, far below the 32-bit place no count reaches
     cell.lines = (shape.lines != 0ULL) ? (unsigned int)shape.lines : 1u;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = &cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                  .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                  .src = &cell,
+                                                                  .bytes = sizeof(CliNotebookCell)});
     return 1;
 }
 
@@ -323,16 +324,16 @@ void cli_notebook_model_lines_read(const CliNotebookModelCtx *args)
     CliShape shape = {0ULL, 0ULL};
     (void)EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = key, .shape = &shape);
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     // a cell's lines are bounded by the document store's lines, far below the 32-bit place no count reaches
     cell.lines = (shape.lines != 0ULL) ? (unsigned int)shape.lines : 1u;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = &cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                  .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                  .src = &cell,
+                                                                  .bytes = sizeof(CliNotebookCell)});
 }
 
 int cli_notebook_model_cells_positioned(const CliNotebookModelCtx *args)
@@ -343,7 +344,7 @@ int cli_notebook_model_cells_positioned(const CliNotebookModelCtx *args)
     const unsigned long long bytes = cell_bytes + ((count + 1ULL) * sizeof(unsigned int));
     // the cells positioned in a cell of this call, the cells before and after the change read out of the cell they are
     // in, then written once into a movable cell sized to them with the rows' starts after them
-    unsigned char *const positioned = g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner);
+    unsigned char *const positioned = g_platform_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner);
     if (positioned == NULL)
     {
         return 0;
@@ -352,7 +353,7 @@ int cli_notebook_model_cells_positioned(const CliNotebookModelCtx *args)
     const unsigned int before = (args->cell < model->cells) ? args->cell : model->cells;
     if (before != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = model->cells_cell, .offset = 0ULL, .dst = positioned, .bytes = CLI_NOTEBOOK_CELL_AT(before)});
     }
     // one more: a cell of none at `cell`; one fewer: the cell at `cell` left out; as many: every cell as it is
@@ -361,43 +362,43 @@ int cli_notebook_model_cells_positioned(const CliNotebookModelCtx *args)
     const unsigned int after = model->cells - before - ((skipped && (before < model->cells)) ? 1u : 0u);
     if (after != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = model->cells_cell,
                                 .offset = CLI_NOTEBOOK_CELL_AT(before + skipped),
                                 .dst = positioned + CLI_NOTEBOOK_CELL_AT(before + opened),
                                 .bytes = CLI_NOTEBOOK_CELL_AT(after)});
     }
-    const CarcerMovableEntry *const cells_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner);
+    const CarcerMovableEntry *const cells_cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner);
     if (cells_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cells_cell, .offset = 0ULL, .src = positioned, .bytes = bytes});
         if (model->cells_cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(model->cells_cell, g_cli_notebook_open_owner);
+            (void)g_platform_guard->movable_buf_release(model->cells_cell, g_cli_notebook_open_owner);
         }
         model->cells_cell = cells_cell;
         model->first_row_at = cell_bytes;
         model->cells = count;
     }
-    g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
     return cells_cell != NULL;
 }
 
 void cli_notebook_model_bound(const CliNotebookModelCtx *args)
 {
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     VerbaLinea line = {cell.run_id, sizeof(cell.run_id), 0ULL};
     mmgr_line_put(&line, args->id);
     (void)mmgr_line_finish(&line);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = &cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                  .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                  .src = &cell,
+                                                                  .bytes = sizeof(CliNotebookCell)});
 }
 
 // the output texts positioned anew in a movable cell sized to them, the output `output` taking `json_size` bytes of
@@ -411,14 +412,14 @@ EMBED_INLINE int texts_positioned(const NotebookCellsCtx *args)
     // the outputs read into a cell of this call, their places moved as the texts are positioned, then written back
     // whole
     CliNotebookOutput *const output =
-        (model->outputs != 0u) ? g_cli_guard->temporary_buf_alloc(records, g_cli_notebook_open_owner) : NULL;
+        (model->outputs != 0u) ? g_platform_guard->temporary_buf_alloc(records, g_cli_notebook_open_owner) : NULL;
     if ((model->outputs != 0u) && (output == NULL))
     {
         return 0;
     }
     if (output != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = model->outputs_cell, .offset = 0ULL, .dst = output, .bytes = records});
     }
     for (unsigned int at = 0u; at < model->outputs; at += 1u)
@@ -426,17 +427,17 @@ EMBED_INLINE int texts_positioned(const NotebookCellsCtx *args)
         bytes += (at == args->output) ? args->json_size : output[at].json_length;
     }
     char *const positioned =
-        (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
+        (bytes != 0ULL) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
     const CarcerMovableEntry *const text_cell =
-        (bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
+        (bytes != 0ULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
     if ((bytes != 0ULL) && ((positioned == NULL) || (text_cell == NULL)))
     {
         if (text_cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(text_cell, g_cli_notebook_open_owner);
+            (void)g_platform_guard->movable_buf_release(text_cell, g_cli_notebook_open_owner);
         }
-        g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
-        g_cli_guard->persistent_buf_release(output, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(output, g_cli_notebook_open_owner);
         return 0;
     }
     unsigned long long used = 0ULL;
@@ -449,7 +450,7 @@ EMBED_INLINE int texts_positioned(const NotebookCellsCtx *args)
         }
         else if (length != 0ULL)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = model->text_cell, .offset = output[at].json, .dst = positioned + used, .bytes = length});
         }
         output[at].json = used;
@@ -458,37 +459,37 @@ EMBED_INLINE int texts_positioned(const NotebookCellsCtx *args)
     }
     if (bytes != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = text_cell, .offset = 0ULL, .src = positioned, .bytes = bytes});
     }
     if (output != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = model->outputs_cell, .offset = 0ULL, .src = output, .bytes = records});
     }
     if (model->text_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(model->text_cell, g_cli_notebook_open_owner);
+        (void)g_platform_guard->movable_buf_release(model->text_cell, g_cli_notebook_open_owner);
     }
     model->text_cell = text_cell;
     model->output_used = used;
-    g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
-    g_cli_guard->persistent_buf_release(output, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(output, g_cli_notebook_open_owner);
     return 1;
 }
 
 void cli_notebook_model_outputs_settled(const CliNotebookModelCtx *args)
 {
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     unsigned int rows = 0u;
     for (unsigned int at = 0u; at < cell.outputs; at += 1u)
     {
         CliNotebookOutput output;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->model->outputs_cell,
                                 .offset = CLI_NOTEBOOK_OUTPUT_AT(cell.output_first + at),
                                 .dst = &output,
@@ -498,17 +499,17 @@ void cli_notebook_model_outputs_settled(const CliNotebookModelCtx *args)
                           : output.lines;
         output.row = rows;
         rows += output.rows;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = args->model->outputs_cell,
                                 .offset = CLI_NOTEBOOK_OUTPUT_AT(cell.output_first + at),
                                 .src = &output,
                                 .bytes = sizeof(CliNotebookOutput)});
     }
     cell.output_rows = rows;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = &cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                  .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                  .src = &cell,
+                                                                  .bytes = sizeof(CliNotebookCell)});
 }
 
 // the cells from `cell` on each moved `count` outputs along, the outputs before theirs put in or taken out, `at` 1
@@ -518,15 +519,15 @@ EMBED_INLINE void outputs_shifted(const NotebookCellsCtx *args)
     for (unsigned int at = args->cell; at < args->model->cells; at += 1u)
     {
         CliNotebookCell cell;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                                .offset = CLI_NOTEBOOK_CELL_AT(at),
-                                                                .dst = &cell,
-                                                                .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                     .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                                                     .dst = &cell,
+                                                                     .bytes = sizeof(CliNotebookCell)});
         cell.output_first = (args->type != 0u) ? cell.output_first + args->tokens : cell.output_first - args->tokens;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                                 .offset = CLI_NOTEBOOK_CELL_AT(at),
-                                                                 .src = &cell,
-                                                                 .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                      .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                                                      .src = &cell,
+                                                                      .bytes = sizeof(CliNotebookCell)});
     }
 }
 
@@ -548,17 +549,17 @@ EMBED_INLINE int output_text_stored(const NotebookCellsCtx *args)
     }
     EMBED_CALL(text_colored, NotebookCellsCtx, .name = "xterm", .text = key);
     CliNotebookOutput output;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->outputs_cell,
-                                                            .offset = CLI_NOTEBOOK_OUTPUT_AT(args->output),
-                                                            .dst = &output,
-                                                            .bytes = sizeof(CliNotebookOutput)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->outputs_cell,
+                                                                 .offset = CLI_NOTEBOOK_OUTPUT_AT(args->output),
+                                                                 .dst = &output,
+                                                                 .bytes = sizeof(CliNotebookOutput)});
     // an output's lines are bounded by the document store's lines, far below the 32-bit place no count reaches
     output.lines = (shape.lines != 0ULL) ? (unsigned int)shape.lines : 1u;
     output.line_ended = size != args->size;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->outputs_cell,
-                                                             .offset = CLI_NOTEBOOK_OUTPUT_AT(args->output),
-                                                             .src = &output,
-                                                             .bytes = sizeof(CliNotebookOutput)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->outputs_cell,
+                                                                  .offset = CLI_NOTEBOOK_OUTPUT_AT(args->output),
+                                                                  .src = &output,
+                                                                  .bytes = sizeof(CliNotebookOutput)});
     return 1;
 }
 
@@ -573,16 +574,16 @@ EMBED_INLINE int outputs_positioned(const NotebookCellsCtx *args)
     const unsigned int after = model->outputs - before - args->node;
     const unsigned int opened = args->tokens - before - after;
     const CarcerMovableEntry *const grown =
-        (args->tokens != 0u) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
+        (args->tokens != 0u) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
     unsigned char *const positioned =
-        (args->tokens != 0u) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
+        (args->tokens != 0u) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_notebook_open_owner) : NULL;
     if ((args->tokens != 0u) && ((grown == NULL) || (positioned == NULL)))
     {
         if (grown != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(grown, g_cli_notebook_open_owner);
+            (void)g_platform_guard->movable_buf_release(grown, g_cli_notebook_open_owner);
         }
-        g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
         return 0;
     }
     if (positioned != NULL)
@@ -591,12 +592,12 @@ EMBED_INLINE int outputs_positioned(const NotebookCellsCtx *args)
     }
     if (before != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = model->outputs_cell, .offset = 0ULL, .dst = positioned, .bytes = CLI_NOTEBOOK_OUTPUT_AT(before)});
     }
     if (after != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = model->outputs_cell,
                                 .offset = CLI_NOTEBOOK_OUTPUT_AT(before + args->node),
                                 .dst = positioned + CLI_NOTEBOOK_OUTPUT_AT(before + opened),
@@ -604,16 +605,16 @@ EMBED_INLINE int outputs_positioned(const NotebookCellsCtx *args)
     }
     if (positioned != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = grown, .offset = 0ULL, .src = positioned, .bytes = bytes});
     }
     if (model->outputs_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(model->outputs_cell, g_cli_notebook_open_owner);
+        (void)g_platform_guard->movable_buf_release(model->outputs_cell, g_cli_notebook_open_owner);
     }
     model->outputs_cell = grown;
     model->outputs = args->tokens;
-    g_cli_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(positioned, g_cli_notebook_open_owner);
     return 1;
 }
 
@@ -623,10 +624,10 @@ EMBED_INLINE int output_put(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     const unsigned int place = cell.output_first + cell.outputs;
     if (!EMBED_CALL(outputs_positioned, NotebookCellsCtx, .model = model, .output = place, .node = 0u,
                     .tokens = model->outputs + 1u))
@@ -634,17 +635,17 @@ EMBED_INLINE int output_put(const NotebookCellsCtx *args)
         return 0;
     }
     const CliNotebookOutput put = {model->next_serial, args->type, args->stderr_stream, 1u, 1u, 0u, 0, 0, 0ULL, 0ULL};
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->outputs_cell,
-                                                             .offset = CLI_NOTEBOOK_OUTPUT_AT(place),
-                                                             .src = &put,
-                                                             .bytes = sizeof(CliNotebookOutput)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->outputs_cell,
+                                                                  .offset = CLI_NOTEBOOK_OUTPUT_AT(place),
+                                                                  .src = &put,
+                                                                  .bytes = sizeof(CliNotebookOutput)});
     model->next_serial += 1u;
     cell.outputs += 1u;
     cell.failed = cell.failed || (args->type == CLI_NOTEBOOK_ERROR);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = &cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                  .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                  .src = &cell,
+                                                                  .bytes = sizeof(CliNotebookCell)});
     EMBED_CALL(outputs_shifted, NotebookCellsCtx, .model = model, .cell = args->cell + 1u, .tokens = 1u, .type = 1u);
     (void)EMBED_CALL(texts_positioned, NotebookCellsCtx, .model = model, .output = place, .json_text = args->json_text,
                      .json_size = args->json_size);
@@ -658,10 +659,10 @@ void cli_notebook_model_outputs_released(const CliNotebookModelCtx *args)
 {
     CliNotebookModel *const model = args->model;
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     for (unsigned int at = 0u; at < cell.outputs; at += 1u)
     {
         char key[CLI_PATH_MAX_LEN + CLI_NOTEBOOK_KEY_MORE];
@@ -679,10 +680,10 @@ void cli_notebook_model_outputs_released(const CliNotebookModelCtx *args)
     cell.outputs = 0u;
     cell.output_rows = 0u;
     cell.failed = 0;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                             .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                             .src = &cell,
-                                                             .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                  .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                  .src = &cell,
+                                                                  .bytes = sizeof(CliNotebookCell)});
     (void)EMBED_CALL(texts_positioned, NotebookCellsCtx, .model = model, .output = CLI_NOTEBOOK_NONE);
 }
 
@@ -720,7 +721,8 @@ static void cells_stream_scratch(CellsStreamJoined *stream, const char *located,
     const unsigned long long ended = (located != NULL) ? (before + (line_ended ? 1ULL : 0ULL)) : 0ULL;
     const unsigned long long bytes = ended + stream->size;
     const unsigned long long json_capacity = (6ULL * bytes) + CELLS_MESSAGE_TEXT;
-    char *const scratch = g_cli_guard->temporary_buf_alloc(bytes + json_capacity + 1ULL, g_cli_notebook_open_owner);
+    char *const scratch =
+        g_platform_guard->temporary_buf_alloc(bytes + json_capacity + 1ULL, g_cli_notebook_open_owner);
     if (scratch == NULL)
     {
         return;
@@ -753,19 +755,19 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
 {
     CliNotebookModel *const model = args->model;
     CliNotebookCell cell;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     const int stderr_stream = cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "stderr", .cap = 8ULL});
     const unsigned int last = (cell.outputs != 0u) ? (cell.output_first + cell.outputs - 1u) : CLI_NOTEBOOK_NONE;
     CliNotebookOutput last_output = {0};
     if (last != CLI_NOTEBOOK_NONE)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->outputs_cell,
-                                                                .offset = CLI_NOTEBOOK_OUTPUT_AT(last),
-                                                                .dst = &last_output,
-                                                                .bytes = sizeof(CliNotebookOutput)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->outputs_cell,
+                                                                     .offset = CLI_NOTEBOOK_OUTPUT_AT(last),
+                                                                     .dst = &last_output,
+                                                                     .bytes = sizeof(CliNotebookOutput)});
     }
     const int joined = (last != CLI_NOTEBOOK_NONE) && (last_output.type == CLI_NOTEBOOK_STREAM) &&
                        (last_output.stderr_stream == stderr_stream);
@@ -807,7 +809,7 @@ EMBED_INLINE int stream_put(const NotebookCellsCtx *args)
         EMBED_CALL(cli_notebook_model_internal.outputs_settled, CliNotebookModelCtx, .model = model,
                    .cell = args->cell);
     }
-    g_cli_guard->persistent_buf_release(scratch, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_notebook_open_owner);
     return put;
 }
 
@@ -849,7 +851,8 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
     const unsigned long long json_capacity =
         EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = json, .node = node,
                    .out = NULL, .indent = 0u, .sorted = 0);
-    char *const scratch = g_cli_guard->temporary_buf_alloc(displayed + json_capacity + 1ULL, g_cli_notebook_open_owner);
+    char *const scratch =
+        g_platform_guard->temporary_buf_alloc(displayed + json_capacity + 1ULL, g_cli_notebook_open_owner);
     if (scratch == NULL)
     {
         return 0;
@@ -880,7 +883,7 @@ EMBED_INLINE int node_output_put(const NotebookCellsCtx *args)
     const int put = EMBED_CALL(output_put, NotebookCellsCtx, .model = args->model, .cell = args->cell,
                                .type = args->type, .stderr_stream = args->type == CLI_NOTEBOOK_ERROR, .text = scratch,
                                .size = text.at, .json_text = written.out, .json_size = written.at);
-    g_cli_guard->persistent_buf_release(scratch, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_notebook_open_owner);
     return put;
 }
 
@@ -986,10 +989,10 @@ EMBED_INLINE int cells_read(const NotebookCellsCtx *args)
         cell.count =
             EMBED_CALL(number_of, NotebookCellsCtx, .json_read = json, .node = node, .name = "execution_count");
         cell.output_first = model->outputs;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                                 .offset = CLI_NOTEBOOK_CELL_AT(at),
-                                                                 .src = &cell,
-                                                                 .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                      .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                                                      .src = &cell,
+                                                                      .bytes = sizeof(CliNotebookCell)});
         unsigned long long size = 0ULL;
         const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
                                               .json_read = json, .cell = node, .length_pointer = &size);
@@ -1034,12 +1037,12 @@ EMBED_INLINE unsigned int tree_read(const NotebookCellsCtx *args)
     // a notebook's lines and tokens are bounded by the document store's, far below the 32-bit place no count reaches
     unsigned int nodes = tokens + (CELLS_NODES_LINE * (unsigned int)lines) + CELLS_NODES_MORE;
     unsigned long long text_max = (2ULL * args->size) + CELLS_TEXT_MORE;
-    CfgJsonToken *const token =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens * sizeof(CfgJsonToken), g_cli_notebook_open_owner);
+    CfgJsonToken *const token = g_platform_guard->temporary_buf_alloc((unsigned long long)tokens * sizeof(CfgJsonToken),
+                                                                      g_cli_notebook_open_owner);
     unsigned int root = CLI_JSON_NONE;
     for (unsigned int tried = 0u; (token != NULL) && (root == CLI_JSON_NONE) && (tried < CELLS_READS); tried += 1u)
     {
-        g_cli_guard->persistent_buf_release(model->json.node, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(model->json.node, g_cli_notebook_open_owner);
         model->json = (CliJson){0};
         if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &model->json,
                         .nodes_max = nodes, .text_max = text_max, .what = "a notebook open in the window",
@@ -1062,7 +1065,7 @@ EMBED_INLINE unsigned int tree_read(const NotebookCellsCtx *args)
             break;
         }
     }
-    g_cli_guard->persistent_buf_release(token, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(token, g_cli_notebook_open_owner);
     return root;
 }
 
@@ -1084,18 +1087,18 @@ EMBED_INLINE void model_released(const NotebookCellsCtx *args)
     {
         if (cells[at] != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(cells[at], g_cli_notebook_open_owner);
+            (void)g_platform_guard->movable_buf_release(cells[at], g_cli_notebook_open_owner);
         }
     }
-    g_cli_guard->persistent_buf_release(model->json.node, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(model->json.node, g_cli_notebook_open_owner);
     unsigned int place = s_models;
     for (unsigned int at = 0u; at < s_models; at += 1u)
     {
         CliNotebookModel *one = NULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
-                                                                .offset = CLI_NOTEBOOK_MODEL_AT(at),
-                                                                .dst = &one,
-                                                                .bytes = sizeof(CliNotebookModel *)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
+                                                                     .offset = CLI_NOTEBOOK_MODEL_AT(at),
+                                                                     .dst = &one,
+                                                                     .bytes = sizeof(CliNotebookModel *)});
         place = (one == model) ? at : place;
     }
     model->reserved = 0;
@@ -1107,19 +1110,19 @@ EMBED_INLINE void model_released(const NotebookCellsCtx *args)
     for (unsigned int at = place + 1u; at < s_models; at += 1u)
     {
         CliNotebookModel *moved = NULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
-                                                                .offset = CLI_NOTEBOOK_MODEL_AT(at),
-                                                                .dst = &moved,
-                                                                .bytes = sizeof(CliNotebookModel *)});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_model_cell,
-                                                                 .offset = CLI_NOTEBOOK_MODEL_AT(at - 1u),
-                                                                 .src = &moved,
-                                                                 .bytes = sizeof(CliNotebookModel *)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
+                                                                     .offset = CLI_NOTEBOOK_MODEL_AT(at),
+                                                                     .dst = &moved,
+                                                                     .bytes = sizeof(CliNotebookModel *)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_model_cell,
+                                                                      .offset = CLI_NOTEBOOK_MODEL_AT(at - 1u),
+                                                                      .src = &moved,
+                                                                      .bytes = sizeof(CliNotebookModel *)});
     }
     s_models -= 1u;
     if (s_models == 0u)
     {
-        (void)g_cli_guard->movable_buf_release(s_model_cell, g_cli_notebook_open_owner);
+        (void)g_platform_guard->movable_buf_release(s_model_cell, g_cli_notebook_open_owner);
         s_model_cell = NULL;
     }
 }
@@ -1147,8 +1150,8 @@ int cli_notebook_model_open(const CliNotebookCellsOpenCfg *args)
     }
     if ((model != NULL) && (s_model_cell == NULL))
     {
-        s_model_cell =
-            g_cli_guard->movable_buf_alloc(CLI_NOTEBOOK_MODEL_AT(CLI_NOTEBOOK_MODELS_MAX), g_cli_notebook_open_owner);
+        s_model_cell = g_platform_guard->movable_buf_alloc(CLI_NOTEBOOK_MODEL_AT(CLI_NOTEBOOK_MODELS_MAX),
+                                                           g_cli_notebook_open_owner);
     }
     if ((model == NULL) || (s_model_cell == NULL) || (key_bytes > sizeof(model->key_text)) ||
         (path_bytes > sizeof(model->path_text)))
@@ -1166,10 +1169,10 @@ int cli_notebook_model_open(const CliNotebookCellsOpenCfg *args)
     model->focused = CLI_NOTEBOOK_NONE;
     model->menu_cell = CLI_NOTEBOOK_NONE;
     model->next_serial = 1u;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_model_cell,
-                                                             .offset = CLI_NOTEBOOK_MODEL_AT(s_models),
-                                                             .src = &model,
-                                                             .bytes = sizeof(CliNotebookModel *)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_model_cell,
+                                                                  .offset = CLI_NOTEBOOK_MODEL_AT(s_models),
+                                                                  .src = &model,
+                                                                  .bytes = sizeof(CliNotebookModel *)});
     s_models += 1u;
     model->root = EMBED_CALL(tree_read, NotebookCellsCtx, .model = model, .text = args->text, .size = args->size,
                              .out = args->err_msg);
@@ -1241,10 +1244,10 @@ EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
     CliNotebookModel *const model = args->model;
     CliJson *const json = args->json_out;
     CliNotebookCell cell_read;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                            .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
-                                                            .dst = &cell_read,
-                                                            .bytes = sizeof(CliNotebookCell)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                 .offset = CLI_NOTEBOOK_CELL_AT(args->cell),
+                                                                 .dst = &cell_read,
+                                                                 .bytes = sizeof(CliNotebookCell)});
     const CliNotebookCell *const cell = &cell_read;
     const unsigned int node =
         (cell->origin != CLI_JSON_NONE)
@@ -1288,7 +1291,7 @@ EMBED_INLINE unsigned int cell_written(const NotebookCellsCtx *args)
     for (unsigned int at = 0u; at < cell->outputs; at += 1u)
     {
         CliNotebookOutput output;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = model->outputs_cell,
                                 .offset = CLI_NOTEBOOK_OUTPUT_AT(cell->output_first + at),
                                 .dst = &output,
@@ -1361,7 +1364,7 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
     }
     // the outputs' texts copied out of their cell for the save, and the save's tree sized to the tree read, the sources
     // as they are and the outputs' texts
-    char *const texts = g_cli_guard->temporary_buf_alloc(model->output_used + 1ULL, g_cli_notebook_open_owner);
+    char *const texts = g_platform_guard->temporary_buf_alloc(model->output_used + 1ULL, g_cli_notebook_open_owner);
     if (texts == NULL)
     {
         mmgr_line_put(args->err_msg, args->full);
@@ -1370,7 +1373,7 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
     }
     if (model->output_used != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = model->text_cell, .offset = 0ULL, .dst = texts, .bytes = model->output_used});
     }
     texts[model->output_used] = '\0';
@@ -1382,10 +1385,10 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
     for (unsigned int at = 0u; at < model->outputs; at += 1u)
     {
         CliNotebookOutput output;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->outputs_cell,
-                                                                .offset = CLI_NOTEBOOK_OUTPUT_AT(at),
-                                                                .dst = &output,
-                                                                .bytes = sizeof(CliNotebookOutput)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->outputs_cell,
+                                                                     .offset = CLI_NOTEBOOK_OUTPUT_AT(at),
+                                                                     .dst = &output,
+                                                                     .bytes = sizeof(CliNotebookOutput)});
         const unsigned int counted = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
                                                 .text = texts + output.json, .size = output.json_length, .out = NULL);
         tokens = (counted > tokens) ? counted : tokens;
@@ -1394,23 +1397,23 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
     for (unsigned int at = 0u; at < model->cells; at += 1u)
     {
         CliNotebookCell cell;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                                .offset = CLI_NOTEBOOK_CELL_AT(at),
-                                                                .dst = &cell,
-                                                                .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                     .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                                                     .dst = &cell,
+                                                                     .bytes = sizeof(CliNotebookCell)});
         text += (4ULL * CELLS_MESSAGE_TEXT) + (3ULL * cell.lines * CLI_ERR_MSG_MAX_LEN);
     }
     nodes += (CELLS_NODES_LINE * (model->cells + 1u)) + CELLS_NODES_MORE;
     text += model->output_used + CELLS_TEXT_MORE + (3ULL * CLI_NAME_MAX_LEN);
     CliJson json = {0};
-    CfgJsonToken *const token =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens * sizeof(CfgJsonToken), g_cli_notebook_open_owner);
+    CfgJsonToken *const token = g_platform_guard->temporary_buf_alloc((unsigned long long)tokens * sizeof(CfgJsonToken),
+                                                                      g_cli_notebook_open_owner);
     if ((token == NULL) ||
         !EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &json, .nodes_max = nodes,
                     .text_max = text, .what = "a notebook being saved", .owner = g_cli_notebook_open_owner))
     {
-        g_cli_guard->persistent_buf_release(token, g_cli_notebook_open_owner);
-        g_cli_guard->persistent_buf_release(texts, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(token, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(texts, g_cli_notebook_open_owner);
         mmgr_line_put(args->err_msg, args->full);
         mmgr_line_put(args->err_msg, ": the cells cannot meet the notebook");
         return 0;
@@ -1435,14 +1438,14 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
     {
         EMBED_CALL(kernelspec_written, NotebookCellsCtx, .model = model, .json_out = &json, .node = root);
     }
-    g_cli_guard->persistent_buf_release(token, g_cli_notebook_open_owner);
-    g_cli_guard->persistent_buf_release(texts, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(token, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(texts, g_cli_notebook_open_owner);
     // the file's text, Jupyter's lines a line end and a level's space past the tree's one line each
     const unsigned long long capacity =
         (2ULL * EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity, CliJsonTreeNodeOutCfg, .json_read = &json,
                            .node = root, .out = NULL, .indent = 1u, .sorted = 0)) +
         (4ULL * json.used) + CELLS_TEXT_MORE;
-    char *const file = json.full ? NULL : g_cli_guard->temporary_buf_alloc(capacity, g_cli_notebook_open_owner);
+    char *const file = json.full ? NULL : g_platform_guard->temporary_buf_alloc(capacity, g_cli_notebook_open_owner);
     int saved = 0;
     if (file != NULL)
     {
@@ -1453,8 +1456,8 @@ int cli_notebook_model_save(const CliNotebookCellsSaveCfg *args)
         saved = mmgr_line_ok(&out) && EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx,
                                                  .path = args->full, .count = 1u, .pieces = &piece);
     }
-    g_cli_guard->persistent_buf_release(file, g_cli_notebook_open_owner);
-    g_cli_guard->persistent_buf_release(json.node, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(file, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_notebook_open_owner);
     if (!saved)
     {
         mmgr_line_put(args->err_msg, args->full);
@@ -1483,10 +1486,10 @@ EMBED_INLINE unsigned int cell_answered(const NotebookCellsCtx *args)
     CliNotebookCell cell;
     for (unsigned int at = 0u; (args->name[0] != '\0') && (at < args->model->cells); at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
-                                                                .offset = CLI_NOTEBOOK_CELL_AT(at),
-                                                                .dst = &cell,
-                                                                .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->model->cells_cell,
+                                                                     .offset = CLI_NOTEBOOK_CELL_AT(at),
+                                                                     .dst = &cell,
+                                                                     .bytes = sizeof(CliNotebookCell)});
         if (cellul.eq(&(CatenaFinitaCfg){.src = cell.run_id, .other = args->name, .cap = CLI_KERNEL_ID}))
         {
             return at;
@@ -1560,16 +1563,16 @@ EMBED_INLINE unsigned int message_applied(const NotebookCellsCtx *args)
     else if (type == CELLS_INPUT)
     {
         CliNotebookCell one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                                .offset = CLI_NOTEBOOK_CELL_AT(cell),
-                                                                .dst = &one,
-                                                                .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                     .offset = CLI_NOTEBOOK_CELL_AT(cell),
+                                                                     .dst = &one,
+                                                                     .bytes = sizeof(CliNotebookCell)});
         one.count =
             EMBED_CALL(number_of, NotebookCellsCtx, .json_read = &json, .node = content, .name = "execution_count");
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                                 .offset = CLI_NOTEBOOK_CELL_AT(cell),
-                                                                 .src = &one,
-                                                                 .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                      .offset = CLI_NOTEBOOK_CELL_AT(cell),
+                                                                      .src = &one,
+                                                                      .bytes = sizeof(CliNotebookCell)});
         applied = 1u;
     }
     else if (type == CELLS_CLEAR)
@@ -1582,17 +1585,17 @@ EMBED_INLINE unsigned int message_applied(const NotebookCellsCtx *args)
         const unsigned int count =
             EMBED_CALL(number_of, NotebookCellsCtx, .json_read = &json, .node = content, .name = "execution_count");
         CliNotebookCell one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                                .offset = CLI_NOTEBOOK_CELL_AT(cell),
-                                                                .dst = &one,
-                                                                .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                     .offset = CLI_NOTEBOOK_CELL_AT(cell),
+                                                                     .dst = &one,
+                                                                     .bytes = sizeof(CliNotebookCell)});
         one.count = (count != CLI_NOTEBOOK_NONE) ? count : one.count;
         one.running = 0;
         one.run_id[0] = '\0';
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
-                                                                 .offset = CLI_NOTEBOOK_CELL_AT(cell),
-                                                                 .src = &one,
-                                                                 .bytes = sizeof(CliNotebookCell)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = model->cells_cell,
+                                                                      .offset = CLI_NOTEBOOK_CELL_AT(cell),
+                                                                      .src = &one,
+                                                                      .bytes = sizeof(CliNotebookCell)});
         applied = 1u;
     }
     else if (type != CLI_NOTEBOOK_NONE)
@@ -1617,7 +1620,7 @@ EMBED_INLINE unsigned int message_applied(const NotebookCellsCtx *args)
     {
         EMBED_CALL(cli_notebook_model_internal.rows_settled, CliNotebookModelCtx, .model = model, .cell = cell);
     }
-    g_cli_guard->persistent_buf_release(json.node, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_notebook_open_owner);
     return applied;
 }
 
@@ -1628,19 +1631,19 @@ int cli_notebook_model_step(const CliNotebookCellsStepCfg *args)
     for (unsigned int place = 0u; place < s_models; place += 1u)
     {
         CliNotebookModel *model = NULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
-                                                                .offset = CLI_NOTEBOOK_MODEL_AT(place),
-                                                                .dst = &model,
-                                                                .bytes = sizeof(CliNotebookModel *)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_model_cell,
+                                                                     .offset = CLI_NOTEBOOK_MODEL_AT(place),
+                                                                     .dst = &model,
+                                                                     .bytes = sizeof(CliNotebookModel *)});
         // the messages pending read into a cell of this call and the ring emptied, the receiver filling it again
         // from here on
         EMBED_CALL(ring_locked, NotebookCellsCtx, .model = model);
         const unsigned long long used = model->ring_used;
         unsigned char *const ring =
-            (used != 0ULL) ? g_cli_guard->temporary_buf_alloc(used, g_cli_notebook_open_owner) : NULL;
+            (used != 0ULL) ? g_platform_guard->temporary_buf_alloc(used, g_cli_notebook_open_owner) : NULL;
         if (ring != NULL)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = model->ring_cell, .offset = 0ULL, .dst = ring, .bytes = (embed_word)used});
             model->ring_used = 0ULL;
         }
@@ -1660,7 +1663,7 @@ int cli_notebook_model_step(const CliNotebookCellsStepCfg *args)
             ran = ran || (applied == 1u);
             at += sizeof(size) + size;
         }
-        g_cli_guard->persistent_buf_release(ring, g_cli_notebook_open_owner);
+        g_platform_guard->persistent_buf_release(ring, g_cli_notebook_open_owner);
         if (ran)
         {
             EMBED_CALL(cli_notebook_model_internal.stale_settled, CliNotebookModelCtx, .model = model);

@@ -9,7 +9,7 @@
 // forms' writings is written as retained, and an open one, a relation of absence no part of a set can decide
 // (RULESET_CORE_RELATION_OPEN, RULESET_CORE_MAP_OPEN), as open, and neither fails anything. The map's relations are the
 // lines a lane cannot be read through as it is, written and failing nothing
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"
 #include "memoria_operor/memoria_operor.h"

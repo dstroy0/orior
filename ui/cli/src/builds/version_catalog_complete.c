@@ -88,7 +88,7 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     const int read = EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx,
                                 .text = text, .size = size);
     const unsigned long long capacity = g_cli_versions.used + 16ULL + (2ULL * g_cli_versions.items);
-    char *const about_text = read ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_versions_owner) : NULL;
+    char *const about_text = read ? g_platform_guard->temporary_buf_alloc(capacity, g_cli_versions_owner) : NULL;
     for (unsigned int at = 0u; (about_text != NULL) && (at < g_cli_versions.sections); at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
@@ -113,7 +113,7 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
                        .detail_size = about.at);
         }
     }
-    g_cli_guard->persistent_buf_release(about_text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(about_text, g_cli_versions_owner);
     cli_versions_free();
 }
 

@@ -47,7 +47,7 @@
 // The writer runs in a query run, the .qry QRY names (qry_member.h). The forms the vendor's writer passes back are the
 // blob FORMS_BLOB_NAME of the run (forms_blob.h). What the writer prints goes into the run as KRS_MACHINE_NAME.
 #include "../../../src/cu/engine/rmc/schema_forms.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "krs_write/fixed.h"
 #include "krs_write/head.h"

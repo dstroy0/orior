@@ -73,7 +73,7 @@ void cli_command_set(const CliRunnerCommandNameCfg *args)
         args->command->words.full = 1;
         return;
     }
-    const CliSetting setting = {
+    const PlatformSetting setting = {
         EMBED_CALL(cli_text_store, RunnerCtx, .command = args->command, .text = args->name),
         (value != NULL) ? EMBED_CALL(cli_text_store, RunnerCtx, .command = args->command, .text = value) : NULL};
     args->command->setting[args->command->settings] = setting;

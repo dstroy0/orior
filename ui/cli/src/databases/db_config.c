@@ -173,7 +173,7 @@ static int config_read(const DbConfigCtx *args)
                                      .json = &json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                      .text_more = 0ULL, .err_msg = &read_err_msg, .owner = g_cli_db_owner)
                         : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_db_owner);
     const unsigned int connections = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = &json, .object = root_node, .name = "connections");
     unsigned int named = 0u;
@@ -183,10 +183,10 @@ static int config_read(const DbConfigCtx *args)
     {
         named += 1u;
     }
-    s_connections = g_cli_guard->temporary_buf_alloc((named + 1ULL) * sizeof(*s_connections), g_cli_db_owner);
+    s_connections = g_platform_guard->temporary_buf_alloc((named + 1ULL) * sizeof(*s_connections), g_cli_db_owner);
     if (s_connections == NULL)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "databases.json: the cells cannot meet its connections");
@@ -218,7 +218,7 @@ static int config_read(const DbConfigCtx *args)
                    .type = CFG_JSON_OBJECT) &&
         ((connections == CLI_JSON_NONE) || EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
                                                       .json_read = &json, .node = connections, .type = CFG_JSON_ARRAY));
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!object || (read_err_msg.at > 0ULL))
@@ -296,15 +296,15 @@ EMBED_INLINE void config_on_write(const DbConfigCtx *args)
     mmgr_line_ch(args->out_verba_linea_pointer, '}');
 }
 
-// the connections, `count` of them, written to databases.json as serde_json's pretty writer positions them out, under the
-// lock: 1, or 0 with why given
+// the connections, `count` of them, written to databases.json as serde_json's pretty writer positions them out, under
+// the lock: 1, or 0 with why given
 EMBED_INLINE int config_write(const DbConfigCtx *args)
 {
     const char *root = args->root;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "databases.json", .joined = path);
-    CliGrownLine out_grown;
-    cli_grown_begin(&out_grown, CLI_DB_CONFIG_CAPACITY, g_cli_db_owner);
+    PlatformText out_grown;
+    platform_text_begun(&out_grown, CLI_DB_CONFIG_CAPACITY, platform_place_g_cli_db_owner, PLATFORM_TIER_TEMPORARY);
     VerbaLinea *const out_line = &out_grown.line;
     mmgr_line_put(out_line, (args->count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -314,10 +314,10 @@ EMBED_INLINE int config_write(const DbConfigCtx *args)
                    .out_verba_linea_pointer = out_line);
         mmgr_line_put(out_line, (at + 1u < args->count) ? ",\n" : "\n  ]\n}\n");
     }
-    const int written =
-        mmgr_line_ok(out_line) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
-                                             .path = path, .bytes = out_grown.cell, .size = cli_grown_size(&out_grown));
-    cli_grown_end(&out_grown);
+    const int written = mmgr_line_ok(out_line) &&
+                        EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
+                                   .bytes = out_grown.cell, .size = platform_text_size(&out_grown));
+    platform_text_ended(&out_grown);
     if (!written)
     {
         mmgr_line_put(args->err_msg, "databases.json: it could not be written");
@@ -335,12 +335,12 @@ int cli_db_by_name(const CliDbRootNameCfg *args)
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_connections[at].name, .other = args->name, .cap = CLI_POOL_BYTES}))
         {
             *connection = s_connections[at];
-            g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+            g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
             s_connections = NULL;
             return 1;
         }
     }
-    g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
     s_connections = NULL;
     if (count >= 0)
     {
@@ -376,7 +376,7 @@ int cli_db_save(const CliDbConnectionCfg *args)
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
-        g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+        g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
         s_connections = NULL;
         return 0;
     }
@@ -388,7 +388,7 @@ int cli_db_save(const CliDbConnectionCfg *args)
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = s_connections[at].name, .other = args->connection->name, .cap = CLI_POOL_BYTES})))
         {
-            g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+            g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
             s_connections = NULL;
             mmgr_line_put(args->err_msg, "the tree names a connection ");
             mmgr_line_put(args->err_msg, args->connection->name);
@@ -402,7 +402,7 @@ int cli_db_save(const CliDbConnectionCfg *args)
     }
     if ((found < 0) && (count == (int)CLI_DB_CONNECTIONS))
     {
-        g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+        g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
         s_connections = NULL;
         mmgr_line_put(args->err_msg, "databases.json names as many connections as impero reads");
         return 0;
@@ -411,7 +411,7 @@ int cli_db_save(const CliDbConnectionCfg *args)
     const int written =
         EMBED_CALL(config_write, DbConfigCtx, .root = args->root,
                    .count = (found >= 0) ? (unsigned int)count : (unsigned int)count + 1u, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
     s_connections = NULL;
     return written;
 }
@@ -421,7 +421,7 @@ int cli_db_remove(const CliDbRootNameCfg *args)
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
-        g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+        g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
         s_connections = NULL;
         return 0;
     }
@@ -446,7 +446,7 @@ int cli_db_remove(const CliDbRootNameCfg *args)
     }
     const int written =
         EMBED_CALL(config_write, DbConfigCtx, .root = args->root, .count = remaining, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
     s_connections = NULL;
     return written;
 }
@@ -456,7 +456,7 @@ int cli_db_list(const CliDbOutRootCfg *args)
     const int read = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (read < 0)
     {
-        g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+        g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
         s_connections = NULL;
         return 0;
     }
@@ -513,7 +513,7 @@ int cli_db_list(const CliDbOutRootCfg *args)
         mmgr_line_put(args->out, list_entries ? ",\"passwordKept\":true}" : ",\"passwordKept\":false}");
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_guard->persistent_buf_release(s_connections, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(s_connections, g_cli_db_owner);
     s_connections = NULL;
     return 1;
 }

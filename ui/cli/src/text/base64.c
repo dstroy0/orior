@@ -67,8 +67,8 @@ int cli_unbase64(const CliBase64TextCfg *args)
     {
         const int ended = at == args->length;
         const char character = ended ? '\0' : args->text[at];
-        const int white =
-            (character == ' ') || (character == '\t') || (character == '\n') || (character == '\f') || (character == '\r');
+        const int white = (character == ' ') || (character == '\t') || (character == '\n') || (character == '\f') ||
+                          (character == '\r');
         if (!ended && white)
         {
             continue;

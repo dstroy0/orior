@@ -185,7 +185,7 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
              EMBED_CALL(tar_pax, DeployTarCtx, .path = args->path, .name = file->path, .time = args->time)) &&
             EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
             EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = bytes, .size = size);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
         if (!written)
         {
             mmgr_line_put(args->err_msg, args->path);

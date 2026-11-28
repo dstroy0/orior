@@ -280,7 +280,7 @@ EMBED_INLINE const CarcerMovableEntry *branch_state_cell(const DocumentBranchCtx
     const CarcerMovableEntry *cell = NULL;
     if ((args->one_read->state_cells != NULL) && (args->at < args->one_read->state_count))
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->one_read->state_cells,
                                 .offset = (unsigned long long)args->at * sizeof(const CarcerMovableEntry *),
                                 .dst = &cell,
@@ -300,9 +300,9 @@ EMBED_INLINE unsigned long long branch_state_text(const DocumentBranchCtx *args)
     {
         return 0ULL;
     }
-    const embed_word measured = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = cell});
+    const embed_word measured = g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = cell});
     const unsigned long long length = (measured < CLI_DOC_STATE) ? measured : (CLI_DOC_STATE - 1ULL);
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = args->text_out, .bytes = length});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = args->text_out, .bytes = length});
     args->text_out[length] = '\0';
     return length;
 }
@@ -314,9 +314,9 @@ EMBED_INLINE void *branch_work_room(const DocumentBranchCtx *args)
     BranchWork *const work = args->work;
     if ((work->cell == NULL) || (work->room < args->at_u64))
     {
-        g_cli_guard->persistent_buf_release(work->cell, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(work->cell, g_cli_editor_owner);
         const unsigned long long room = args->at_u64 + (args->at_u64 / 2ULL);
-        work->cell = g_cli_guard->temporary_buf_alloc(room, g_cli_editor_owner);
+        work->cell = g_platform_guard->temporary_buf_alloc(room, g_cli_editor_owner);
         work->room = (work->cell != NULL) ? room : 0ULL;
     }
     return work->cell;
@@ -328,7 +328,7 @@ EMBED_INLINE void *branch_work_room(const DocumentBranchCtx *args)
 EMBED_INLINE unsigned int *branch_record_alloc(const DocumentBranchCtx *args)
 {
     unsigned int runs = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one_read->run,
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one_read->run,
                                                             .offset = (unsigned long long)args->place * sizeof(runs),
                                                             .dst = &runs,
                                                             .bytes = sizeof(runs)});
@@ -336,10 +336,10 @@ EMBED_INLINE unsigned int *branch_record_alloc(const DocumentBranchCtx *args)
     unsigned int *const record =
         (args->work != NULL) ? EMBED_CALL(branch_work_room, DocumentBranchCtx, .work = args->work,
                                           .at_u64 = words * sizeof(unsigned int))
-                             : g_cli_guard->temporary_buf_alloc(words * sizeof(unsigned int), g_cli_editor_owner);
+                             : g_platform_guard->temporary_buf_alloc(words * sizeof(unsigned int), g_cli_editor_owner);
     if (record != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->one_read->run,
                                 .offset = (unsigned long long)args->place * sizeof(*record),
                                 .dst = record,
@@ -355,14 +355,14 @@ EMBED_INLINE unsigned int *branch_line_record(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one_read->lines;
     unsigned int place = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->one_read->lines.words,
         .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*args->one_read->lines.lines) + (args->line_number)) *
                   sizeof(place),
         .dst = &place,
         .bytes = sizeof(place)});
     *args->place_out = place;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->lengths,
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->lengths,
                                                             .offset = args->line_number * sizeof(*args->length_out),
                                                             .dst = args->length_out,
                                                             .bytes = sizeof(*args->length_out)});
@@ -379,7 +379,7 @@ EMBED_INLINE void branch_cell_zeroed(const DocumentBranchCtx *args)
     {
         const unsigned long long step =
             ((args->bytes - done) < sizeof(s_zeros)) ? (args->bytes - done) : sizeof(s_zeros);
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = args->entry, .offset = args->at_u64 + done, .src = s_zeros, .bytes = step});
     }
 }
@@ -400,8 +400,8 @@ EMBED_INLINE int branch_state_is(const DocumentBranchCtx *args)
     const CarcerMovableEntry *const cell =
         EMBED_CALL(branch_state_cell, DocumentBranchCtx, .one_read = args->one_read, .at = args->at);
     // the state's length is compared first, so a state the text only starts differs from it
-    return (cell != NULL) && (g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = cell}) == args->length) &&
-           (g_cli_guard->movable_buf_compare(
+    return (cell != NULL) && (g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = cell}) == args->length) &&
+           (g_platform_guard->movable_buf_compare(
                 &(CarcerMovableCfg){.cell = cell, .src = args->text, .bytes = args->length + 1ULL}) == 0);
 }
 
@@ -417,7 +417,7 @@ static int branch_place_order(const void *left, const void *right)
 static BranchStatePlace branch_index_place(const CliStoredText *one, unsigned int at)
 {
     BranchStatePlace place = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->state_index,
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->state_index,
                                                             .offset = (unsigned long long)at * sizeof(BranchStatePlace),
                                                             .dst = &place,
                                                             .bytes = sizeof(place)});
@@ -432,7 +432,7 @@ static unsigned int branch_index_found(const DocumentBranchCtx *args, unsigned i
     BranchStatePlace run[CLI_DOC_STATE_RUN];
     if (one->state_run != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = one->state_index,
                                 .offset = (unsigned long long)CLI_DOC_STATES_MAX * sizeof(BranchStatePlace),
                                 .dst = run,
@@ -486,16 +486,16 @@ static int branch_index_merged(CliStoredText *one)
     }
     const unsigned int count = one->state_ordered + one->state_run;
     BranchStatePlace *const order =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(BranchStatePlace), g_cli_editor_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)count * sizeof(BranchStatePlace), g_cli_editor_owner);
     if (order == NULL)
     {
         return 0;
     }
     BranchStatePlace run[CLI_DOC_STATE_RUN];
     BranchStatePlace room[CLI_DOC_STATE_RUN];
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = one->state_index, .dst = order, .bytes = (unsigned long long)count * sizeof(BranchStatePlace)});
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = one->state_index,
                             .offset = (unsigned long long)CLI_DOC_STATES_MAX * sizeof(BranchStatePlace),
                             .dst = run,
@@ -523,9 +523,9 @@ static int branch_index_merged(CliStoredText *one)
             order[to] = run[from_run];
         }
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = one->state_index, .src = order, .bytes = (unsigned long long)count * sizeof(BranchStatePlace)});
-    g_cli_guard->persistent_buf_release(order, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(order, g_cli_editor_owner);
     one->state_ordered = count;
     one->state_run = 0u;
     return 1;
@@ -535,7 +535,7 @@ static int branch_index_merged(CliStoredText *one)
 EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
 {
     const BranchStatePlace place = {args->hash_u32, args->at};
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = args->one->state_index,
         .offset = ((unsigned long long)CLI_DOC_STATES_MAX + args->one->state_run) * sizeof(BranchStatePlace),
         .src = &place,
@@ -549,17 +549,17 @@ EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
 {
     if (args->one->state_indexed == 0u)
     {
-        const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(
+        const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(
             (CLI_DOC_STATES_MAX + CLI_DOC_STATE_RUN) * sizeof(BranchStatePlace), g_cli_editor_owner);
         if (cell == NULL)
         {
             return 0;
         }
         const CarcerMovableEntry *const cells =
-            g_cli_guard->movable_buf_alloc(CLI_DOC_STATES_MAX * sizeof(const CarcerMovableEntry *), g_cli_editor_owner);
+            g_platform_guard->movable_buf_alloc(CLI_DOC_STATES_MAX * sizeof(const CarcerMovableEntry *), g_cli_editor_owner);
         if (cells == NULL)
         {
-            (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+            (void)g_platform_guard->movable_buf_release(cell, g_cli_editor_owner);
             return 0;
         }
         args->one->state_index = cell;
@@ -600,15 +600,15 @@ static unsigned int branch_state(const DocumentBranchCtx *args)
     }
     // the state in a cell of its own sized to its text, its identity written after the states' before it, its
     // place the number of states before it
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(length + 1ULL, g_cli_editor_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(length + 1ULL, g_cli_editor_owner);
     if (cell == NULL)
     {
         args->one->refused = 1;
         return CLI_DOC_ROOT;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->text, .bytes = length + 1ULL});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->text, .bytes = length + 1ULL});
     const unsigned int at = args->one->state_count;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->one->state_cells,
                             .offset = (unsigned long long)at * sizeof(const CarcerMovableEntry *),
                             .src = &cell,
@@ -626,7 +626,7 @@ void cli_document_states_released(const CliDocumentCtx *args)
     {
         const CarcerMovableEntry *const cell =
             EMBED_CALL(branch_state_cell, DocumentBranchCtx, .one_read = one, .at = at);
-        (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(cell, g_cli_editor_owner);
     }
     one->state_count = 0u;
     one->state_ordered = 0u;
@@ -662,30 +662,30 @@ EMBED_INLINE void branch_line_append(const DocumentBranchCtx *args)
 {
     unsigned int line = args->line;
     unsigned long long count = 0ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->lines->lengths, .offset = line * sizeof(count), .dst = &count, .bytes = sizeof(count)});
     unsigned short *const unit =
         (count == 0ULL)        ? NULL
         : (args->work != NULL) ? EMBED_CALL(branch_work_room, DocumentBranchCtx, .work = args->work,
                                             .at_u64 = count * sizeof(unsigned short))
-                               : g_cli_guard->temporary_buf_alloc(count * sizeof(unsigned short), g_cli_editor_owner);
+                               : g_platform_guard->temporary_buf_alloc(count * sizeof(unsigned short), g_cli_editor_owner);
     if (unit == NULL)
     {
         return;
     }
     unsigned long long line_start = 0ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->lines->starts,
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->lines->starts,
                                                             .offset = line * sizeof(line_start),
                                                             .dst = &line_start,
                                                             .bytes = sizeof(line_start)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->lines->units,
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->lines->units,
                                                             .offset = line_start * sizeof(unsigned short),
                                                             .dst = unit,
                                                             .bytes = count * sizeof(unsigned short)});
     EMBED_CALL(branch_units_utf8, DocumentBranchCtx, .units = unit, .count_u64 = count, .out = args->out);
     if (args->work == NULL)
     {
-        g_cli_guard->persistent_buf_release(unit, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(unit, g_cli_editor_owner);
     }
 }
 
@@ -702,7 +702,7 @@ EMBED_INLINE void branch_lines_write(const DocumentBranchCtx *args)
         EMBED_CALL(branch_line_append, DocumentBranchCtx, .lines = args->lines, .line = at, .out = &out, .work = &work);
         mmgr_line_ch(&out, '\0');
     }
-    g_cli_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
 }
 
 // the lines from `first` to `end` of a text read whole, `lines`, measured: the line after the last that `bytes` of
@@ -717,7 +717,7 @@ EMBED_INLINE unsigned long long branch_lines_measure(const DocumentBranchCtx *ar
     while ((to < args->end) && ((to == args->first) || (args->bytes == CLI_DOC_ALL_BYTES) || (spent < args->bytes)))
     {
         unsigned long long length = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->lines->lengths, .offset = to * sizeof(length), .dst = &length, .bytes = sizeof(length)});
         capacity += (3ULL * length) + 1ULL;
         spent += length + 1ULL;
@@ -749,7 +749,7 @@ EMBED_INLINE void branch_runs_append(const DocumentBranchCtx *args)
 EMBED_INLINE unsigned int branch_line_runs(const DocumentBranchCtx *args)
 {
     unsigned int place = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->one_read->lines.words,
         .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*args->one_read->lines.lines) + (args->line_number)) *
                   sizeof(place),
@@ -759,7 +759,7 @@ EMBED_INLINE unsigned int branch_line_runs(const DocumentBranchCtx *args)
     unsigned int line_runs = 0u;
     if (place != CLI_DOC_NO_RUNS)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one_read->run,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one_read->run,
                                                                 .offset = (unsigned long long)place * sizeof(line_runs),
                                                                 .dst = &line_runs,
                                                                 .bytes = sizeof(line_runs)});
@@ -793,16 +793,16 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
         return 0;
     }
     // the records gathered in their lines' order in a work cell, then a cell sized to them and the words added
-    unsigned int *const work = g_cli_guard->temporary_buf_alloc(capacity * sizeof(*work), g_cli_editor_owner);
+    unsigned int *const work = g_platform_guard->temporary_buf_alloc(capacity * sizeof(*work), g_cli_editor_owner);
     if (work == NULL)
     {
         return 0;
     }
     const CarcerMovableEntry *const moved =
-        (capacity != 0ULL) ? g_cli_guard->movable_buf_alloc(capacity * sizeof(*work), g_cli_editor_owner) : NULL;
+        (capacity != 0ULL) ? g_platform_guard->movable_buf_alloc(capacity * sizeof(*work), g_cli_editor_owner) : NULL;
     if ((moved == NULL) && (capacity != 0ULL))
     {
-        g_cli_guard->persistent_buf_release(work, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(work, g_cli_editor_owner);
         return 0;
     }
     unsigned int used = 0u;
@@ -815,14 +815,14 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
         if (at != CLI_DOC_NO_RUNS)
         {
             const unsigned int words = CLI_DOC_RECORD_HEAD + (2u * line_runs);
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = args->one->run,
                                     .offset = (unsigned long long)at * sizeof(*work),
                                     .dst = work + used,
                                     .bytes = (unsigned long long)words * sizeof(*work)});
             {
                 const unsigned int stored_value = used;
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
                     .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(stored_value),
                     .src = &stored_value,
@@ -833,11 +833,11 @@ EMBED_INLINE int branch_runs_capacity(const DocumentBranchCtx *args)
     }
     if (used != 0u)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = moved, .src = work, .bytes = (unsigned long long)used * sizeof(*work)});
     }
-    g_cli_guard->persistent_buf_release(work, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(args->one->run, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(work, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->run, g_cli_editor_owner);
     args->one->run = moved;
     // a capacity checked above to be no more than an unsigned int counts
     args->one->run_capacity = (unsigned int)capacity;
@@ -852,7 +852,7 @@ EMBED_INLINE void branch_runs_save(const DocumentBranchCtx *args)
     const CliStoredLines *const lines = &args->one->lines;
     {
         const unsigned int stored_value = CLI_DOC_NO_RUNS;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(stored_value),
             .src = &stored_value,
@@ -866,20 +866,20 @@ EMBED_INLINE void branch_runs_save(const DocumentBranchCtx *args)
     }
     const unsigned long long at = (unsigned long long)args->one->run_used * sizeof(unsigned int);
     const unsigned int head[CLI_DOC_RECORD_HEAD] = {args->leaves->runs, args->leaves->end};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->one->run, .offset = at, .src = head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->one->run,
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->one->run,
                                                              .offset = at + sizeof(head),
                                                              .src = args->leaves->col,
                                                              .bytes = args->leaves->runs * sizeof(unsigned int)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->one->run,
                             .offset = at + sizeof(head) + (args->leaves->runs * sizeof(unsigned int)),
                             .src = args->leaves->name,
                             .bytes = args->leaves->runs * sizeof(unsigned int)});
     {
         const unsigned int stored_value = args->one->run_used;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(stored_value),
             .src = &stored_value,
@@ -895,7 +895,7 @@ EMBED_INLINE int branch_runs_existing(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one_read->lines;
     unsigned int word_1 = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = lines->words,
         .offset = (((unsigned long long)CLI_DOC_WORD_ENDED * lines->lines) + (args->line - 1u)) * sizeof(word_1),
         .dst = &word_1,
@@ -903,13 +903,13 @@ EMBED_INLINE int branch_runs_existing(const DocumentBranchCtx *args)
 
     const unsigned int above = (args->line != 0u) ? word_1 : CLI_DOC_UNCOLORED;
     unsigned int begun = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = lines->words,
         .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + args->line) * sizeof(begun),
         .dst = &begun,
         .bytes = sizeof(begun)});
     unsigned int line_runs = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = lines->words,
         .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(line_runs),
         .dst = &line_runs,
@@ -927,7 +927,7 @@ static void branch_role_read(const CliNameEachCfg *args)
     {
         const unsigned int roles =
             CLI_DOC_ROLES_KNOWN | EMBED_CALL(cli_symbols_query.name_roles, CliSymbolsQueryCfg, .name = name);
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = one->roles,
                                 .offset = (unsigned long long)args->place * sizeof(roles),
                                 .src = &roles,
@@ -948,9 +948,9 @@ EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
     if (names != args->one->roles_capacity)
     {
         // the roles are read anew over a cell sized to the names counted
-        (void)g_cli_guard->movable_buf_release(args->one->roles, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(args->one->roles, g_cli_editor_owner);
         args->one->roles =
-            g_cli_guard->movable_buf_alloc((unsigned long long)names * sizeof(unsigned int), g_cli_editor_owner);
+            g_platform_guard->movable_buf_alloc((unsigned long long)names * sizeof(unsigned int), g_cli_editor_owner);
         if (args->one->roles == NULL)
         {
             args->one->roles_capacity = 0u;
@@ -969,14 +969,14 @@ EMBED_INLINE void branch_roles_read(const DocumentBranchCtx *args)
         unsigned int roles = 0u;
         if (place < args->one->roles_capacity)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = args->one->roles,
                                     .offset = (unsigned long long)(place) * sizeof(roles),
                                     .dst = &roles,
                                     .bytes = sizeof(roles)});
         }
         roles |= (rank < CLI_DOC_RANKS) ? ((rank + 1u) << CLI_DOC_RANK_AT) : 0u;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->one->roles,
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->one->roles,
                                                                  .offset = (unsigned long long)place * sizeof(roles),
                                                                  .src = &roles,
                                                                  .bytes = sizeof(roles)});
@@ -1595,7 +1595,7 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
     while ((record < last) && (line < lines->lines) && !args->one->refused)
     {
         unsigned int begun_word = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(begun_word),
             .dst = &begun_word,
@@ -1613,7 +1613,7 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
         const int written = (scope_size != CLI_DOC_NONE) && (scope_size != CLI_DOC_SCOPE_SAME);
         {
             const unsigned int stored_value = *entering;
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = lines->words,
                 .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(stored_value),
                 .src = &stored_value,
@@ -1623,14 +1623,14 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
                                              .text = ended, .read = &scoped);
         {
             const unsigned int stored_value = ends;
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = lines->words,
                 .offset = (((unsigned long long)CLI_DOC_WORD_ENDED * lines->lines) + line) * sizeof(stored_value),
                 .src = &stored_value,
                 .bytes = sizeof(stored_value)});
         }
         unsigned int regions_word = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * lines->lines) + line) * sizeof(regions_word),
             .dst = &regions_word,
@@ -1638,7 +1638,7 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
         args->one->regions_moved = args->one->regions_moved || (regions_word != record[1]);
         {
             const unsigned int stored_value = record[1];
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = lines->words,
                 .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * lines->lines) + line) * sizeof(stored_value),
                 .src = &stored_value,
@@ -1655,7 +1655,7 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
         {
             {
                 const unsigned int stored_value = CLI_DOC_NO_RUNS;
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
                     .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(stored_value),
                     .src = &stored_value,
@@ -1773,7 +1773,7 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
                            .end = end, .bytes = args->range->bytes, .read = &read);
     const unsigned long long starts_bytes = (unsigned long long)(end - args->first) * sizeof(const char *);
     const unsigned long long roles_bytes = (unsigned long long)roles * sizeof(unsigned int);
-    char *const cell = g_cli_guard->temporary_buf_alloc(starts_bytes + roles_bytes + text_capacity, g_cli_editor_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(starts_bytes + roles_bytes + text_capacity, g_cli_editor_owner);
     const char **line = (const char **)(void *)cell;
     finding.roles = NULL;
     finding.roles_count = 0u;
@@ -1783,7 +1783,7 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
         finding.roles_count = roles;
         if (roles_bytes != 0ULL)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = args->one->roles, .dst = cell + starts_bytes, .bytes = roles_bytes});
         }
         if (!paged)
@@ -1819,7 +1819,7 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
                              (CLI_DOC_STATE / 2ULL);
     const unsigned long long named_bytes = finding.named_capacity * sizeof(unsigned int);
     char *const found_cell =
-        (spend != 0u) ? g_cli_guard->temporary_buf_alloc(named_bytes + (finding.found_capacity * sizeof(unsigned int)),
+        (spend != 0u) ? g_platform_guard->temporary_buf_alloc(named_bytes + (finding.found_capacity * sizeof(unsigned int)),
                                                          g_cli_editor_owner)
                       : NULL;
     finding.named = (unsigned int *)(void *)found_cell;
@@ -1839,7 +1839,7 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
                        .each = branch_find, .context = &finding, .ended = &last, .err_msg = &err_msg);
         cli_document_lock_take();
     }
-    g_cli_guard->persistent_buf_release(reserved, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(reserved, g_cli_editor_owner);
     EMBED_CALL(branch_claim_drop, DocumentBranchCtx, .one = args->one, .at = claim);
     unsigned int put = args->first;
     if (args->one->let_go || (args->one->serial != serial))
@@ -1857,8 +1857,8 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
                          .entering = args->entering, .stopped = args->stopped, .range = args->range);
         args->one->refused = args->one->refused || finding.refused;
     }
-    g_cli_guard->persistent_buf_release(found_cell, g_cli_editor_owner);
-    g_cli_guard->persistent_buf_release(cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(found_cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_editor_owner);
     return put;
 }
 
@@ -1872,7 +1872,7 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
 EMBED_INLINE unsigned int branch_color(const DocumentBranchCtx *args)
 {
     unsigned int word_2 = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = (&args->one->lines)->words,
         .offset = (((unsigned long long)CLI_DOC_WORD_ENDED * (&args->one->lines)->lines) + (args->from - 1u)) *
                   sizeof(word_2),
@@ -1900,7 +1900,7 @@ EMBED_INLINE unsigned int branch_color(const DocumentBranchCtx *args)
 EMBED_INLINE int branch_uncolored(const DocumentBranchCtx *args)
 {
     unsigned int begun = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->one_read->lines.words,
         .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * args->one_read->lines.lines) + args->line) * sizeof(begun),
         .dst = &begun,
@@ -1994,7 +1994,7 @@ EMBED_INLINE void branch_range_color(const DocumentBranchCtx *args)
     unsigned int end_begun = CLI_DOC_UNCOLORED;
     if (args->end < args->one->lines.lines)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->one->lines.words,
             .offset =
                 (((unsigned long long)CLI_DOC_WORD_BEGUN * args->one->lines.lines) + args->end) * sizeof(end_begun),
@@ -2023,13 +2023,13 @@ EMBED_INLINE unsigned int branch_entered_astray(const DocumentBranchCtx *args)
     for (unsigned int line = (args->low != 0u) ? (args->low + 1u) : 0u; line < args->high; line += 1u)
     {
         unsigned int begun = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(begun),
             .dst = &begun,
             .bytes = sizeof(begun)});
         unsigned int word_3 = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_ENDED * lines->lines) + (line - 1u)) * sizeof(word_3),
             .dst = &word_3,
@@ -2196,7 +2196,7 @@ static void branch_folds_each(const DocumentBranchCtx *args)
     for (unsigned int line = first; line < end; line += 1u)
     {
         unsigned int word_4 = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * lines->lines) + line) * sizeof(word_4),
             .dst = &word_4,
@@ -2207,7 +2207,7 @@ static void branch_folds_each(const DocumentBranchCtx *args)
     const unsigned long long widest_bytes = (unsigned long long)saved * sizeof(unsigned int);
     unsigned int *const widest =
         (saved != 0u)
-            ? g_cli_guard->temporary_buf_alloc(widest_bytes + (opening * sizeof(unsigned int)), g_cli_editor_owner)
+            ? g_platform_guard->temporary_buf_alloc(widest_bytes + (opening * sizeof(unsigned int)), g_cli_editor_owner)
             : NULL;
     if (widest == NULL)
     {
@@ -2220,7 +2220,7 @@ static void branch_folds_each(const DocumentBranchCtx *args)
     for (unsigned int line = first; line < end; line += 1u)
     {
         unsigned int regions = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * lines->lines) + line) * sizeof(regions),
             .dst = &regions,
@@ -2255,7 +2255,7 @@ static void branch_folds_each(const DocumentBranchCtx *args)
                        .displayed = (widest[at] & CLI_DOC_FOLD_DISPLAYED) != 0u);
         }
     }
-    g_cli_guard->persistent_buf_release(widest, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(widest, g_cli_editor_owner);
 }
 
 static int folds_each_locked(const CliDocumentContextCfg *args)
@@ -2301,7 +2301,7 @@ static unsigned int openers_locked(const CliDocumentKeyLineCfg *args)
     for (unsigned int at = 0u; at < end; at += 1u)
     {
         unsigned int word_5 = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = (&one->lines)->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * (&one->lines)->lines) + at) * sizeof(word_5),
             .dst = &word_5,
@@ -2310,12 +2310,12 @@ static unsigned int openers_locked(const CliDocumentKeyLineCfg *args)
         opening += word_5 & CLI_DOC_REGION_COUNT;
     }
     unsigned int *const opened_on =
-        (opening != 0ULL) ? g_cli_guard->temporary_buf_alloc(opening * sizeof(unsigned int), g_cli_editor_owner) : NULL;
+        (opening != 0ULL) ? g_platform_guard->temporary_buf_alloc(opening * sizeof(unsigned int), g_cli_editor_owner) : NULL;
     unsigned int open = 0u;
     for (unsigned int at = 0u; (opened_on != NULL) && (at < end); at += 1u)
     {
         unsigned int regions = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = (&one->lines)->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_REGIONS * (&one->lines)->lines) + at) * sizeof(regions),
             .dst = &regions,
@@ -2333,7 +2333,7 @@ static unsigned int openers_locked(const CliDocumentKeyLineCfg *args)
     {
         args->opener[at] = opened_on[open - count + at];
     }
-    g_cli_guard->persistent_buf_release(opened_on, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(opened_on, g_cli_editor_owner);
     return count;
 }
 
@@ -2370,11 +2370,11 @@ static unsigned int run_roles_locked(const CliDocumentKeyLineCfg *args)
     {
         name = (col[run] <= args->col) ? col[run + runs] : name;
     }
-    g_cli_guard->persistent_buf_release(record, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(record, g_cli_editor_owner);
     unsigned int roles = 0u;
     if ((name != CLI_DOC_NONE) && (name < one->roles_capacity))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->roles,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->roles,
                                                                 .offset = (unsigned long long)name * sizeof(roles),
                                                                 .dst = &roles,
                                                                 .bytes = sizeof(roles)});
@@ -2475,7 +2475,7 @@ void cli_document_wake(const CliDocumentCtx *args)
     if (s_threaded && (free_at != CLI_DOC_WALKERS) && (walking < s_walkers_max) && (waiting > between))
     {
         CliBranchWalker *const walker = &s_walkers[free_at];
-        walker->thread = (CliThread){branch_walk_run, walker, CLI_PRIORITY_WORK};
+        walker->thread = (CliThread){branch_walk_run, walker, PLATFORM_PRIORITY_WORK};
         walker->walking = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &walker->thread);
     }
 }
@@ -2491,7 +2491,7 @@ void cli_document_colored_wake(void)
 
 static void colors_to_locked(const CliDocumentColoredCfg *args)
 {
-    const unsigned int reserve = cli_processors() - 1u;
+    const unsigned int reserve = platform_processors() - 1u;
     s_colored = args->colored;
     s_threaded = args->threaded;
     if (reserve == 0u)
@@ -2541,22 +2541,22 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         (void)EMBED_CALL(branch_state, DocumentBranchCtx, .one = one, .text = "root");
         for (unsigned int line = 0u; line < one->lines.lines; line += 1u)
         {
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
                 .offset = (((unsigned long long)(CLI_DOC_WORD_BEGUN)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
                 .offset = (((unsigned long long)(CLI_DOC_WORD_ENDED)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_UNCOLORED},
                 .bytes = sizeof(unsigned int)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
                 .offset = (((unsigned long long)(CLI_DOC_WORD_REGIONS)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){0u},
                 .bytes = sizeof(unsigned int)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = one->lines.words,
                 .offset = (((unsigned long long)(CLI_DOC_WORD_RUNS)*one->lines.lines) + line) * sizeof(unsigned int),
                 .src = &(unsigned int){CLI_DOC_NO_RUNS},
@@ -2587,7 +2587,7 @@ EMBED_INLINE void branch_cache_moved(const DocumentBranchCtx *args)
         {
             {
                 const unsigned int stored_value = CLI_DOC_NO_RUNS;
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
                     .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(stored_value),
                     .src = &stored_value,
@@ -2602,7 +2602,7 @@ EMBED_INLINE void branch_cache_moved(const DocumentBranchCtx *args)
         {
             {
                 const unsigned int stored_value = CLI_DOC_UNCOLORED;
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = lines->words,
                     .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + line) * sizeof(stored_value),
                     .src = &stored_value,
@@ -2705,7 +2705,7 @@ EMBED_INLINE unsigned long long branch_runs_walked(const DocumentBranchCtx *args
         for (unsigned int line = from; line < to; line += 1u)
         {
             unsigned int place = 0u;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = lines->words,
                 .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(place),
                 .dst = &place,
@@ -2713,7 +2713,7 @@ EMBED_INLINE unsigned long long branch_runs_walked(const DocumentBranchCtx *args
             if (place != CLI_DOC_NO_RUNS)
             {
                 unsigned int line_runs = 0u;
-                (void)g_cli_guard->movable_buf_read(
+                (void)g_platform_guard->movable_buf_read(
                     &(CarcerMovableCfg){.cell = one->run,
                                         .offset = (unsigned long long)place * sizeof(line_runs),
                                         .dst = &line_runs,
@@ -2766,7 +2766,7 @@ EMBED_INLINE unsigned int branch_runs_place(const DocumentBranchCtx *args)
     unsigned int place = CLI_DOC_NO_RUNS;
     if (args->line < lines->lines)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + args->line) * sizeof(place),
             .dst = &place,
@@ -2780,7 +2780,7 @@ EMBED_INLINE unsigned int branch_record_runs(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one_read;
     unsigned int recorded = 0u;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = one->run,
                             .offset = (unsigned long long)args->place * sizeof(recorded),
                             .dst = &recorded,
@@ -2790,7 +2790,7 @@ EMBED_INLINE unsigned int branch_record_runs(const DocumentBranchCtx *args)
     unsigned int last = 0u;
     while ((args->columns != 0ULL) && (runs > 1u))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one->run, .offset = (col_at + runs - 1u) * sizeof(last), .dst = &last, .bytes = sizeof(last)});
         if (last < args->columns)
         {
@@ -2842,21 +2842,21 @@ int cli_document_line_run(const CliDocumentLineRunCfg *args)
     }
     // a record holds its count, then its columns, then its names
     unsigned int recorded = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
                                                             .offset = (unsigned long long)place * sizeof(recorded),
                                                             .dst = &recorded,
                                                             .bytes = sizeof(recorded)});
     const unsigned long long col_at = (unsigned long long)place + CLI_DOC_RECORD_HEAD;
     if (args->column != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
                                                                 .offset = (col_at + args->run) * sizeof(unsigned int),
                                                                 .dst = args->column,
                                                                 .bytes = sizeof(unsigned int)});
     }
     if (args->name != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = one->run,
                                 .offset = (col_at + recorded + args->run) * sizeof(unsigned int),
                                 .dst = args->name,
@@ -2885,7 +2885,7 @@ EMBED_INLINE void branch_map_line(const DocumentBranchCtx *args)
         else if (width != 0u)
         {
             const CliDocumentMapBar bar = {cell, width, name[run]};
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = args->map_cell,
                                     .offset = CLI_DOCUMENT_MAP_BAR_AT(args->map_count, *args->bars_pointer),
                                     .src = &bar,
@@ -2902,9 +2902,9 @@ const CarcerMovableEntry *cli_document_map_cell(const CliDocumentMapCfg *args)
     {
         return args->map;
     }
-    (void)g_cli_guard->movable_buf_release(args->map, args->owner);
+    (void)g_platform_guard->movable_buf_release(args->map, args->owner);
     const unsigned long long room = args->bytes + (args->bytes / 2ULL);
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(room, args->owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(room, args->owner);
     *args->capacity = (cell != NULL) ? room : 0ULL;
     return cell;
 }
@@ -2915,7 +2915,7 @@ static const CarcerMovableEntry *map_alloc_locked(const CliDocumentMapCfg *args)
     if (one == NULL)
     {
         // a key with no text gives the view's cell back, as a refused take does
-        (void)g_cli_guard->movable_buf_release(args->map, args->owner);
+        (void)g_platform_guard->movable_buf_release(args->map, args->owner);
         *args->capacity = 0ULL;
         return NULL;
     }
@@ -2932,13 +2932,13 @@ static const CarcerMovableEntry *map_alloc_locked(const CliDocumentMapCfg *args)
     for (unsigned int line = from; line < to; line += 1u)
     {
         unsigned int place = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(place),
             .dst = &place,
             .bytes = sizeof(place)});
         unsigned int word_10 = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->run,
                                                                 .offset = (unsigned long long)place * sizeof(word_10),
                                                                 .dst = &word_10,
                                                                 .bytes = sizeof(word_10)});
@@ -2959,7 +2959,7 @@ static const CarcerMovableEntry *map_alloc_locked(const CliDocumentMapCfg *args)
         BranchWork work = {NULL, 0ULL};
         for (unsigned int at = 0u; at <= count; at += 1u)
         {
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = map, .offset = CLI_DOCUMENT_MAP_LINE_AT(at), .src = &bars, .bytes = sizeof(bars)});
             if (at == count)
             {
@@ -2980,14 +2980,14 @@ static const CarcerMovableEntry *map_alloc_locked(const CliDocumentMapCfg *args)
             {
                 // the units of a line a map shows are far inside what an unsigned int represents
                 const CliDocumentMapBar bar = {0u, (unsigned int)length, 0u};
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = map, .offset = CLI_DOCUMENT_MAP_BAR_AT(count, bars), .src = &bar, .bytes = sizeof(bar)});
                 bars += 1u;
             }
         }
-        g_cli_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
         const CliDocumentMapHead head = {from, count, bars};
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = map, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     }
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
@@ -3082,7 +3082,7 @@ EMBED_INLINE unsigned int branch_word_units(const DocumentBranchCtx *args)
     unsigned int roles = 0u;
     if (name < one->roles_capacity)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->roles,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->roles,
                                                                 .offset = (unsigned long long)(name) * sizeof(roles),
                                                                 .dst = &roles,
                                                                 .bytes = sizeof(roles)});
@@ -3104,7 +3104,7 @@ EMBED_INLINE void branch_words_count(const DocumentBranchCtx *args)
     for (unsigned int line = args->from; !one->paged && (line < args->to); line += 1u)
     {
         unsigned int place = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = lines->words,
             .offset = (((unsigned long long)CLI_DOC_WORD_RUNS * lines->lines) + line) * sizeof(place),
             .dst = &place,
@@ -3122,7 +3122,7 @@ EMBED_INLINE void branch_words_count(const DocumentBranchCtx *args)
             *args->units_pointer += taken;
         }
     }
-    g_cli_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
 }
 
 // the words of the text's lines from `from` to before `to` put in `words`, each its units' bytes, three a unit at the
@@ -3151,11 +3151,11 @@ EMBED_INLINE void branch_words_fill(const DocumentBranchCtx *args)
         {
             {
                 unsigned long long line_start = 0ULL;
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->starts,
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->starts,
                                                                         .offset = line * sizeof(line_start),
                                                                         .dst = &line_start,
                                                                         .bytes = sizeof(line_start)});
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->units,
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->units,
                                                                         .offset = line_start * sizeof(unsigned short),
                                                                         .dst = unit,
                                                                         .bytes = length * sizeof(unsigned short)});
@@ -3180,8 +3180,8 @@ EMBED_INLINE void branch_words_fill(const DocumentBranchCtx *args)
             words->count += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(unit_work.cell, g_cli_editor_owner);
-    g_cli_guard->persistent_buf_release(record_work.cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(unit_work.cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(record_work.cell, g_cli_editor_owner);
 }
 
 static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
@@ -3202,13 +3202,13 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
     EMBED_CALL(branch_words_count, DocumentBranchCtx, .one_read = one, .from = from, .to = to,
                .cursor_line = args->cursor.line, .cursor_col = args->cursor.col, .max_pointer = &max,
                .units_pointer = &units);
-    CliDocumentWords *const words = g_cli_guard->temporary_buf_alloc(
+    CliDocumentWords *const words = g_platform_guard->temporary_buf_alloc(
         sizeof(*words) + (max * (sizeof(unsigned long long) + sizeof(unsigned int))) + (3ULL * units) + 1ULL,
         g_cli_editor_owner);
     // the order of the words and the room its sort writes, the words' count of places each, one at the fewest
     const unsigned long long places = (max != 0ULL) ? max : 1ULL;
     BranchWordPlace *const order =
-        (words != NULL) ? g_cli_guard->temporary_buf_alloc(2ULL * places * sizeof(BranchWordPlace), g_cli_editor_owner)
+        (words != NULL) ? g_platform_guard->temporary_buf_alloc(2ULL * places * sizeof(BranchWordPlace), g_cli_editor_owner)
                         : NULL;
     if (words != NULL)
     {
@@ -3224,7 +3224,7 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
         branch_words_once(words, order, order + places);
     }
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
-    g_cli_guard->persistent_buf_release(order, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(order, g_cli_editor_owner);
     return words;
 }
 
@@ -3237,7 +3237,7 @@ void cli_document_words_each(const CliDocumentWordsCfg *args)
         EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = words->text + words->at[at],
                    .length = words->length[at]);
     }
-    g_cli_guard->persistent_buf_release(words, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(words, g_cli_editor_owner);
 }
 
 void cli_document_walk(void)
@@ -3276,15 +3276,15 @@ static void *text_units_locked(const CliDocumentKeyCfg *args)
     const CliStoredLines *const lines = &one->lines;
     const unsigned long long places = (unsigned long long)lines->lines * sizeof(unsigned long long);
     const unsigned long long units = ((lines->units != NULL) ? lines->used : 0ULL) * sizeof(unsigned short);
-    char *const copy = g_cli_guard->temporary_buf_alloc((2ULL * places) + units + 1ULL, args->owner);
+    char *const copy = g_platform_guard->temporary_buf_alloc((2ULL * places) + units + 1ULL, args->owner);
     if (copy == NULL)
     {
         return NULL;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->starts, .dst = copy, .bytes = places});
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = lines->starts, .dst = copy, .bytes = places});
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = lines->lengths, .dst = copy + places, .bytes = places});
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = lines->units, .dst = copy + (2ULL * places), .bytes = units});
     if (lines->units == NULL)
     {
@@ -3311,7 +3311,7 @@ EMBED_INLINE char *text_from_units(const DocumentBranchCtx *args)
     {
         capacity += (3ULL * length[line]) + 1ULL;
     }
-    char *const reserved = g_cli_guard->temporary_buf_alloc(capacity, g_cli_editor_owner);
+    char *const reserved = g_platform_guard->temporary_buf_alloc(capacity, g_cli_editor_owner);
     if (reserved == NULL)
     {
         return NULL;
@@ -3340,13 +3340,13 @@ int cli_document_text_each(const CliDocumentKeyCfg *args)
     char *const text = (copy != NULL) ? EMBED_CALL(text_from_units, DocumentBranchCtx, .copy_read = copy,
                                                    .count_u64 = lines, .length_out = &size)
                                       : NULL;
-    g_cli_guard->persistent_buf_release(copy, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(copy, g_cli_editor_owner);
     // the text goes to the caller: the cell is this call's own
     if (text != NULL)
     {
         EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_editor_owner);
     return text != NULL;
 }
 
@@ -3369,7 +3369,7 @@ static int file_put_locked(const CliDocumentOutCfg *args)
         EMBED_CALL(branch_line_append, DocumentBranchCtx, .lines = lines, .line = line, .out = args->out,
                    .work = &work);
     }
-    g_cli_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
     return mmgr_line_ok(args->out);
 }
 
@@ -3395,7 +3395,7 @@ EMBED_INLINE void branch_lines_stored(const DocumentBranchCtx *args)
     *args->first_pointer = from;
     *args->end_pointer = to;
     unsigned int word_7 = 0u;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = lines->words,
                             .offset = (((unsigned long long)CLI_DOC_WORD_BEGUN * lines->lines) + from) * sizeof(word_7),
                             .dst = &word_7,
@@ -3430,7 +3430,7 @@ EMBED_INLINE void branch_lines_stored(const DocumentBranchCtx *args)
 EMBED_INLINE void branch_lines_paged(const DocumentBranchCtx *args)
 {
     const unsigned long long required = (unsigned long long)(args->to + 1u - args->from);
-    const char **const starts = g_cli_guard->temporary_buf_alloc(required * sizeof(const char *), g_cli_editor_owner);
+    const char **const starts = g_platform_guard->temporary_buf_alloc(required * sizeof(const char *), g_cli_editor_owner);
     unsigned long long count = 0ULL;
     char *const reserved = (starts != NULL) ? EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = args->text,
                                                          .from = args->from, .to = args->to + 1u, .line = starts,
@@ -3441,8 +3441,8 @@ EMBED_INLINE void branch_lines_paged(const DocumentBranchCtx *args)
         mmgr_line_put(args->out, starts[at]);
         mmgr_line_put(args->out, ((args->from + at) < args->to) ? "\n" : "");
     }
-    g_cli_guard->persistent_buf_release(reserved, g_cli_editor_owner);
-    g_cli_guard->persistent_buf_release(starts, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(reserved, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(starts, g_cli_editor_owner);
 }
 
 // the lines from `first` to `last` of the text under `key` put after `text`, and the state the first is entered in
@@ -3484,18 +3484,21 @@ int cli_document_lines_read(const CliDocumentKeyCfg *args)
 static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
 {
     unsigned long long *size = args->size_pointer;
-    CliGrownLine written;
-    cli_grown_begin(&written, CLI_DOC_COLORS_CAPACITY, args->owner);
+    PlatformText written;
+    // The owner's place is its line of the owner table, which the platform's text names it by. Explicit cast takes
+    // the line's count, which is below the table's bound
+    platform_text_begun(&written, CLI_DOC_COLORS_CAPACITY, (unsigned int)(args->owner - mmgr_owner_table),
+                        PLATFORM_TIER_TEMPORARY);
     const int made = written.cell != NULL;
     VerbaLinea *const text = &written.line;
     const int found = made && lines_put_locked(args, text);
     const int reserved = made && found && mmgr_line_ok(text);
     if (made && !reserved)
     {
-        cli_grown_end(&written);
+        platform_text_ended(&written);
     }
     // the lines' cell is passed to the caller, who gives it back
-    *size = reserved ? cli_grown_size(&written) : 0ULL;
+    *size = reserved ? platform_text_size(&written) : 0ULL;
     return reserved ? written.cell : NULL;
 }
 
@@ -3512,7 +3515,7 @@ int cli_document_lines_each(const CliDocumentKeyCfg *args)
     {
         EMBED_CALL(args->each, CliEachTextLengthCfg, .context = args->context, .text = text, .length = size);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_editor_owner);
     return text != NULL;
 }
 

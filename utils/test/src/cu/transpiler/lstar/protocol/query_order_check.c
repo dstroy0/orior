@@ -18,7 +18,7 @@
 // The run size and the count of passes are steered by the part, as query_descent.h states. The claim is read on the
 // record of the size chosen: every pair has to lean dearer on one same pass, over every pass put at that size.
 #include "query_descent.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

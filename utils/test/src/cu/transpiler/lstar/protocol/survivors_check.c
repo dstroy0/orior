@@ -9,7 +9,7 @@
 //                order counts
 //   no worse     the descent's price is no more than the price of the cases in the order the ladder lists them
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/survivors.h"
 
 #include "memoria_operor/memoria_operor.h"

@@ -28,7 +28,7 @@ int query_writer_start(const QueryWriterCtx *args)
     unsigned long long *process = args->process_u64s;
     EMBED_CALL(query_writer_environment, WriterCtx, .writer = args->writer);
     const char *const words[4] = {args->writer->binary, args->writer->qry, args->writer->top, NULL};
-    QueryProcess started;
+    PlatformProgram started;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &started, .words = words,
                     .folder = NULL, .output = QUERY_OUTPUT_NONE))
     {
@@ -198,7 +198,7 @@ int query_writer_tee(const QueryWordsNameCtx *args)
         return 0;
     }
     EMBED_CALL(query_writer_environment, WriterCtx, .writer = args->writer);
-    QueryProcess child;
+    PlatformProgram child;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &child, .words = args->words,
                     .folder = args->context->root, .output = QUERY_OUTPUT_PIPED))
     {

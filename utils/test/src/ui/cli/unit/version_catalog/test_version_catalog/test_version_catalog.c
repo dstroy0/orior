@@ -71,8 +71,8 @@ void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
         named = (g_cli_versions.section[at].name_size == CLI_UNITY_LENGTH(s_names[at])) &&
                 (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = g_cli_versions.section[at].name_at), .other = s_names[at], .bytes = g_cli_versions.section[at].name_size}) == 0);
     }
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
     g_cli_versions_libraries.at = NULL;
     g_cli_versions_libraries.size = NULL;
     g_cli_versions_libraries.text = NULL;
@@ -80,8 +80,8 @@ void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
     g_cli_versions_libraries.max = 0u;
     g_cli_versions_libraries.used = 0u;
     g_cli_versions_libraries.capacity = 0u;
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
     g_cli_versions_known.at = NULL;
     g_cli_versions_known.size = NULL;
     g_cli_versions_known.text = NULL;
@@ -90,12 +90,12 @@ void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
     g_cli_versions_known.used = 0u;
     g_cli_versions_known.capacity = 0u;
     CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
     parsed->line = NULL;
     parsed->pool = NULL;
     parsed->error = NULL;
@@ -125,8 +125,8 @@ void test_a_librarys_alias_reads_its_module_and_version(void)
     const CliVersionsAlias *const library = first_alias(CLI_VERSIONS_LIBRARIES);
     CLI_TEST_ASSERT_TEXT("groovy-core", s_aliases.text + library->alias_at, library->alias_size);
     CLI_TEST_ASSERT_TEXT("org.codehaus.groovy:groovy, version groovy", s_aliases.text + library->about_at, library->about_size);
-    g_cli_guard->persistent_buf_release(s_aliases.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(s_aliases.alias, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(s_aliases.text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(s_aliases.alias, g_cli_versions_owner);
     s_aliases.alias = NULL;
     s_aliases.text = NULL;
     s_aliases.count = 0u;
@@ -139,8 +139,8 @@ void test_a_bundles_alias_reads_its_libraries(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases, CliVersionCatalogTextSizeAliasesCtx, .text = s_catalog, .size = sizeof(s_catalog) - 1u, .aliases = &s_aliases));
     const CliVersionsAlias *const bundle = first_alias(CLI_VERSIONS_BUNDLES);
     CLI_TEST_ASSERT_TEXT("groovy-core, groovy-jsn", s_aliases.text + bundle->about_at, bundle->about_size);
-    g_cli_guard->persistent_buf_release(s_aliases.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(s_aliases.alias, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(s_aliases.text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(s_aliases.alias, g_cli_versions_owner);
     s_aliases.alias = NULL;
     s_aliases.text = NULL;
     s_aliases.count = 0u;

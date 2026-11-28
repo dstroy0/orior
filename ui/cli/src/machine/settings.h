@@ -43,7 +43,8 @@ typedef struct CliSettingsOutCfg CliSettingsOutCfg;
 #define CLI_SETTINGS_PROBLEMS 64u
 
 // The files of one chain, the first taken by the second and so on to the last, read into one tree in a cell of their
-// tokens and bytes, each the path it is displayed by and the object of every key it contains, and what could not be read
+// tokens and bytes, each the path it is displayed by and the object of every key it contains, and what could not be
+// read
 typedef struct
 {
     CliJson json;
@@ -113,15 +114,15 @@ typedef struct
     char *text;
     unsigned long long used;
     unsigned long long capacity;
-    CliGrownLine grown;
+    PlatformText grown;
 } CliLayers;
 
 // the system impero runs on, as a settings file names it; and whether `key` is one of a settings file's own keys and
 // no setting: `allocs`, a system's, `machine` or a type's
 const char *cli_settings_system(void);
 int cli_settings_is_file_key(const CliSettingsKeyCfg *args);
-// the file at `path` and each it takes, the one taken first, each displayed by its path from `root` where it is under it,
-// else as it is; a file not there gives none; a file taken that is not there, or that a chain takes twice, is a
+// the file at `path` and each it takes, the one taken first, each displayed by its path from `root` where it is under
+// it, else as it is; a file not there gives none; a file taken that is not there, or that a chain takes twice, is a
 // problem. The tree's settings, its file and each it takes, displayed from the tree's top folder; and the reader's,
 // settings.json in orior's own folder and each file it takes. Each into `chain`, which contains nothing before, its
 // tree released through persistent_buf_release (settings.c)

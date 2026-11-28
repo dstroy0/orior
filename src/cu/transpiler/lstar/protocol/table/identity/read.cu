@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // read.cu: the read: the forms of the rulesets, the members and carriers of the stick, and the candidate paths read
 // against them
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // the pattern of a character a pattern reads as an operator, which a literal text escapes

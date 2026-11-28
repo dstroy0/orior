@@ -9,7 +9,7 @@
 #include "../../../../../../../src/cu/engine/nbody/body_overlap/body_overlap.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_job.h"
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 

@@ -3,7 +3,7 @@
 // file.c: the file: opened, read, filed in the run, written by a who and freed, a record put, added, dropped and set,
 // and the file tabled by a who
 #include "../../../../src/cu/transpiler/lstar/protocol/table_text.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/who.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "krep_records_internal.h"

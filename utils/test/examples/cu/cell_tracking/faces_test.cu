@@ -27,7 +27,7 @@
 // .faces carries is taken a bit at a time here, apart from cu/includes/codecs/crc/crc.h's table, which faces_find.cu
 // takes it by.
 #include "faces.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "hessian.h"
 #include "scan.h"
 #include "sort.h"

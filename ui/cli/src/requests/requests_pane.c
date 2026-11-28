@@ -758,7 +758,7 @@ EMBED_INLINE char *requests_body_positioned(const RequestsPaneCtx *args)
             const unsigned long long capacity =
                 EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity, CliJsonTreeNodeOutCfg, .json_read = &arranged,
                            .node = root, .indent = 2u);
-            cell = g_cli_guard->temporary_buf_alloc(capacity + 1ULL, g_cli_requests_owner);
+            cell = g_platform_guard->temporary_buf_alloc(capacity + 1ULL, g_cli_requests_owner);
             if (cell != NULL)
             {
                 VerbaLinea pretty = {cell, capacity + 1ULL, 0ULL};
@@ -768,7 +768,7 @@ EMBED_INLINE char *requests_body_positioned(const RequestsPaneCtx *args)
                 s_requests.body_length = mmgr_line_ok(&pretty) ? pretty.at : 0ULL;
             }
         }
-        g_cli_guard->persistent_buf_release(arranged.node, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(arranged.node, g_cli_requests_owner);
     }
     if (s_requests.body_length > REQUESTS_BODY_MAX)
     {
@@ -787,10 +787,10 @@ EMBED_INLINE void requests_rows_positioned(const RequestsPaneCtx *args)
     char *const body = EMBED_CALL(requests_body_positioned, RequestsPaneCtx, .at = 0u);
     const unsigned long long compared_bytes = (s_requests.compared_cell != NULL) ? s_requests.compared_bytes : 0ULL;
     unsigned char *const compared =
-        (compared_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(compared_bytes, g_cli_requests_owner) : NULL;
+        (compared_bytes != 0ULL) ? g_platform_guard->temporary_buf_alloc(compared_bytes, g_cli_requests_owner) : NULL;
     if (compared != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_requests.compared_cell, .offset = 0ULL, .dst = compared, .bytes = compared_bytes});
         s_requests.compared = (const RequestsCompared *)(const void *)compared;
         s_requests.compared_text = (const char *)compared + s_requests.compared_text_at;
@@ -802,7 +802,7 @@ EMBED_INLINE void requests_rows_positioned(const RequestsPaneCtx *args)
     const unsigned long long text_bytes = counting.flushed + counting.at;
     const unsigned long long row_bytes = REQUESTS_POSITIONED_AT(count);
     const unsigned long long bytes = row_bytes + text_bytes + 1ULL;
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_requests_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_requests_owner);
     if (cell != NULL)
     {
         RequestsLaid *const row = (RequestsLaid *)(void *)cell;
@@ -812,23 +812,23 @@ EMBED_INLINE void requests_rows_positioned(const RequestsPaneCtx *args)
         // the rows are positioned again from what they were counted from, so no more of them come than were counted
         EMBED_CALL(requests_rows_written, RequestsPaneCtx, .line = &text_line, .row = row, .count = &positioned);
         (void)mmgr_line_finish(&text_line);
-        const CarcerMovableEntry *const rows_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_requests_owner);
+        const CarcerMovableEntry *const rows_cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_requests_owner);
         if (rows_cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = rows_cell, .offset = 0ULL, .src = cell, .bytes = bytes});
             if (s_requests.rows_cell != NULL)
             {
-                (void)g_cli_guard->movable_buf_release(s_requests.rows_cell, g_cli_requests_owner);
+                (void)g_platform_guard->movable_buf_release(s_requests.rows_cell, g_cli_requests_owner);
             }
             s_requests.rows_cell = rows_cell;
             s_requests.text_at = row_bytes;
             s_requests.rows = positioned;
         }
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release(compared, g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release(body, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(compared, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(body, g_cli_requests_owner);
     s_requests.compared = NULL;
     s_requests.compared_text = NULL;
     s_requests.body_text = NULL;
@@ -840,7 +840,7 @@ EMBED_INLINE void requests_compared_released(const RequestsPaneCtx *args)
     (void)args;
     if (s_requests.compared_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_requests.compared_cell, g_cli_requests_owner);
+        (void)g_platform_guard->movable_buf_release(s_requests.compared_cell, g_cli_requests_owner);
     }
     s_requests.compared_cell = NULL;
     s_requests.compared_bytes = 0ULL;
@@ -860,10 +860,10 @@ EMBED_INLINE unsigned int requests_tree_read(const RequestsPaneCtx *args)
                    .text = args->text, .size = args->length, .err_msg = &err_msg, .owner = g_cli_requests_owner);
     if (root == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(read.node, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(read.node, g_cli_requests_owner);
         return CLI_JSON_NONE;
     }
-    g_cli_guard->persistent_buf_release(args->tree->node, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(args->tree->node, g_cli_requests_owner);
     *args->tree = read;
     return root;
 }
@@ -875,7 +875,7 @@ EMBED_INLINE void requests_answers_taken(const RequestsPaneCtx *args)
     if (args->length == 0ULL)
     {
         // no answers read: the tree let go, none displayed
-        g_cli_guard->persistent_buf_release(s_requests.answers.node, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(s_requests.answers.node, g_cli_requests_owner);
         s_requests.answers = (CliJson){0};
         s_requests.answers_node = CLI_JSON_NONE;
         s_requests.answer_count = 0u;
@@ -934,7 +934,7 @@ EMBED_INLINE char *requests_written(const RequestsPaneCtx *args)
         return NULL;
     }
     const unsigned long long bytes = counting.flushed + counting.at;
-    char *const cell = g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner);
     if (cell == NULL)
     {
         return NULL;
@@ -947,7 +947,7 @@ EMBED_INLINE char *requests_written(const RequestsPaneCtx *args)
         (args->at == 0u) ? cli_requests_text_table.answers(&again) : cli_requests_text_table.environments(&again);
     if (!wrote || !mmgr_line_ok(&written))
     {
-        g_cli_guard->persistent_buf_release(cell, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(cell, g_cli_requests_owner);
         return NULL;
     }
     *args->length_out = written.at;
@@ -964,7 +964,7 @@ EMBED_INLINE void requests_envs_read(const RequestsPaneCtx *args)
                                   ? EMBED_CALL(requests_tree_read, RequestsPaneCtx, .tree = &s_requests.envs,
                                                .text = written, .length = length_of)
                                   : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(written, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(written, g_cli_requests_owner);
     s_requests.names_node =
         (root != CLI_JSON_NONE)
             ? EMBED_CALL(requests_member, RequestsPaneCtx, .json = &s_requests.envs, .node = root, .name = "names")
@@ -998,13 +998,14 @@ static void requests_send_text(const CliEachTextLengthCfg *args)
     char *const written =
         EMBED_CALL(requests_written, RequestsPaneCtx, .root = send->root, .path = send->path, .text = args->text,
                    .length = args->length, .line_at = send->line, .at = 0u, .length_out = &length_of, .err_msg = &why);
-    send->answer = (written != NULL) ? g_cli_guard->movable_buf_alloc(length_of + 1ULL, g_cli_requests_owner) : NULL;
+    send->answer =
+        (written != NULL) ? g_platform_guard->movable_buf_alloc(length_of + 1ULL, g_cli_requests_owner) : NULL;
     if (send->answer != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = send->answer, .offset = 0ULL, .src = written, .bytes = length_of + 1ULL});
     }
-    g_cli_guard->persistent_buf_release(written, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(written, g_cli_requests_owner);
     send->answer_length = (send->answer != NULL) ? length_of : 0ULL;
     send->why_length = (send->answer == NULL) ? why.at : 0ULL;
 }
@@ -1122,15 +1123,16 @@ int cli_requests_pane_step(const CliRequestsPaneCfg *args)
         if (s_send.answer != NULL)
         {
             // the answers read out of the send's cell into a cell of this call, then both given back
-            char *const answer = g_cli_guard->temporary_buf_alloc(s_send.answer_length + 1ULL, g_cli_requests_owner);
+            char *const answer =
+                g_platform_guard->temporary_buf_alloc(s_send.answer_length + 1ULL, g_cli_requests_owner);
             if (answer != NULL)
             {
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = s_send.answer, .offset = 0ULL, .dst = answer, .bytes = s_send.answer_length + 1ULL});
                 EMBED_CALL(requests_answers_taken, RequestsPaneCtx, .text = answer, .length = s_send.answer_length);
             }
-            g_cli_guard->persistent_buf_release(answer, g_cli_requests_owner);
-            (void)g_cli_guard->movable_buf_release(s_send.answer, g_cli_requests_owner);
+            g_platform_guard->persistent_buf_release(answer, g_cli_requests_owner);
+            (void)g_platform_guard->movable_buf_release(s_send.answer, g_cli_requests_owner);
         }
         s_send.answer = NULL;
         EMBED_ATOMIC_STORE(&s_running, 0u);
@@ -1219,7 +1221,7 @@ static void requests_follow_read(const CliEachTextLengthCfg *each)
         return;
     }
     EMBED_CALL(requests_answers_taken, RequestsPaneCtx, .text = written, .length = length_of);
-    g_cli_guard->persistent_buf_release(written, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(written, g_cli_requests_owner);
 }
 
 int cli_requests_pane_follow(const CliRequestsPaneCfg *args)
@@ -1262,10 +1264,10 @@ int cli_requests_pane_row(const CliRequestsPaneCfg *args)
         return 0;
     }
     RequestsLaid positioned;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
-                                                            .offset = REQUESTS_POSITIONED_AT(args->at),
-                                                            .dst = &positioned,
-                                                            .bytes = sizeof(RequestsLaid)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
+                                                                 .offset = REQUESTS_POSITIONED_AT(args->at),
+                                                                 .dst = &positioned,
+                                                                 .bytes = sizeof(RequestsLaid)});
     CliRequestsRow *const row = args->row;
     *row = (CliRequestsRow){.type = positioned.type,
                             .tone = positioned.tone,
@@ -1281,10 +1283,10 @@ int cli_requests_pane_row(const CliRequestsPaneCfg *args)
         (positioned.length < CLI_REQUESTS_ROW_TEXT) ? positioned.length : CLI_REQUESTS_ROW_TEXT - 1ULL;
     if (copied != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
-                                                                .offset = s_requests.text_at + positioned.offset,
-                                                                .dst = row->text_copied,
-                                                                .bytes = copied});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
+                                                                     .offset = s_requests.text_at + positioned.offset,
+                                                                     .dst = row->text_copied,
+                                                                     .bytes = copied});
     }
     row->text_copied[copied] = '\0';
     row->text = row->text_copied;
@@ -1297,10 +1299,10 @@ void cli_requests_pane_toggle(const CliRequestsPaneCfg *args)
     RequestsLaid positioned = {0};
     if (args->at < s_requests.rows)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
-                                                                .offset = REQUESTS_POSITIONED_AT(args->at),
-                                                                .dst = &positioned,
-                                                                .bytes = sizeof(RequestsLaid)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
+                                                                     .offset = REQUESTS_POSITIONED_AT(args->at),
+                                                                     .dst = &positioned,
+                                                                     .bytes = sizeof(RequestsLaid)});
     }
     if ((args->at < s_requests.rows) && (positioned.type == CLI_REQUESTS_ROW_GROUP))
     {
@@ -1314,10 +1316,10 @@ void cli_requests_pane_show(const CliRequestsPaneCfg *args)
     RequestsLaid positioned = {0};
     if (args->at < s_requests.rows)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
-                                                                .offset = REQUESTS_POSITIONED_AT(args->at),
-                                                                .dst = &positioned,
-                                                                .bytes = sizeof(RequestsLaid)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
+                                                                     .offset = REQUESTS_POSITIONED_AT(args->at),
+                                                                     .dst = &positioned,
+                                                                     .bytes = sizeof(RequestsLaid)});
     }
     if ((args->at < s_requests.rows) && (positioned.type == CLI_REQUESTS_ROW_ANSWER))
     {
@@ -1331,10 +1333,10 @@ void cli_requests_pane_check(const CliRequestsPaneCfg *args)
     RequestsLaid positioned = {0};
     if (args->at < s_requests.rows)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
-                                                                .offset = REQUESTS_POSITIONED_AT(args->at),
-                                                                .dst = &positioned,
-                                                                .bytes = sizeof(RequestsLaid)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_requests.rows_cell,
+                                                                     .offset = REQUESTS_POSITIONED_AT(args->at),
+                                                                     .dst = &positioned,
+                                                                     .bytes = sizeof(RequestsLaid)});
     }
     if ((args->at < s_requests.rows) && (positioned.type == CLI_REQUESTS_ROW_ANSWER))
     {
@@ -1488,7 +1490,7 @@ int cli_requests_pane_compare(const CliRequestsPaneCfg *args)
         newlines_max += bytes[side] + 1ULL;
     }
     const unsigned long long text_bytes = bytes[0] + bytes[1] + 2ULL;
-    char *const texts = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_requests_owner);
+    char *const texts = g_platform_guard->temporary_buf_alloc(text_bytes, g_cli_requests_owner);
     if (texts == NULL)
     {
         return 0;
@@ -1505,10 +1507,10 @@ int cli_requests_pane_compare(const CliRequestsPaneCfg *args)
     const unsigned long long lines_bytes = (newlines_max + 2ULL) * sizeof(unsigned long long);
     const unsigned long long hunks_bytes = (newlines_max + 2ULL) * sizeof(CliEachHunkCfg);
     unsigned char *const work =
-        g_cli_guard->temporary_buf_alloc((3ULL * lines_bytes) + units_bytes + hunks_bytes, g_cli_requests_owner);
+        g_platform_guard->temporary_buf_alloc((3ULL * lines_bytes) + units_bytes + hunks_bytes, g_cli_requests_owner);
     if (work == NULL)
     {
-        g_cli_guard->persistent_buf_release(texts, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(texts, g_cli_requests_owner);
         return 0;
     }
     unsigned long long *const starts = (unsigned long long *)(void *)work;
@@ -1555,11 +1557,11 @@ int cli_requests_pane_compare(const CliRequestsPaneCfg *args)
     // the lines then the texts positioned in a cell of this call, written once into a movable cell of the comparison
     const unsigned long long compared_bytes = (unsigned long long)listed * sizeof(RequestsCompared);
     unsigned char *const cell =
-        diffed ? g_cli_guard->temporary_buf_alloc(compared_bytes + text_bytes, g_cli_requests_owner) : NULL;
+        diffed ? g_platform_guard->temporary_buf_alloc(compared_bytes + text_bytes, g_cli_requests_owner) : NULL;
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(work, g_cli_requests_owner);
-        g_cli_guard->persistent_buf_release(texts, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(work, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(texts, g_cli_requests_owner);
         return 0;
     }
     RequestsCompared *const compared = (RequestsCompared *)(void *)cell;
@@ -1597,19 +1599,19 @@ int cli_requests_pane_compare(const CliRequestsPaneCfg *args)
         }
         then_at = hunks[hunk].then_to;
     }
-    g_cli_guard->persistent_buf_release(work, g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release(texts, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(work, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(texts, g_cli_requests_owner);
     EMBED_CALL(requests_compared_released, RequestsPaneCtx, .at = 0u);
-    s_requests.compared_cell = g_cli_guard->movable_buf_alloc(compared_bytes + text_bytes, g_cli_requests_owner);
+    s_requests.compared_cell = g_platform_guard->movable_buf_alloc(compared_bytes + text_bytes, g_cli_requests_owner);
     if (s_requests.compared_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_requests.compared_cell, .offset = 0ULL, .src = cell, .bytes = compared_bytes + text_bytes});
         s_requests.compared_bytes = compared_bytes + text_bytes;
         s_requests.compared_text_at = compared_bytes;
         s_requests.compared_count = put;
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_requests_owner);
     EMBED_CALL(requests_rows_positioned, RequestsPaneCtx, .at = 0u);
     return s_requests.compared_cell != NULL;
 }
@@ -1643,7 +1645,7 @@ static void requests_curl_read(const CliEachTextLengthCfg *each)
                                      .env = EMBED_CALL(requests_env_name, RequestsPaneCtx, .at = 0u)};
     const int counted = cli_requests_text_table.curl(&text_asked);
     const unsigned long long bytes = counting.flushed + counting.at;
-    curl->quoted = counted ? g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner) : NULL;
+    curl->quoted = counted ? g_platform_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner) : NULL;
     curl->quoted_line = (VerbaLinea){curl->quoted, (curl->quoted != NULL) ? bytes + 1ULL : 0ULL, 0ULL};
     text_asked.out = &curl->quoted_line;
     curl->curled =
@@ -1688,8 +1690,8 @@ int cli_requests_pane_curl(const CliRequestsPaneCfg *args)
     {
         (void)mmgr_line_put_n(args->out, why, err_msg.at);
     }
-    g_cli_guard->persistent_buf_release(read.node, g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release(quoted, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(read.node, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(quoted, g_cli_requests_owner);
     return characters != NULL;
 }
 
@@ -1706,7 +1708,7 @@ int cli_requests_pane_copy(const CliRequestsPaneCfg *args)
         return 0;
     }
     const unsigned long long bytes = counting.flushed + counting.at;
-    char *const cell = g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_requests_owner);
     VerbaLinea line = {cell, (cell != NULL) ? bytes + 1ULL : 0ULL, 0ULL};
     const int curled =
         (cell != NULL) && EMBED_CALL(cli_requests_pane.curl, CliRequestsPaneCfg, .root = args->root, .path = args->path,
@@ -1714,7 +1716,7 @@ int cli_requests_pane_copy(const CliRequestsPaneCfg *args)
     const int copied =
         curled && (mmgr_line_finish(&line) != 0ULL) &&
         EMBED_CALL(cli_size_text_internal.clipboard_text_write, CliSizeTextCtx, .size = line.at, .text = cell);
-    g_cli_guard->persistent_buf_release(cell, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_requests_owner);
     return copied;
 }
 

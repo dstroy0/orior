@@ -38,8 +38,8 @@ struct CliLsp
     unsigned int refs;
     unsigned int number;
     CliWords words;
-    CliSetting settings[64];
-    CliSpawned spawned;
+    PlatformSetting settings[64];
+    PlatformProgram spawned;
     int ended;
     CliLspWriter input;
     CliWake wake;

@@ -11,7 +11,7 @@
 //
 //     monolith_run <cubin> [runs] [turns] [cost runs]
 #include "../../../../engine/rmc/precept_value.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "../../../../engine/engine_note.h"
 #include "../monolith.h"

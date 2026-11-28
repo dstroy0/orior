@@ -31,8 +31,8 @@ EMBED_INLINE int keys_name_is(const KeysCtx *args)
            (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->other, .bytes = args->name_size}) == 0);
 }
 
-// a cursor key: ESC [ 1 ; mods+1 character with modifiers, else ESC O character in the application mode and ESC [ character
-// out of it: 1, or 0 where the key is none of them
+// a cursor key: ESC [ 1 ; mods+1 character with modifiers, else ESC O character in the application mode and ESC [
+// character out of it: 1, or 0 where the key is none of them
 EMBED_INLINE int keys_cursor(const KeysCtx *args)
 {
     static const KeysSequence s_cursor[6] = {{"Up", "A"},   {"Down", "B"}, {"Right", "C"},
@@ -81,8 +81,8 @@ EMBED_INLINE int keys_special(const KeysCtx *args)
     return 0;
 }
 
-// a key whose name is one character or sign, or Space, with Control or Alt down: Control's control character, or Alt's escape
-// and the character, a character in its upper case only with Shift: 1, or 0 where it sends nothing
+// a key whose name is one character or sign, or Space, with Control or Alt down: Control's control character, or Alt's
+// escape and the character, a character in its upper case only with Shift: 1, or 0 where it sends nothing
 EMBED_INLINE int keys_modified(const KeysCtx *args)
 {
     const int space =

@@ -115,7 +115,7 @@ int cli_format_language_get(const CliFormatCfg *args)
 unsigned int cli_format_tool(const CliFormatLanguageCtx *args)
 {
     CliJson *const json = &g_cli_format.json;
-    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
@@ -197,11 +197,11 @@ int cli_format_program_get(const CliFormatLanguageCfg *args)
                                 .src = named,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_guard->persistent_buf_release(g_cli_format.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
+    g_platform_guard->persistent_buf_release(g_cli_format.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_format.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
     g_cli_format.settings = NULL;
     g_cli_format.settings_size = 0ULL;
     return named != NULL;
@@ -305,11 +305,11 @@ int cli_format(const CliFormatPathCfg *args)
                                          .language = args->language, .err_msg = args->err_msg);
     if (tool == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(g_cli_format.json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
+        g_platform_guard->persistent_buf_release(g_cli_format.json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), g_cli_format.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+        g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
         g_cli_format.settings = NULL;
         g_cli_format.settings_size = 0ULL;
         return 0;
@@ -332,7 +332,7 @@ int cli_format(const CliFormatPathCfg *args)
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = json, .tool = tool,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count,
                .found = &g_cli_format.found);
-    g_cli_guard->persistent_buf_release(folders, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(folders, g_cli_toolchains_owner);
     char program[CLI_PATH_MAX_LEN];
     const char *const names[1] = {program_name};
     if ((g_cli_format.found.folder[0] == '\0') ||
@@ -341,11 +341,11 @@ int cli_format(const CliFormatPathCfg *args)
     {
         mmgr_line_put(args->err_msg, (tool_name != NULL) ? tool_name : program_name);
         mmgr_line_put(args->err_msg, " is not found: File, Toolchains opens its install page or takes its folder");
-        g_cli_guard->persistent_buf_release(g_cli_format.json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
+        g_platform_guard->persistent_buf_release(g_cli_format.json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), g_cli_format.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+        g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
         g_cli_format.settings = NULL;
         g_cli_format.settings_size = 0ULL;
         return 0;
@@ -396,7 +396,7 @@ int cli_format(const CliFormatPathCfg *args)
     words[word_count] = NULL;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = g_cli_format.path,
                .size = sizeof(g_cli_format.path));
-    const CliSetting settings[1] = {{"PATH", g_cli_format.path}};
+    const PlatformSetting settings[1] = {{"PATH", g_cli_format.path}};
     char folder[CLI_PATH_MAX_LEN];
     const int in_folder =
         EMBED_CALL(cli_path_out_type_internal.path_parent, CliPathOutTypeCtx, .path = args->path, .out = folder) &&
@@ -408,11 +408,11 @@ int cli_format(const CliFormatPathCfg *args)
                                    .folder = in_folder ? folder : NULL, .settings = settings, .count = 1u,
                                    .input = args->text, .length = args->length, .milliseconds_u64 = CLI_FORMAT_PATIENCE,
                                    .run_result = run_result, .err_msg = &unstarted);
-    g_cli_guard->persistent_buf_release(g_cli_format.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
+    g_platform_guard->persistent_buf_release(g_cli_format.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_format.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
     g_cli_format.settings = NULL;
     g_cli_format.settings_size = 0ULL;
     const int formatted = started && !run_result->stopped && (run_result->code == 0LL);

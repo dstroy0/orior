@@ -76,11 +76,12 @@ EMBED_INLINE unsigned char *check_read(const SconsCheckCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned char *const class_of =
-        (size <= CLI_SCONS_TEXT) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_scons_work_states_owner) : NULL;
+        (size <= CLI_SCONS_TEXT) ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_scons_work_states_owner)
+                                 : NULL;
     if ((class_of != NULL) && !EMBED_CALL(cli_scons_text_size_class_of_internal.read, CliSconsTextSizeClassOfCtx,
                                           .text = text, .size = size, .class_of = class_of))
     {
-        g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
+        g_platform_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
         return NULL;
     }
     return class_of;
@@ -246,7 +247,7 @@ static void check_others_each(const CliFilesEachCfg *view)
         {
             continue;
         }
-        unsigned char *const text = g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_scons_work_states_owner);
+        unsigned char *const text = g_platform_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_scons_work_states_owner);
         const unsigned long long size = (text != NULL) ? qry_member_file_read(other, text, bytes) : QRY_MEMBER_UNREAD;
         unsigned char *const class_of =
             ((size != QRY_MEMBER_UNREAD) &&
@@ -257,8 +258,8 @@ static void check_others_each(const CliFilesEachCfg *view)
         {
             EMBED_CALL(cli_scons_context_internal.export, CliSconsContextCtx, .named = check_export, .context = NULL);
         }
-        g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
-        g_cli_guard->persistent_buf_release(text, g_cli_scons_work_states_owner);
+        g_platform_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_scons_work_states_owner);
     }
 }
 
@@ -292,8 +293,8 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
     s_imports = 0u;
     EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_import, .context = NULL);
     s_imports_max = s_imports;
-    s_import = (s_imports_max > 0u) ? g_cli_guard->temporary_buf_alloc(s_imports_max * sizeof(CliSconsImport),
-                                                                       g_cli_scons_work_states_owner)
+    s_import = (s_imports_max > 0u) ? g_platform_guard->temporary_buf_alloc(s_imports_max * sizeof(CliSconsImport),
+                                                                            g_cli_scons_work_states_owner)
                                     : NULL;
     if (s_import == NULL)
     {
@@ -321,7 +322,7 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
                          .lines = lines, .from = s_import[at].from, .to = s_import[at].to,
                          .severity = CLI_BUILD_WARNING, .code = "scons-import");
     }
-    g_cli_guard->persistent_buf_release(s_import, g_cli_scons_work_states_owner);
+    g_platform_guard->persistent_buf_release(s_import, g_cli_scons_work_states_owner);
     s_import = NULL;
 }
 
@@ -333,7 +334,7 @@ void cli_scons_check(const CliSconsTextCtx *args)
         EMBED_CALL(check_read_file, SconsCheckCtx, .root = args->root, .path = args->path, .text = args->text,
                    .lines = args->lines, .found = args->found);
     }
-    g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
+    g_platform_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }
 
 // What a name SCons gives goes to: `each`, with `context`
@@ -368,7 +369,7 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
         CliSconsInput supplied = {each, context};
         EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_input_import, .context = &supplied);
     }
-    g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
+    g_platform_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }
 
 // whether a character goes in an environment's name and its method
@@ -498,5 +499,5 @@ void cli_scons_complete(const CliSconsTextSizeCtx *args)
     {
         EMBED_CALL(check_complete, SconsCheckCtx, .text = args->text, .at = args->at, .items = args->items);
     }
-    g_cli_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
+    g_platform_guard->persistent_buf_release(class_of, g_cli_scons_work_states_owner);
 }

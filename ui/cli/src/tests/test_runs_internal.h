@@ -67,7 +67,7 @@ typedef struct
     unsigned int index;
     int cargo;
     int pytest;
-    CliSpawned spawned;
+    PlatformProgram spawned;
     char report[CLI_PATH_MAX_LEN];
     char covered[CLI_PATH_MAX_LEN];
     char errors[CLI_PATH_MAX_LEN];

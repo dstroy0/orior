@@ -161,7 +161,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
         }
         at = end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
     return found;
 }
 
@@ -292,8 +292,8 @@ EMBED_INLINE unsigned int verify_requested_only(const DisasmVerifyCtx *args)
         }
         if (all_requested)
         {
-            memor.cpy(&(MemoriaCfg){
-                .dst = args->names[named_count], .src = args->names[each], .bytes = CLI_NAME_MAX_LEN});
+            memor.cpy(
+                &(MemoriaCfg){.dst = args->names[named_count], .src = args->names[each], .bytes = CLI_NAME_MAX_LEN});
             named_count += 1u;
         }
     }
@@ -334,10 +334,10 @@ EMBED_INLINE int verify_readings_compared(const DisasmVerifyCtx *args)
 EMBED_INLINE int verify_readings_run(const DisasmVerifyCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    CliRunResult *const disassembled = EMBED_CALL(
-        cli_disasm_verify_count_err_msg.disasm_disassemble, CliDisasmVerifyCountErrMsgCfg,
-        .disassembler = args->disassembler, .program = args->program, .symbols = args->symbols, .count = args->functions,
-        .into = args->llvm_path, .err_msg = err_msg);
+    CliRunResult *const disassembled =
+        EMBED_CALL(cli_disasm_verify_count_err_msg.disasm_disassemble, CliDisasmVerifyCountErrMsgCfg,
+                   .disassembler = args->disassembler, .program = args->program, .symbols = args->symbols,
+                   .count = args->functions, .into = args->llvm_path, .err_msg = err_msg);
     unsigned long long ghidra_size = 0ULL;
     const unsigned char *const ghidra =
         (disassembled != NULL)
@@ -346,12 +346,12 @@ EMBED_INLINE int verify_readings_run(const DisasmVerifyCtx *args)
                          .program = args->program, .symbols = args->symbols, .count = args->functions,
                          .into = args->ghidra_path, .size_pointer = &ghidra_size, .err_msg = err_msg)
             : NULL;
-    CliDisasmReadState one = {
-        g_cli_guard->temporary_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
-        0u, 0};
-    CliDisasmReadState other = {
-        g_cli_guard->temporary_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
-        0u, 0};
+    CliDisasmReadState one = {g_platform_guard->temporary_buf_alloc(
+                                  CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
+                              0u, 0};
+    CliDisasmReadState other = {g_platform_guard->temporary_buf_alloc(
+                                    CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), g_cli_programs_owner),
+                                0u, 0};
     int code = CLI_NO_CODE;
     if ((ghidra == NULL) || (one.instruction == NULL) || (other.instruction == NULL))
     {
@@ -366,9 +366,9 @@ EMBED_INLINE int verify_readings_run(const DisasmVerifyCtx *args)
                           .objdump_size = disassembled->out_size, .ghidra_text = (const char *)ghidra,
                           .ghidra_size = ghidra_size, .one = &one, .other = &other);
     }
-    g_cli_guard->persistent_buf_release(one.instruction, g_cli_programs_owner);
-    g_cli_guard->persistent_buf_release(other.instruction, g_cli_programs_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)ghidra, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release(one.instruction, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release(other.instruction, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)ghidra, g_cli_programs_owner);
     if (disassembled != NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = disassembled);
@@ -466,12 +466,13 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     const int built = EMBED_CALL(cli_disasm_verify_compiler.disasm_build, CliDisasmVerifyCompilerCfg, .top = top,
                                  .target = target, .compiler = compiler, .err_msg = &err_msg);
     // the module lifted once, its functions counted from the IR file, then read into a cell sized to the count
-    const int lifted = built && EMBED_CALL(cli_disasm_verify_ir.disasm_lifted, CliDisasmVerifyIrCfg,
-                                           .gnu = toolchain->gnu, .lifter = lifter, .object = object, .ir = ir,
-                                           .err_msg = &err_msg);
-    const unsigned int counted = lifted ? EMBED_CALL(cli_disasm_verify_ir.disasm_functions, CliDisasmVerifyIrCfg,
-                                                     .gnu = toolchain->gnu, .ir = ir, .names = NULL, .err_msg = &err_msg)
-                                        : 0u;
+    const int lifted =
+        built && EMBED_CALL(cli_disasm_verify_ir.disasm_lifted, CliDisasmVerifyIrCfg, .gnu = toolchain->gnu,
+                            .lifter = lifter, .object = object, .ir = ir, .err_msg = &err_msg);
+    const unsigned int counted = lifted
+                                     ? EMBED_CALL(cli_disasm_verify_ir.disasm_functions, CliDisasmVerifyIrCfg,
+                                                  .gnu = toolchain->gnu, .ir = ir, .names = NULL, .err_msg = &err_msg)
+                                     : 0u;
     if (counted == 0u)
     {
         (void)mmgr_line_finish(&err_msg);
@@ -479,15 +480,15 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
         return CLI_NO_CODE;
     }
     // the functions' names and their symbols in one cell of the call, the symbols after the names
-    char(*const names)[CLI_NAME_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc(2ULL * counted * CLI_NAME_MAX_LEN, g_cli_programs_owner);
+    char (*const names)[CLI_NAME_MAX_LEN] =
+        g_platform_guard->temporary_buf_alloc(2ULL * counted * CLI_NAME_MAX_LEN, g_cli_programs_owner);
     if (names == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
                    .text = "the functions' names' cell could not be taken");
         return CLI_NO_CODE;
     }
-    char(*const symbols)[CLI_NAME_MAX_LEN] = names + counted;
+    char (*const symbols)[CLI_NAME_MAX_LEN] = names + counted;
     unsigned int functions =
         EMBED_CALL(cli_disasm_verify_ir.disasm_functions, CliDisasmVerifyIrCfg, .gnu = toolchain->gnu, .ir = ir,
                    .names = names, .capacity = counted, .err_msg = &err_msg);
@@ -513,6 +514,6 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                           .folder = folder, .llvm_path = llvm_text, .ghidra_path = ghidra_text, .toolchain = toolchain,
                           .err_msg = &err_msg);
     }
-    g_cli_guard->persistent_buf_release(names, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release(names, g_cli_programs_owner);
     return code;
 }

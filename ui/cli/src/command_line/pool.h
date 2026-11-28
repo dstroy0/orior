@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pool.h: the CLI's memory as MMgr's prison site: one cellblock over the pool declared at CLI_POOL_BYTES, reached
-// through its guard alone, every take and release carrying the owner the cell counts to (owners.h); the pool's
-// emptying, its movable option, and the reports of the cellblock's peaks and of each owner's counts to the telemetry
-// (pool.c)
+// pool.h: the CLI's memory, the one pool of the platform (platform_pool.h). Every take and release goes through the
+// platform's guard and carries the owner that the cell counts to (platform_places.h). The CLI opens and empties the
+// pool for each of its requests, and writes the reports of the cellblock's peaks and of each owner's counts to the
+// telemetry (pool.c)
 #ifndef POOL_H
 #define POOL_H
+#include "../../../../includes/platform/owners.h"
+#include "../../../../includes/platform/platform_pool.h"
 #include "locus_carcerum/locus_carcerum.h"
-#include "owners.h"
 #include "verba_scribo/verba_linea.h"
 
 #ifdef __cplusplus
@@ -19,48 +20,9 @@ extern "C"
 // them, rounded up to the next 32 MiB; the system gives the bytes as the pool is first made
 #define CLI_POOL_BYTES ((256ULL << 20u) + (32ULL << 20u))
 
-// the max movable cells the pool names at once
-#define CLI_POOL_MOVABLE (131072u + 1u)
-
-    // The cellblock's guard, MMgr's: a cell is taken with persistent_buf_alloc(bytes, owner) and given back with
-    // persistent_buf_release(cell, owner), owner the module's own of owners.h. A take the cellblock cannot meet
-    // returns NULL, which the caller reports where and as it chooses. Read once the pool is made
-    extern const MinimumSecurityGuard *const g_cli_guard;
-
-    // the pool emptied for a request of `bytes`, which the pool declared has to cover, the mover ended first and
-    // started again with it or after a refusal: 1, or 0 where a cell is still out or the request is past it; every
-    // program empties its pool before its first take
+    // the pool opened at the first call and emptied for a request of `bytes`, which the pool has to cover: 1, or 0
+    // where a cell is still out or the request is past it. Every program empties its pool before its first take
     int cli_pool_made(unsigned long long bytes);
-    // the cellblock's record: what mmgr_owner_of_buf and the peak readers take
-    const SeriesCellularum *cli_pool_series_cellularum(void);
-    // MMgr's movable option assigned to the pool, once, and given the thread its mover runs on. cli_pool_made calls
-    // this as the pool is made; a module that stores movable cells may call it again before its first take, to no
-    // effect past the first
-    void cli_pool_movable_ready(void);
-    // the place MMgr knows this thread by, given back for the next thread: called by a thread's entry as its work
-    // returns, so the places in use stay within the live threads
-    void cli_thread_place_released(void);
-
-    // A line written into one cell of the temporary tier, begun at 64 KiB and doubled toward `max` bytes as the writes
-    // come: its text is whole in `cell`, and past `max` the line fills as a line with no flush fills. `line.out` is
-    // where the next
-    // write goes, inside `cell`; the text is read at `cell` for cli_grown_size bytes, terminated. Written through the
-    // line's own entries, as any line; begun before its first write and ended after its last read
-    typedef struct
-    {
-        char *cell;
-        unsigned long long capacity;
-        unsigned long long max;
-        const CellOwner *owner;
-        VerbaLinea line;
-    } CliGrownLine;
-
-    void cli_grown_begin(CliGrownLine *grown, unsigned long long max, const CellOwner *owner);
-    // the bytes the text holds, what fit where a write did not; mmgr_line_ok over `line` says whether every write fit
-    unsigned long long cli_grown_size(const CliGrownLine *grown);
-    // the line begun over again at its cell's start, the cell retained at the size it grew to
-    void cli_grown_reset(CliGrownLine *grown);
-    void cli_grown_end(CliGrownLine *grown);
 
     // the pool's bytes and the cellblock's two peaks, read off its state, each 0 where the build tracks none
     void cli_pool_report(unsigned long long *pool, unsigned long long *persistent, unsigned long long *temporary);

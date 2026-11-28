@@ -14,7 +14,7 @@
  *       the end. The file holds one counter per line: nonces evaluated, anchor survivors, slices with a
  *       winner, and seconds. Put FILE under build/miner.
  */
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"

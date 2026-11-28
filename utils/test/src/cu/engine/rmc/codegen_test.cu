@@ -13,7 +13,7 @@
 // printer, must be the code generator's. The test is one job on the device's tessera daemon, submitted before its first
 // device work.
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../engine/analysis/cycle/record_image.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"

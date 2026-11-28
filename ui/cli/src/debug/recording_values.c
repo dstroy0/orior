@@ -55,7 +55,7 @@ EMBED_INLINE void read_changes(const RecordingValuesCtx *args)
             EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = name, .value = NULL);
         }
     }
-    g_cli_guard->persistent_buf_release(tree.node, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(tree.node, g_cli_debug_owner);
 }
 
 // The values stored as the steps of a frame are read: a cell of `capacity` of them for `owner`, and how many there are
@@ -109,7 +109,7 @@ unsigned int cli_recording_values(const CliRecordingAtCtx *args)
         return 0u;
     }
     CliRecordedValue *const cell =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)args->max * sizeof(CliRecordedValue), args->owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)args->max * sizeof(CliRecordedValue), args->owner);
     CliRecordedValues recorded = {cell, (cell != NULL) ? args->max : 0u, 0u, args->owner};
     const CliRecordedFrame frame =
         EMBED_CALL(cli_recording_index_internal.frame, CliRecordingIndexCtx, .index = args->serial);

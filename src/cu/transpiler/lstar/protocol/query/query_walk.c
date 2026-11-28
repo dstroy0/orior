@@ -15,7 +15,7 @@
 // many reads ADVANCES puts at an address after its first before the address reads as not advancing: a counter that
 // steps once a clock interrupt reads as still between two reads far more often than not.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "query_put.h"

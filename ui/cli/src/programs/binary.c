@@ -114,7 +114,7 @@ EMBED_INLINE int cli_cell_grown(const BinaryCtx *args)
     }
     const unsigned long long doubled = (store->bytes != 0ULL) ? (store->bytes * 2ULL) : CLI_BINARY_QUEUE_FIRST;
     const unsigned long long bytes = (doubled < args->needed) ? args->needed : doubled;
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_programs_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_programs_owner);
     if (cell == NULL)
     {
         return 0;
@@ -122,14 +122,14 @@ EMBED_INLINE int cli_cell_grown(const BinaryCtx *args)
     for (unsigned long long at = 0ULL; at < store->bytes; at += sizeof(CliQueued))
     {
         CliQueued record;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = store->cell, .offset = (embed_word)at, .dst = &record, .bytes = sizeof(record)});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .src = &record, .bytes = sizeof(record)});
     }
     if (store->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(store->cell, g_cli_programs_owner);
+        (void)g_platform_guard->movable_buf_release(store->cell, g_cli_programs_owner);
     }
     store->cell = cell;
     store->bytes = bytes;
@@ -152,10 +152,11 @@ EMBED_INLINE int cli_queued_put(const BinaryCtx *args)
     VerbaLinea by = {record.by, sizeof(record.by), 0ULL};
     mmgr_line_put(&by, args->by);
     (void)mmgr_line_finish(&by);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->cell,
-                                                            .offset = (embed_word)args->queued * sizeof(CliQueued),
-                                                            .src = &record,
-                                                            .bytes = sizeof(record)});
+    (void)g_platform_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->store->cell,
+                            .offset = (embed_word)args->queued * sizeof(CliQueued),
+                            .src = &record,
+                            .bytes = sizeof(record)});
     return 1;
 }
 
@@ -358,10 +359,10 @@ EMBED_INLINE int cli_in_cell(const BinaryCtx *args)
     for (unsigned int each = 0u; each < args->count; each += 1u)
     {
         char folder[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->folders_cell,
-                                                               .offset = (embed_word)each * CLI_PATH_MAX_LEN,
-                                                               .dst = folder,
-                                                               .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->folders_cell,
+                                                                     .offset = (embed_word)each * CLI_PATH_MAX_LEN,
+                                                                     .dst = folder,
+                                                                     .bytes = CLI_PATH_MAX_LEN});
         VerbaLinea line = {args->at, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, folder);
         mmgr_line_ch(&line, '/');
@@ -383,7 +384,7 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
     unsigned long long size = args->size;
     const char *path = args->path;
     // the names one file imports, a cell of the temporary tier for the call, read again for each library found
-    char(*const imported)[CLI_NAME_MAX_LEN] = g_cli_guard->temporary_buf_alloc(
+    char (*const imported)[CLI_NAME_MAX_LEN] = g_platform_guard->temporary_buf_alloc(
         (unsigned long long)CLI_BINARY_LIBRARIES * CLI_NAME_MAX_LEN, g_cli_programs_owner);
     if (imported == NULL)
     {
@@ -414,7 +415,7 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
                    .names = imported, .count_i32 = 0, .capacity_u32 = CLI_BINARY_LIBRARIES, .err_msg = args->err_msg);
     if (imports < 0)
     {
-        g_cli_guard->persistent_buf_release(imported, g_cli_programs_owner);
+        g_platform_guard->persistent_buf_release(imported, g_cli_programs_owner);
         return 0;
     }
     const unsigned int system = EMBED_CALL(cli_windows_folders, BinaryCtx, .machine = machine, .folders = windows);
@@ -433,10 +434,8 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
     while (next < queued)
     {
         CliQueued one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = queue.cell,
-                                                               .offset = (embed_word)next * sizeof(CliQueued),
-                                                               .dst = &one,
-                                                               .bytes = sizeof(one)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = queue.cell, .offset = (embed_word)next * sizeof(CliQueued), .dst = &one, .bytes = sizeof(one)});
         char lower[CLI_NAME_MAX_LEN];
         EMBED_CALL(cli_lower, BinaryCtx, .name = one.name, .out = lower);
         int known = (cellul.starts(&(CatenaFinitaCfg){.src = lower, .other = "api-ms-", .cap = CLI_POOL_BYTES})) ||
@@ -516,23 +515,23 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
             VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ULL};
             unsigned int more_machine = 0u;
             const int found = EMBED_CALL(cli_binary_err_msg.pe_imports, CliBinaryErrMsgCfg, .bytes = more,
-                                         .size = more_size, .machine = &more_machine, .names = imported,
-                                         .count_i32 = 0, .capacity_u32 = CLI_BINARY_LIBRARIES, .err_msg = &ignored);
+                                         .size = more_size, .machine = &more_machine, .names = imported, .count_i32 = 0,
+                                         .capacity_u32 = CLI_BINARY_LIBRARIES, .err_msg = &ignored);
             for (int at = 0; room && (at < found); at += 1)
             {
                 room = EMBED_CALL(cli_queued_put, BinaryCtx, .store = &queue, .queued = queued, .name = imported[at],
                                   .by = library->name);
                 queued += room ? 1u : 0u;
             }
-            g_cli_guard->persistent_buf_release((void *)(embed_word)more, g_cli_programs_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)more, g_cli_programs_owner);
         }
         next += 1u;
     }
     if (queue.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(queue.cell, g_cli_programs_owner);
+        (void)g_platform_guard->movable_buf_release(queue.cell, g_cli_programs_owner);
     }
-    g_cli_guard->persistent_buf_release(imported, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release(imported, g_cli_programs_owner);
     return 1;
 }
 
@@ -581,6 +580,6 @@ int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, " is no program impero reads");
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_programs_owner);
     return read;
 }

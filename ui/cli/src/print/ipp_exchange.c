@@ -208,8 +208,8 @@ EMBED_INLINE int cli_chunk_size(const IppExchangeCtx *args)
 EMBED_INLINE int cli_send(const IppExchangeCtx *args)
 {
     unsigned long long size = args->size;
-    CliGrownLine body;
-    cli_grown_begin(&body, CLI_IPP_REQUEST_CAPACITY, g_cli_print_owner);
+    PlatformText body;
+    platform_text_begun(&body, CLI_IPP_REQUEST_CAPACITY, platform_place_g_cli_print_owner, PLATFORM_TIER_TEMPORARY);
     if (body.cell == NULL)
     {
         return 0;
@@ -218,10 +218,10 @@ EMBED_INLINE int cli_send(const IppExchangeCtx *args)
                .out_verba_linea_pointer = &body.line);
     if (!mmgr_line_ok(&body.line))
     {
-        cli_grown_end(&body);
+        platform_text_ended(&body);
         return 0;
     }
-    const unsigned long long body_size = cli_grown_size(&body);
+    const unsigned long long body_size = platform_text_size(&body);
     char head[CLI_PATH_MAX_LEN * 3u];
     VerbaLinea line = {head, sizeof(head), 0ULL};
     mmgr_line_put(&line, "POST ");
@@ -242,7 +242,7 @@ EMBED_INLINE int cli_send(const IppExchangeCtx *args)
                                 .bytes = body.cell, .size = body_size) &&
                      ((size == 0ULL) || EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx,
                                                    .sock = args->socket, .bytes = args->document, .size = size));
-    cli_grown_end(&body);
+    platform_text_ended(&body);
     return sent;
 }
 
@@ -326,7 +326,7 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
         return 0;
     }
     unsigned long long read = 0ULL;
-    char *const answer_cell = g_cli_guard->temporary_buf_alloc(CLI_IPP_ANSWER, g_cli_print_owner);
+    char *const answer_cell = g_platform_guard->temporary_buf_alloc(CLI_IPP_ANSWER, g_cli_print_owner);
     int read_state = answer_cell != NULL;
     while (read_state && (read < CLI_IPP_ANSWER))
     {
@@ -437,7 +437,7 @@ int cli_ipp_exchange(const CliIppSizeCfg *args)
     // the answer's own texts are in its bytes; a document after them position in the answer read, which is given back
     args->answer->data = NULL;
     args->answer->data_length = 0ULL;
-    g_cli_guard->persistent_buf_release(s_answer, g_cli_print_owner);
+    g_platform_guard->persistent_buf_release(s_answer, g_cli_print_owner);
     s_answer = NULL;
     return done;
 }

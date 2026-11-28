@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// requests_white.c: the white characters of a file of requests as Rust's char::is_whitespace has them, a part trimmed of
-// them as Rust's str::trim trims it, and a text of a pool
+// requests_white.c: the white characters of a file of requests as Rust's char::is_whitespace has them, a part trimmed
+// of them as Rust's str::trim trims it, and a text of a pool
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
@@ -20,8 +20,8 @@ typedef struct
 // whether a character is white as Rust's char::is_whitespace has it
 EMBED_INLINE int white_is(const RequestsWhiteCtx *args)
 {
-    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
-           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) ||
+           (args->character == 0x85u) || (args->character == 0xa0u) || (args->character == 0x1680u) ||
            ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
            (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
            (args->character == 0x3000u);
@@ -47,9 +47,10 @@ EMBED_INLINE unsigned long long white_before(const RequestsWhiteCtx *args)
     }
     unsigned int character = 0u;
     const unsigned long long reserved =
-        EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg, .text_bytes = (const unsigned char *)text,
-                   .length = args->end, .at = at, .character = &character);
-    return ((at + reserved == args->end) && EMBED_CALL(white_is, RequestsWhiteCtx, .character = character)) ? reserved : 0ULL;
+        EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                   .text_bytes = (const unsigned char *)text, .length = args->end, .at = at, .character = &character);
+    return ((at + reserved == args->end) && EMBED_CALL(white_is, RequestsWhiteCtx, .character = character)) ? reserved
+                                                                                                            : 0ULL;
 }
 
 void cli_requests_trim(const CliRequestsTextStartCtx *args)

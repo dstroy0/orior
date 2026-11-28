@@ -7,7 +7,7 @@
 #define UNPRINTED_INTERNAL_H
 
 #include "../../cubin_write.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../cubin_safe.h"
 #include "../../sass_assemble.h"
 #include "../../../../lstar/interface/interface.h"

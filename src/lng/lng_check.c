@@ -8,7 +8,7 @@
 // The check prints each defect, and the run exits 1 where it finds one. A finding does not fail the run. The run exits
 // 2 where it cannot read a table, the schema or gnascor
 #include "../cu/engine/engine_note.h"
-#include "../platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "lng.h"
 #include "memoria_operor/memoria_operor.h"

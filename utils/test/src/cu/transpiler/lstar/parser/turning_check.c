@@ -16,7 +16,7 @@
 //
 //     turning_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 static unsigned int s_checks = 0u;

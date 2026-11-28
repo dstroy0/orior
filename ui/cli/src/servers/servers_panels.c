@@ -662,13 +662,13 @@ static void panels_hover_job(const CliServersJobCfg *args)
     panels_hover_tree_run(&asked);
     const PanelsHoverLanded head = {job->ask, job->line, job->from, job->to, asked.length, asked.reading};
     const CarcerMovableEntry *const landed =
-        g_cli_guard->movable_buf_alloc(sizeof(head) + asked.length, g_cli_servers_owner);
+        g_platform_guard->movable_buf_alloc(sizeof(head) + asked.length, g_cli_servers_owner);
     if (landed != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = landed, .src = &head, .bytes = sizeof(head)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = landed, .src = &head, .bytes = sizeof(head)});
         if (asked.length != 0ULL)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = landed, .offset = sizeof(head), .src = text, .bytes = asked.length});
         }
     }
@@ -687,7 +687,7 @@ static void panels_hover_job(const CliServersJobCfg *args)
         !EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, &s_hover_turnstiles, address,
                     &s_hover_ring, stamp, &seen))
     {
-        (void)g_cli_guard->movable_buf_release(landed, g_cli_servers_owner);
+        (void)g_platform_guard->movable_buf_release(landed, g_cli_servers_owner);
         return;
     }
     // Explicit cast carries the entry, read only, as the ring's job
@@ -718,7 +718,7 @@ EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
         }
         const CarcerMovableEntry *const landed = job;
         PanelsHoverLanded head;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = landed, .dst = &head, .bytes = sizeof(head)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = landed, .dst = &head, .bytes = sizeof(head)});
         if (head.ask == s_panels.hover_ask)
         {
             // the hide also stops the takes: the answer asked for is here
@@ -727,7 +727,7 @@ EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
                 (head.length < CLI_PANELS_HOVER_MAX) ? head.length : CLI_PANELS_HOVER_MAX - 1ULL;
             if (retained != 0ULL)
             {
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = landed, .offset = sizeof(head), .dst = s_panels.hover_text, .bytes = retained});
                 s_panels.hover_text[retained] = '\0';
                 s_panels.hover_length = retained;
@@ -741,7 +741,7 @@ EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
                 s_panels.hover_due_ms = cli_clock_milliseconds() + CLI_PANELS_HOVER_REST_MS;
             }
         }
-        (void)g_cli_guard->movable_buf_release(landed, g_cli_servers_owner);
+        (void)g_platform_guard->movable_buf_release(landed, g_cli_servers_owner);
         (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &s_hover_turnstiles,
                          &s_hover_ring, stamp, &seen);
         s_hover_taken += 1u;
@@ -893,12 +893,12 @@ static int panels_item_order(const void *one, const void *other)
 {
     PanelsItem first;
     PanelsItem second;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_ranking,
         .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)*(const unsigned int *)one * sizeof(first)),
         .dst = &first,
         .bytes = sizeof(first)});
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_ranking,
                             .offset = offsetof(PanelsCompletion, item) +
                                       ((unsigned long long)*(const unsigned int *)other * sizeof(second)),
@@ -912,7 +912,7 @@ static int panels_item_order(const void *one, const void *other)
     {
         return (first.label_length < second.label_length) ? -1 : 1;
     }
-    const embed_iword order = g_cli_guard->movable_buf_compare(
+    const embed_iword order = g_platform_guard->movable_buf_compare(
         &(CarcerMovableCfg){.cell = s_ranking,
                             .other_cell = s_ranking,
                             .offset = offsetof(PanelsCompletion, text) + first.label,
@@ -932,12 +932,12 @@ EMBED_INLINE void panels_completion_rank(const PanelsCtx *args)
 {
     const CarcerMovableEntry *const list = args->list;
     PanelsListHead head;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = list, .dst = &head, .bytes = sizeof(head)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = list, .dst = &head, .bytes = sizeof(head)});
     unsigned int ranked[CLI_PANELS_ITEMS_MAX];
     unsigned int saved = head.items;
     if (head.count > 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = list,
             .offset = offsetof(PanelsCompletion, ranked) + ((unsigned long long)head.chosen * sizeof(saved)),
             .dst = &saved,
@@ -949,22 +949,22 @@ EMBED_INLINE void panels_completion_rank(const PanelsCtx *args)
         const unsigned long long item_at =
             offsetof(PanelsCompletion, item) + ((unsigned long long)at * sizeof(PanelsItem));
         PanelsItem item;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = list, .offset = item_at, .dst = &item, .bytes = sizeof(item)});
         char label[CLI_PANELS_LABEL_MAX];
         char lowered[CLI_PANELS_LABEL_MAX];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = list,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = list,
                                                                 .offset = offsetof(PanelsCompletion, text) + item.label,
                                                                 .dst = label,
                                                                 .bytes = item.label_length});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = list,
                                 .offset = offsetof(PanelsCompletion, text) + item.lowered,
                                 .dst = lowered,
                                 .bytes = item.label_length});
         item.score = EMBED_CALL(panels_item_score, PanelsCtx, .item = &item, .text = label, .lowered = lowered,
                                 .length = head.prefix_length, .prefix = head.prefix, .prefix_lowered = head.lowered);
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list,
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list,
                                                                  .offset = item_at + offsetof(PanelsItem, score),
                                                                  .src = &item.score,
                                                                  .bytes = sizeof(item.score)});
@@ -988,12 +988,12 @@ EMBED_INLINE void panels_completion_rank(const PanelsCtx *args)
     }
     if (head.count != 0u)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list,
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list,
                                                                  .offset = offsetof(PanelsCompletion, ranked),
                                                                  .src = ranked,
                                                                  .bytes = head.count * sizeof(*ranked)});
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list, .src = &head, .bytes = sizeof(head)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list, .src = &head, .bytes = sizeof(head)});
 }
 
 // the first row displayed moved as far as it must to show the row chosen
@@ -1137,10 +1137,10 @@ static unsigned int panels_text_put(const PanelsCtx *args)
     const char end = '\0';
     if (retained != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = args->list, .offset = offsetof(PanelsCompletion, text) + at, .src = args->text, .bytes = retained});
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = args->list, .offset = offsetof(PanelsCompletion, text) + at + retained, .src = &end, .bytes = 1u});
     head->text_used += retained + 1ULL;
     *args->length_out = (unsigned int)retained;
@@ -1190,7 +1190,7 @@ EMBED_INLINE int panels_item_put(const PanelsCtx *args)
         head->text_used = used;
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list,
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list,
                                                              .offset = offsetof(PanelsCompletion, item) +
                                                                        ((unsigned long long)head->items * sizeof(item)),
                                                              .src = &item,
@@ -1249,12 +1249,12 @@ static int panels_label_order(const void *left, const void *right)
 static int panels_label_is(const PanelsWordsPut *put, unsigned int item, const char *label, unsigned long long length)
 {
     PanelsItem given;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = put->list,
                             .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)item * sizeof(given)),
                             .dst = &given,
                             .bytes = sizeof(given)});
-    return (given.label_length == length) && (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+    return (given.label_length == length) && (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                                                   .cell = put->list,
                                                   .offset = offsetof(PanelsCompletion, text) + given.label,
                                                   .src = label,
@@ -1371,14 +1371,14 @@ static void panels_seen_fill(PanelsWordsPut *put)
     {
         PanelsItem given;
         char label[CLI_PANELS_LABEL_MAX];
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = put->list,
                                 .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)at * sizeof(given)),
                                 .dst = &given,
                                 .bytes = sizeof(given)});
         const unsigned long long length =
             (given.label_length < CLI_PANELS_LABEL_MAX) ? given.label_length : (CLI_PANELS_LABEL_MAX - 1ULL);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = put->list,
                                 .offset = offsetof(PanelsCompletion, text) + given.label,
                                 .dst = label,
@@ -1463,7 +1463,7 @@ EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
     {
         cli_view_words_each(&(CliViewWordsCfg){.key = args->key, .each = panels_word_put, .context = &put});
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list, .src = head, .bytes = sizeof(*head)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = list, .src = head, .bytes = sizeof(*head)});
 }
 
 // The built list's cell made the cell displayed, in place of the last, the row chosen saved on its item. The list
@@ -1479,7 +1479,7 @@ EMBED_INLINE void panels_completion_are(const PanelsCtx *args)
     const int was = s_panels.completion_open && (s_panels.completion != NULL);
     if (was)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_panels.completion, .offset = 0ULL, .dst = &previous, .bytes = sizeof(previous)});
     }
     char was_label[CLI_PANELS_LABEL_MAX] = "";
@@ -1489,13 +1489,13 @@ EMBED_INLINE void panels_completion_are(const PanelsCtx *args)
         PanelsItem chosen;
         {
             unsigned int ranked_at = 0u;
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_panels.completion,
                                     .offset = offsetof(PanelsCompletion, ranked) +
                                               ((unsigned long long)previous.chosen * sizeof(ranked_at)),
                                     .dst = &ranked_at,
                                     .bytes = sizeof(ranked_at)});
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_panels.completion,
                 .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)ranked_at * sizeof(PanelsItem)),
                 .dst = &chosen,
@@ -1504,7 +1504,7 @@ EMBED_INLINE void panels_completion_are(const PanelsCtx *args)
         was_label_length = chosen.label_length;
         if (chosen.label_length != 0u)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_panels.completion,
                                     .offset = offsetof(PanelsCompletion, text) + chosen.label,
                                     .dst = was_label,
@@ -1514,24 +1514,24 @@ EMBED_INLINE void panels_completion_are(const PanelsCtx *args)
     }
     EMBED_CALL(panels_completion_rank, PanelsCtx, .list = built);
     PanelsListHead head;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = built, .dst = &head, .bytes = sizeof(head)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = built, .dst = &head, .bytes = sizeof(head)});
     if (was && (previous.count > 0u))
     {
         for (unsigned int at = 0u; at < head.count; at += 1u)
         {
             unsigned int ranked_at = 0u;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = built,
                 .offset = offsetof(PanelsCompletion, ranked) + ((unsigned long long)at * sizeof(ranked_at)),
                 .dst = &ranked_at,
                 .bytes = sizeof(ranked_at)});
             PanelsItem item;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = built,
                 .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)ranked_at * sizeof(item)),
                 .dst = &item,
                 .bytes = sizeof(item)});
-            if ((item.label_length == was_label_length) && (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+            if ((item.label_length == was_label_length) && (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                                                                 .cell = built,
                                                                 .offset = offsetof(PanelsCompletion, text) + item.label,
                                                                 .src = was_label,
@@ -1547,18 +1547,18 @@ EMBED_INLINE void panels_completion_are(const PanelsCtx *args)
     if (head.count == 1u)
     {
         unsigned int ranked_at = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = built,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = built,
                                                                 .offset = offsetof(PanelsCompletion, ranked),
                                                                 .dst = &ranked_at,
                                                                 .bytes = sizeof(ranked_at)});
         PanelsItem only;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = built,
             .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)ranked_at * sizeof(only)),
             .dst = &only,
             .bytes = sizeof(only)});
         alone = (only.label_length == head.prefix_length) &&
-                (g_cli_guard->movable_buf_compare(
+                (g_platform_guard->movable_buf_compare(
                      &(CarcerMovableCfg){.cell = built,
                                          .offset = offsetof(PanelsCompletion, text) + only.label,
                                          .src = head.prefix,
@@ -1571,7 +1571,7 @@ EMBED_INLINE void panels_completion_are(const PanelsCtx *args)
         return;
     }
     EMBED_CALL(panels_completion_scrolled, PanelsCtx, .head = &head);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = built, .src = &head, .bytes = sizeof(head)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = built, .src = &head, .bytes = sizeof(head)});
     s_panels.completion_built = s_panels.completion;
     s_panels.completion = built;
     s_panels.completion_open = 1;
@@ -1615,7 +1615,7 @@ EMBED_INLINE void panels_completion_follow(const PanelsCtx *args)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     unsigned long long from = 0ULL;
     char prefix[CLI_PANELS_WORD];
@@ -1642,10 +1642,10 @@ EMBED_INLINE void panels_completion_follow(const PanelsCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = head.lowered, .src = prefix, .bytes = length + 1ULL});
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .size = length, .text_out = head.lowered);
     head.prefix_length = length;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_panels.completion, .src = &head, .bytes = sizeof(head)});
     EMBED_CALL(panels_completion_rank, PanelsCtx, .list = s_panels.completion);
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_panels.completion, .dst = &head, .bytes = sizeof(head)});
     if (head.count == 0u)
     {
@@ -1653,7 +1653,7 @@ EMBED_INLINE void panels_completion_follow(const PanelsCtx *args)
         return;
     }
     EMBED_CALL(panels_completion_scrolled, PanelsCtx, .head = &head);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_panels.completion, .src = &head, .bytes = sizeof(head)});
     s_panels.completion_open = 1;
 }
@@ -1667,7 +1667,7 @@ EMBED_INLINE void panels_completion_accept(const PanelsCtx *args)
     const int opened = s_panels.completion_open && (s_panels.completion != NULL);
     if (opened)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     }
     if (!opened || (key == NULL) || (args->at >= head.count))
@@ -1678,12 +1678,12 @@ EMBED_INLINE void panels_completion_accept(const PanelsCtx *args)
     PanelsItem item;
     {
         unsigned int ranked_at = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_panels.completion,
             .offset = offsetof(PanelsCompletion, ranked) + ((unsigned long long)args->at * sizeof(ranked_at)),
             .dst = &ranked_at,
             .bytes = sizeof(ranked_at)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_panels.completion,
             .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)ranked_at * sizeof(PanelsItem)),
             .dst = &item,
@@ -1692,7 +1692,7 @@ EMBED_INLINE void panels_completion_accept(const PanelsCtx *args)
     char insert[CLI_PANELS_INSERT_MAX];
     if (item.insert_length != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion,
                                 .offset = offsetof(PanelsCompletion, text) + item.insert,
                                 .dst = insert,
@@ -1722,7 +1722,7 @@ void cli_servers_panels_wheel(const CliServersPanelsCfg *args)
     const int opened = s_panels.completion_open && (s_panels.completion != NULL);
     if (opened)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     }
     if (!opened || (head.count <= CLI_COMPLETION_ROWS))
@@ -1742,7 +1742,7 @@ void cli_servers_panels_wheel(const CliServersPanelsCfg *args)
         head.first += (unsigned int)args->rows;
         head.first = (head.first > max) ? max : head.first;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_panels.completion, .offset = 0ULL, .src = &head, .bytes = sizeof(PanelsListHead)});
 }
 
@@ -1753,7 +1753,7 @@ EMBED_INLINE int panels_completion_key(const PanelsCtx *args)
     const int opened = s_panels.completion_open && (s_panels.completion != NULL);
     if (opened)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     }
     if (!opened || (head.count == 0u))
@@ -1795,7 +1795,7 @@ EMBED_INLINE int panels_completion_key(const PanelsCtx *args)
         return 0;
     }
     EMBED_CALL(panels_completion_scrolled, PanelsCtx, .head = &head);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_panels.completion, .offset = 0ULL, .src = &head, .bytes = sizeof(PanelsListHead)});
     return 1;
 }
@@ -2238,11 +2238,11 @@ void cli_servers_panels_begin(const CliServersPanelsCfg *args)
     // the two list cells, the one displayed and the one built, each taken once at its max
     if (s_panels.completion == NULL)
     {
-        s_panels.completion = g_cli_guard->movable_buf_alloc(sizeof(PanelsCompletion), g_cli_servers_owner);
+        s_panels.completion = g_platform_guard->movable_buf_alloc(sizeof(PanelsCompletion), g_cli_servers_owner);
     }
     if (s_panels.completion_built == NULL)
     {
-        s_panels.completion_built = g_cli_guard->movable_buf_alloc(sizeof(PanelsCompletion), g_cli_servers_owner);
+        s_panels.completion_built = g_platform_guard->movable_buf_alloc(sizeof(PanelsCompletion), g_cli_servers_owner);
     }
     cli_view_watch(&(CliViewAtCfg){.watcher = &s_panels_watcher});
 }
@@ -2253,9 +2253,9 @@ void cli_servers_panels_end(void)
     cli_servers_panels_hide();
     // every answer pushed and not taken goes back with the panels
     EMBED_CALL(panels_hover_answers_taken, PanelsCtx, .at = 0u);
-    (void)g_cli_guard->movable_buf_release(s_panels.completion, g_cli_servers_owner);
+    (void)g_platform_guard->movable_buf_release(s_panels.completion, g_cli_servers_owner);
     s_panels.completion = NULL;
-    (void)g_cli_guard->movable_buf_release(s_panels.completion_built, g_cli_servers_owner);
+    (void)g_platform_guard->movable_buf_release(s_panels.completion_built, g_cli_servers_owner);
     s_panels.completion_built = NULL;
     s_panels.root = NULL;
 }
@@ -2279,7 +2279,7 @@ int cli_servers_panels_completion(const CliServersPanelsCfg *args)
     const int opened = s_panels.completion_open && (s_panels.completion != NULL);
     if (opened)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     }
     if (!opened || (head.count == 0u))
@@ -2304,7 +2304,7 @@ int cli_servers_panels_completion_row(const CliServersPanelsCfg *args)
     const int opened = s_panels.completion_open && (s_panels.completion != NULL);
     if (opened)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     }
     if ((args->row >= CLI_COMPLETION_ROWS) || !opened || ((head.first + args->row) >= head.count))
@@ -2314,13 +2314,13 @@ int cli_servers_panels_completion_row(const CliServersPanelsCfg *args)
     PanelsItem item;
     {
         unsigned int ranked_at = 0u;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion,
                                 .offset = offsetof(PanelsCompletion, ranked) +
                                           ((unsigned long long)(head.first + args->row) * sizeof(ranked_at)),
                                 .dst = &ranked_at,
                                 .bytes = sizeof(ranked_at)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_panels.completion,
             .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)ranked_at * sizeof(PanelsItem)),
             .dst = &item,
@@ -2328,7 +2328,7 @@ int cli_servers_panels_completion_row(const CliServersPanelsCfg *args)
     }
     if (item.label_length != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_panels.completion,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_panels.completion,
                                                                 .offset = offsetof(PanelsCompletion, text) + item.label,
                                                                 .dst = s_label[args->row],
                                                                 .bytes = item.label_length});
@@ -2336,7 +2336,7 @@ int cli_servers_panels_completion_row(const CliServersPanelsCfg *args)
     s_label[args->row][item.label_length] = '\0';
     if (item.type_length != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_panels.completion,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_panels.completion,
                                                                 .offset = offsetof(PanelsCompletion, text) + item.type,
                                                                 .dst = s_type[args->row],
                                                                 .bytes = item.type_length});
@@ -2344,7 +2344,7 @@ int cli_servers_panels_completion_row(const CliServersPanelsCfg *args)
     s_type[args->row][item.type_length] = '\0';
     if (item.detail_length != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_panels.completion,
                                 .offset = offsetof(PanelsCompletion, text) + item.detail,
                                 .dst = s_detail[args->row],

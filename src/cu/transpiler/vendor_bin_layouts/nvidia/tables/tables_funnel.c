@@ -8,7 +8,7 @@
 // Exit 0 where both tables were written, 1 where the capture could not be read or a table could not be written, 2
 // where the capture contains no instruction archive that unpacks whole, 3 where it contains no copies of the latencies.
 #include "funnel.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 
 

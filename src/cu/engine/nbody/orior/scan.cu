@@ -33,7 +33,7 @@
  *       disagreement and blame the scan for what was an allocation failure.
  */
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../runtime/daemon/tessera_job.h"
 #include "orior.h"
 

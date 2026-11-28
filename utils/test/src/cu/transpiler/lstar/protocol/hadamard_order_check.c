@@ -16,7 +16,7 @@
 // overhead, pairs of links contending by an amount drawn per pair, and the rate the read finds contention at each
 // amount, the rate at none being its false alarms.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/hadamard_order.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>

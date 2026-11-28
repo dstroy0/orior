@@ -47,12 +47,13 @@ static unsigned int check_file_find(const ServersCheckCtx *args)
     for (unsigned int at = 0u; (s_queue.files_cell != NULL) && (at < s_queue.file_count); at += 1u)
     {
         unsigned long long start = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_queue.files_cell, .offset = CLI_SERVERS_FILE_AT(at), .dst = &start, .bytes = sizeof(start)});
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_queue.files_cell,
-                                                                 .offset = CLI_SERVERS_FILES_TEXT_AT(&s_queue, start),
-                                                                 .src = args->path,
-                                                                 .bytes = size}) == 0)
+        if (g_platform_guard->movable_buf_compare(
+                &(CarcerMovableCfg){.cell = s_queue.files_cell,
+                                    .offset = CLI_SERVERS_FILES_TEXT_AT(&s_queue, start),
+                                    .src = args->path,
+                                    .bytes = size}) == 0)
         {
             return at;
         }
@@ -99,7 +100,7 @@ static void check_checker(void *context)
                          stamp, &popped, &seen);
         const CarcerMovableEntry *const cell = popped;
         CliServersQueued one = {NULL, 0ULL, CLI_SERVERS_NO_FILE, 0u};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         // a stale file's marks went with its check's cells, so only a fresh file's mark is cleared
         const int stale = one.generation !=
@@ -109,27 +110,27 @@ static void check_checker(void *context)
             if ((one.file != CLI_SERVERS_NO_FILE) && (one.file < s_queue.file_at_max))
             {
                 static const unsigned char s_idle = 0u;
-                (void)g_cli_guard->movable_buf_write(
+                (void)g_platform_guard->movable_buf_write(
                     &(CarcerMovableCfg){.cell = s_queue.files_cell,
                                         .offset = CLI_SERVERS_QUEUED_AT(&s_queue, one.file),
                                         .src = &s_idle,
                                         .bytes = 1u});
             }
             // the path and the name read out of the cell where they lie, the name's length its bytes before its 0
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = cell, .offset = sizeof(one), .dst = s_path[checker], .bytes = one.size + 1u});
             CliServersWaiting waiting = {one.server, ""};
             const embed_word name_at = sizeof(one) + one.size + 1u;
-            const embed_word name_size = g_cli_guard->movable_buf_measure(
+            const embed_word name_size = g_platform_guard->movable_buf_measure(
                 &(CarcerMovableCfg){.cell = cell, .offset = name_at, .bytes = CLI_NAME_MAX_LEN - 1u});
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = cell, .offset = name_at, .dst = waiting.id, .bytes = name_size + 1u});
             s_emit[checker] = s_queue.sink;
             EMBED_CALL(cli_servers_path_sink_internal.check_one, CliServersPathSinkCtx, .checker = checker,
                        .path = s_path[checker], .one_servers_waiting_pointer = &waiting, .sink = &s_emit[checker]);
         }
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = one.server);
-        (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_check_work_state_owner);
+        (void)g_platform_guard->movable_buf_release(cell, g_cli_servers_check_work_state_owner);
         (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &ring->turnstiles,
                          &ring->ring, stamp, &seen);
         if (stale)
@@ -156,7 +157,7 @@ static void check_checkers_start(void)
     for (unsigned int at = 0u; !started && (at < CLI_SERVERS_CHECKING); at += 1u)
     {
         s_checker_index[at] = at;
-        s_checker[at] = (CliThread){check_checker, &s_checker_index[at], CLI_PRIORITY_GUEST};
+        s_checker[at] = (CliThread){check_checker, &s_checker_index[at], PLATFORM_PRIORITY_GUEST};
         (void)EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_checker[at]);
     }
 }
@@ -285,7 +286,7 @@ void cli_servers_check_let_go(void)
     EMBED_CALL(embed_atomic_u64_table.store, EmbedAtomicU64StoreCfg, .word = &s_queue.done, .value = 0ULL);
     if (s_queue.files_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_queue.files_cell, g_cli_servers_check_work_state_owner);
+        (void)g_platform_guard->movable_buf_release(s_queue.files_cell, g_cli_servers_check_work_state_owner);
     }
     s_queue.files_cell = NULL;
     s_queue.files_max = 0ULL;
@@ -299,17 +300,19 @@ char *cli_servers_check_tree_files(const CliServersRootSizeCtx *args)
     const int on = s_queue.on && (s_queue.files_cell != NULL) &&
                    (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_POOL_BYTES}));
     // the cell's texts hold every path it lists, each ended by a 0, read whole into the caller's cell
-    char *const files = on ? g_cli_guard->temporary_buf_alloc(s_queue.files_used + 1ULL, g_cli_servers_owner) : NULL;
+    char *const files =
+        on ? g_platform_guard->temporary_buf_alloc(s_queue.files_used + 1ULL, g_cli_servers_owner) : NULL;
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (files != NULL) && (at < s_queue.file_count); at += 1u)
     {
         unsigned long long start = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_queue.files_cell, .offset = CLI_SERVERS_FILE_AT(at), .dst = &start, .bytes = sizeof(start)});
         const unsigned long long text = CLI_SERVERS_FILES_TEXT_AT(&s_queue, start);
         const unsigned long long length =
-            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_queue.files_cell, .offset = text}) + 1ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_queue.files_cell, .offset = text}) +
+            1ULL;
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_queue.files_cell, .offset = text, .dst = files + used, .bytes = (embed_word)length});
         used += length;
     }
@@ -340,29 +343,30 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
             char relative[CLI_PATH_MAX_LEN];
             char path[CLI_PATH_MAX_LEN];
             unsigned long long start = 0ULL;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_queue.files_cell, .offset = CLI_SERVERS_FILE_AT(at), .dst = &start, .bytes = sizeof(start)});
             const unsigned long long text = CLI_SERVERS_FILES_TEXT_AT(&s_queue, start);
             const embed_word size =
-                g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_queue.files_cell, .offset = text}) + 1u;
+                g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_queue.files_cell, .offset = text}) +
+                1u;
             if (size > sizeof(relative))
             {
                 continue;
             }
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_queue.files_cell, .offset = text, .dst = relative, .bytes = size});
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = relative, .joined = path);
             if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path))
             {
-                (void)g_cli_guard->movable_buf_write(
+                (void)g_platform_guard->movable_buf_write(
                     &(CarcerMovableCfg){.cell = s_queue.files_cell,
                                         .offset = CLI_SERVERS_FILES_TEXT_AT(&s_queue, used),
                                         .src = relative,
                                         .bytes = size});
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_queue.files_cell,
-                                                                         .offset = CLI_SERVERS_FILE_AT(remaining),
-                                                                         .src = &used,
-                                                                         .bytes = sizeof(used)});
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_queue.files_cell,
+                                                                              .offset = CLI_SERVERS_FILE_AT(remaining),
+                                                                              .src = &used,
+                                                                              .bytes = sizeof(used)});
                 used += size;
                 remaining += 1u;
             }
@@ -383,10 +387,11 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
         unsigned char waiting = 0u;
         if (file != CLI_SERVERS_NO_FILE)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_queue.files_cell,
-                                                                    .offset = CLI_SERVERS_QUEUED_AT(&s_queue, file),
-                                                                    .dst = &waiting,
-                                                                    .bytes = 1u});
+            (void)g_platform_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = s_queue.files_cell,
+                                    .offset = CLI_SERVERS_QUEUED_AT(&s_queue, file),
+                                    .dst = &waiting,
+                                    .bytes = 1u});
         }
         const int queued = waiting != 0u;
         if (!queued && EMBED_CALL(cli_servers_queue_internal.check_queue_append, CliServersQueueCtx, .queue = &s_queue,

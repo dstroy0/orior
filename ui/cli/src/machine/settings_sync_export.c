@@ -42,7 +42,7 @@ EMBED_INLINE int cli_file_send(const SettingsSyncExportCtx *args)
     const unsigned long long file_capacity =
         EMBED_CALL(cli_settings_sync_transferred_internal.transferred_sent_capacity, CliSettingsSyncTransferredCtx,
                    .synced = &s_send.packed);
-    char *const file_cell = g_cli_guard->temporary_buf_alloc(file_capacity, g_cli_machine_owner);
+    char *const file_cell = g_platform_guard->temporary_buf_alloc(file_capacity, g_cli_machine_owner);
     VerbaLinea file = mmgr_line_over(file_cell, file_capacity);
     if (file.out == NULL)
     {
@@ -68,7 +68,7 @@ EMBED_INLINE int cli_file_send(const SettingsSyncExportCtx *args)
     const int written =
         mmgr_line_ok(&file) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                           .path = args->to, .bytes = file.out, .size = file.at);
-    g_cli_guard->persistent_buf_release(file.out, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(file.out, g_cli_machine_owner);
     if (!written)
     {
         mmgr_line_put(args->err_msg, args->to);

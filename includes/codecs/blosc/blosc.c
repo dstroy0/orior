@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "blosc.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 #define BLOSC_HEADER_BYTES 16ULL

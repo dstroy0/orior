@@ -4,7 +4,7 @@
 // codecs through the CASMI parquet reader. Each double preserves the 64 bits it is stored as; each text column's
 // strings are merged over every row group of every file read into one table a column, each row's id read into it
 #include "rank_internal.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 
 #include "../parquet/parquet.h"
 

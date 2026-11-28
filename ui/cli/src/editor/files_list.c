@@ -141,7 +141,7 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
                  cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_POOL_BYTES}) + 2ULL;
     }
     // the caller gives the entries back within its call: a cell of the temporary tier
-    CliFileEntries *const entries = g_cli_guard->temporary_buf_alloc(
+    CliFileEntries *const entries = g_platform_guard->temporary_buf_alloc(
         sizeof(*entries) + (s_listing->count * sizeof(CliFileEntry)) + bytes, args->owner);
     if (entries == NULL)
     {
@@ -280,8 +280,8 @@ static void cli_listing_each(const CliEachNameIsFolderCfg *args)
 static void list_release(void)
 {
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &s_listing->folders);
-    g_cli_guard->persistent_buf_release(s_listing->item, g_cli_editor_owner);
-    g_cli_guard->persistent_buf_release(s_listing, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(s_listing->item, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(s_listing, g_cli_editor_owner);
     s_listing = NULL;
 }
 
@@ -290,14 +290,14 @@ CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
     const char *root = args->root;
     VerbaLinea *err_msg = args->err_msg;
     // the listing lives for the one call that reads a folder: a cell of the temporary tier
-    s_listing = g_cli_guard->temporary_buf_alloc(sizeof(*s_listing), g_cli_editor_owner);
+    s_listing = g_platform_guard->temporary_buf_alloc(sizeof(*s_listing), g_cli_editor_owner);
     if (s_listing == NULL)
     {
         mmgr_line_put(err_msg, "a folder's listing could not be taken");
         return NULL;
     }
     const unsigned long long item_bytes = (unsigned long long)CLI_LIST_MAX * sizeof(*s_listing->item);
-    char *const lists = g_cli_guard->temporary_buf_alloc(item_bytes + CLI_FILES_TEXT, g_cli_editor_owner);
+    char *const lists = g_platform_guard->temporary_buf_alloc(item_bytes + CLI_FILES_TEXT, g_cli_editor_owner);
     s_listing->item = NULL;
     s_listing->count = 0u;
     s_listing->item_capacity = 0u;
@@ -384,10 +384,11 @@ int cli_files_entries_each(const CliFilesEntriesCfg *args)
                       cellul.len(&(CatenaFinitaCfg){.src = entries->entry[at].path, .cap = CLI_PATH_MAX_LEN}) + 2ULL;
     }
     const CarcerMovableEntry *const cell =
-        (entries->count != 0u) ? g_cli_guard->movable_buf_alloc(rows_bytes + text_bytes, g_cli_editor_owner) : NULL;
+        (entries->count != 0u) ? g_platform_guard->movable_buf_alloc(rows_bytes + text_bytes, g_cli_editor_owner)
+                               : NULL;
     if ((entries->count != 0u) && (cell == NULL))
     {
-        g_cli_guard->persistent_buf_release(entries, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(entries, g_cli_editor_owner);
         mmgr_line_put(args->err_msg, "a folder's entries could not be taken");
         return 0;
     }
@@ -400,21 +401,21 @@ int cli_files_entries_each(const CliFilesEntriesCfg *args)
         const unsigned long long path =
             cellul.len(&(CatenaFinitaCfg){.src = entry->path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
         const CliFileListed listed = {used, used + name, entry->dir, entry->ignored};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = cell, .offset = (unsigned long long)at * sizeof(listed), .src = &listed, .bytes = sizeof(listed)});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = rows_bytes + used, .src = entry->name, .bytes = name});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = rows_bytes + used + name, .src = entry->path, .bytes = path});
         used += name + path;
     }
     const CliFilesListed listed = {cell, entries->count, rows_bytes};
     // the module lets its work go before the entries go to the caller
-    g_cli_guard->persistent_buf_release(entries, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(entries, g_cli_editor_owner);
     args->each(&(CliFilesListedEachCfg){.context = args->context, .listed = &listed});
     if (cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(cell, g_cli_editor_owner);
     }
     return 1;
 }
@@ -422,10 +423,10 @@ int cli_files_entries_each(const CliFilesEntriesCfg *args)
 // the text at `at` of the listed cell read into `out`, CLI_PATH_MAX_LEN bytes, with a 0 after it
 EMBED_INLINE void listed_text_read(const CliFilesListed *listed, unsigned long long at, char *out)
 {
-    const unsigned long long length =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = listed->cell, .offset = listed->text_at + at});
+    const unsigned long long length = g_platform_guard->movable_buf_measure(
+        &(CarcerMovableCfg){.cell = listed->cell, .offset = listed->text_at + at});
     const unsigned long long bytes = (length < CLI_PATH_MAX_LEN - 1ULL) ? length : CLI_PATH_MAX_LEN - 1ULL;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = listed->cell, .offset = listed->text_at + at, .dst = out, .bytes = bytes});
     out[bytes] = '\0';
 }
@@ -440,10 +441,11 @@ int cli_files_listed_at(const CliFilesListedAtCfg *args)
         return 0;
     }
     CliFileListed one = {0ULL, 0ULL, 0, 0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed->cell,
-                                                            .offset = (unsigned long long)args->index * sizeof(one),
-                                                            .dst = &one,
-                                                            .bytes = sizeof(one)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = listed->cell,
+                            .offset = (unsigned long long)args->index * sizeof(one),
+                            .dst = &one,
+                            .bytes = sizeof(one)});
     listed_text_read(listed, one.name_at, args->name_out);
     listed_text_read(listed, one.path_at, args->path_out);
     *args->entry_out = (CliFileEntry){args->name_out, args->path_out, one.dir, one.ignored};
@@ -490,7 +492,7 @@ static unsigned int explorer_folder(const FilesListCtx *args)
     for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .dst = &folder, .bytes = sizeof(folder)});
         if (cellul.eq(&(CatenaFinitaCfg){.src = folder.dir, .other = args->path, .cap = CLI_PATH_MAX_LEN}))
         {
@@ -512,7 +514,7 @@ static unsigned int explorer_list(const FilesListCtx *args)
     if (s_explorer_folders == s_explorer_capacity)
     {
         const unsigned int capacity = (s_explorer_capacity != 0u) ? s_explorer_capacity * 2u : 16u;
-        const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(
+        const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(
             (unsigned long long)capacity * sizeof(FilesExplorerFolder), g_cli_editor_owner);
         if (grown == NULL)
         {
@@ -521,16 +523,16 @@ static unsigned int explorer_list(const FilesListCtx *args)
         for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
         {
             FilesExplorerFolder folder = {NULL, NULL, 0};
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                    .offset = (embed_word)at * sizeof(folder),
-                                                                    .dst = &folder,
-                                                                    .bytes = sizeof(folder)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                         .offset = (embed_word)at * sizeof(folder),
+                                                                         .dst = &folder,
+                                                                         .bytes = sizeof(folder)});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = grown, .offset = (embed_word)at * sizeof(folder), .src = &folder, .bytes = sizeof(folder)});
         }
         if (s_explorer != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(s_explorer, g_cli_editor_owner);
+            (void)g_platform_guard->movable_buf_release(s_explorer, g_cli_editor_owner);
         }
         s_explorer = grown;
         s_explorer_capacity = capacity;
@@ -545,10 +547,11 @@ static unsigned int explorer_list(const FilesListCtx *args)
         return FILES_EXPLORER_NONE;
     }
     const FilesExplorerFolder folder = {args->path, entries, 0};
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
-                                                             .offset = (embed_word)s_explorer_folders * sizeof(folder),
-                                                             .src = &folder,
-                                                             .bytes = sizeof(folder)});
+    (void)g_platform_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_explorer,
+                            .offset = (embed_word)s_explorer_folders * sizeof(folder),
+                            .src = &folder,
+                            .bytes = sizeof(folder)});
     s_explorer_folders += 1u;
     s_explorer_rows_stale = 1;
     return s_explorer_folders - 1u;
@@ -563,15 +566,15 @@ void cli_files_explorer_show(const CliFilesExplorerCfg *args)
         if (top != FILES_EXPLORER_NONE)
         {
             FilesExplorerFolder folder = {NULL, NULL, 0};
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                    .offset = (embed_word)top * sizeof(folder),
-                                                                    .dst = &folder,
-                                                                    .bytes = sizeof(folder)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                         .offset = (embed_word)top * sizeof(folder),
+                                                                         .dst = &folder,
+                                                                         .bytes = sizeof(folder)});
             folder.open = 1;
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                     .offset = (embed_word)top * sizeof(folder),
-                                                                     .src = &folder,
-                                                                     .bytes = sizeof(folder)});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                          .offset = (embed_word)top * sizeof(folder),
+                                                                          .src = &folder,
+                                                                          .bytes = sizeof(folder)});
         }
     }
 }
@@ -581,17 +584,17 @@ void cli_files_explorer_end(void)
     for (unsigned int at = 0u; at < s_explorer_folders; at += 1u)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .dst = &folder, .bytes = sizeof(folder)});
-        g_cli_guard->persistent_buf_release(folder.entries, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(folder.entries, g_cli_editor_owner);
     }
     if (s_explorer != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_explorer, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(s_explorer, g_cli_editor_owner);
     }
     if (s_explorer_rows != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_explorer_rows, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(s_explorer_rows, g_cli_editor_owner);
     }
     s_explorer = NULL;
     s_explorer_folders = 0u;
@@ -614,19 +617,20 @@ static void explorer_walk(const FilesListCtx *args)
         FilesExplorerFolder under = {NULL, NULL, 0};
         if (under_at != FILES_EXPLORER_NONE)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                    .offset = (embed_word)under_at * sizeof(under),
-                                                                    .dst = &under,
-                                                                    .bytes = sizeof(under)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                         .offset = (embed_word)under_at * sizeof(under),
+                                                                         .dst = &under,
+                                                                         .bytes = sizeof(under)});
         }
         const int open = (under_at != FILES_EXPLORER_NONE) && under.open;
         if (args->rows != NULL)
         {
             const FilesExplorerRow laid = {args->folder_at, at, args->depth, open};
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->rows,
-                                                                     .offset = (embed_word)*args->left * sizeof(laid),
-                                                                     .src = &laid,
-                                                                     .bytes = sizeof(laid)});
+            (void)g_platform_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = args->rows,
+                                    .offset = (embed_word)*args->left * sizeof(laid),
+                                    .src = &laid,
+                                    .bytes = sizeof(laid)});
         }
         *args->left += 1u;
         if (open)
@@ -648,7 +652,7 @@ static void explorer_rows_lay(void)
     s_explorer_rows_stale = 0;
     if (s_explorer_rows != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_explorer_rows, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(s_explorer_rows, g_cli_editor_owner);
         s_explorer_rows = NULL;
     }
     s_explorer_row_count = 0u;
@@ -657,7 +661,7 @@ static void explorer_rows_lay(void)
         return;
     }
     FilesExplorerFolder top = {NULL, NULL, 0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_explorer, .offset = (embed_word)0u * sizeof(top), .dst = &top, .bytes = sizeof(top)});
     unsigned int count = 0u;
     EMBED_CALL(explorer_walk, FilesListCtx, .folder = &top, .folder_at = 0u, .depth = 0u, .left = &count);
@@ -666,7 +670,7 @@ static void explorer_rows_lay(void)
         return;
     }
     const CarcerMovableEntry *const rows =
-        g_cli_guard->movable_buf_alloc((unsigned long long)count * sizeof(FilesExplorerRow), g_cli_editor_owner);
+        g_platform_guard->movable_buf_alloc((unsigned long long)count * sizeof(FilesExplorerRow), g_cli_editor_owner);
     if (rows == NULL)
     {
         s_explorer_rows_stale = 1;
@@ -691,13 +695,13 @@ int cli_files_explorer_row(const CliFilesExplorerCfg *args)
         return 1;
     }
     FilesExplorerRow laid = {0u, 0u, 0u, 0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_explorer_rows, .offset = (embed_word)args->at * sizeof(laid), .dst = &laid, .bytes = sizeof(laid)});
     FilesExplorerFolder folder = {NULL, NULL, 0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
-                                                            .offset = (embed_word)laid.folder * sizeof(folder),
-                                                            .dst = &folder,
-                                                            .bytes = sizeof(folder)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                 .offset = (embed_word)laid.folder * sizeof(folder),
+                                                                 .dst = &folder,
+                                                                 .bytes = sizeof(folder)});
     const CliFileEntry *const entry = &folder.entries->entry[laid.entry];
     *args->row = (CliExplorerRow){entry->path, entry->name, laid.depth, entry->dir, entry->ignored, laid.open};
     return 1;
@@ -733,13 +737,13 @@ void cli_files_explorer_refresh(void)
         return;
     }
     // the open folders' paths copied, the top's aside, each ended by a NUL, those past the bytes closing
-    char *const open = g_cli_guard->temporary_buf_alloc(FILES_EXPLORER_OPEN_TEXT, g_cli_editor_owner);
+    char *const open = g_platform_guard->temporary_buf_alloc(FILES_EXPLORER_OPEN_TEXT, g_cli_editor_owner);
     unsigned int used = 0u;
     unsigned int count = 0u;
     for (unsigned int at = 1u; (open != NULL) && (at < s_explorer_folders); at += 1u)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .dst = &folder, .bytes = sizeof(folder)});
         const char *const dir = folder.dir;
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_PATH_MAX_LEN});
@@ -762,7 +766,7 @@ void cli_files_explorer_refresh(void)
     }
     if (open != NULL)
     {
-        g_cli_guard->persistent_buf_release(open, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(open, g_cli_editor_owner);
     }
 }
 
@@ -787,10 +791,10 @@ void cli_files_explorer_collapse(void)
     for (unsigned int at = 1u; at < s_explorer_folders; at += 1u)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .dst = &folder, .bytes = sizeof(folder)});
         folder.open = 0;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_explorer, .offset = (embed_word)at * sizeof(folder), .src = &folder, .bytes = sizeof(folder)});
     }
     s_explorer_rows_stale = 1;
@@ -833,15 +837,15 @@ int cli_files_explorer_press(const CliFilesExplorerCfg *args)
     if (listed != FILES_EXPLORER_NONE)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                .offset = (embed_word)listed * sizeof(folder),
-                                                                .dst = &folder,
-                                                                .bytes = sizeof(folder)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                     .offset = (embed_word)listed * sizeof(folder),
+                                                                     .dst = &folder,
+                                                                     .bytes = sizeof(folder)});
         folder.open = !folder.open;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                 .offset = (embed_word)listed * sizeof(folder),
-                                                                 .src = &folder,
-                                                                 .bytes = sizeof(folder)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                      .offset = (embed_word)listed * sizeof(folder),
+                                                                      .src = &folder,
+                                                                      .bytes = sizeof(folder)});
         s_explorer_rows_stale = 1;
         return 1;
     }
@@ -849,15 +853,15 @@ int cli_files_explorer_press(const CliFilesExplorerCfg *args)
     if (opened != FILES_EXPLORER_NONE)
     {
         FilesExplorerFolder folder = {NULL, NULL, 0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                .offset = (embed_word)opened * sizeof(folder),
-                                                                .dst = &folder,
-                                                                .bytes = sizeof(folder)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                     .offset = (embed_word)opened * sizeof(folder),
+                                                                     .dst = &folder,
+                                                                     .bytes = sizeof(folder)});
         folder.open = 1;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
-                                                                 .offset = (embed_word)opened * sizeof(folder),
-                                                                 .src = &folder,
-                                                                 .bytes = sizeof(folder)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_explorer,
+                                                                      .offset = (embed_word)opened * sizeof(folder),
+                                                                      .src = &folder,
+                                                                      .bytes = sizeof(folder)});
         s_explorer_rows_stale = 1;
     }
     return 1;

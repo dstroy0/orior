@@ -14,7 +14,7 @@
 //
 // None changes a file that it seals, approves or checks. The exit is 0 where each write or verify of a seal, key and
 // approval succeeded. It is 1 where one failed, and 2 where the words are none of the above
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "ksg_tool.h"
 #include "memoria_operor/memoria_operor.h"

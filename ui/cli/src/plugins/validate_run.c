@@ -135,7 +135,7 @@ int cli_validate_check(const CliValidateErrMsgCtx *args)
     double *seconds = args->seconds;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = g_cli_validate->path,
                .size = CLI_PATH_TEXT);
-    const CliSetting settings[1] = {{"PATH", g_cli_validate->path}};
+    const PlatformSetting settings[1] = {{"PATH", g_cli_validate->path}};
     CliRunResult *const run_result = cli_run_result_alloc();
     const unsigned long long began = cli_clock_milliseconds();
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -163,9 +163,9 @@ int cli_validate_check(const CliValidateErrMsgCtx *args)
                                        ? run_result->err_size
                                        : 0ULL;
     // the output stored in a cell of its size, the one stored before given back
-    g_cli_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
     g_cli_validate->output_size = 0ULL;
-    g_cli_validate->output = g_cli_guard->temporary_buf_alloc(out + err + 2ULL, g_cli_plugins_owner);
+    g_cli_validate->output = g_platform_guard->temporary_buf_alloc(out + err + 2ULL, g_cli_plugins_owner);
     if (g_cli_validate->output == NULL)
     {
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);

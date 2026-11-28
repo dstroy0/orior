@@ -30,7 +30,7 @@
  *       N doubles, and no point is ever decided.
  */
 #include "zeta_search.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include <stdlib.h>
 

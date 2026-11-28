@@ -3,7 +3,7 @@
 // record.cu: the fields of the part's .ksc the walks read, the stall and the registers, the cases a question is put
 // over, and the query record opened and closed
 #include "../../../../../../../includes/parsers/who.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "identity_internal.h"
 #include "memoria_operor/memoria_operor.h"

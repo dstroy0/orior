@@ -162,7 +162,7 @@ void test_lines_are_indexed_in_a_cell_sized_to_them_and_a_lines_start_found(void
     TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_builds_line.build_line_start, CliBuildsLineCfg, .lines = &lines, .line = 1u));
     TEST_ASSERT_EQUAL_UINT64(6ull, EMBED_CALL(cli_builds_line.build_line_start, CliBuildsLineCfg, .lines = &lines, .line = 2u));
     TEST_ASSERT_EQUAL_UINT64(7ull, EMBED_CALL(cli_builds_line.build_line_start, CliBuildsLineCfg, .lines = &lines, .line = 3u));
-    g_cli_guard->persistent_buf_release(starts, mmgr_owner_of_buf(cli_pool_series_cellularum(), starts));
+    g_platform_guard->persistent_buf_release(starts, mmgr_owner_of_buf(platform_pool_series(), starts));
 }
 
 void test_findings_and_their_fixes_are_written_as_the_protocols_diagnostics(void)
@@ -196,7 +196,7 @@ void test_findings_and_their_fixes_are_written_as_the_protocols_diagnostics(void
     CLI_TEST_ASSERT_CONTAINS("{\"title\":\"Fix it\",\"edits\":[{\"from\":{\"line\":0,\"col\":4},\"to\":{\"line\":0,\"col\":5},\"text\":\"x\"}]}", s_written);
     CLI_TEST_ASSERT_CONTAINS("{\"title\":\"Run it\",\"run\":{\"folder\":\"sub\",\"line\":\"mvn -U\"}}", s_written);
     CLI_TEST_ASSERT_CONTAINS("{\"title\":\"Both\",\"edits\":[{\"from\":{\"line\":0,\"col\":4},\"to\":{\"line\":0,\"col\":5},\"text\":\"yy\"},{\"from\":{\"line\":1,\"col\":4},\"to\":{\"line\":1,\"col\":5},\"text\":\"yy\"}]}", s_written);
-    g_cli_guard->persistent_buf_release(found.finding, mmgr_owner_of_buf(cli_pool_series_cellularum(), found.finding));
+    g_platform_guard->persistent_buf_release(found.finding, mmgr_owner_of_buf(platform_pool_series(), found.finding));
 }
 
 void test_plain_items_show_without_their_brackets_and_insert_whole(void)

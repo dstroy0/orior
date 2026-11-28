@@ -110,7 +110,7 @@ EMBED_INLINE int stored_work_enter(const DocumentStoreCtx *args)
     const unsigned long long unit_bytes = ((units * sizeof(unsigned short)) + 7ULL) & ~7ULL;
     const unsigned long long bytes =
         unit_bytes + (2ULL * count * sizeof(unsigned long long)) + (CLI_DOC_WORDS * count * sizeof(unsigned int));
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
     *lines = (CliLines){NULL, 0ULL, 0ULL, NULL, NULL, 0u, 0u, 0};
     if (cell == NULL)
     {
@@ -130,7 +130,7 @@ EMBED_INLINE int stored_work_enter(const DocumentStoreCtx *args)
 // the work cell given back, `lines` left empty
 EMBED_INLINE void stored_work_exit(const DocumentStoreCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->lines->unit, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(args->lines->unit, g_cli_editor_owner);
     *args->lines = (CliLines){NULL, 0ULL, 0ULL, NULL, NULL, 0u, 0u, 0};
 }
 
@@ -138,10 +138,10 @@ EMBED_INLINE void stored_work_exit(const DocumentStoreCtx *args)
 EMBED_INLINE void stored_cells_release(const DocumentStoreCtx *args)
 {
     CliStoredLines *stored = args->stored;
-    (void)g_cli_guard->movable_buf_release(stored->units, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(stored->starts, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(stored->lengths, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(stored->words, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->units, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->starts, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->lengths, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->words, g_cli_editor_owner);
     memor.set(&(MemoriaCfg){.dst = stored, .val = 0, .bytes = sizeof(*stored)});
 }
 
@@ -155,10 +155,10 @@ EMBED_INLINE void stored_units_room(const DocumentStoreCtx *args)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_release(stored->units, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->units, g_cli_editor_owner);
     const unsigned long long room = units + (units / 2ULL);
     stored->units =
-        (units != 0ULL) ? g_cli_guard->movable_buf_alloc(room * sizeof(unsigned short), g_cli_editor_owner) : NULL;
+        (units != 0ULL) ? g_platform_guard->movable_buf_alloc(room * sizeof(unsigned short), g_cli_editor_owner) : NULL;
     stored->units_room = (stored->units != NULL) ? room : 0ULL;
 }
 
@@ -172,15 +172,15 @@ EMBED_INLINE void stored_lines_room(const DocumentStoreCtx *args)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_release(stored->starts, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(stored->lengths, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(stored->words, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->starts, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->lengths, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(stored->words, g_cli_editor_owner);
     const unsigned long long room = count + (count / 2ULL);
     const unsigned long long place_bytes = room * sizeof(unsigned long long);
-    stored->starts = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
-    stored->lengths = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
-    stored->words = (count != 0ULL) ? g_cli_guard->movable_buf_alloc(CLI_DOC_WORDS * room * sizeof(unsigned int),
-                                                                     g_cli_editor_owner)
+    stored->starts = (count != 0ULL) ? g_platform_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
+    stored->lengths = (count != 0ULL) ? g_platform_guard->movable_buf_alloc(place_bytes, g_cli_editor_owner) : NULL;
+    stored->words = (count != 0ULL) ? g_platform_guard->movable_buf_alloc(CLI_DOC_WORDS * room * sizeof(unsigned int),
+                                                                          g_cli_editor_owner)
                                     : NULL;
     stored->lines_room = room;
 }
@@ -208,23 +208,23 @@ EMBED_INLINE int stored_cells_take(const DocumentStoreCtx *args)
     }
     if (stored->units != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored->units, .src = lines->unit, .bytes = unit_bytes});
     }
     if (count != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored->starts, .src = lines->start, .bytes = place_bytes});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored->lengths, .src = lines->length, .bytes = place_bytes});
         const unsigned long long array = count * sizeof(unsigned int);
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored->words, .offset = 0ULL, .src = lines->begun, .bytes = array});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored->words, .offset = array, .src = lines->ended, .bytes = array});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored->words, .offset = 2ULL * array, .src = lines->regions, .bytes = array});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored->words, .offset = 3ULL * array, .src = lines->runs, .bytes = array});
     }
     stored->used = (lines->unit != NULL) ? lines->used : 0ULL;
@@ -246,24 +246,24 @@ EMBED_INLINE int stored_copy_enter(const DocumentStoreCtx *args)
     }
     if (stored->units != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = stored->units, .dst = lines->unit, .bytes = stored->used * sizeof(unsigned short)});
     }
     if (stored->lines != 0u)
     {
         const unsigned long long place_bytes = (unsigned long long)stored->lines * sizeof(unsigned long long);
         const unsigned long long array = (unsigned long long)stored->lines * sizeof(unsigned int);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->starts, .dst = lines->start, .bytes = place_bytes});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->lengths, .dst = lines->length, .bytes = place_bytes});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->words, .offset = 0ULL, .dst = lines->begun, .bytes = array});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->words, .offset = array, .dst = lines->ended, .bytes = array});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->words, .offset = 2ULL * array, .dst = lines->regions, .bytes = array});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->words, .offset = 3ULL * array, .dst = lines->runs, .bytes = array});
     }
     lines->used = stored->used;
@@ -304,7 +304,7 @@ static int stored_states_grow(const DocumentStoreCtx *args)
     unsigned short *const cell = work.unit;
     work.unit = NULL;
     const int taken = EMBED_CALL(stored_cells_take, DocumentStoreCtx, .stored = stored, .lines_read = &work);
-    g_cli_guard->persistent_buf_release(cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_editor_owner);
     return taken;
 }
 
@@ -368,7 +368,7 @@ EMBED_INLINE void hunks_forgotten(const DocumentStoreCtx *args)
 {
     if (args->one->hunks_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->one->hunks_cell, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(args->one->hunks_cell, g_cli_editor_owner);
     }
     args->one->hunks_cell = NULL;
     args->one->hunks = 0u;
@@ -382,10 +382,10 @@ EMBED_INLINE void stored_cells_free(const DocumentStoreCtx *args)
     EMBED_CALL(stored_cells_release, DocumentStoreCtx, .stored = &args->one->head);
     EMBED_CALL(hunks_forgotten, DocumentStoreCtx, .one = args->one);
     EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = args->one);
-    (void)g_cli_guard->movable_buf_release(args->one->state_cells, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(args->one->state_index, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(args->one->roles, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(args->one->run, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->state_cells, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->state_index, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->roles, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->run, g_cli_editor_owner);
     args->one->reserved = 0;
 }
 
@@ -615,7 +615,7 @@ static int paged_edit_locked(const CliDocumentOutCfg *args)
             work.unit = NULL;
             carried = carried &&
                       EMBED_CALL(stored_cells_take, DocumentStoreCtx, .stored = &branch->lines, .lines_read = &work);
-            g_cli_guard->persistent_buf_release(cell, g_cli_editor_owner);
+            g_platform_guard->persistent_buf_release(cell, g_cli_editor_owner);
         }
     }
     if (written && (branch != NULL))
@@ -710,20 +710,20 @@ EMBED_INLINE unsigned long long stored_line_read(const DocumentStoreCtx *args)
         return 0ULL;
     }
     unsigned long long length = 0ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->stored_read->lengths,
-                                                            .offset = args->line * sizeof(length),
-                                                            .dst = &length,
-                                                            .bytes = sizeof(length)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->stored_read->lengths,
+                                                                 .offset = args->line * sizeof(length),
+                                                                 .dst = &length,
+                                                                 .bytes = sizeof(length)});
     const unsigned long long left = (args->from < length) ? (length - args->from) : 0ULL;
     const unsigned long long copied = (left < args->capacity) ? left : args->capacity;
     if (copied != 0ULL)
     {
         unsigned long long line_start = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->stored_read->starts,
-                                                                .offset = args->line * sizeof(line_start),
-                                                                .dst = &line_start,
-                                                                .bytes = sizeof(line_start)});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->stored_read->starts,
+                                                                     .offset = args->line * sizeof(line_start),
+                                                                     .dst = &line_start,
+                                                                     .bytes = sizeof(line_start)});
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->stored_read->units,
                                 .offset = (line_start + args->from) * sizeof(unsigned short),
                                 .dst = args->dst,
@@ -1058,19 +1058,19 @@ EMBED_INLINE void hunks_replayed(const DocumentStoreCtx *args)
         return;
     }
     const unsigned long long bytes = (unsigned long long)one->hunks * CLI_DOC_HUNK_WORDS * sizeof(unsigned int);
-    unsigned int *const hunk_words = g_cli_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
+    unsigned int *const hunk_words = g_platform_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
     if (hunk_words == NULL)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = one->hunks_cell, .offset = 0u, .dst = hunk_words, .bytes = bytes});
     for (unsigned int at = 0u; at < one->hunks; at += 1u)
     {
         const unsigned int *const change = hunk_words + ((unsigned long long)at * CLI_DOC_HUNK_WORDS);
         args->each(&(CliEachHunkCfg){args->context, change[0], change[1], change[2], change[3]});
     }
-    g_cli_guard->persistent_buf_release(hunk_words, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(hunk_words, g_cli_editor_owner);
 }
 
 // the diff of the head against the lines run, each change passed to `each` as it is found, and the changes saved in a
@@ -1090,7 +1090,7 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
     // the lines of both texts are far below 2^32
     const unsigned int max = copied ? (then.lines + now.lines) : 0u;
     unsigned int *const hunk_words =
-        (max != 0u) ? g_cli_guard->temporary_buf_alloc(
+        (max != 0u) ? g_platform_guard->temporary_buf_alloc(
                           (unsigned long long)max * CLI_DOC_HUNK_WORDS * sizeof(unsigned int), g_cli_editor_owner)
                     : NULL;
     HunksLaying positioning = {args->each, args->context, hunk_words, 0u, (hunk_words != NULL) ? max : 0u};
@@ -1100,12 +1100,12 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
     {
         const unsigned long long bytes =
             (unsigned long long)positioning.count * CLI_DOC_HUNK_WORDS * sizeof(unsigned int);
-        one->hunks_cell = (bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_editor_owner) : NULL;
+        one->hunks_cell = (bytes != 0ULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_editor_owner) : NULL;
         if ((bytes == 0ULL) || (one->hunks_cell != NULL))
         {
             if (one->hunks_cell != NULL)
             {
-                (void)g_cli_guard->movable_buf_write(
+                (void)g_platform_guard->movable_buf_write(
                     &(CarcerMovableCfg){.cell = one->hunks_cell, .offset = 0u, .src = hunk_words, .bytes = bytes});
             }
             one->hunks = positioning.count;
@@ -1113,7 +1113,7 @@ EMBED_INLINE int hunks_found(const DocumentStoreCtx *args)
             one->hunks_known = 1;
         }
     }
-    g_cli_guard->persistent_buf_release(hunk_words, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(hunk_words, g_cli_editor_owner);
     if (now.unit != NULL)
     {
         EMBED_CALL(stored_work_exit, DocumentStoreCtx, .lines = &now);

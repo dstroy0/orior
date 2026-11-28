@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ka_psi_sprecher.cu: Sprecher's construction and the scales
 #include "ka_psi_internal.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 void psi_digits(unsigned long long index, unsigned long long base, unsigned int levels, unsigned char *digit)
 {

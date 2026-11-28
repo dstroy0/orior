@@ -87,18 +87,18 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         text_bytes +=
             root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_POOL_BYTES}) + 2ULL;
     }
-    s_batch = g_cli_guard->temporary_buf_alloc(sizeof(*s_batch), g_cli_servers_check_owner);
-    char *const text = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_servers_check_owner);
-    const char **const paths =
-        g_cli_guard->temporary_buf_alloc(((unsigned long long)max + 1ULL) * sizeof(*paths), g_cli_servers_check_owner);
-    CliServersWaiting *const waiting_on = g_cli_guard->temporary_buf_alloc(
+    s_batch = g_platform_guard->temporary_buf_alloc(sizeof(*s_batch), g_cli_servers_check_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(text_bytes, g_cli_servers_check_owner);
+    const char **const paths = g_platform_guard->temporary_buf_alloc(((unsigned long long)max + 1ULL) * sizeof(*paths),
+                                                                     g_cli_servers_check_owner);
+    CliServersWaiting *const waiting_on = g_platform_guard->temporary_buf_alloc(
         ((unsigned long long)max + 1ULL) * sizeof(*waiting_on), g_cli_servers_check_owner);
     if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))
     {
-        g_cli_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);
-        g_cli_guard->persistent_buf_release(paths, g_cli_servers_check_owner);
-        g_cli_guard->persistent_buf_release(text, g_cli_servers_check_owner);
-        g_cli_guard->persistent_buf_release(s_batch, g_cli_servers_check_owner);
+        g_platform_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);
+        g_platform_guard->persistent_buf_release(paths, g_cli_servers_check_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_servers_check_owner);
+        g_platform_guard->persistent_buf_release(s_batch, g_cli_servers_check_owner);
         s_batch = NULL;
         return 0u;
     }
@@ -164,10 +164,10 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
     }
     const unsigned int queued = EMBED_CALL(cli_servers_count_internal.check_queue, CliServersCountCtx, .paths = paths,
                                            .waiting = waiting_on, .count = waiting, .sink = args->sink);
-    g_cli_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);
-    g_cli_guard->persistent_buf_release(paths, g_cli_servers_check_owner);
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_check_owner);
-    g_cli_guard->persistent_buf_release(s_batch, g_cli_servers_check_owner);
+    g_platform_guard->persistent_buf_release(waiting_on, g_cli_servers_check_owner);
+    g_platform_guard->persistent_buf_release(paths, g_cli_servers_check_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_servers_check_owner);
+    g_platform_guard->persistent_buf_release(s_batch, g_cli_servers_check_owner);
     s_batch = NULL;
     return queued;
 }

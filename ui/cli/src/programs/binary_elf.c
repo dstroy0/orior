@@ -338,7 +338,7 @@ EMBED_INLINE unsigned int cli_on_queue(const BinaryElfCtx *args)
 {
     if (args->read_state->capacity == 0u)
     {
-        args->read_state->queue = g_cli_guard->temporary_buf_alloc(
+        args->read_state->queue = g_platform_guard->temporary_buf_alloc(
             CLI_BINARY_LIBRARIES * sizeof(*args->read_state->queue), g_cli_programs_owner);
         args->read_state->capacity = (args->read_state->queue != NULL) ? CLI_BINARY_LIBRARIES : 0u;
     }
@@ -556,7 +556,7 @@ EMBED_INLINE unsigned int cli_library_loaded(const BinaryElfCtx *args)
                            .name = loaded->needed[at], .by = library->name, .origin = more_origin, .dynamic = loaded);
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)more, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)more, g_cli_programs_owner);
     return queued;
 }
 
@@ -632,7 +632,7 @@ int cli_binary_elf_read(const CliBinaryPathReportCfg *args)
 {
     // the two dynamic sections on the cell's boundary, then the folders
     const unsigned long long dynamics = 2ULL * sizeof(CliDynamic);
-    char *const cell = g_cli_guard->temporary_buf_alloc(
+    char *const cell = g_platform_guard->temporary_buf_alloc(
         dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN), g_cli_programs_owner);
     if (cell == NULL)
     {
@@ -644,7 +644,7 @@ int cli_binary_elf_read(const CliBinaryPathReportCfg *args)
     const int read =
         EMBED_CALL(cli_elf_read, BinaryElfCtx, .read_state = &read_state, .bytes = args->bytes, .size = args->size,
                    .path = args->path, .report = args->report, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(read_state.queue, g_cli_programs_owner);
-    g_cli_guard->persistent_buf_release(cell, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release(read_state.queue, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_programs_owner);
     return read;
 }

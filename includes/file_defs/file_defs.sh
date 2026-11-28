@@ -7,8 +7,9 @@
 #     source includes/file_defs/file_defs.sh
 #     cc ... "${FILE_DEFS[@]}"
 FILE_DEFS_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$FILE_DEFS_SOURCE/../platform/platform.sh"
 FILE_DEFS=("$FILE_DEFS_SOURCE"/qry/writer/qry_member.c
-    "$FILE_DEFS_SOURCE"/qry/writer/platform/*.c "$FILE_DEFS_SOURCE"/../parsers/line_read.c
+    "${PLATFORM_QRY_RUN[@]}" "$FILE_DEFS_SOURCE"/../parsers/line_read.c
     "$FILE_DEFS_SOURCE"/qry/qry_read.c "$FILE_DEFS_SOURCE"/../parsers/who.c
     "$FILE_DEFS_SOURCE"/../../src/cu/transpiler/lstar/protocol/table_text.c
     "$FILE_DEFS_SOURCE"/krep/krep_records/*.c "$FILE_DEFS_SOURCE"/kfile_lines/kfile_lines.c

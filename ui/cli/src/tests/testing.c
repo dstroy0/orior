@@ -91,8 +91,8 @@ const char *cli_test_rule_value(const CliTestingRulesRuleCfg *args)
 // whether a byte is a space of a line
 EMBED_INLINE int testing_space(const TestingCtx *args)
 {
-    return (args->character == ' ') || (args->character == '\t') || (args->character == '\r') || (args->character == '\n') ||
-           (args->character == '\f') || (args->character == '\v');
+    return (args->character == ' ') || (args->character == '\t') || (args->character == '\r') ||
+           (args->character == '\n') || (args->character == '\f') || (args->character == '\v');
 }
 
 // the values `size` bytes of a setting give put on `rule` in place of what it contained
@@ -265,7 +265,7 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
         const int read = EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = size) &&
                          EMBED_CALL(cli_testing_rules.test_rules_in, CliTestingRulesCfg, .text = text, .size = size,
                                     .section = s_sections[at], .rules = args->rules);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_tests_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_tests_owner);
         if (read)
         {
             return;
@@ -315,8 +315,8 @@ int cli_test_glob(const CliTestingSizeCfg *args)
                 : 0ULL;
         if ((matched < length) && ((args->pattern[matched] == '?') ||
                                    ((own == character) && (memor.cmp(&(MemoriaCfg){.src = args->pattern + matched,
-                                                                                .other = args->name + at,
-                                                                                .bytes = (embed_word)own}) == 0))))
+                                                                                   .other = args->name + at,
+                                                                                   .bytes = (embed_word)own}) == 0))))
         {
             matched += (args->pattern[matched] == '?') ? 1u : own;
             at += character;

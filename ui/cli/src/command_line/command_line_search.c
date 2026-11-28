@@ -32,7 +32,7 @@ EMBED_INLINE void search_hit_write(const CommandLineSearchCtx *args)
                                       .object = args->hit, .name = "text"),
                    .length_pointer = &length);
     const unsigned long long line_capacity = path_length + length + CLI_SEARCH_LINE_MORE;
-    char *const line_cell = g_cli_guard->temporary_buf_alloc(line_capacity, g_cli_command_line_owner);
+    char *const line_cell = g_platform_guard->temporary_buf_alloc(line_capacity, g_cli_command_line_owner);
     VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     mmgr_line_put(&line, (path != NULL) ? path : "");
     static const char *const s_numbers[2] = {"line", "col"};
@@ -56,7 +56,7 @@ EMBED_INLINE void search_hit_write(const CommandLineSearchCtx *args)
     mmgr_line_put_n(&line, found + from, to - from);
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line.out,
                .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-    g_cli_guard->persistent_buf_release(line.out, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(line.out, g_cli_command_line_owner);
 }
 
 int cli_console_search(const CliCommandLineWordsCountCtx *args)
@@ -99,8 +99,9 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     static CliPatterns s_none;
-    CliGrownLine found;
-    cli_grown_begin(&found, CLI_SEARCH_HITS_CAPACITY, g_cli_command_line_owner);
+    PlatformText found;
+    platform_text_begun(&found, CLI_SEARCH_HITS_CAPACITY, platform_place_g_cli_command_line_owner,
+                        PLATFORM_TIER_TEMPORARY);
     if (found.cell == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -110,7 +111,7 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     if (!EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = s_root, .query = s_query,
                     .how = how, .set = &s_none, .out = &found.line, .err_msg = &err_msg))
     {
-        cli_grown_end(&found);
+        platform_text_ended(&found);
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
                    .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         return CLI_WRONG;
@@ -121,9 +122,9 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     err_msg.at = 0ULL;
     const unsigned int list =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &hits,
-                   .text = found.cell, .size = mmgr_line_ok(&found.line) ? cli_grown_size(&found) : 0ULL,
+                   .text = found.cell, .size = mmgr_line_ok(&found.line) ? platform_text_size(&found) : 0ULL,
                    .nodes_more = 0u, .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_command_line_owner);
-    cli_grown_end(&found);
+    platform_text_ended(&found);
     const int any = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &hits,
                                .node = list, .type = CFG_JSON_ARRAY) &&
                     (hits.node[list].count != 0u);
@@ -132,7 +133,7 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     {
         EMBED_CALL(search_hit_write, CommandLineSearchCtx, .hits = &hits, .hit = hit);
     }
-    g_cli_guard->persistent_buf_release(hits.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), hits.node));
+    g_platform_guard->persistent_buf_release(hits.node, mmgr_owner_of_buf(platform_pool_series(), hits.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&hits),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return any ? 0 : 1;

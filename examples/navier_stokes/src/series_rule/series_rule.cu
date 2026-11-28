@@ -3,7 +3,7 @@
 // series_rule.cu: series stored by the rule of their entries, in one normal form (series_rule.h)
 #include "series_rule.h"
 
-#include "term_form.h"
+#include "record.h"
 
 bool SeriesRuleKeyOrder::operator()(const SeriesRuleKey &left, const SeriesRuleKey &right) const
 {
@@ -408,7 +408,11 @@ static std::string series_rule_polynomial_text(const SeriesRulePolynomial &polyn
     for (const auto &term : polynomial)
     {
         text += text.empty() ? "" : " + ";
-        text += term_book_rational(term.second);
+        char rational[RECORD_RATIONAL_ROOM];
+        VerbaLinea rational_line = {rational, sizeof(rational), 0ull};
+        record_rational(&rational_line, term.second);
+        (void)mmgr_line_finish(&rational_line);
+        text += rational;
         for (unsigned int variable = 0u; variable < SERIES_RULE_VARIABLES; variable += 1u)
         {
             if (term.first[variable] == 0u)

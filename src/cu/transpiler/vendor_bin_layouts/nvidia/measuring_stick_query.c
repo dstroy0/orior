@@ -52,7 +52,7 @@
 // question is blocked, 2 where a blob, a tool or the run was not reached, or a frame was read at no stop it
 // named: the round is then not carried
 #include "../../../../../includes/parsers/line_read.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "measuring_stick_query/msq_internal.h"

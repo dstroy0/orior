@@ -4,7 +4,7 @@
 #ifndef CYCLE_COMPILE_INTERNAL_H
 #define CYCLE_COMPILE_INTERNAL_H
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cycle_shared.h"
 
 // The record program compiled. Nothing hand-written is linked with it: the language's own forms write every record

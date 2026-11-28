@@ -172,7 +172,7 @@ int cli_text_apply(const CliEditsOutCfg *args)
     }
     // the bytes first on the cell's boundary, then the places, then the order
     const unsigned long long positions = 2ULL * args->count;
-    char *const cell = g_cli_guard->temporary_buf_alloc(
+    char *const cell = g_platform_guard->temporary_buf_alloc(
         (positions + 1ULL) * (sizeof(*s_byte) + sizeof(*s_position) + sizeof(*s_order)), g_cli_text_owner);
     if (cell == NULL)
     {
@@ -207,6 +207,6 @@ int cli_text_apply(const CliEditsOutCfg *args)
     s_byte = NULL;
     s_position = NULL;
     s_order = NULL;
-    g_cli_guard->persistent_buf_release(cell, g_cli_text_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_text_owner);
     return 1;
 }

@@ -1,6 +1,6 @@
 
 // test_steer_checks.c: skewed fields and the ordering checks
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "test_steer_internal.h"
 

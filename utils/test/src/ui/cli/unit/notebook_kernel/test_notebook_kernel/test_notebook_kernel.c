@@ -228,5 +228,5 @@ void test_a_message_is_written_whole_as_the_wire_carries_it(void)
     TEST_ASSERT_EQUAL_UINT8(0x00u, message[4]);
     TEST_ASSERT_EQUAL_UINT8(0x01u, message[5]);
     TEST_ASSERT_EQUAL_UINT8((unsigned char)'c', message[6]);
-    g_cli_guard->persistent_buf_release(message, mmgr_owner_of_buf(cli_pool_series_cellularum(), message));
+    g_platform_guard->persistent_buf_release(message, mmgr_owner_of_buf(platform_pool_series(), message));
 }

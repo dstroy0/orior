@@ -159,8 +159,9 @@ static void run_window(const CommandLineRunCtx *args)
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
-        CliGrownLine out;
-        cli_grown_begin(&out, CLI_RUN_OUT_CAPACITY, g_cli_command_line_owner);
+        PlatformText out;
+        platform_text_begun(&out, CLI_RUN_OUT_CAPACITY, platform_place_g_cli_command_line_owner,
+                            PLATFORM_TIER_TEMPORARY);
         err_msg.at = 0ULL;
         const int run_result =
             EMBED_CALL(cli_at_terminal_command.run, CliAtTerminalCommandCfg, .root = s_found, .command = command,
@@ -170,12 +171,12 @@ static void run_window(const CommandLineRunCtx *args)
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
                        .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
         }
-        if (run_result && mmgr_line_ok(&out.line) && (cli_grown_size(&out) > 0ULL))
+        if (run_result && mmgr_line_ok(&out.line) && (platform_text_size(&out) > 0ULL))
         {
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = out.cell,
-                       .size = cli_grown_size(&out));
+                       .size = platform_text_size(&out));
         }
-        cli_grown_end(&out);
+        platform_text_ended(&out);
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = run_result ? 0 : CLI_WRONG);
         return;
     }
@@ -196,15 +197,15 @@ static void run_window(const CommandLineRunCtx *args)
 // the help written to the output, its spaces at the end not
 static void run_help(void)
 {
-    CliGrownLine help;
-    cli_grown_begin(&help, CLI_RUN_HELP_CAPACITY, g_cli_command_line_owner);
+    PlatformText help;
+    platform_text_begun(&help, CLI_RUN_HELP_CAPACITY, platform_place_g_cli_command_line_owner, PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_command_line_out_err_msg_shell_internal.help, CliCommandLineOutErrMsgShellCtx, .out = &help.line);
-    const unsigned long long size = mmgr_line_ok(&help.line) ? cli_grown_size(&help) : 0ULL;
+    const unsigned long long size = mmgr_line_ok(&help.line) ? platform_text_size(&help) : 0ULL;
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = help.cell,
                .size = (help.cell != NULL) ? EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg,
                                                         .text = help.cell, .size = size)
                                            : 0ULL);
-    cli_grown_end(&help);
+    platform_text_ended(&help);
 }
 
 // the words run as the menus run them; the words before the menus were the command line's, and each still names what it

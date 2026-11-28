@@ -100,7 +100,7 @@ static int asked_words(const char *command, const char *const *words, unsigned i
 {
     s_ask = (WindowAsk){.command = command, .words = words, .count = count};
     static CliThread s_thread;
-    s_thread = (CliThread){window_ask_run, &s_ask, CLI_PRIORITY_WORK};
+    s_thread = (CliThread){window_ask_run, &s_ask, PLATFORM_PRIORITY_WORK};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread))
     {
         return 0;
@@ -120,7 +120,7 @@ static int asked_words(const char *command, const char *const *words, unsigned i
     if (!ran)
     {
         // the reason the window gave, beside the check that reads it, and the pool as it is
-        const SeriesCellularum *const record = cli_pool_series_cellularum();
+        const SeriesCellularum *const record = platform_pool_series();
         (void)fprintf(stderr, "  ask %s refused (%d): %s; pool end %llu top %llu fragmentation %llu\n", command,
                       s_ask.requested, s_ask.answer.text,
                       (unsigned long long)mmgr_series_cellularum_persistent_end(record),
@@ -182,7 +182,7 @@ static int file_reads(const char *name, const char *required)
     const int same = (bytes != NULL) &&
                      (size == cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_POOL_BYTES})) &&
                      (memor.cmp(&(MemoriaCfg){.src = bytes, .other = required, .bytes = size}) == 0);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
     return same;
 }
 
@@ -469,7 +469,7 @@ typedef struct
 
 static void tiers_read(RoundTiers *tiers)
 {
-    const SeriesCellularum *const series = cli_pool_series_cellularum();
+    const SeriesCellularum *const series = platform_pool_series();
     tiers->persistent_end = mmgr_series_cellularum_persistent_end(series);
     for (size_t region = 0u; region < MMGR_CARCER_REGION_COUNT; region += 1u)
     {
@@ -643,12 +643,12 @@ static unsigned int row_runs_copied(unsigned int row, unsigned int *words, unsig
 static void grammar_held_checked(void)
 {
     const unsigned long long held_bytes = 1536ULL << 10u;
-    void *const held = g_cli_guard->temporary_buf_alloc(held_bytes, g_checks_owner);
+    void *const held = g_platform_guard->temporary_buf_alloc(held_bytes, g_checks_owner);
     cli_check(held != NULL, "a cell of 1.5 MiB is taken on the thread");
     tabs_closed("held.c", "int one(void)\n{\n    return 1;\n}\n", NULL, NULL);
     cli_check(tab_opened("held.c"), "a C file opens beside the held cell");
     cli_check(row_runs_waited(2u, 3000ULL) > 0u, "the walk colors the file's lines while the thread holds a cell");
-    g_cli_guard->persistent_buf_release(held, g_checks_owner);
+    g_platform_guard->persistent_buf_release(held, g_checks_owner);
     (void)asked("close-all", NULL);
 }
 
@@ -661,7 +661,7 @@ static unsigned long long cells_settled(unsigned long long *owners);
 static void edits_cells_checked(void)
 {
     const unsigned long long capacity = 512ULL << 10u;
-    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_checks_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(capacity, g_checks_owner);
     cli_check(text != NULL, "a cell for the large text is taken");
     if (text == NULL)
     {
@@ -678,7 +678,7 @@ static void edits_cells_checked(void)
     }
     (void)mmgr_line_finish(&line);
     tabs_closed("large.c", text, NULL, NULL);
-    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    g_platform_guard->persistent_buf_release(text, g_checks_owner);
     cli_check(tab_opened("large.c"), "the large C file opens");
     cli_check(row_runs_waited(2u, 5000ULL) > 0u, "the walk colors it");
     cursor_put(10ULL, 0ULL);
@@ -720,7 +720,7 @@ static unsigned long long working_set(void)
 static void idle_pages_checked(void)
 {
     const unsigned long long capacity = 512ULL << 10u;
-    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_checks_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(capacity, g_checks_owner);
     cli_check(text != NULL, "a cell for the large text is taken");
     if (text == NULL)
     {
@@ -737,7 +737,7 @@ static void idle_pages_checked(void)
     }
     (void)mmgr_line_finish(&line);
     tabs_closed("large.c", text, NULL, NULL);
-    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    g_platform_guard->persistent_buf_release(text, g_checks_owner);
     cli_check(tab_opened("large.c"), "the large C file opens");
     cli_check(row_runs_waited(2u, 5000ULL) > 0u, "the walk colors it");
     for (unsigned int edit = 0u; edit < 5u; edit += 1u)

@@ -32,7 +32,7 @@
 // <identity>`. That is whether its two forms write one value or two on each case, as a function of the values the form
 // reads there. The product goes over every put the part answered (concept_product.h). A concept is its product and
 // cares for nothing that made it, and two pairs of one product are one concept whatever forms name them
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "decoder/decoder_internal.h"
 
 int program_main(int argc, char **argv)

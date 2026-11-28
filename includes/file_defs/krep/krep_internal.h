@@ -5,7 +5,7 @@
 #define KREP_INTERNAL_H
 
 #include "krep.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 
 #include "crc.h"
 

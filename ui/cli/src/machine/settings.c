@@ -261,12 +261,12 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
         return;
     }
     CfgJsonToken *const tokens =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CfgJsonToken), g_cli_settings_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CfgJsonToken), g_cli_settings_owner);
     if ((tokens == NULL) || !EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
                                         .json = &args->chain->json, .nodes_max = nodes, .text_max = text,
                                         .what = "a chain of settings files", .owner = g_cli_settings_owner))
     {
-        g_cli_guard->persistent_buf_release(tokens, g_cli_settings_owner);
+        g_platform_guard->persistent_buf_release(tokens, g_cli_settings_owner);
         EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = args->walk->file[0].named,
                    .detail = ": the cells its chain is read into could not be taken");
         return;
@@ -290,7 +290,7 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
         args->chain->values[args->chain->files] = values;
         args->chain->files += 1u;
     }
-    g_cli_guard->persistent_buf_release(tokens, g_cli_settings_owner);
+    g_platform_guard->persistent_buf_release(tokens, g_cli_settings_owner);
 }
 
 // whether the file at the whole `path` is among those the `walk` has walked
@@ -365,7 +365,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
                                                   .size_pointer = &size, .owner = g_cli_settings_owner);
     if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_settings_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_settings_owner);
         const int is_file = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next);
         if (!*args->first || is_file)
         {
@@ -377,12 +377,12 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     *args->first = 0;
     // a file's text with its comments taken out is no longer than the file; it is for the walk's one call, as the
     // walk does
-    char *const plain_text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_settings_owner);
+    char *const plain_text = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_settings_owner);
     VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
     // the file's bytes are its text
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_settings_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_settings_owner);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ULL};
     CliJson own;
@@ -404,10 +404,10 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
         mmgr_line_finish(&msg);
         EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
                    .detail = (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
-        g_cli_guard->persistent_buf_release(own.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), own.node));
+        g_platform_guard->persistent_buf_release(own.node, mmgr_owner_of_buf(platform_pool_series(), own.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&own),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(plain_text, g_cli_settings_owner);
+        g_platform_guard->persistent_buf_release(plain_text, g_cli_settings_owner);
         return 0;
     }
     CliChainFile *const walked = &walk->file[walk->count];
@@ -434,7 +434,7 @@ EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
     {
         EMBED_CALL(cli_takes_followed, SettingsCtx, .text = reserved, .length = length, .path = next, .out = next);
     }
-    g_cli_guard->persistent_buf_release(own.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), own.node));
+    g_platform_guard->persistent_buf_release(own.node, mmgr_owner_of_buf(platform_pool_series(), own.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&own),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return reserved != NULL;
@@ -446,7 +446,7 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     args->chain->files = 0u;
     args->chain->problems = 0u;
-    CliChainWalk *const walk = g_cli_guard->temporary_buf_alloc(sizeof(*walk), g_cli_settings_owner);
+    CliChainWalk *const walk = g_platform_guard->temporary_buf_alloc(sizeof(*walk), g_cli_settings_owner);
     if (walk == NULL)
     {
         return;
@@ -464,9 +464,9 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
     EMBED_CALL(cli_chain_read, SettingsCtx, .chain = args->chain, .walk = walk);
     for (unsigned int at = 0u; at < walk->count; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(walk->file[at].plain, g_cli_settings_owner);
+        g_platform_guard->persistent_buf_release(walk->file[at].plain, g_cli_settings_owner);
     }
-    g_cli_guard->persistent_buf_release(walk, g_cli_settings_owner);
+    g_platform_guard->persistent_buf_release(walk, g_cli_settings_owner);
     // the files in the order they are taken, the one taken first
     for (unsigned int at = 0u; at < (args->chain->files / 2u); at += 1u)
     {

@@ -14,7 +14,7 @@
  *       trial. It uses no wordlist and no address, and makes no network access.
  */
 #include "../../includes/codecs/pbkdf2/pbkdf2.h"
-#include "../../src/platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

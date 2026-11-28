@@ -31,6 +31,8 @@
 #include <unistd.h>
 #endif
 
+// the permission bits of each folder of the daemon's state, the reader's own alone (platform_folders_made)
+#define TESSERA_DAEMON_FOLDER_MODE 0700u
 #define TESSERA_DAEMON_FOREVER 0xFFFFFFFFFFFFFFFFULL
 #define TESSERA_DAEMON_MILLION 1000000ULL
 #define TESSERA_HISTORY_RECORD (ENGINE_SIGNUM_BYTES + 16u)
@@ -108,7 +110,6 @@ unsigned long long daemon_wall(void);
 
 void daemon_wait_until(unsigned long long when);
 
-int daemon_directories_make(const char *path);
 
 int daemon_state_file(const char *name, char *path);
 

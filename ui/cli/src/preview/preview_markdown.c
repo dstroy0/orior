@@ -5,8 +5,9 @@
 // container of their own with their marks taken off. The layout runs twice: once counting the items, the blocks and the
 // text's bytes, then again writing them into this call's cells taken at those counts, written once into movable cells
 // the size of what they carry.
-// A block's inline text flows a word at a time: a word's characters wait with their marks until a space or the line's end,
-// the word moves to the next line where it passes the width, and a run of characters of one mark on one line is one item
+// A block's inline text flows a word at a time: a word's characters wait with their marks until a space or the line's
+// end, the word moves to the next line where it passes the width, and a run of characters of one mark on one line is
+// one item
 #include "preview_markdown.h"
 
 #include "../text/text.h"
@@ -75,9 +76,9 @@ typedef struct
 
 // The flow of one block's inline text: the left and the width it flows in, the pen in thousandths of a pixel, the top
 // of the line it is on, the line's height, the text's size, its color role, the flags every run of it carries and
-// the source line; the marks the characters now take; the run positioned, whether one is open, where it starts, its text and its
-// marks; the word waiting, its characters each with its marks; whether a space waits before the next word; and how many
-// lines the flow has positioned
+// the source line; the marks the characters now take; the run positioned, whether one is open, where it starts, its
+// text and its marks; the word waiting, its characters each with its marks; whether a space waits before the next word;
+// and how many lines the flow has positioned
 typedef struct
 {
     int x0;
@@ -123,8 +124,8 @@ typedef struct
     unsigned long long number;
 } MarkdownItem;
 
-// The items as a pass positions them, in this call's cells: the items and how many, the blocks and how many, the text and
-// its bytes, and the height every item fills; the count pass carries the counts alone, its pointers NULL
+// The items as a pass positions them, in this call's cells: the items and how many, the blocks and how many, the text
+// and its bytes, and the height every item fills; the count pass carries the counts alone, its pointers NULL
 typedef struct
 {
     CliPreviewItem *item;
@@ -179,7 +180,7 @@ EMBED_INLINE void cell_released(const MarkdownCtx *args)
 {
     if (args->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->cell, g_cli_preview_owner);
+        (void)g_platform_guard->movable_buf_release(args->cell, g_cli_preview_owner);
     }
 }
 
@@ -260,8 +261,9 @@ EMBED_INLINE unsigned int block_put(const MarkdownCtx *args)
                                                 .line = args->line});
 }
 
-// the advance of the byte `character` with the flags `flags`, in thousandths of an em: a code character the code face's, a
-// UTF-8 character's first byte a wide character's and its other bytes none, a bold character wider and an italic one narrower
+// the advance of the byte `character` with the flags `flags`, in thousandths of an em: a code character the code
+// face's, a UTF-8 character's first byte a wide character's and its other bytes none, a bold character wider and an
+// italic one narrower
 EMBED_INLINE unsigned int advance_of(const MarkdownCtx *args)
 {
     const unsigned char character = args->character;
@@ -343,8 +345,8 @@ EMBED_INLINE void run_commit(const MarkdownCtx *args)
                                                .link_length = flow->run_style.link_length});
 }
 
-// the character `character` with the marks `style` put at the end of the flow's run, a run opened at the pen where none is
-// open or the open one's marks differ, the pen moved past it
+// the character `character` with the marks `style` put at the end of the flow's run, a run opened at the pen where none
+// is open or the open one's marks differ, the pen moved past it
 EMBED_INLINE void run_character(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -365,12 +367,13 @@ EMBED_INLINE void run_character(const MarkdownCtx *args)
     (void)EMBED_CALL(text_put, MarkdownCtx, .items = args->items, .writing = args->writing, .bytes = &byte,
                      .length = 1u);
     flow->run_length += 1u;
-    flow->pen += (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = args->character, .flags = args->style->flags) *
-                 (long long)flow->size;
+    flow->pen +=
+        (long long)EMBED_CALL(advance_of, MarkdownCtx, .character = args->character, .flags = args->style->flags) *
+        (long long)flow->size;
 }
 
-// the word waiting positioned: on the next line where it would pass the width and the line has a word already, after the
-// space waiting where the line has a word, each character in the run of its marks
+// the word waiting positioned: on the next line where it would pass the width and the line has a word already, after
+// the space waiting where the line has a word, each character in the run of its marks
 EMBED_INLINE void word_flush(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -426,8 +429,8 @@ EMBED_INLINE void word_flush(const MarkdownCtx *args)
     flow->space = 0;
 }
 
-// the character `character` fed to the flow with the marks it now takes: a space positions the word waiting and leaves a space
-// waiting, any other character waits in the word, a word at its max positioned first
+// the character `character` fed to the flow with the marks it now takes: a space positions the word waiting and leaves
+// a space waiting, any other character waits in the word, a word at its max positioned first
 EMBED_INLINE void flow_character(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -493,10 +496,11 @@ EMBED_INLINE int flow_end(const MarkdownCtx *args)
 EMBED_INLINE int character_escaped(const MarkdownCtx *args)
 {
     const unsigned char character = args->character;
-    return (character == '\\') || (character == '`') || (character == '*') || (character == '_') || (character == '{') ||
-           (character == '}') || (character == '[') || (character == ']') || (character == '(') || (character == ')') ||
-           (character == '#') || (character == '+') || (character == '-') || (character == '.') || (character == '!') ||
-           (character == '|') || (character == '~') || (character == '<') || (character == '>') || (character == '$');
+    return (character == '\\') || (character == '`') || (character == '*') || (character == '_') ||
+           (character == '{') || (character == '}') || (character == '[') || (character == ']') || (character == '(') ||
+           (character == ')') || (character == '#') || (character == '+') || (character == '-') || (character == '.') ||
+           (character == '!') || (character == '|') || (character == '~') || (character == '<') || (character == '>') ||
+           (character == '$');
 }
 
 // whether `character` is a character or a digit
@@ -578,7 +582,8 @@ EMBED_INLINE int link_read(const MarkdownCtx *args)
     {
         return 0;
     }
-    const unsigned int end = EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = close + 2u, .to = args->to, .bytes = ")");
+    const unsigned int end =
+        EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = close + 2u, .to = args->to, .bytes = ")");
     if (end >= args->to)
     {
         return 0;
@@ -628,7 +633,8 @@ EMBED_INLINE unsigned int bare_end(const MarkdownCtx *args)
     {
         return MARKDOWN_NONE_AT;
     }
-    unsigned int end = EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = args->from, .to = args->to, .bytes = " \t<");
+    unsigned int end =
+        EMBED_CALL(scan_to, MarkdownCtx, .text = text, .from = args->from, .to = args->to, .bytes = " \t<");
     while ((end > args->from) &&
            ((text[end - 1u] == '.') || (text[end - 1u] == ',') || (text[end - 1u] == ':') || (text[end - 1u] == ';') ||
             (text[end - 1u] == '"') || (text[end - 1u] == '\'') || (text[end - 1u] == ')') || (text[end - 1u] == ']')))
@@ -653,8 +659,8 @@ EMBED_INLINE void characters_fed(const MarkdownCtx *args)
     flow->style.flags = was;
 }
 
-// a link's address, from `from` to before `to`, put into the text cell after the word waiting and the run are positioned,
-// `www.` taking `http://` before it, and the characters marked as its link from here on
+// a link's address, from `from` to before `to`, put into the text cell after the word waiting and the run are
+// positioned, `www.` taking `http://` before it, and the characters marked as its link from here on
 EMBED_INLINE void link_opened(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -678,17 +684,17 @@ EMBED_INLINE int emphasis_turned(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
     const char *const text = args->text;
-    const unsigned int mark = (args->character == '~')  ? CLI_PREVIEW_STRIKE
-                              : (args->length == 2u) ? CLI_PREVIEW_BOLD
-                                                     : CLI_PREVIEW_ITALIC;
+    const unsigned int mark = (args->character == '~') ? CLI_PREVIEW_STRIKE
+                              : (args->length == 2u)   ? CLI_PREVIEW_BOLD
+                                                       : CLI_PREVIEW_ITALIC;
     const unsigned char before = (args->from > args->at) ? (unsigned char)text[args->from - 1u] : (unsigned char)' ';
     const unsigned char after =
         (args->from + args->length < args->to) ? (unsigned char)text[args->from + args->length] : (unsigned char)' ';
     const int under = args->character == '_';
     if ((flow->style.flags & mark) != 0u)
     {
-        const int closes =
-            (before != ' ') && (before != '\t') && (!under || !EMBED_CALL(character_word, MarkdownCtx, .character = after));
+        const int closes = (before != ' ') && (before != '\t') &&
+                           (!under || !EMBED_CALL(character_word, MarkdownCtx, .character = after));
         flow->style.flags &= closes ? ~mark : ~0u;
         return closes;
     }
@@ -980,8 +986,8 @@ EMBED_INLINE int slice_rule(const MarkdownCtx *args)
 // whether the line `slice` opens a quote, `>` after no more than three spaces
 EMBED_INLINE int slice_quote(const MarkdownCtx *args)
 {
-    return EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice, .character = (unsigned char)'>') !=
-           0u;
+    return EMBED_CALL(slice_run, MarkdownCtx, .text = args->text, .slice = args->slice,
+                      .character = (unsigned char)'>') != 0u;
 }
 
 // the list item the line `slice` opens, `-`, `*`, `+` or one to nine digits and `.` or `)` after no more than three
@@ -1081,7 +1087,8 @@ EMBED_INLINE unsigned int slice_cells(const MarkdownCtx *args)
 {
     const char *const text = args->text;
     unsigned int to = args->slice->to;
-    unsigned int from = EMBED_CALL(scan_end, MarkdownCtx, .text = text, .from = args->slice->from, .to = to, .bytes = " \t");
+    unsigned int from =
+        EMBED_CALL(scan_end, MarkdownCtx, .text = text, .from = args->slice->from, .to = to, .bytes = " \t");
     while ((to > from) && ((text[to - 1u] == ' ') || (text[to - 1u] == '\t')))
     {
         to -= 1u;
@@ -1196,8 +1203,8 @@ EMBED_INLINE unsigned int slice_after(const MarkdownCtx *args)
     return at;
 }
 
-// the code block of `count` lines from `lines`, each from the columns `at` of its indent, positioned at `x`, `*y`, `width`
-// wide on the code's ground, `*y` moved past it
+// the code block of `count` lines from `lines`, each from the columns `at` of its indent, positioned at `x`, `*y`,
+// `width` wide on the code's ground, `*y` moved past it
 EMBED_INLINE void code_positioned(const MarkdownCtx *args)
 {
     int *const y = args->y;
@@ -1228,9 +1235,9 @@ EMBED_INLINE void code_positioned(const MarkdownCtx *args)
 }
 
 // the inline text from `from` to before `to` of the line `slice` and the lines after it in `lines`, `count` in all,
-// positioned as one flow at `x`, `*y`, `width` wide, at `size` on lines `line_height` apart in the role `role` with the flags
-// `flags`: each line's leading blanks left off, a line ending in two spaces or a backslash breaking the flow and any
-// other joining the next with a space; `*y` moved past it
+// positioned as one flow at `x`, `*y`, `width` wide, at `size` on lines `line_height` apart in the role `role` with the
+// flags `flags`: each line's leading blanks left off, a line ending in two spaces or a backslash breaking the flow and
+// any other joining the next with a space; `*y` moved past it
 EMBED_INLINE void flow_positioned(const MarkdownCtx *args)
 {
     MarkdownFlow *const flow = args->flow;
@@ -1284,7 +1291,8 @@ EMBED_INLINE void rule_positioned(const MarkdownCtx *args)
     *args->y += (2 * args->height) + MARKDOWN_RULE;
 }
 
-// the table row of the cells `range_out`, `count` of them, positioned in the `at` columns of the widths `widths` at `x`,
+// the table row of the cells `range_out`, `count` of them, positioned in the `at` columns of the widths `widths` at
+// `x`,
 // `*y`: each cell on a border in the hairline, a heading row's on the code's ground and bold where `heading`, its text
 // flowing inside its padding, the row as tall as its tallest cell; `*y` moved past it
 EMBED_INLINE void row_positioned(const MarkdownCtx *args)
@@ -1355,8 +1363,8 @@ EMBED_INLINE void row_positioned(const MarkdownCtx *args)
     *y = top + row_height;
 }
 
-// the table of `count` lines from `lines`, its head, its alignment row and its body, positioned at `x`, `*y`, no wider than
-// `width`: each column as wide as its widest cell's text and padding and no narrower than the least, every column
+// the table of `count` lines from `lines`, its head, its alignment row and its body, positioned at `x`, `*y`, no wider
+// than `width`: each column as wide as its widest cell's text and padding and no narrower than the least, every column
 // narrowed by one share where the table passes the width; `*y` moved past it
 EMBED_INLINE void table_positioned(const MarkdownCtx *args)
 {
@@ -1414,10 +1422,10 @@ EMBED_INLINE void table_positioned(const MarkdownCtx *args)
 
 static void blocks_positioned(const MarkdownCtx *args);
 
-// the lines of `lines` from `at`, `count` in all, a container's, positioned as blocks at `x`, `*y`, `width` wide, `depth`
-// deep, `tight` where they are a list item's, their marks taken off: a quote's first `>` and the space after it where
-// `quoted`, else `from` columns of indent, the first line starting at `to`; a cell for the lines alone carries them as
-// the container reads them
+// the lines of `lines` from `at`, `count` in all, a container's, positioned as blocks at `x`, `*y`, `width` wide,
+// `depth` deep, `tight` where they are a list item's, their marks taken off: a quote's first `>` and the space after it
+// where `quoted`, else `from` columns of indent, the first line starting at `to`; a cell for the lines alone carries
+// them as the container reads them
 static void container_positioned(const MarkdownCtx *args)
 {
     if (args->count == 0u)
@@ -1425,7 +1433,7 @@ static void container_positioned(const MarkdownCtx *args)
         return;
     }
     MarkdownLine *const inner =
-        g_cli_guard->temporary_buf_alloc(args->count * sizeof(MarkdownLine), g_cli_preview_owner);
+        g_platform_guard->temporary_buf_alloc(args->count * sizeof(MarkdownLine), g_cli_preview_owner);
     if (inner == NULL)
     {
         return;
@@ -1457,7 +1465,7 @@ static void container_positioned(const MarkdownCtx *args)
     EMBED_CALL(blocks_positioned, MarkdownCtx, .text = args->text, .items = args->items, .writing = args->writing,
                .flow = args->flow, .lines = inner, .count = args->count, .x = args->x, .y = args->y,
                .width = args->width, .depth = args->depth, .tight = args->tight, .role = args->role);
-    g_cli_guard->persistent_buf_release(inner, g_cli_preview_owner);
+    g_platform_guard->persistent_buf_release(inner, g_cli_preview_owner);
 }
 
 // the list whose first item is at `at` of `lines`, `count` in all, positioned at `x`, `*y`, `width` wide, `depth` deep:
@@ -1662,12 +1670,12 @@ static unsigned int quote_positioned(const MarkdownCtx *args)
     return end;
 }
 
-// the lines of `lines`, `count` in all, positioned as blocks at `x`, `*y`, `width` wide, `depth` deep, in the role `role`,
-// a gap before every block but the first, a list item's narrower where `tight`: each block put with its rectangle and
-// read in markdown.js's order, a fence, a heading, a rule, indented code, a quote, a list, a table, and a paragraph
-// that runs to a blank line or a line that opens another block, a line of `=` or `-` under it making it a heading.
-// Containers position their own lines through blocks_positioned again, so the walk is a function that calls itself and is not
-// inlined
+// the lines of `lines`, `count` in all, positioned as blocks at `x`, `*y`, `width` wide, `depth` deep, in the role
+// `role`, a gap before every block but the first, a list item's narrower where `tight`: each block put with its
+// rectangle and read in markdown.js's order, a fence, a heading, a rule, indented code, a quote, a list, a table, and a
+// paragraph that runs to a blank line or a line that opens another block, a line of `=` or `-` under it making it a
+// heading. Containers position their own lines through blocks_positioned again, so the walk is a function that calls
+// itself and is not inlined
 static void blocks_positioned(const MarkdownCtx *args)
 {
     const char *const text = args->text;
@@ -1724,15 +1732,15 @@ static void blocks_positioned(const MarkdownCtx *args)
                        .line = slice->line);
             if (level <= 2u)
             {
-                EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
-                           .width = args->width, .height = 2, .line = slice->line);
+                EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x,
+                           .y = y, .width = args->width, .height = 2, .line = slice->line);
             }
             at += 1u;
         }
         else if (EMBED_CALL(slice_rule, MarkdownCtx, .text = text, .slice = slice))
         {
-            EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
-                       .width = args->width, .height = MARKDOWN_RULE_GAP, .line = slice->line);
+            EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x,
+                       .y = y, .width = args->width, .height = MARKDOWN_RULE_GAP, .line = slice->line);
             at += 1u;
         }
         else if (EMBED_CALL(slice_indent, MarkdownCtx, .text = text, .slice = slice) >= MARKDOWN_TAB)
@@ -1819,8 +1827,8 @@ static void blocks_positioned(const MarkdownCtx *args)
                        .role = args->role, .flags = (setext != 0u) ? CLI_PREVIEW_BOLD : 0u, .line = slice->line);
             if (setext != 0u)
             {
-                EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x, .y = y,
-                           .width = args->width, .height = 2, .line = slice->line);
+                EMBED_CALL(rule_positioned, MarkdownCtx, .items = args->items, .writing = args->writing, .x = args->x,
+                           .y = y, .width = args->width, .height = 2, .line = slice->line);
             }
             at = (setext != 0u) ? end + 1u : end;
         }
@@ -1836,9 +1844,10 @@ int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args)
     // a text the preview positions is far shorter than four gigabytes, so its places are words
     const unsigned int length = (args->length < 0xffffffffULL) ? (unsigned int)args->length : 0xfffffffeu;
     // the lines are the newlines and one: the count is far inside what a word holds
-    const unsigned int count =
-        1u + (unsigned int)EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = length, .byte = '\n');
-    MarkdownLine *const lines = g_cli_guard->temporary_buf_alloc(count * sizeof(MarkdownLine), g_cli_preview_owner);
+    const unsigned int count = 1u + (unsigned int)EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text,
+                                                             .size = length, .byte = '\n');
+    MarkdownLine *const lines =
+        g_platform_guard->temporary_buf_alloc(count * sizeof(MarkdownLine), g_cli_preview_owner);
     if (lines == NULL)
     {
         return 0;
@@ -1862,81 +1871,84 @@ int cli_preview_markdown_layout(const CliPreviewMarkdownCfg *args)
     // the count pass over the counts the items have, writing nothing
     MarkdownLaid counted = {NULL, items->items, NULL, items->blocks, NULL, items->text_bytes, items->height};
     int y = first_top;
-    EMBED_CALL(blocks_positioned, MarkdownCtx, .text = text, .items = &counted, .writing = 0, .flow = &flow, .lines = lines,
-               .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
+    EMBED_CALL(blocks_positioned, MarkdownCtx, .text = text, .items = &counted, .writing = 0, .flow = &flow,
+               .lines = lines, .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
                .role = CLI_PREVIEW_ROLE_TEXT);
     // the write pass positions into this call's cells, the items carried before copied out of their cells first
     const unsigned long long item_bytes = CLI_PREVIEW_ITEM_AT(counted.items);
     const unsigned long long cell_bytes = item_bytes + ((unsigned long long)counted.blocks * sizeof(CliPreviewBlock));
     unsigned char *const positioning =
-        (cell_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
-    char *const positioning_text =
-        (counted.text_bytes != 0u) ? g_cli_guard->temporary_buf_alloc(counted.text_bytes, g_cli_preview_owner) : NULL;
+        (cell_bytes != 0ULL) ? g_platform_guard->temporary_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
+    char *const positioning_text = (counted.text_bytes != 0u)
+                                       ? g_platform_guard->temporary_buf_alloc(counted.text_bytes, g_cli_preview_owner)
+                                       : NULL;
     if (((cell_bytes != 0ULL) && (positioning == NULL)) || ((counted.text_bytes != 0u) && (positioning_text == NULL)))
     {
-        g_cli_guard->persistent_buf_release(positioning, g_cli_preview_owner);
-        g_cli_guard->persistent_buf_release(positioning_text, g_cli_preview_owner);
-        g_cli_guard->persistent_buf_release(lines, g_cli_preview_owner);
+        g_platform_guard->persistent_buf_release(positioning, g_cli_preview_owner);
+        g_platform_guard->persistent_buf_release(positioning_text, g_cli_preview_owner);
+        g_platform_guard->persistent_buf_release(lines, g_cli_preview_owner);
         return 0;
     }
     MarkdownLaid positioned = {(CliPreviewItem *)(void *)positioning,
-                         items->items,
-                         (positioning != NULL) ? (CliPreviewBlock *)(void *)(positioning + item_bytes) : NULL,
-                         items->blocks,
-                         positioning_text,
-                         items->text_bytes,
-                         items->height};
+                               items->items,
+                               (positioning != NULL) ? (CliPreviewBlock *)(void *)(positioning + item_bytes) : NULL,
+                               items->blocks,
+                               positioning_text,
+                               items->text_bytes,
+                               items->height};
     if (items->items != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = items->cell, .offset = 0u, .dst = positioned.item, .bytes = CLI_PREVIEW_ITEM_AT(items->items)});
     }
     if (items->blocks != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = items->cell,
-                                                                .offset = items->block_at,
-                                                                .dst = positioned.block,
-                                                                .bytes = items->blocks * sizeof(CliPreviewBlock)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = items->cell,
+                                                                     .offset = items->block_at,
+                                                                     .dst = positioned.block,
+                                                                     .bytes = items->blocks * sizeof(CliPreviewBlock)});
     }
     if (items->text_bytes != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = items->text_cell, .offset = 0u, .dst = positioned.text, .bytes = items->text_bytes});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = items->text_cell, .offset = 0u, .dst = positioned.text, .bytes = items->text_bytes});
     }
     y = first_top;
-    EMBED_CALL(blocks_positioned, MarkdownCtx, .text = text, .items = &positioned, .writing = 1, .flow = &flow, .lines = lines,
-               .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
+    EMBED_CALL(blocks_positioned, MarkdownCtx, .text = text, .items = &positioned, .writing = 1, .flow = &flow,
+               .lines = lines, .count = count, .x = CLI_PREVIEW_PAD, .y = &y, .width = width, .depth = 0u,
                .role = CLI_PREVIEW_ROLE_TEXT);
     positioned.height = ((y + CLI_PREVIEW_PAD_FOOT) > positioned.height) ? y + CLI_PREVIEW_PAD_FOOT : positioned.height;
     // the cells the items are in, written once, the cells they was in before released
     const CarcerMovableEntry *const cell =
-        (cell_bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
+        (cell_bytes != 0ULL) ? g_platform_guard->movable_buf_alloc(cell_bytes, g_cli_preview_owner) : NULL;
     const CarcerMovableEntry *const text_cell =
-        (counted.text_bytes != 0u) ? g_cli_guard->movable_buf_alloc(counted.text_bytes, g_cli_preview_owner) : NULL;
+        (counted.text_bytes != 0u) ? g_platform_guard->movable_buf_alloc(counted.text_bytes, g_cli_preview_owner)
+                                   : NULL;
     const int stored = ((cell_bytes == 0ULL) || (cell != NULL)) && ((counted.text_bytes == 0u) || (text_cell != NULL));
     if (stored)
     {
         if (cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = cell, .offset = 0u, .src = positioning, .bytes = cell_bytes});
         }
         if (text_cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_write(
-                &(CarcerMovableCfg){.cell = text_cell, .offset = 0u, .src = positioning_text, .bytes = counted.text_bytes});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
+                .cell = text_cell, .offset = 0u, .src = positioning_text, .bytes = counted.text_bytes});
         }
         EMBED_CALL(cell_released, MarkdownCtx, .cell = items->cell);
         EMBED_CALL(cell_released, MarkdownCtx, .cell = items->text_cell);
-        *items = (CliPreviewItems){cell, positioned.items, item_bytes, positioned.blocks, text_cell, positioned.text_bytes, positioned.height};
+        *items = (CliPreviewItems){cell,      positioned.items,      item_bytes,       positioned.blocks,
+                                   text_cell, positioned.text_bytes, positioned.height};
     }
     else
     {
         EMBED_CALL(cell_released, MarkdownCtx, .cell = cell);
         EMBED_CALL(cell_released, MarkdownCtx, .cell = text_cell);
     }
-    g_cli_guard->persistent_buf_release(positioning, g_cli_preview_owner);
-    g_cli_guard->persistent_buf_release(positioning_text, g_cli_preview_owner);
-    g_cli_guard->persistent_buf_release(lines, g_cli_preview_owner);
+    g_platform_guard->persistent_buf_release(positioning, g_cli_preview_owner);
+    g_platform_guard->persistent_buf_release(positioning_text, g_cli_preview_owner);
+    g_platform_guard->persistent_buf_release(lines, g_cli_preview_owner);
     return stored;
 }

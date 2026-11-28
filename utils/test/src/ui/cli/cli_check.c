@@ -37,7 +37,7 @@ static void check_owners_reported(void)
     mmgr_line_ch(&owners, '\n');
     // Where the persistent tier ends and where the temporary tier's top is now. The gap between them is what a take
     // from either tier can still get
-    const SeriesCellularum *const record = cli_pool_series_cellularum();
+    const SeriesCellularum *const record = platform_pool_series();
     mmgr_line_put(&owners, "cells ends ");
     mmgr_line_decimal(&owners, (unsigned long long)mmgr_series_cellularum_persistent_end(record), 1u);
     mmgr_line_ch(&owners, ' ');
@@ -132,7 +132,7 @@ static CliJson s_json;
 
 const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
@@ -252,7 +252,7 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
 
 int cli_on_check(void)
 {
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char text[128];

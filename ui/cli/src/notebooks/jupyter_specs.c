@@ -283,7 +283,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
                 : CLI_JSON_NONE;
         const int read = (root != CLI_JSON_NONE) &&
                          EMBED_CALL(jupyter_spec_read, JupyterSpecsCtx, .root = root, .name = name, .folder = folder);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_notebook_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_notebook_owner);
         if (read && !jupyter_list(args))
         {
             return 0;
@@ -366,7 +366,7 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
 EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
 {
     s_listing.list_entries = 0u;
-    s_listing.names = g_cli_guard->temporary_buf_alloc(
+    s_listing.names = g_platform_guard->temporary_buf_alloc(
         (unsigned long long)CLI_KERNEL_LISTING * (CLI_KERNEL_ENTRY + CLI_PATH_MAX_LEN), g_cli_notebook_owner);
     if (s_listing.names == NULL)
     {
@@ -393,7 +393,7 @@ EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
         EMBED_CALL(jupyter_python_specs, JupyterSpecsCtx, .pythons = pythons, .has_environment = has_environment,
                    .each = args->each, .context = args->context);
     }
-    g_cli_guard->persistent_buf_release(s_listing.names, g_cli_notebook_owner);
+    g_platform_guard->persistent_buf_release(s_listing.names, g_cli_notebook_owner);
     s_listing.names = NULL;
     s_listing.programs = NULL;
 }

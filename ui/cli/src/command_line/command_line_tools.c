@@ -91,7 +91,7 @@ static void tools_plugin_row(const CliEachPluginCfg *args)
         (void)EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &unread,
                          .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ULL,
                          .err_msg = &err_msg, .owner = g_cli_command_line_owner);
-        g_cli_guard->persistent_buf_release(unread.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), unread.node));
+        g_platform_guard->persistent_buf_release(unread.node, mmgr_owner_of_buf(platform_pool_series(), unread.node));
         VerbaLinea name = {row->name, sizeof(row->name), 0ULL};
         mmgr_line_put(&name, "does not read: ");
         mmgr_line_put_n(&name, why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
@@ -147,8 +147,8 @@ EMBED_INLINE void tools_pad(const CommandLineToolsCtx *args)
 
 int cli_plugins_list(void)
 {
-    s_rows = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_PLUGINS_LISTING * sizeof(*s_rows),
-                                              g_cli_command_line_owner);
+    s_rows = g_platform_guard->temporary_buf_alloc((unsigned long long)CLI_PLUGINS_LISTING * sizeof(*s_rows),
+                                                   g_cli_command_line_owner);
     s_row_capacity = (s_rows != NULL) ? CLI_PLUGINS_LISTING : 0u;
     s_row_count = 0u;
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = tools_plugin_row, .context = NULL);
@@ -196,7 +196,7 @@ int cli_plugins_list(void)
         EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     }
-    g_cli_guard->persistent_buf_release(s_rows, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(s_rows, g_cli_command_line_owner);
     s_rows = NULL;
     s_row_count = 0u;
     s_row_capacity = 0u;
@@ -212,7 +212,7 @@ EMBED_INLINE int tools_tree_reserve(const CommandLineToolsCtx *args)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_POOL_BYTES}) + 1ULL;
     }
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &s_json,
@@ -421,7 +421,7 @@ int cli_new_plugin(const CliCommandLineWordsCountCtx *args)
         return CLI_WRONG;
     }
     const int written = EMBED_CALL(tools_new_plugin, CommandLineToolsCtx, .words = args->words, .count = args->count);
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return written;
@@ -511,7 +511,7 @@ int cli_toolchain_add(const CliCommandLineOutErrMsgCtx *args)
     const int added =
         (tool != CLI_JSON_NONE) && EMBED_CALL(cli_toolchains_err_msg.add, CliToolchainsErrMsgCfg, .supplied = &s_json,
                                               .tool = tool, .id_out = id, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!added)

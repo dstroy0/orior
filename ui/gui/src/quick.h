@@ -46,10 +46,10 @@ void gui_quick_draw(const GuiQuickCfg *args);
 // what the pixel at x, y is on while the box is open, the row's place into `index_out`: CLI_HIT_QUICK_ROW,
 // CLI_HIT_QUICK_BOX, CLI_HIT_QUICK_OUTSIDE, or CLI_HIT_NONE while it is closed
 unsigned int gui_quick_hit(const GuiQuickCfg *args);
-// the key `name` for the tree at `root` and the view displayed under `key` at `now_ms`: while open, Up and Down step the
-// chosen row, PageUp and PageDown GUI_QUICK_PAGE rows, Enter chooses it into `choice_out`, Escape closes the box, and
-// every other key goes to the typed text; while closed, the keys of a command of the quick open open it: 1 where the
-// key was taken. `length` bytes of `text` typed while open: 1 where they were. The row `at` pressed, chosen into
+// the key `name` for the tree at `root` and the view displayed under `key` at `now_ms`: while open, Up and Down step
+// the chosen row, PageUp and PageDown GUI_QUICK_PAGE rows, Enter chooses it into `choice_out`, Escape closes the box,
+// and every other key goes to the typed text; while closed, the keys of a command of the quick open open it: 1 where
+// the key was taken. `length` bytes of `text` typed while open: 1 where they were. The row `at` pressed, chosen into
 // `choice_out`: 1 where it opens something. And the wheel turned `rows` rows over the open box, the rows scrolled: 1
 // where it was open
 int gui_quick_key(const GuiQuickCfg *args);

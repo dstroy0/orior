@@ -25,7 +25,7 @@
 // are built by the restatement here: a change to either format must be made in both. The test prints one path it
 // builds.
 #include "../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "scan.h"
 #include "sim.h"
 #include "sort.h"

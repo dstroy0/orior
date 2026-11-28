@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bridge.cu: each pair's concept folded, each pair closed with what it is read into written beneath it, the bridge
 // passed back to the run's writer, and the decoding printed
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "decoder_internal.h"
 
 // 1 where a line of the bridge is a set's name alone, `<set>_coherence`

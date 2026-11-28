@@ -48,26 +48,26 @@ void test_a_files_size_is_answered(void)
 void test_a_file_reads_complete_into_a_cell_that_held_other_bytes(void)
 {
     const unsigned long long dirty = sizeof(s_text) - 1ull + CLI_FILE_SLACK;
-    unsigned char *const used = g_cli_guard->temporary_buf_alloc(dirty, g_checks_owner);
+    unsigned char *const used = g_platform_guard->temporary_buf_alloc(dirty, g_checks_owner);
     memor.set(&(MemoriaCfg){.dst = used, .val = 0xa5, .bytes = (size_t)dirty});
-    g_cli_guard->persistent_buf_release(used, g_checks_owner);
+    g_platform_guard->persistent_buf_release(used, g_checks_owner);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = s_path, .size_pointer = &s_size));
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(s_size + CLI_FILE_SLACK, g_checks_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(s_size + CLI_FILE_SLACK, g_checks_owner);
     TEST_ASSERT_NOT_NULL(cell);
     unsigned long long read = 0ull;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = s_path, .from = 0ull, .bytes_bytes = cell, .count_u64 = s_size, .got = &read));
     TEST_ASSERT_EQUAL_UINT64(s_size, read);
     TEST_ASSERT_EQUAL_MEMORY(s_text, cell, (size_t)s_size);
-    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    g_platform_guard->persistent_buf_release(cell, g_checks_owner);
 }
 
 void test_a_released_cell_comes_off_the_callers_owner(void)
 {
     const size_t before = mmgr_owner_in_use(g_checks_owner);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = s_path, .size_pointer = &s_size));
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(s_size + CLI_FILE_SLACK, g_checks_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(s_size + CLI_FILE_SLACK, g_checks_owner);
     TEST_ASSERT_NOT_NULL(cell);
-    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    g_platform_guard->persistent_buf_release(cell, g_checks_owner);
     TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_checks_owner));
 }
 
@@ -79,12 +79,12 @@ void test_an_empty_file_has_size_zero(void)
 
 void test_an_empty_file_reads_no_bytes(void)
 {
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(CLI_FILE_SLACK, g_checks_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(CLI_FILE_SLACK, g_checks_owner);
     TEST_ASSERT_NOT_NULL(cell);
     unsigned long long read = 1ull;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = s_empty, .from = 0ull, .bytes_bytes = cell, .count_u64 = 0ull, .got = &read));
     TEST_ASSERT_EQUAL_UINT64(0ull, read);
-    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    g_platform_guard->persistent_buf_release(cell, g_checks_owner);
 }
 
 void test_a_missing_file_has_no_size(void)
@@ -97,7 +97,7 @@ void test_a_file_read_complete_is_in_its_cell(void)
     unsigned char *const whole = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = g_checks_owner);
     TEST_ASSERT_NOT_NULL(whole);
     CLI_TEST_ASSERT_TEXT(s_text, whole, s_size);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)whole, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)whole, (g_checks_owner));
 }
 
 void test_a_file_read_complete_is_followed_by_zero_slack(void)
@@ -105,7 +105,7 @@ void test_a_file_read_complete_is_followed_by_zero_slack(void)
     unsigned char *const whole = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = g_checks_owner);
     TEST_ASSERT_NOT_NULL(whole);
     assert_zero(whole + s_size, CLI_FILE_SLACK);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)whole, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)whole, (g_checks_owner));
 }
 
 void test_a_file_read_complete_counts_to_the_named_owner_until_released(void)
@@ -113,7 +113,7 @@ void test_a_file_read_complete_counts_to_the_named_owner_until_released(void)
     const size_t before = mmgr_owner_in_use(g_checks_owner);
     unsigned char *const whole = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = g_checks_owner);
     TEST_ASSERT_GREATER_THAN_UINT64(before, mmgr_owner_in_use(g_checks_owner));
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)whole, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)whole, (g_checks_owner));
     TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_checks_owner));
 }
 
@@ -122,19 +122,19 @@ void test_a_piece_contains_the_bytes_requested_for(void)
     unsigned char *const piece = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = s_path, .from = 4ull, .count_u64 = 5ull, .size_pointer = &s_size, .owner = g_checks_owner);
     TEST_ASSERT_NOT_NULL(piece);
     CLI_TEST_ASSERT_TEXT("bytes", piece, s_size);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)piece, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)piece, (g_checks_owner));
 }
 
 void test_a_piece_end_the_end_is_shorter_with_zero_slack(void)
 {
     // a larger cell lands over the word before the one just released, which an allocation does not zero: the read zeroes the slack
     unsigned char *const piece = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = s_path, .from = 4ull, .count_u64 = 5ull, .size_pointer = &s_size, .owner = g_checks_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)piece, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)piece, (g_checks_owner));
     unsigned char *const end = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = s_path, .from = sizeof(s_text) - 3u, .count_u64 = 64ull, .size_pointer = &s_size, .owner = g_checks_owner);
     TEST_ASSERT_NOT_NULL(end);
     TEST_ASSERT_EQUAL_UINT64(2ull, s_size);
     assert_zero(end + s_size, CLI_FILE_SLACK);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)end, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)end, (g_checks_owner));
 }
 
 void test_an_empty_file_read_complete_has_no_bytes(void)
@@ -143,7 +143,7 @@ void test_an_empty_file_read_complete_has_no_bytes(void)
     TEST_ASSERT_NOT_NULL(nothing);
     TEST_ASSERT_EQUAL_UINT64(0ull, s_size);
     assert_zero(nothing, CLI_FILE_SLACK);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)nothing, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)nothing, (g_checks_owner));
 }
 
 void test_a_missing_file_read_complete_is_null_with_size_zero(void)
@@ -155,7 +155,7 @@ void test_a_missing_file_read_complete_is_null_with_size_zero(void)
 void test_releasing_null_changes_nothing(void)
 {
     const size_t before = mmgr_owner_in_use(g_checks_owner);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)NULL, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)NULL, (g_checks_owner));
     TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_checks_owner));
 }
 
@@ -168,5 +168,5 @@ void test_bytes_that_are_utf8_are_read(void)
 {
     unsigned char *const characters = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_path, .size_pointer = &s_size, .owner = g_checks_owner);
     TEST_ASSERT_NOT_NULL(characters);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)characters, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)characters, (g_checks_owner));
 }

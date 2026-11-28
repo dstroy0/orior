@@ -214,13 +214,13 @@ static void release_run_result(void)
         // the diagnostics published read out of their cell into the check's own bytes for the parse
         static char s_published[1u << 16u];
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_servers_published.page[place / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         TEST_ASSERT_TRUE(one.text_size < sizeof(s_published));
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one.cell,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one.cell,
                                                                 .offset = (embed_word)one.text_at,
                                                                 .dst = s_published,
                                                                 .bytes = (embed_word)one.text_size});
@@ -646,7 +646,7 @@ static void jobs_passed(void *context)
                                 .size = sizeof(value));
             if (!passed)
             {
-                cli_thread_yield();
+                platform_thread_yield();
             }
         }
         if (!passed)
@@ -668,14 +668,14 @@ void test_jobs_passed_over_from_four_threads_each_run_once_with_their_bytes(void
     for (unsigned int at = 0u; at < JOBS_THREADS; at += 1u)
     {
         s_jobs_first[at] = at * JOBS_EACH;
-        s_jobs_thread[at] = (CliThread){jobs_passed, &s_jobs_first[at], CLI_PRIORITY_WORK};
+        s_jobs_thread[at] = (CliThread){jobs_passed, &s_jobs_first[at], PLATFORM_PRIORITY_WORK};
         TEST_ASSERT_TRUE(EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_jobs_thread[at]));
     }
     const unsigned long long until = cli_clock_milliseconds() + 10000ull;
     while ((atomic_load(&s_jobs_run) + atomic_load(&s_jobs_empty) < JOBS_THREADS * JOBS_EACH) &&
            (cli_clock_milliseconds() < until))
     {
-        cli_thread_yield();
+        platform_thread_yield();
     }
     TEST_ASSERT_EQUAL_UINT(0u, atomic_load(&s_jobs_refused));
     TEST_ASSERT_EQUAL_UINT(0u, atomic_load(&s_jobs_empty));

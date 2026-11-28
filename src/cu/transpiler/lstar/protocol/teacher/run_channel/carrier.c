@@ -3,7 +3,7 @@
 // carrier.c: the carrier: the channel opened with the carrier's words, a line added to the list, the list written, an
 // answer read back, and a dry run's answer written
 #include "../../../../../../../includes/parsers/line_read.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "run_channel_internal.h"

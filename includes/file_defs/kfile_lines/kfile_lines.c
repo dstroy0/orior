@@ -3,7 +3,7 @@
 // kfile_lines.c: a k-file people read and write, its lines read, put by a who, and written back whole
 // (kfile_lines.h)
 #include "kfile_lines.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"

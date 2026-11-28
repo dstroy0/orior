@@ -1047,7 +1047,7 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
     const unsigned long long marks_count =
         (start < args->editor->frame->count) ? (args->editor->frame->row[last].number + 1ULL - marks_from) : 0ULL;
     unsigned char *const marks = ((args->key != NULL) && (marks_count != 0ULL))
-                                     ? g_cli_guard->temporary_buf_alloc(marks_count, g_cli_views_owner)
+                                     ? g_platform_guard->temporary_buf_alloc(marks_count, g_cli_views_owner)
                                      : NULL;
     if (marks != NULL)
     {
@@ -1073,7 +1073,7 @@ void gui_editor_draw(const GuiEditorPositionScaleCfg *args)
                    .selected_from = selected_from, .selected_to = selected_to, .marks = marks, .marks_from = marks_from,
                    .marks_count = marks_count);
     }
-    g_cli_guard->persistent_buf_release(marks, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(marks, g_cli_views_owner);
     // The sticky rows pinned over the rows at the editor's top, each on the widget's ground with its number and its
     // runs as a row displayed, a line along their foot; they are whole whatever part of a row the view has scrolled
     for (unsigned int pinned = 0u; pinned < args->editor->frame->stickies; pinned += 1u)

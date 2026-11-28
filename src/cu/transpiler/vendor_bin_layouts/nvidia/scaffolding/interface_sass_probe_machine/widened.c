@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // widened.c: the machine widened: a form's fields, an operation named, what a widening contains, the machine widened,
 // its fields, the sweep's carriers, the machine swept, and two machines the same
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "probe_machine_internal.h"
 

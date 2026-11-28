@@ -8,7 +8,7 @@
 // run; the memory image a lane runs over, arranged as the device arranges its launch; and the files a lane's bench
 // reads the image from and writes its records to. It compiles as C++
 
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "record_programs.h"

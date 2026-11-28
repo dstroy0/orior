@@ -248,7 +248,7 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
         mmgr_line_put(&flight, args->id_read);
         (void)mmgr_line_finish(&flight);
     }
-    g_cli_guard->persistent_buf_release(message, g_cli_notebook_owner);
+    g_platform_guard->persistent_buf_release(message, g_cli_notebook_owner);
     return sent;
 }
 

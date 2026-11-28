@@ -3,7 +3,7 @@
 // frame_forms.c: the frame forms of a part's ruleset. The module reads the table of names, writes a form's line as
 // the schema's form, and writes the lines. The ruleset's own line stays where the run passes none.
 #include "frame_forms.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

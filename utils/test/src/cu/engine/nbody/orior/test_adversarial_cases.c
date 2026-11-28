@@ -1,6 +1,6 @@
 
 // test_adversarial_cases.c: the adversarial cases: nets, overlaps, boundaries, symbols
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "test_adversarial_internal.h"

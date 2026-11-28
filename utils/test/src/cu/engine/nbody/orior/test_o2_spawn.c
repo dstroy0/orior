@@ -48,7 +48,7 @@
  */
 
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>

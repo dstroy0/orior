@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // query_trace.cu: the trace's flags read from their table, and a word of them written back by name
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "../../parsers/tree_folder.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

@@ -63,8 +63,8 @@ EMBED_INLINE int signature_param_at(const SignatureCtx *args)
     return -1;
 }
 
-// the label positioned from x, y `pixel_width` pixels wide, wrapped by characters, each parameter's span in its color with its
-// line, drawn where `raster` is given: the height taken
+// the label positioned from x, y `pixel_width` pixels wide, wrapped by characters, each parameter's span in its color
+// with its line, drawn where `raster` is given: the height taken
 static int signature_label_layout(const SignatureCtx *args)
 {
     GuiRaster *raster = args->raster;

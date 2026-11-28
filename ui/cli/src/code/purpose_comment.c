@@ -77,7 +77,7 @@ EMBED_INLINE int cli_byte_buffer_alloc(const PurposeCommentCtx *args)
     const unsigned long long capacity =
         (args->size < CLI_COMMENT_CAPACITY) ? (args->size + 1ULL) : CLI_COMMENT_CAPACITY;
     const unsigned long long spans = 2ULL * line_capacity * sizeof(CliSpan);
-    char *const cell = g_cli_guard->temporary_buf_alloc(spans + (3ULL * capacity), g_cli_purpose_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(spans + (3ULL * capacity), g_cli_purpose_owner);
     if (cell == NULL)
     {
         return 0;
@@ -474,7 +474,7 @@ void cli_purpose_first_comment(const CliPurposePathTextCfg *args)
     {
         EMBED_CALL(cli_comment_read, PurposeCommentCtx, .path = args->path, .text = args->text, .out = args->out);
     }
-    g_cli_guard->persistent_buf_release(s_work_state.line, g_cli_purpose_owner);
+    g_platform_guard->persistent_buf_release(s_work_state.line, g_cli_purpose_owner);
     s_work_state.line = NULL;
     s_work_state.body = NULL;
     s_work_state.lines = 0u;

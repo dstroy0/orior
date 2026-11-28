@@ -148,7 +148,7 @@ int cli_trust_answer_in(const CliTrustTreeCfg *args)
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = yes, .tree = key);
     const unsigned long long by_refused =
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = no, .tree = key);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     *trusted = by_trusted > by_refused;
@@ -217,10 +217,10 @@ int cli_trust_answer_set(const CliTrustFolderCfg *args)
     // the answers written anew: each list's folders as they are, less this folder, and this folder in the list its
     // answer names; each folder's bytes escape to six at max
     const unsigned long long capacity = (json.used * 6ULL) + (CLI_PATH_MAX_LEN * 6ULL) + 64ULL;
-    char *const cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_machine_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(capacity, g_cli_machine_owner);
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         mmgr_line_put(args->err_msg, "the cellblock could not meet the answers");
         return 0;
     }
@@ -232,7 +232,7 @@ int cli_trust_answer_set(const CliTrustFolderCfg *args)
     EMBED_CALL(cli_list_write, TrustCtx, .json_read = &json, .list = no, .tree = key, .out = &out,
                .add = args->trusted_value == 0);
     mmgr_line_put(&out, "]\n}\n");
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     const int written =
         mmgr_line_ok(&out) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                                          .bytes = out.out, .size = out.at);
@@ -241,6 +241,6 @@ int cli_trust_answer_set(const CliTrustFolderCfg *args)
         mmgr_line_put(args->err_msg, "the answers could not be written to ");
         mmgr_line_put(args->err_msg, path);
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_machine_owner);
     return written;
 }

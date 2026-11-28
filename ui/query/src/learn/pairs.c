@@ -28,9 +28,8 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
     int known = 0;
     for (unsigned int at = 0u; (args->count != 0u) && (at < 11u); at += 1u)
     {
-        known =
-            known ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = args->words_characters[0], .other = s_modes[at], .cap = CLI_POOL_BYTES}));
+        known = known || (cellul.eq(&(CatenaFinitaCfg){
+                             .src = args->words_characters[0], .other = s_modes[at], .cap = CLI_POOL_BYTES}));
     }
     if (!known)
     {
@@ -231,8 +230,8 @@ int query_pairs_configs(const QueryPairsPartContextCtx *args)
     {
         s_read[at] = s_paths[at];
     }
-    return EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = run, .paths_characters = s_read,
-                      .count = 7u, .err_msg = err_msg);
+    return EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = run,
+                      .paths_characters = s_read, .count = 7u, .err_msg = err_msg);
 }
 
 int query_host_answer(const QueryPairsContextCtx *args)

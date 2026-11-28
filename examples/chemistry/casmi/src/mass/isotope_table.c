@@ -17,7 +17,7 @@
  * any other form leaves both -1. A value written past those places is refused and the table is not
  * written: nothing is rounded.
  */
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>

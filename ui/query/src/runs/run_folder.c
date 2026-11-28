@@ -125,16 +125,15 @@ int query_runs_alloc(const QueryFolderRunsCtx *args)
     {
         return 1;
     }
-    runs->number = g_cli_guard->persistent_buf_alloc((unsigned long long)counting.count * sizeof(unsigned long long),
-                                                     g_query_owner);
-    runs->path =
-        (runs->number != NULL)
-            ? g_cli_guard->persistent_buf_alloc((unsigned long long)counting.count * QUERY_PATH_MAX_LEN, g_query_owner)
-            : NULL;
+    runs->number = g_platform_guard->persistent_buf_alloc(
+        (unsigned long long)counting.count * sizeof(unsigned long long), g_query_owner);
+    runs->path = (runs->number != NULL) ? g_platform_guard->persistent_buf_alloc(
+                                              (unsigned long long)counting.count * QUERY_PATH_MAX_LEN, g_query_owner)
+                                        : NULL;
     if (runs->path == NULL)
     {
-        g_cli_guard->persistent_buf_release(runs->number, g_query_owner);
-        g_cli_guard->persistent_buf_release(runs->path, g_query_owner);
+        g_platform_guard->persistent_buf_release(runs->number, g_query_owner);
+        g_platform_guard->persistent_buf_release(runs->path, g_query_owner);
         *runs = (QueryRuns){NULL, NULL, 0u};
         return 0;
     }
@@ -259,7 +258,7 @@ int query_open(const QueryCapacityQryPathCtx *args)
         return 1;
     }
     const char *const words[5] = {args->crystal, "read", args->qry_path, args->named, NULL};
-    QueryProcess read;
+    PlatformProgram read;
     return EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &read, .words = words,
                       .folder = NULL, .output = QUERY_OUTPUT_NONE) &&
            (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &read) == 0LL);
@@ -308,8 +307,8 @@ void query_runs_prune(const QueryFolderMaxCtx *args)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = runs.path[at]);
     }
-    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.path, g_query_owner);
     runs = (QueryRuns){NULL, NULL, 0u};
 }
 
@@ -358,8 +357,8 @@ int query_latest_run(const QueryLoopsFolderCfg *args)
             latest = (args->found[0] != '\0') ? 1 : -1;
         }
     }
-    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.path, g_query_owner);
     runs = (QueryRuns){NULL, NULL, 0u};
     return latest == 1;
 }

@@ -6,8 +6,8 @@
 // square, and the job decides from the count whether it takes a second cell. The host crosses the answer out and agrees
 // with it
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_job.h"
-#include "../../../../../../../src/platform/platform.h"
-#include "../../../../../../../src/platform/platform_device.h"
+#include "../../../../../../../includes/platform/platform.h"
+#include "../../../../../../../includes/platform/platform_device.h"
 
 #include <cooperative_groups.h>
 #include <cuda_runtime.h>

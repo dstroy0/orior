@@ -95,7 +95,7 @@
 // vendor. Exit 0 where a line went out. Exit 2 where no writer of the run runs, or where the inputs, the machine or the
 // driver were out of reach.
 #include "../../../../../includes/parsers/line_read.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_run/cubin_run_internal.h"

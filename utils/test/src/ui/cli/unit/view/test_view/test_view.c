@@ -1936,10 +1936,10 @@ void test_a_views_change_is_reported_once_and_its_words_and_map_come_off_the_wal
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, capacity);
     TEST_ASSERT_NOT_NULL(map);
     CliDocumentMapHead head = {0ull, 0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = map, .dst = &head, .bytes = sizeof(head)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = map, .dst = &head, .bytes = sizeof(head)});
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, head.count);
     TEST_ASSERT_GREATER_THAN_UINT(0u, head.bars);
-    (void)g_cli_guard->movable_buf_release(map, g_cli_text_owner);
+    (void)g_platform_guard->movable_buf_release(map, g_cli_text_owner);
 }
 
 // a fold written after the others as `first-last`, `|` between them

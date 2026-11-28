@@ -27,7 +27,7 @@ extern "C"
 }
 
 #include "../../../../../../includes/file_defs/krs/ruleset_flat.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sass_target.h"

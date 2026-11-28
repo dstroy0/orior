@@ -3,7 +3,7 @@
 // read.c: the vendor's instruction set read: each CLASS with its opcode, its fields by name and its constant-bank
 // operand
 #include "read.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

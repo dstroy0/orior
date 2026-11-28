@@ -51,7 +51,7 @@
 #include <stdlib.h>
 
 #include "sha256_core.h"
-#include "../../src/platform/platform.h"
+#include "../../includes/platform/platform.h"
 
 /** @brief Leading zero bits a first-winner must reach. Small, a header costs about 2^16 hashes. */
 #define WANTED_ZEROS 16u

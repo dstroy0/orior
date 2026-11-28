@@ -23,9 +23,9 @@ typedef struct
 // given
 int cli_zmtp_connect(const CliZmtpSocketHostCfg *args);
 // a message of the frames given written whole as the wire carries it, each frame's head before its body, in a cell of
-// its size the caller gives back with g_cli_guard->persistent_buf_release, its size into `size`: the message, or NULL
-// where the cells cannot meet it; and the frames given sent as one message in one write: 1, or 0 where the connection
-// failed or the cells cannot meet the message
+// its size the caller gives back with g_platform_guard->persistent_buf_release, its size into `size`: the message, or
+// NULL where the cells cannot meet it; and the frames given sent as one message in one write: 1, or 0 where the
+// connection failed or the cells cannot meet the message
 unsigned char *cli_zmtp_message_init(const CliZmtpCfg *args);
 int cli_zmtp_send(const CliZmtpFramesCountCfg *args);
 // the next message's frames, the commands between messages passed over, each body in `capacity`, a message larger than

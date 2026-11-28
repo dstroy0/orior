@@ -163,7 +163,7 @@ EMBED_INLINE int cover_work_state_alloc(const TestCoverageCtx *args)
     const unsigned long long lines = args->counts_read->numbers + 1ULL;
     const unsigned long long bytes = (files * (sizeof(unsigned long long) + sizeof(unsigned int))) +
                                      (lines * sizeof(CliCoverLine)) + args->counts_read->bytes + 1ULL + (4ULL * 8ULL);
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
     if (cell == NULL)
     {
         return 0;
@@ -562,7 +562,7 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
     const unsigned long long out_capacity = (s_cover->used * 6ULL) + ((unsigned long long)s_cover->files * 64ULL) +
                                             ((unsigned long long)s_cover->line_count * 12ULL) + 64ULL;
     char *const out_cell =
-        (s_cover->files > 0u) ? g_cli_guard->temporary_buf_alloc(out_capacity, g_cli_tests_owner) : NULL;
+        (s_cover->files > 0u) ? g_platform_guard->temporary_buf_alloc(out_capacity, g_cli_tests_owner) : NULL;
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     if (out_cell != NULL)
     {
@@ -604,8 +604,8 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
                        .size = out.at);
         }
     }
-    g_cli_guard->persistent_buf_release(out.out, g_cli_tests_owner);
-    g_cli_guard->persistent_buf_release(s_cover->capacity, g_cli_tests_owner);
+    g_platform_guard->persistent_buf_release(out.out, g_cli_tests_owner);
+    g_platform_guard->persistent_buf_release(s_cover->capacity, g_cli_tests_owner);
     s_cover->capacity = NULL;
     s_cover = NULL;
 }

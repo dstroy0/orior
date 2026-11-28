@@ -24,7 +24,7 @@ static void assert_values(const char *required, unsigned int serial, unsigned in
         mmgr_line_ch(&line, '=');
         mmgr_line_put(&line, values[each].value);
     }
-    g_cli_guard->persistent_buf_release(values, g_checks_owner);
+    g_platform_guard->persistent_buf_release(values, g_checks_owner);
     CLI_TEST_ASSERT_TEXT(required, text, line.at);
 }
 

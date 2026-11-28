@@ -274,7 +274,7 @@ void test_a_write_that_the_reader_allowed_writes_the_file(void)
     TEST_ASSERT_NOT_NULL(text);
     TEST_ASSERT_EQUAL_UINT64(4ULL, size);
     TEST_ASSERT_EQUAL_MEMORY("made", text, 4u);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)text, g_cli_scripts_owner);
 }
 
 void test_an_unknown_command_fails(void)

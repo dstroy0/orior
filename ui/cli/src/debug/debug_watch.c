@@ -142,7 +142,7 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
         VerbaLinea line = {placed, sizeof(placed), 0ULL};
         mmgr_line_put_max(&line, args->data, CLI_NAME_MAX_LEN - 1u);
         (void)mmgr_line_finish(&line);
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = session->data_cell,
                                 .offset = (unsigned long long)session->data_count * CLI_NAME_MAX_LEN,
                                 .src = placed,
@@ -153,10 +153,11 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
     for (unsigned int at = 0u; at < session->data_count; at += 1u)
     {
         char placed[CLI_NAME_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = session->data_cell,
-                                                                .offset = (unsigned long long)at * CLI_NAME_MAX_LEN,
-                                                                .dst = placed,
-                                                                .bytes = CLI_NAME_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = session->data_cell,
+                                .offset = (unsigned long long)at * CLI_NAME_MAX_LEN,
+                                .dst = placed,
+                                .bytes = CLI_NAME_MAX_LEN});
         mmgr_line_put(&answer->args.line, (at > 0u) ? ",{\"dataId\":" : "{\"dataId\":");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args.line,
                    .text_bytes = (const unsigned char *)placed,

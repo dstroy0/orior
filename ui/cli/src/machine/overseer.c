@@ -51,7 +51,7 @@ static unsigned long long s_next_tick_ms;
 // the record at `at` read into `record`, with the gate shut
 EMBED_INLINE void overseer_read(const OverseerCtx *args)
 {
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_records,
                             .offset = (unsigned long long)args->at * sizeof(OverseerRecord),
                             .dst = args->record,
@@ -61,7 +61,7 @@ EMBED_INLINE void overseer_read(const OverseerCtx *args)
 // the record `record` written at `at`, with the gate shut
 EMBED_INLINE void overseer_write(const OverseerCtx *args)
 {
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_records,
                             .offset = (unsigned long long)args->at * sizeof(OverseerRecord),
                             .src = args->record,
@@ -74,7 +74,7 @@ EMBED_INLINE unsigned int overseer_find(const OverseerCtx *args)
     const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_NAME_MAX_LEN}) + 1ULL;
     for (unsigned int at = 0u; at < s_count; at += 1u)
     {
-        if (g_cli_guard->movable_buf_compare(
+        if (g_platform_guard->movable_buf_compare(
                 &(CarcerMovableCfg){.cell = s_records,
                                     .offset = (unsigned long long)at * sizeof(OverseerRecord),
                                     .src = args->name,
@@ -94,8 +94,8 @@ EMBED_INLINE int overseer_room(void)
         return 1;
     }
     const unsigned int capacity = s_capacity + OVERSEER_GROWTH;
-    const CarcerMovableEntry *const grown =
-        g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(OverseerRecord), g_cli_overseer_owner);
+    const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(
+        (unsigned long long)capacity * sizeof(OverseerRecord), g_cli_overseer_owner);
     if (grown == NULL)
     {
         return 0;
@@ -104,12 +104,12 @@ EMBED_INLINE int overseer_room(void)
     {
         OverseerRecord record;
         EMBED_CALL(overseer_read, OverseerCtx, .at = at, .record = &record);
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = grown, .offset = (unsigned long long)at * sizeof(record), .src = &record, .bytes = sizeof(record)});
     }
     if (s_records != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_records, g_cli_overseer_owner);
+        (void)g_platform_guard->movable_buf_release(s_records, g_cli_overseer_owner);
     }
     s_records = grown;
     s_capacity = capacity;
@@ -464,7 +464,7 @@ void cli_overseer_end(void)
     cli_gate_shut(&s_gate);
     if (s_records != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_records, g_cli_overseer_owner);
+        (void)g_platform_guard->movable_buf_release(s_records, g_cli_overseer_owner);
     }
     s_records = NULL;
     s_count = 0u;

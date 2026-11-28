@@ -13,7 +13,7 @@
 // each distinct pair of a bank field's span and an offset field's span with the count of classes positioning their
 // constant operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as
 // above, and 1 where the instruction set could not be read
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "../cubin_safe.h"
 #include "cellularum_laboro/cellularum_laboro.h"

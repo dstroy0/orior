@@ -135,7 +135,7 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
     {
         channel->thread.run = cli_channel_run;
         channel->thread.context = channel;
-        channel->thread.priority = CLI_PRIORITY_RUN;
+        channel->thread.priority = PLATFORM_PRIORITY_RUN;
         channel->started = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &channel->thread);
     }
     for (;;)

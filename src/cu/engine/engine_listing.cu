@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_listing.cu: the listing, geff arrays, lanes and the iapx codec
-#include "../../platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "analysis/compression/compression_job.h"
 #include "analysis/tower/tower_job.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -36,83 +36,70 @@ static int entry_order_names(const void *left, const void *right)
                                      PLATFORM_TEXT_TO_TERMINATOR);
 }
 
+// what one listing gathers: the folder, whether it lists the samples of a set, and the names found
+typedef struct
+{
+    const char *directory;
+    int samples_of_set;
+    PlatformArray *found;
+} EntryListing;
+
+// one entry of the folder, which the platform heard: its stem kept where it names a sample
+static void entry_listing_named(void *context, const char *name, int folder)
+{
+    (void)folder;
+    // Explicit cast takes the context that entry_listing gave as the listing that it holds
+    const EntryListing *const listing = (const EntryListing *)context;
+    if (name[0] == '.')
+    {
+        return;
+    }
+    char stem[ENTRY_PATH_CAPACITY];
+    {
+        VerbaLinea buffer_line = mmgr_line_over(stem, sizeof(stem));
+        mmgr_line_put(&buffer_line, name);
+        (void)mmgr_line_finish(&buffer_line);
+    }
+    int has_sample = 0;
+    if (listing->samples_of_set != 0)
+    {
+        char character[ENTRY_PATH_CAPACITY];
+        has_sample = engine_sample_path(character, sizeof(character), listing->directory, name, ENTRY_CRYSTAL_SUFFIX) &&
+                     entry_exists(character);
+    }
+    for (unsigned int suffix = 0u;
+         (listing->samples_of_set == 0) && (has_sample == 0) && (suffix < ENTRY_SOURCE_SUFFIX_COUNT); suffix += 1u)
+    {
+        if (entry_ends(stem, ENTRY_SOURCE_SUFFIXES[suffix]))
+        {
+            stem[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+                 EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = ENTRY_SOURCE_SUFFIXES[suffix],
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+            has_sample = 1;
+        }
+    }
+    if (has_sample != 0)
+    {
+        const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
+        char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
+        if (copy != NULL)
+        {
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = stem, .bytes = size);
+        }
+        if ((copy != NULL) && (platform_array_appended(listing->found, &copy) == 0))
+        {
+            platform_cell_released(copy, platform_place_g_program_owner);
+        }
+    }
+}
+
 static unsigned int entry_listing(const char *directory, char ***names, int samples_of_set)
 {
     PlatformArray found;
     platform_array_begun(&found, sizeof(char *), platform_place_g_program_owner, 0);
-#ifdef _WIN32
-    char pattern[ENTRY_PATH_CAPACITY];
-    {
-        VerbaLinea buffer_line = mmgr_line_over(pattern, sizeof(pattern));
-        mmgr_line_put(&buffer_line, directory);
-        mmgr_line_put(&buffer_line, "/*");
-        (void)mmgr_line_finish(&buffer_line);
-    }
-    struct __finddata64_t entry;
-    const intptr_t search = _findfirst64(pattern, &entry);
-    for (int more = (search != -1) ? 0 : -1; more == 0; more = _findnext64(search, &entry))
-    {
-        const char *const name = entry.name;
-#else
-    DIR *const search = opendir(directory);
-    for (struct dirent *entry = (search != NULL) ? readdir(search) : NULL; entry != NULL; entry = readdir(search))
-    {
-        const char *const name = entry->d_name;
-#endif
-        if (name[0] == '.')
-        {
-            continue;
-        }
-        char stem[ENTRY_PATH_CAPACITY];
-        {
-            VerbaLinea buffer_line = mmgr_line_over(stem, sizeof(stem));
-            mmgr_line_put(&buffer_line, name);
-            (void)mmgr_line_finish(&buffer_line);
-        }
-        int has_sample = 0;
-        if (samples_of_set != 0)
-        {
-            char character[ENTRY_PATH_CAPACITY];
-            has_sample = engine_sample_path(character, sizeof(character), directory, name, ENTRY_CRYSTAL_SUFFIX) &&
-                         entry_exists(character);
-        }
-        for (unsigned int suffix = 0u;
-             (samples_of_set == 0) && (has_sample == 0) && (suffix < ENTRY_SOURCE_SUFFIX_COUNT); suffix += 1u)
-        {
-            if (entry_ends(stem, ENTRY_SOURCE_SUFFIXES[suffix]))
-            {
-                stem[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
-                     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = ENTRY_SOURCE_SUFFIXES[suffix],
-                                .cap = PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
-                has_sample = 1;
-            }
-        }
-        if (has_sample != 0)
-        {
-            const size_t size =
-                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
-            char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
-            if (copy != NULL)
-            {
-                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = stem, .bytes = size);
-            }
-            if ((copy != NULL) && (platform_array_appended(&found, &copy) == 0))
-            {
-                platform_cell_released(copy, platform_place_g_program_owner);
-            }
-        }
-    }
-#ifdef _WIN32
-    if (search != -1)
-    {
-        _findclose(search);
-    }
-#else
-    if (search != NULL)
-    {
-        closedir(search);
-    }
-#endif
+    EntryListing listing = {directory, samples_of_set, &found};
+    // a folder that the system does not open lists no names
+    (void)platform_folder_listed(directory, entry_listing_named, &listing);
     // the names end in NULL, which the array holds past its count
     const unsigned long long count = found.count;
     const char *const end = NULL;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // log.cu: the log read off the run into the pairs, puts, case sets, metas, categories and choices, and each pair's set,
 // product and identity decoded off its puts
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "decoder_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

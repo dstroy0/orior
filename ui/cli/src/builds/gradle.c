@@ -251,7 +251,7 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     script->declares = 0u;
     // a byte past the text, so a script of no bytes is a cell too
     script->class_of =
-        (size <= CLI_GRADLE_TEXT) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_gradle_owner) : NULL;
+        (size <= CLI_GRADLE_TEXT) ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_gradle_owner) : NULL;
     if (script->class_of == NULL)
     {
         return 0;
@@ -268,16 +268,17 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
     }
     opens = (opens < CLI_GRADLE_BLOCKS) ? opens : CLI_GRADLE_BLOCKS;
     closes = (closes < CLI_GRADLE_BLOCKS) ? closes : CLI_GRADLE_BLOCKS;
-    script->block = g_cli_guard->temporary_buf_alloc((opens + 1ULL) * sizeof(CliGradleBlock), g_cli_gradle_owner);
-    script->stray = g_cli_guard->temporary_buf_alloc((closes + 1ULL) * sizeof(unsigned long long), g_cli_gradle_owner);
+    script->block = g_platform_guard->temporary_buf_alloc((opens + 1ULL) * sizeof(CliGradleBlock), g_cli_gradle_owner);
+    script->stray =
+        g_platform_guard->temporary_buf_alloc((closes + 1ULL) * sizeof(unsigned long long), g_cli_gradle_owner);
     unsigned int *const opened =
-        g_cli_guard->temporary_buf_alloc((opens + 1ULL) * sizeof(unsigned int), g_cli_gradle_owner);
+        g_platform_guard->temporary_buf_alloc((opens + 1ULL) * sizeof(unsigned int), g_cli_gradle_owner);
     if ((script->block == NULL) || (script->stray == NULL) || (opened == NULL))
     {
-        g_cli_guard->persistent_buf_release(opened, g_cli_gradle_owner);
-        g_cli_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
-        g_cli_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
-        g_cli_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
+        g_platform_guard->persistent_buf_release(opened, g_cli_gradle_owner);
+        g_platform_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
+        g_platform_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
+        g_platform_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
         script->class_of = NULL;
         script->block = NULL;
         script->stray = NULL;
@@ -313,7 +314,7 @@ int cli_gradle_read(const CliGradleTextSizeCtx *args)
             script->strays += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(opened, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(opened, g_cli_gradle_owner);
     return 1;
 }
 
@@ -379,7 +380,7 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
             unsigned long long length = 0ULL;
             if (!EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
                             .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = line_end,
-                                                 .at = word_text, .length = &length)))
+                                                    .at = word_text, .length = &length)))
             {
                 break;
             }
@@ -441,7 +442,7 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
                 (g_cli_gradle.class_of[at] != CLI_GRADLE_CODE) ||
                 ((at > 0u) && EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
                                          .character = EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg,
-                                                              .text = text, .end_value = at, .length = &before))))
+                                                                 .text = text, .end_value = at, .length = &before))))
             {
                 continue;
             }

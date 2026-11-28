@@ -390,7 +390,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
     const unsigned long long directory_capacity = end - start;
     const unsigned long long deflated_capacity = args->data_size;
     unsigned char *const writing =
-        g_cli_guard->temporary_buf_alloc(directory_capacity + deflated_capacity + 1ULL, g_cli_editor_owner);
+        g_platform_guard->temporary_buf_alloc(directory_capacity + deflated_capacity + 1ULL, g_cli_editor_owner);
     if (writing == NULL)
     {
         mmgr_line_put(args->err_msg, "a zip's writing could not be taken");
@@ -537,6 +537,6 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         used += tail;
         *out_size = used;
     }
-    g_cli_guard->persistent_buf_release(writing, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(writing, g_cli_editor_owner);
     return done;
 }

@@ -15,7 +15,7 @@
  */
 
 #include "cuda_miner.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include <cstdio>
 #include <vector>

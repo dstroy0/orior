@@ -20,7 +20,7 @@ extern "C"
 
 #include "../../../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "machine_ir_types.h"
 #include "sass_target.h"

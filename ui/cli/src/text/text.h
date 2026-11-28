@@ -44,13 +44,13 @@ typedef struct
 
 // the line of `size` bytes of `text` that starts at `at`
 CliTextLine cli_text_line_at(const CliTextAtCfg *args);
-// the character at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the character that ends before
-// `end` and the bytes it takes
+// the character at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the character that ends
+// before `end` and the bytes it takes
 unsigned int cli_text_character(const CliTextAtCfg *args);
 unsigned int cli_text_character_before(const CliTextLengthCfg *args);
 
-// whether a character is whitespace, as Unicode reads it; and whether it is alphabetic, and alphanumeric, as Rust's char
-// defines, by the Unicode properties the regular expressions read
+// whether a character is whitespace, as Unicode reads it; and whether it is alphabetic, and alphanumeric, as Rust's
+// char defines, by the Unicode properties the regular expressions read
 int cli_text_white(const CliTextCfg *args);
 int cli_text_alphabetic(const CliTextCfg *args);
 int cli_text_alphanumeric(const CliTextCfg *args);
@@ -59,8 +59,8 @@ int cli_text_alphanumeric(const CliTextCfg *args);
 // `byte`; and whether every one is below 0x80. Each a word at a time
 void cli_text_swap(const CliTextSizeFromCfg *args);
 void cli_text_lower(const CliTextSizeFromCfg *args);
-// the small characters of `size` bytes made capitals; and `text` copied into `out`, sized for `capacity`, in lower case:
-// its length, the copy ended with a NUL
+// the small characters of `size` bytes made capitals; and `text` copied into `out`, sized for `capacity`, in lower
+// case: its length, the copy ended with a NUL
 void cli_text_raise(const CliTextSizeFromCfg *args);
 unsigned long long cli_text_lowered_into(const CliTextOutCapacityCfg *args);
 // the text `text`, `otherwise` where it is NULL, copied into `out` with its terminator

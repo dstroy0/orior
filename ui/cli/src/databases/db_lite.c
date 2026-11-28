@@ -225,7 +225,7 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     lite->count = 0ULL;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = lite->path_text,
                .size = sizeof(lite->path_text));
-    const CliSetting settings[2] = {{"PATH", lite->path_text}, {"PYTHONIOENCODING", "utf-8"}};
+    const PlatformSetting settings[2] = {{"PATH", lite->path_text}, {"PYTHONIOENCODING", "utf-8"}};
     const char *const words[5] = {python, "-I", "-u", shim, NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -397,7 +397,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     // line SQLite's process reads
     const unsigned long long quoted = (6ULL * args->size) + 16ULL;
     const unsigned long long capacity = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
-    char *const request = g_cli_guard->temporary_buf_alloc(capacity, g_cli_db_owner);
+    char *const request = g_platform_guard->temporary_buf_alloc(capacity, g_cli_db_owner);
     VerbaLinea query = mmgr_line_over(request, capacity);
     mmgr_line_put(&query, "{\"start\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &query,
@@ -406,7 +406,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     const int fits = mmgr_line_ok(&query);
     const int answered = fits && EMBED_CALL(lite_query, DbLiteCtx, .lite = args->lite, .request = query.out,
                                             .size = query.at, .failure = args->failure);
-    g_cli_guard->persistent_buf_release(request, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(request, g_cli_db_owner);
     if (!fits)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,

@@ -4,7 +4,7 @@
 #include "keymath_core.h"
 
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 #define KEYMATH_CHECK(condition_, evacaddr_, error_, type_)                                                            \

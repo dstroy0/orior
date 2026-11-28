@@ -5,7 +5,7 @@
 // of the job are the only copies between the host and the device in the engine.
 #include "tessera_job.h"
 
-#include "../../../../platform/platform_device.h"
+#include "../../../../../includes/platform/platform_device.h"
 
 #include <cuda_runtime.h>
 

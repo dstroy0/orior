@@ -43,7 +43,7 @@ EMBED_INLINE void theme_at_read(const ThemesCtx *args)
     memor.set(&(MemoriaCfg){.dst = args->theme, .val = 0, .bytes = sizeof(*args->theme)});
     if (args->themes_read->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->themes_read->cell,
                                 .offset = (unsigned long long)args->at * sizeof(GuiTheme),
                                 .dst = args->theme,
@@ -56,7 +56,7 @@ EMBED_INLINE void theme_at_write(const ThemesCtx *args)
 {
     if (args->themes_read->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = args->themes_read->cell,
                                 .offset = (unsigned long long)args->at * sizeof(GuiTheme),
                                 .src = args->theme_read,
@@ -67,7 +67,8 @@ EMBED_INLINE void theme_at_write(const ThemesCtx *args)
 int gui_themes_init(const GuiThemesOwnerCfg *args)
 {
     GuiThemes *const themes = args->themes;
-    themes->cell = g_cli_guard->movable_buf_alloc((unsigned long long)GUI_THEMES_MAX * sizeof(GuiTheme), args->owner);
+    themes->cell =
+        g_platform_guard->movable_buf_alloc((unsigned long long)GUI_THEMES_MAX * sizeof(GuiTheme), args->owner);
     themes->owner = args->owner;
     themes->count = 0u;
     return themes->cell != NULL;
@@ -78,7 +79,7 @@ void gui_themes_free(const GuiThemesOwnerCfg *args)
     GuiThemes *const themes = args->themes;
     if (themes->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(themes->cell, themes->owner);
+        (void)g_platform_guard->movable_buf_release(themes->cell, themes->owner);
     }
     themes->cell = NULL;
     themes->count = 0u;
@@ -203,7 +204,7 @@ void gui_themes_read(const GuiThemesTextCfg *args)
         return;
     }
     // each theme read into a record of this call, then written into the themes' cell
-    GuiTheme *const one = g_cli_guard->temporary_buf_alloc(sizeof(*one), args->owner);
+    GuiTheme *const one = g_platform_guard->temporary_buf_alloc(sizeof(*one), args->owner);
     for (unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                         .node = root, .type = CFG_JSON_ARRAY)
                                  ? json.node[root].first
@@ -216,8 +217,8 @@ void gui_themes_read(const GuiThemesTextCfg *args)
             themes->count += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(one, args->owner);
-    g_cli_guard->persistent_buf_release(json.node, args->owner);
+    g_platform_guard->persistent_buf_release(one, args->owner);
+    g_platform_guard->persistent_buf_release(json.node, args->owner);
 }
 
 int gui_theme_read(const GuiThemeTextCfg *args)
@@ -230,7 +231,7 @@ int gui_theme_read(const GuiThemeTextCfg *args)
         return 0;
     }
     const int read = EMBED_CALL(theme_object_read, ThemesCtx, .json = &json, .node = root, .theme = args->theme_out);
-    g_cli_guard->persistent_buf_release(json.node, args->owner);
+    g_platform_guard->persistent_buf_release(json.node, args->owner);
     return read;
 }
 
@@ -328,14 +329,14 @@ void gui_themes_text(const GuiThemesOutCfg *args)
     const GuiThemes *const themes = args->themes_read;
     mmgr_line_ch(args->out, '[');
     // each theme read into a record of this call for the write
-    GuiTheme *const one = g_cli_guard->temporary_buf_alloc(sizeof(*one), themes->owner);
+    GuiTheme *const one = g_platform_guard->temporary_buf_alloc(sizeof(*one), themes->owner);
     for (unsigned int at = 0u; (one != NULL) && (at < themes->count); at += 1u)
     {
         EMBED_CALL(theme_at_read, ThemesCtx, .themes_read = themes, .at = at, .theme = one);
         mmgr_line_put(args->out, (at != 0u) ? "," : "");
         EMBED_CALL(theme_write, ThemesCtx, .theme_read = one, .out = args->out, .pretty = 0, .indent = 0u);
     }
-    g_cli_guard->persistent_buf_release(one, themes->owner);
+    g_platform_guard->persistent_buf_release(one, themes->owner);
     mmgr_line_ch(args->out, ']');
 }
 
@@ -356,10 +357,11 @@ unsigned int gui_theme_find(const GuiThemesNameCfg *args)
     // a theme's name opens its record, so the name's bytes with their end are ordered against it in place
     for (unsigned int at = 0u; at < themes->count; at += 1u)
     {
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = themes->cell,
-                                                                 .offset = (unsigned long long)at * sizeof(GuiTheme),
-                                                                 .src = args->name,
-                                                                 .bytes = length + 1ULL}) == 0)
+        if (g_platform_guard->movable_buf_compare(
+                &(CarcerMovableCfg){.cell = themes->cell,
+                                    .offset = (unsigned long long)at * sizeof(GuiTheme),
+                                    .src = args->name,
+                                    .bytes = length + 1ULL}) == 0)
         {
             return at;
         }
@@ -419,7 +421,7 @@ unsigned int gui_theme_add(const GuiThemesAtNameCfg *args)
         return themes->count;
     }
     // the theme made in a record of this call: the one at `from` under the new name, or an empty one
-    GuiTheme *const theme = g_cli_guard->temporary_buf_alloc(sizeof(*theme), themes->owner);
+    GuiTheme *const theme = g_platform_guard->temporary_buf_alloc(sizeof(*theme), themes->owner);
     if (theme == NULL)
     {
         return themes->count;
@@ -432,7 +434,7 @@ unsigned int gui_theme_add(const GuiThemesAtNameCfg *args)
     EMBED_CALL(theme_text_copy, ThemesCtx, .text = args->name, .out_text = theme->name,
                .capacity = sizeof(theme->name));
     EMBED_CALL(theme_at_write, ThemesCtx, .themes_read = themes, .at = themes->count, .theme_read = theme);
-    g_cli_guard->persistent_buf_release(theme, themes->owner);
+    g_platform_guard->persistent_buf_release(theme, themes->owner);
     themes->count += 1u;
     return themes->count - 1u;
 }
@@ -445,13 +447,13 @@ void gui_theme_remove(const GuiThemesAtCfg *args)
         return;
     }
     // each theme after the one taken out moved down one place through a record of this call
-    GuiTheme *const moved = g_cli_guard->temporary_buf_alloc(sizeof(*moved), themes->owner);
+    GuiTheme *const moved = g_platform_guard->temporary_buf_alloc(sizeof(*moved), themes->owner);
     for (unsigned int at = args->at + 1u; (moved != NULL) && (at < themes->count); at += 1u)
     {
         EMBED_CALL(theme_at_read, ThemesCtx, .themes_read = themes, .at = at, .theme = moved);
         EMBED_CALL(theme_at_write, ThemesCtx, .themes_read = themes, .at = at - 1u, .theme_read = moved);
     }
-    g_cli_guard->persistent_buf_release(moved, themes->owner);
+    g_platform_guard->persistent_buf_release(moved, themes->owner);
     themes->count -= (moved != NULL) ? 1u : 0u;
 }
 
@@ -464,7 +466,7 @@ EMBED_INLINE int theme_changed(const GuiThemesAtCfg *args, int (*each)(const The
     {
         return 0;
     }
-    GuiTheme *const theme = g_cli_guard->temporary_buf_alloc(sizeof(*theme), themes->owner);
+    GuiTheme *const theme = g_platform_guard->temporary_buf_alloc(sizeof(*theme), themes->owner);
     if (theme == NULL)
     {
         return 0;
@@ -477,7 +479,7 @@ EMBED_INLINE int theme_changed(const GuiThemesAtCfg *args, int (*each)(const The
     {
         EMBED_CALL(theme_at_write, ThemesCtx, .themes_read = themes, .at = args->at, .theme_read = theme);
     }
-    g_cli_guard->persistent_buf_release(theme, themes->owner);
+    g_platform_guard->persistent_buf_release(theme, themes->owner);
     return changed;
 }
 
@@ -553,7 +555,7 @@ int gui_theme_color_get(const GuiThemesAtColorCfg *args)
     {
         return 0;
     }
-    GuiTheme *const theme = g_cli_guard->temporary_buf_alloc(sizeof(*theme), themes->owner);
+    GuiTheme *const theme = g_platform_guard->temporary_buf_alloc(sizeof(*theme), themes->owner);
     if (theme == NULL)
     {
         return 0;
@@ -565,7 +567,7 @@ int gui_theme_color_get(const GuiThemesAtColorCfg *args)
     {
         *args->color_pointer = theme->color[place].color;
     }
-    g_cli_guard->persistent_buf_release(theme, themes->owner);
+    g_platform_guard->persistent_buf_release(theme, themes->owner);
     return set;
 }
 

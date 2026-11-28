@@ -147,7 +147,7 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     const unsigned long long list_bytes =
         top_bytes + (((3ULL * query_bytes) + (2ULL * longest)) * sizeof(unsigned int));
     unsigned char *const list_cell =
-        (list_bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(list_bytes, g_cli_files_views_owner) : NULL;
+        (list_bytes != 0ULL) ? g_platform_guard->temporary_buf_alloc(list_bytes, g_cli_files_views_owner) : NULL;
     if ((list_bytes != 0ULL) && (list_cell == NULL))
     {
         if (files != NULL)
@@ -198,10 +198,11 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     const unsigned long long row_bytes = (unsigned long long)count * sizeof(CliFileRanked);
     const unsigned long long place_bytes = places * sizeof(unsigned int);
     const CarcerMovableEntry *const cell =
-        (count != 0u) ? g_cli_guard->movable_buf_alloc(row_bytes + place_bytes + text, g_cli_files_views_owner) : NULL;
+        (count != 0u) ? g_platform_guard->movable_buf_alloc(row_bytes + place_bytes + text, g_cli_files_views_owner)
+                      : NULL;
     if ((count != 0u) && (cell == NULL))
     {
-        g_cli_guard->persistent_buf_release(list_cell, g_cli_files_views_owner);
+        g_platform_guard->persistent_buf_release(list_cell, g_cli_files_views_owner);
         if (files != NULL)
         {
             EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
@@ -223,24 +224,24 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
         (void)EMBED_CALL(ranked_matched, FilesRankedCtx, .find = args, .lists = &lists, .path = path,
                          .required = required, .score_out = &score, .hits_out = &hits);
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = paths_at + used, .src = path, .bytes = length + 1ULL});
         if (hits != 0u)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = cell,
                                     .offset = row_bytes + ((unsigned long long)put * sizeof(unsigned int)),
                                     .src = lists.hit,
                                     .bytes = hits * sizeof(unsigned int)});
         }
         const CliFileRanked one = {used, lists.top[at].score, put, hits};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = cell, .offset = (unsigned long long)at * sizeof(one), .src = &one, .bytes = sizeof(one)});
         put += hits;
         used += length + 1ULL;
     }
     // the module lets its work go before the answer goes to the caller
-    g_cli_guard->persistent_buf_release(list_cell, g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(list_cell, g_cli_files_views_owner);
     if (files != NULL)
     {
         EMBED_CALL(cli_files_let_internal.let, CliFilesCfg, .files = files);
@@ -249,7 +250,7 @@ int cli_files_ranked_find(const CliFilesRootRowsCfg *args)
     args->each(&(CliFilesRankedEachCfg){.context = args->context, .ranked = &ranked});
     if (cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(cell, g_cli_files_views_owner);
+        (void)g_platform_guard->movable_buf_release(cell, g_cli_files_views_owner);
     }
     return 1;
 }
@@ -264,21 +265,22 @@ int cli_files_ranked_at(const CliFilesRankedAtCfg *args)
         return 0;
     }
     CliFileRanked *const row = args->row_out;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = ranked->cell,
-                                                            .offset = (unsigned long long)args->index * sizeof(*row),
-                                                            .dst = row,
-                                                            .bytes = sizeof(*row)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = ranked->cell,
+                            .offset = (unsigned long long)args->index * sizeof(*row),
+                            .dst = row,
+                            .bytes = sizeof(*row)});
     const unsigned long long path_at = ranked->text_at + row->path_at;
     const unsigned long long length =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = ranked->cell, .offset = path_at});
+        g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = ranked->cell, .offset = path_at});
     const unsigned long long bytes = (length < CLI_PATH_MAX_LEN - 1ULL) ? length : CLI_PATH_MAX_LEN - 1ULL;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = ranked->cell, .offset = path_at, .dst = out, .bytes = bytes});
     out[bytes] = '\0';
     row->hit_count = (row->hit_count < args->hits_max) ? row->hit_count : args->hits_max;
     if (row->hit_count != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = ranked->cell,
                                 .offset = ranked->hit_at + ((unsigned long long)row->hit_first * sizeof(unsigned int)),
                                 .dst = args->hits_out,

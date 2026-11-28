@@ -246,7 +246,7 @@ EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
     // the capacity is at max CLI_LEAVES_MAX, which an unsigned int counts
     const unsigned int capacity = (wanted < CLI_LEAVES_MAX) ? (unsigned int)wanted : CLI_LEAVES_MAX;
     CliLeaf *const grown =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliLeaf), g_cli_leaves_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliLeaf), g_cli_leaves_owner);
     if (grown == NULL)
     {
         return 0;
@@ -255,7 +255,7 @@ EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = read->leaf, .bytes = (embed_word)read->count * sizeof(CliLeaf)});
     }
-    g_cli_guard->persistent_buf_release(read->leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read->leaf, g_cli_leaves_owner);
     read->leaf = grown;
     read->capacity = capacity;
     return 1;

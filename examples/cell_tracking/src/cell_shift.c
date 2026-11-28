@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include "../../../includes/exact_types/integers/arm.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "../../../includes/exact_types/integers/exact_integer.h"
 
 #define SHIFT_TEXT 64u

@@ -9,7 +9,7 @@
 // deadline. The test is one job on the device's tessera daemon, submitted before its first device work.
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_device.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_ledger.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

@@ -13,7 +13,8 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py run --report-out PATH      and write the run's summary as a Markdown table
     harness.py run --at HASH              the suites of orior as it was at a commit
     harness.py run --idle SECONDS         a suite silent this long once admitted is hung (1800; 0 never)
-    harness.py build gui | mmgr           the window's program and MMgr's suites built (harness_build.py)
+    harness.py build gui | cli | mmgr     the window's and the command line's programs, and MMgr's suites, built
+                                          (harness_build.py)
     harness.py cli build | test | coverage  the CLI built, its Unity suites run, and their coverage merged (harness_cli.py)
     harness.py cu wrappers | build        every .cu given a thin wrapper, and nvcc builds the wrappers (harness_cu.py)
     harness.py container ...              the window's systems as containers that stay up, each with its own copy of the

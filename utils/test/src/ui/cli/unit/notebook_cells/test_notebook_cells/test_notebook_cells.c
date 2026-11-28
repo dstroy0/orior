@@ -364,7 +364,7 @@ void test_the_save_writes_the_notebook_and_clears_the_changed_mark(void)
     TEST_ASSERT_NOT_NULL(written);
     TEST_ASSERT_TRUE(bytes_contain((const char *)written, size, "\"name\": \"python3\""));
     const CliNotebookModel *const saved = opened("nb:b", full, (const char *)written);
-    g_cli_guard->persistent_buf_release(written, g_cli_notebook_open_owner);
+    g_platform_guard->persistent_buf_release(written, g_cli_notebook_open_owner);
     TEST_ASSERT_EQUAL_UINT(4u, saved->cells);
     TEST_ASSERT_EQUAL_UINT(CLI_NOTEBOOK_MARKDOWN, notebook_cell_at(saved, 3u).type);
     TEST_ASSERT_EQUAL_UINT(1u, notebook_cell_at(saved, 0u).outputs);

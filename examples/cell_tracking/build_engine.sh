@@ -107,7 +107,7 @@ for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching c
 done
 # the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
 PORTABLE_SOURCES+=("$ENGINE/../../../includes/file_defs/qry/writer/qry_member.c"
-    "$ENGINE/../../../includes/file_defs/qry/writer/platform/"*.c "$ENGINE/../../../includes/file_defs/qry/qry_read.c"
+    "${PLATFORM_QRY_RUN[@]}" "$ENGINE/../../../includes/file_defs/qry/qry_read.c"
     "${EXACT_TYPES_PLATFORM_LIBRARY[@]}")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)

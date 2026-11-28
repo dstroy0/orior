@@ -90,7 +90,7 @@ EMBED_INLINE int diff_reserve(const DiffCtx *args)
     const unsigned long long bytes =
         (8ULL * both) + (8ULL * ((2ULL * max) + 3ULL)) + both + (4ULL * both) + (8ULL * 8ULL);
     memor.set(&(MemoriaCfg){.dst = args->diff, .val = 0, .bytes = sizeof(*args->diff)});
-    args->diff->cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_text_owner);
+    args->diff->cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_text_owner);
     if (args->diff->cell == NULL)
     {
         return 0;
@@ -199,8 +199,8 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
     // every round's frontier in one cell of the square of the rounds it holds room for: CLI_DIFF_ROUNDS_FIRST rounds
     // first, the room doubled as the rounds pass it, the frontiers moved into the larger cell
     long long rounds = (max < CLI_DIFF_ROUNDS_FIRST) ? (max + 1) : CLI_DIFF_ROUNDS_FIRST;
-    args->diff->trace =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long), g_cli_text_owner);
+    args->diff->trace = g_platform_guard->temporary_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long),
+                                                              g_cli_text_owner);
     if (args->diff->trace == NULL)
     {
         return 0;
@@ -213,7 +213,7 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
         if (d >= rounds)
         {
             const long long wider = ((rounds * 2) < (max + 1)) ? (rounds * 2) : (max + 1);
-            long long *const grown = g_cli_guard->temporary_buf_alloc(
+            long long *const grown = g_platform_guard->temporary_buf_alloc(
                 (unsigned long long)(wider * wider) * sizeof(long long), g_cli_text_owner);
             if (grown == NULL)
             {
@@ -222,7 +222,7 @@ EMBED_INLINE int cli_shortest(const DiffCtx *args)
             // the rounds before `d` are in the first d * d entries
             memor.cpy(&(MemoriaCfg){
                 .dst = grown, .src = args->diff->trace, .bytes = (unsigned long long)(d * d) * sizeof(long long)});
-            g_cli_guard->persistent_buf_release(args->diff->trace, g_cli_text_owner);
+            g_platform_guard->persistent_buf_release(args->diff->trace, g_cli_text_owner);
             args->diff->trace = grown;
             rounds = wider;
         }
@@ -360,7 +360,7 @@ int cli_diff_line_changes(const CliDocumentOutThenCfg *args)
         line += (at < diff.steps) ? 1u : 0u;
         then_line += (at < diff.steps) ? 1u : 0u;
     }
-    g_cli_guard->persistent_buf_release(diff.trace, g_cli_text_owner);
-    g_cli_guard->persistent_buf_release(diff.cell, g_cli_text_owner);
+    g_platform_guard->persistent_buf_release(diff.trace, g_cli_text_owner);
+    g_platform_guard->persistent_buf_release(diff.cell, g_cli_text_owner);
     return found;
 }

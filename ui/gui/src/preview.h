@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // preview.h: the preview part: the CLI's items drawn in the frame's preview rectangle on the editor's ground, beside
-// the text or alone over it as the mode positions the frame, each item at its page pixels times the frame's scale less the
-// CLI's scroll top, from the first item the CLI finds for the top to the first block below the rectangle, a thin thumb
-// at the right where the items pass the rectangle; the wheel and a press passed to the CLI (preview.c)
+// the text or alone over it as the mode positions the frame, each item at its page pixels times the frame's scale less
+// the CLI's scroll top, from the first item the CLI finds for the top to the first block below the rectangle, a thin
+// thumb at the right where the items pass the rectangle; the wheel and a press passed to the CLI (preview.c)
 #ifndef GUI_WINDOW_PREVIEW_H
 #define GUI_WINDOW_PREVIEW_H
 #include "../../../includes/window/frame.h"

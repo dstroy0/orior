@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_cache.cu: the cache, compiling and linking, the PTX header
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cycle_compile_internal.h"
@@ -76,14 +76,9 @@ int cycle_cache_read(const char *path, const char *source, unsigned long long le
 void cycle_cache_write(const char *folder, const char *path, const char *source, unsigned long long length,
                        const void *image, unsigned long long count)
 {
-#if defined(_WIN32)
-    _mkdir(folder);
-    const int process = _getpid();
-#else
-    mkdir(folder, 0755);
-    // a pid is positive. It converts exactly
-    const int process = (int)getpid();
-#endif
+    (void)platform_folder_made(folder);
+    // a process id of the system is positive and fits an int
+    const int process = (int)platform_process_id();
     char partial[PLATFORM_PATH_BYTES];
     {
         VerbaLinea buffer_line = mmgr_line_over(partial, sizeof(partial));
@@ -104,7 +99,7 @@ void cycle_cache_write(const char *folder, const char *path, const char *source,
                         (platform_file_write_items(source, 1u, (size_t)length, file) == length) &&
                         (platform_file_write_items(image, 1u, (size_t)count, file) == count);
     const int closed = platform_file_close(file) == 0;
-    if (!written || !closed || !platform_file_moved(partial, path))
+    if (!written || !closed || (platform_file_relocated(partial, path) != PLATFORM_MOVE_DONE))
     {
         (void)platform_file_removed(partial);
     }

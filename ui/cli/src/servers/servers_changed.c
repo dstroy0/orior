@@ -225,7 +225,7 @@ EMBED_INLINE int changed_names(const ServersChangedCtx *args)
         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size) &&
         EMBED_CALL(changed_text_names, ServersChangedCtx, .text = (const char *)mapped, .size = size,
                    .tool = args->tool, .files = args->files, .count = args->count);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
     return names;
 }
 
@@ -241,12 +241,12 @@ static void changed_removed_find(const CliEachKeyedEntryCfg *args)
         (args->entry.key_size < sizeof(key)) ? args->entry.key_size : (sizeof(key) - 1u);
     const unsigned long long uri_bytes =
         (args->entry.adjacent_size < sizeof(uri)) ? args->entry.adjacent_size : (sizeof(uri) - 1u);
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->entry.cell, .offset = 0u, .dst = key, .bytes = (embed_word)key_bytes});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
-                                                            .offset = (embed_word)args->entry.key_size + 1u,
-                                                            .dst = uri,
-                                                            .bytes = (embed_word)uri_bytes});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                 .offset = (embed_word)args->entry.key_size + 1u,
+                                                                 .dst = uri,
+                                                                 .bytes = (embed_word)uri_bytes});
     key[key_bytes] = '\0';
     uri[uri_bytes] = '\0';
     char path[CLI_PATH_MAX_LEN];
@@ -333,8 +333,8 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
     const unsigned long long capacity = (((unsigned long long)args->count + g_cli_servers_published.entries) * 32ULL) +
                                         ((unsigned long long)args->count * CLI_PATH_MAX_LEN * 6ULL) + (stored * 6ULL) +
                                         32ULL;
-    char *const uris = g_cli_guard->temporary_buf_alloc(removed_capacity, g_cli_servers_owner);
-    char *const changes_json = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    char *const uris = g_platform_guard->temporary_buf_alloc(removed_capacity, g_cli_servers_owner);
+    char *const changes_json = g_platform_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
     VerbaLinea deleted = mmgr_line_over(uris, removed_capacity);
     VerbaLinea line = mmgr_line_over(changes_json, capacity);
     CliServersEvents events = {&line, 0, &deleted};
@@ -358,25 +358,25 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
     {
         EMBED_CALL(changed_servers_send, ServersChangedCtx, .events = line.out, .size = line.at);
     }
-    g_cli_guard->persistent_buf_release(changes_json, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(changes_json, g_cli_servers_owner);
     const unsigned long long removed_size = mmgr_line_ok(&deleted) ? deleted.at : 0ULL;
     for (unsigned long long at = 0ULL; at < removed_size;
          at += cellul.len(&(CatenaFinitaCfg){.src = uris + at, .cap = CLI_POOL_BYTES}) + 1ULL)
     {
         EMBED_CALL(changed_removed_emit, ServersChangedCtx, .uri = uris + at, .sink = args->sink);
     }
-    g_cli_guard->persistent_buf_release(uris, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(uris, g_cli_servers_owner);
 }
 
 // the round's cells given back, and the round cleared
 EMBED_INLINE void changed_released(void)
 {
-    g_cli_guard->persistent_buf_release(s_batch.tree_paths, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(s_batch.tree, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(s_batch.again, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(s_batch.file_tool, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(s_batch.tool, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(s_batch.tool_language, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(s_batch.tree_paths, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(s_batch.tree, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(s_batch.again, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(s_batch.file_tool, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(s_batch.tool, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(s_batch.tool_language, g_cli_servers_owner);
     memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
 }
 
@@ -394,14 +394,14 @@ EMBED_INLINE int changed_alloc(const ServersChangedCtx *args)
     }
     const unsigned long long positions = (unsigned long long)s_batch.trees + 1ULL;
     s_batch.tree = (s_batch.tree_paths != NULL)
-                       ? g_cli_guard->temporary_buf_alloc(positions * sizeof(char *), g_cli_servers_owner)
+                       ? g_platform_guard->temporary_buf_alloc(positions * sizeof(char *), g_cli_servers_owner)
                        : NULL;
     s_batch.again =
         (s_batch.tree != NULL)
-            ? g_cli_guard->temporary_buf_alloc((positions + args->count) * sizeof(char *), g_cli_servers_owner)
+            ? g_platform_guard->temporary_buf_alloc((positions + args->count) * sizeof(char *), g_cli_servers_owner)
             : NULL;
     s_batch.file_tool = (s_batch.again != NULL)
-                            ? g_cli_guard->temporary_buf_alloc(
+                            ? g_platform_guard->temporary_buf_alloc(
                                   ((unsigned long long)args->count + 1ULL) * sizeof(unsigned int), g_cli_servers_owner)
                             : NULL;
     if (s_batch.file_tool == NULL)
@@ -411,9 +411,9 @@ EMBED_INLINE int changed_alloc(const ServersChangedCtx *args)
     // each changed file goes to one toolchain at most
     s_batch.tools_max = args->count;
     const unsigned long long names = ((unsigned long long)s_batch.tools_max + 1ULL) * CLI_NAME_MAX_LEN;
-    s_batch.tool = g_cli_guard->temporary_buf_alloc(names, g_cli_servers_owner);
+    s_batch.tool = g_platform_guard->temporary_buf_alloc(names, g_cli_servers_owner);
     s_batch.tool_language =
-        (s_batch.tool != NULL) ? g_cli_guard->temporary_buf_alloc(names, g_cli_servers_owner) : NULL;
+        (s_batch.tool != NULL) ? g_platform_guard->temporary_buf_alloc(names, g_cli_servers_owner) : NULL;
     unsigned long long at = 0ULL;
     for (unsigned int file = 0u; file < s_batch.trees; file += 1u)
     {
@@ -442,7 +442,7 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
                                                        .size_pointer = &size, .owner = g_cli_servers_owner);
         const int integer = (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                            .bytes = (const char *)mapped, .size = size);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
         if (integer)
         {
             EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx,

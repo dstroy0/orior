@@ -1,0 +1,221 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// windows_watch.c: the tree's changes as Windows reports them, through ReadDirectoryChangesW over the whole tree, on a
+// thread of the watch's own that waits on the system's answer and on its stop together
+#include "../../../ui/cli/src/command_line/callback_cfg.h"
+#include "../../../ui/cli/src/command_line/cli_internal.h"
+#include "../../../ui/cli/src/text/text.h"
+
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+
+// the buffer the system writes changes into, in 32-bit words: 64 KB, the max a folder shared over a network takes;
+// where a record's name starts, after its offset to the next, its action and its name's length; and what is watched
+#define CLI_WATCH_BUFFER (16u * 1024u)
+#define CLI_WATCH_NAME_AT 12u
+#define CLI_WATCH_FILTER                                                                                               \
+    (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE |                            \
+     FILE_NOTIFY_CHANGE_LAST_WRITE)
+
+// The watch: the tree's folder, the events of the system's answer and of the stop, who is notified, the thread, whether
+// it has ended, the query in flight and the buffer
+typedef struct
+{
+    HANDLE folder;
+    HANDLE answered;
+    HANDLE stopped;
+    CliChangeFn emit;
+    void *context;
+    CliThread thread;
+    int running;
+    int ended;
+    CliWake wake;
+    OVERLAPPED overlapped;
+    DWORD buffer[CLI_WATCH_BUFFER];
+} CliWatch;
+
+static CliWatch s_watch = {.wake = CLI_WAKE_INIT};
+
+typedef struct
+{
+#if (defined(_WIN32))
+    DWORD written;
+#endif
+} WindowsWatchCtx;
+// the records the system wrote, `written` bytes, each reported by its path from the tree's top and what happened to it
+EMBED_INLINE void cli_records_emit(const WindowsWatchCtx *args)
+{
+    unsigned long long at = 0ULL;
+    const unsigned char *const bytes = (const unsigned char *)s_watch.buffer;
+    const unsigned long long size = (args->written < sizeof(s_watch.buffer)) ? args->written : sizeof(s_watch.buffer);
+    while ((at + CLI_WATCH_NAME_AT) <= size)
+    {
+        DWORD next = 0u;
+        DWORD action = 0u;
+        DWORD length = 0u;
+        memor.cpy(&(MemoriaCfg){.dst = &next, .src = bytes + at, .bytes = 4u});
+        memor.cpy(&(MemoriaCfg){.dst = &action, .src = bytes + at + 4u, .bytes = 4u});
+        memor.cpy(&(MemoriaCfg){.dst = &length, .src = bytes + at + 8u, .bytes = 4u});
+        if ((at + CLI_WATCH_NAME_AT + length) > size)
+        {
+            break;
+        }
+        char path[CLI_PATH_MAX_LEN * 3u];
+        // the name lies within what the system wrote, on a two-byte boundary, half its bytes in units
+        const int made =
+            WideCharToMultiByte(CP_UTF8, 0u, (const wchar_t *)(const void *)(bytes + at + CLI_WATCH_NAME_AT),
+                                (int)(length / 2u), path, (int)sizeof(path) - 1, NULL, NULL);
+        path[(made > 0) ? made : 0] = '\0';
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = path,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .from = '\\', .to = '/');
+        unsigned int type;
+        if ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))
+        {
+            type = CLI_CHANGE_ADDED;
+        }
+        else if ((action == FILE_ACTION_REMOVED) || (action == FILE_ACTION_RENAMED_OLD_NAME))
+        {
+            type = CLI_CHANGE_REMOVED;
+        }
+        else
+        {
+            type = CLI_CHANGE_MODIFIED;
+        }
+        EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = path, .type = type);
+        if (next == 0u)
+        {
+            break;
+        }
+        at += next;
+    }
+}
+
+// the system queried for the tree's changes, the query left in flight until the system answers it: 1, or 0 where the
+// system refused the query
+static int cli_watch_query(void)
+{
+    memor.set(&(MemoriaCfg){.dst = &s_watch.overlapped, .val = 0, .bytes = sizeof(s_watch.overlapped)});
+    s_watch.overlapped.hEvent = s_watch.answered;
+    ResetEvent(s_watch.answered);
+    return ReadDirectoryChangesW(s_watch.folder, s_watch.buffer, (DWORD)sizeof(s_watch.buffer), TRUE, CLI_WATCH_FILTER,
+                                 NULL, &s_watch.overlapped, NULL) != 0;
+}
+
+// Each answer of the system reported and the system queried again, until the stop is set. The first query is in
+// flight before the thread starts: a change made the moment the watch is started is in its answer
+static void cli_watch_read(void *context)
+{
+    (void)context;
+    for (;;)
+    {
+        const HANDLE waits[2] = {s_watch.answered, s_watch.stopped};
+        const DWORD waited = WaitForMultipleObjects(2u, waits, FALSE, INFINITE);
+        DWORD written = 0u;
+        if (waited != WAIT_OBJECT_0)
+        {
+            CancelIoEx(s_watch.folder, &s_watch.overlapped);
+            GetOverlappedResult(s_watch.folder, &s_watch.overlapped, &written, TRUE);
+            break;
+        }
+        if (!GetOverlappedResult(s_watch.folder, &s_watch.overlapped, &written, FALSE))
+        {
+            break;
+        }
+        if (written == 0u)
+        {
+            EMBED_CALL(s_watch.emit, CliEachPathTypeCfg, .context = s_watch.context, .path = "",
+                       .type = CLI_CHANGE_LOST);
+        }
+        else
+        {
+            EMBED_CALL(cli_records_emit, WindowsWatchCtx, .written = written);
+        }
+        if (!cli_watch_query())
+        {
+            break;
+        }
+    }
+    CloseHandle(s_watch.folder);
+    CloseHandle(s_watch.answered);
+    s_watch.ended = 1;
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watch.wake);
+}
+
+int cli_watch_system_start(const CliRootContextCtx *args)
+{
+    CliChangeFn emit = args->emit;
+    void *context = args->context;
+    cli_watch_system_stop();
+    wchar_t pixel_width[CLI_PATH_MAX_LEN];
+    if (MultiByteToWideChar(CP_UTF8, 0, args->root, -1, pixel_width, CLI_PATH_MAX_LEN) == 0)
+    {
+        return 0;
+    }
+    const HANDLE folder =
+        CreateFileW(pixel_width, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+    if (folder == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+    const HANDLE answered = CreateEventW(NULL, TRUE, FALSE, NULL);
+    const HANDLE stopped = CreateEventW(NULL, TRUE, FALSE, NULL);
+    if ((answered == NULL) || (stopped == NULL))
+    {
+        CloseHandle(folder);
+        if (answered != NULL)
+        {
+            CloseHandle(answered);
+        }
+        if (stopped != NULL)
+        {
+            CloseHandle(stopped);
+        }
+        return 0;
+    }
+    s_watch.folder = folder;
+    s_watch.answered = answered;
+    s_watch.stopped = stopped;
+    s_watch.emit = emit;
+    s_watch.context = context;
+    s_watch.ended = 0;
+    if (!cli_watch_query())
+    {
+        CloseHandle(folder);
+        CloseHandle(answered);
+        CloseHandle(stopped);
+        return 0;
+    }
+    s_watch.thread = (CliThread){cli_watch_read, NULL};
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_watch.thread))
+    {
+        DWORD written = 0u;
+        CancelIoEx(folder, &s_watch.overlapped);
+        GetOverlappedResult(folder, &s_watch.overlapped, &written, TRUE);
+        CloseHandle(folder);
+        CloseHandle(answered);
+        CloseHandle(stopped);
+        return 0;
+    }
+    s_watch.running = 1;
+    return 1;
+}
+
+void cli_watch_system_stop(void)
+{
+    if (!s_watch.running)
+    {
+        return;
+    }
+    SetEvent(s_watch.stopped);
+    unsigned int wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watch.wake);
+    while (!s_watch.ended)
+    {
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_watch.wake, .seen = wake_seen);
+        wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_watch.wake);
+    }
+    CloseHandle(s_watch.stopped);
+    s_watch.running = 0;
+}
+#endif

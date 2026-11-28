@@ -197,11 +197,11 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
     }
     const char *const words[7] = {program, "clone", "--progress", "--", args->url, args->target, NULL};
     // git prompts for no password at a terminal no one can type into; a credential helper still may
-    const CliSetting settings[2] = {{"PATH", s_run_path}, {"GIT_TERMINAL_PROMPT", "0"}};
-    CliSpawned spawned;
+    const PlatformSetting settings[2] = {{"PATH", s_run_path}, {"GIT_TERMINAL_PROMPT", "0"}};
+    PlatformProgram spawned;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ULL};
-    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
+    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = PLATFORM_PRIORITY_GUEST,
                     .spawned = &spawned, .words = words, .folder = NULL, .settings = settings, .count = 2u,
                     .detached = 1, .err_msg = &unstarted))
     {

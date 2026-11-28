@@ -30,7 +30,7 @@ esac
 "${CC:-cc}" "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -o "$OUT/ksg" "$TOP/includes/file_defs/ksg/ksg.c" \
     "$TOP/includes/file_defs/ksg/ksg_approvals.c" "$TOP/includes/file_defs/ksg/ksa.c" \
     "$TOP/includes/file_defs/ksg/ksg_seal.c" "$TOP/includes/codecs/ed25519/ed25519.c" \
-    "$TOP/includes/codecs/sha512/sha512.c" "$TOP"/includes/file_defs/qry/writer/platform/*.c \
+    "$TOP/includes/codecs/sha512/sha512.c" "${PLATFORM_QRY_RUN[@]}" \
     "${RANDOMNESS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 TRIAL="$OUT/trial"
 rm -rf "$TRIAL"

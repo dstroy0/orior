@@ -476,7 +476,7 @@ void test_a_folders_entries_are_listed_in_a_cell_and_a_folder_listed_by_the_same
                                            .dir = "", .owner = g_cli_text_owner, .err_msg = &err_msg);
     TEST_ASSERT_NOT_NULL(top);
     TEST_ASSERT_EQUAL_UINT(2u, top->count);
-    g_cli_guard->persistent_buf_release(top, g_cli_text_owner);
+    g_platform_guard->persistent_buf_release(top, g_cli_text_owner);
     s_listed_line.at = 0ull;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_each.folder_list, CliFilesRootEachCfg, .root = s_root, .folder = "sub",
                                 .git = 0, .each = path_recorded, .context = NULL));

@@ -34,7 +34,7 @@
  *       transform can still be its own inverse.
  */
 
-#include "../../src/platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include <cstdio>
 #include <cstdlib>

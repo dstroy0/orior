@@ -18,7 +18,7 @@
 //   .points    six 32-bit words (frames, depth, height, width, limbs, bits), the readings (64 bits), C (65536 64-bit
 //              words), then a frame after another: its count, each point's voxel, each point's levels (limbs words,
 //              the lowest first)
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdint.h>

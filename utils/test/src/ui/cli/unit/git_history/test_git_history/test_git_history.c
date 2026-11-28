@@ -140,7 +140,7 @@ static void graph_created(void)
 static void graph_read(const char *words, int authors)
 {
     graph_created();
-    g_cli_guard->persistent_buf_release(s_graph.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_graph.text.bytes, g_cli_git_owner);
     s_graph.text.bytes = NULL;
     s_graph.text.used = 0ULL;
     s_graph.text.capacity = 0ULL;
@@ -175,7 +175,7 @@ static void line_history_read(void)
     static const char s_text[] = "one\nsecond\nnew\n";
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     lines_created();
-    g_cli_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
     s_lines.text.bytes = NULL;
     s_lines.text.used = 0ULL;
     s_lines.text.capacity = 0ULL;
@@ -221,14 +221,14 @@ static void repositories_created(void)
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = libs);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_repos_root, .relative = "libs/inner", .joined = s_repos_inner);
     repository_started(s_repos_inner, "trunk", "t", "b.txt", "two\n");
-    g_cli_guard->persistent_buf_release(s_repos.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_repos.text.bytes, g_cli_git_owner);
     s_repos.text.bytes = NULL;
     s_repos.text.used = 0ULL;
     s_repos.text.capacity = 0ULL;
     EMBED_CALL(cli_git_root_found_repositories.repositories, CliGitRootFoundRepositoriesCfg, .root = s_repos_root, .found_repositories_pointer = &s_repos);
     cli_unity_file(s_repos_root, "a.txt", "one more\n");
     cli_unity_file(s_repos_inner, "b.txt", "two more\n");
-    g_cli_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
     s_changed.text.bytes = NULL;
     s_changed.text.used = 0ULL;
     s_changed.text.capacity = 0ULL;
@@ -241,7 +241,7 @@ static void repositories_created(void)
     text_stored(s_repos_outer_subject, sizeof(s_repos_outer_subject), s_out);
     (void)git_run_result(s_repos_inner, "log", "-1", "--format=%s", NULL);
     text_stored(s_repos_inner_subject, sizeof(s_repos_inner_subject), s_out);
-    g_cli_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
     s_changed.text.bytes = NULL;
     s_changed.text.used = 0ULL;
     s_changed.text.capacity = 0ULL;
@@ -272,7 +272,7 @@ static void changes_stashed(void)
 // the stashes listed
 static void stashes_read(void)
 {
-    g_cli_guard->persistent_buf_release(s_stashes.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_stashes.text.bytes, g_cli_git_owner);
     s_stashes.text.bytes = NULL;
     s_stashes.text.used = 0ULL;
     s_stashes.text.capacity = 0ULL;
@@ -306,7 +306,7 @@ void test_a_commit_lists_the_files_it_changed_a_rename_with_the_name_it_had(void
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     graph_created();
-    g_cli_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
     s_touched.text.bytes = NULL;
     s_touched.text.used = 0ULL;
     s_touched.text.capacity = 0ULL;
@@ -321,7 +321,7 @@ void test_the_first_commit_lists_the_files_it_added(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     graph_created();
-    g_cli_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
     s_touched.text.bytes = NULL;
     s_touched.text.used = 0ULL;
     s_touched.text.capacity = 0ULL;
@@ -333,7 +333,7 @@ void test_an_id_that_is_not_hex_is_refused(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     graph_created();
-    g_cli_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
     s_touched.text.bytes = NULL;
     s_touched.text.used = 0ULL;
     s_touched.text.capacity = 0ULL;
@@ -407,7 +407,7 @@ void test_a_file_git_does_not_have_is_refused(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     lines_created();
-    g_cli_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
     s_lines.text.bytes = NULL;
     s_lines.text.used = 0ULL;
     s_lines.text.capacity = 0ULL;
@@ -461,7 +461,7 @@ void test_the_commits_that_touched_a_file_and_its_text_at_the_first_are_read(voi
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea line = {out, sizeof(out), 0ull};
     repositories_created();
-    g_cli_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
     s_commits.text.bytes = NULL;
     s_commits.text.used = 0ULL;
     s_commits.text.capacity = 0ULL;
@@ -475,7 +475,7 @@ void test_a_files_lines_commits_have_its_path_in_the_tree(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     repositories_created();
-    g_cli_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
     s_lines.text.bytes = NULL;
     s_lines.text.used = 0ULL;
     s_lines.text.capacity = 0ULL;
@@ -562,7 +562,7 @@ void test_a_commit_of_another_branch_is_listing(void)
 {
     char picked[CLI_NAME_MAX_LEN];
     topic_committed(picked);
-    g_cli_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
     s_commits.text.bytes = NULL;
     s_commits.text.used = 0ULL;
     s_commits.text.capacity = 0ULL;
@@ -582,7 +582,7 @@ void test_a_commit_is_cherry_picked_onto_this_branch_and_is_no_longer_elsewhere(
     TEST_ASSERT_TRUE(file_there(s_root, "c.txt"));
     TEST_ASSERT_TRUE(git_run_result(s_root, "log", "-1", "--format=%s", NULL));
     TEST_ASSERT_EQUAL_STRING("on topic", s_out);
-    g_cli_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
     s_commits.text.bytes = NULL;
     s_commits.text.used = 0ULL;
     s_commits.text.capacity = 0ULL;
@@ -603,31 +603,31 @@ void test_a_word_that_is_no_commit_is_refused(void)
 void test_each_lists_texts_are_in_a_cell_grown_as_they_are_added_and_released(void)
 {
     graph_read("", 0);
-    g_cli_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_touched.text.bytes, g_cli_git_owner);
     s_touched.text.bytes = NULL;
     s_touched.text.used = 0ULL;
     s_touched.text.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(s_graph.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_graph.text.bytes, g_cli_git_owner);
     s_graph.text.bytes = NULL;
     s_graph.text.used = 0ULL;
     s_graph.text.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_lines.text.bytes, g_cli_git_owner);
     s_lines.text.bytes = NULL;
     s_lines.text.used = 0ULL;
     s_lines.text.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(s_repos.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_repos.text.bytes, g_cli_git_owner);
     s_repos.text.bytes = NULL;
     s_repos.text.used = 0ULL;
     s_repos.text.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_changed.text.bytes, g_cli_git_owner);
     s_changed.text.bytes = NULL;
     s_changed.text.used = 0ULL;
     s_changed.text.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_commits.text.bytes, g_cli_git_owner);
     s_commits.text.bytes = NULL;
     s_commits.text.used = 0ULL;
     s_commits.text.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(s_stashes.text.bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_stashes.text.bytes, g_cli_git_owner);
     s_stashes.text.bytes = NULL;
     s_stashes.text.used = 0ULL;
     s_stashes.text.capacity = 0ULL;

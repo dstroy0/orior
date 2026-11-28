@@ -120,7 +120,8 @@ EMBED_INLINE void read_blank(const VersionCatalogReadCtx *args)
                 EMBED_CALL(read_find, VersionCatalogReadCtx, .read_read = args->read, .stops = "\n");
             args->read->at = (end < args->read->size) ? end + 1u : end;
         }
-        else if ((character != CLI_VERSIONS_END) && EMBED_CALL(cli_text_table.white, CliTextCfg, .character = character))
+        else if ((character != CLI_VERSIONS_END) &&
+                 EMBED_CALL(cli_text_table.white, CliTextCfg, .character = character))
         {
             args->read->at += length;
         }
@@ -209,8 +210,9 @@ EMBED_INLINE int read_string(const VersionCatalogReadCtx *args)
 EMBED_INLINE int read_bare_character(const VersionCatalogReadCtx *args)
 {
     unsigned int character = args->character;
-    return (character != CLI_VERSIONS_END) && (EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) ||
-                                            (character == '_') || (character == '-'));
+    return (character != CLI_VERSIONS_END) &&
+           (EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = character) || (character == '_') ||
+            (character == '-'));
 }
 
 // a key, bare or quoted, its parts joined by dots, into `out`: 1, or 0 where none is there
@@ -502,8 +504,8 @@ EMBED_INLINE void read_section(const VersionCatalogReadCtx *args)
 
 void cli_versions_free(void)
 {
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_libraries.text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_libraries.at, g_cli_versions_owner);
     g_cli_versions_libraries.at = NULL;
     g_cli_versions_libraries.size = NULL;
     g_cli_versions_libraries.text = NULL;
@@ -511,8 +513,8 @@ void cli_versions_free(void)
     g_cli_versions_libraries.max = 0u;
     g_cli_versions_libraries.used = 0u;
     g_cli_versions_libraries.capacity = 0u;
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_known.text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(g_cli_versions_known.at, g_cli_versions_owner);
     g_cli_versions_known.at = NULL;
     g_cli_versions_known.size = NULL;
     g_cli_versions_known.text = NULL;
@@ -521,12 +523,12 @@ void cli_versions_free(void)
     g_cli_versions_known.used = 0u;
     g_cli_versions_known.capacity = 0u;
     CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->line, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->pool, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->error, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->item, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->field, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(parsed->section, g_cli_versions_owner);
     parsed->line = NULL;
     parsed->pool = NULL;
     parsed->error = NULL;

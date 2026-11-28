@@ -367,7 +367,7 @@ void test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_re
     EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = branch.bytes);
     char *const scratch = cli_branch_copy_alloc();
     TEST_ASSERT_NOT_NULL(scratch);
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = branch.cell, .offset = 0u, .dst = scratch, .bytes = (embed_word)branch.bytes});
     TEST_ASSERT_EQUAL_STRING("src/area.c",
                              EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path,
@@ -385,7 +385,7 @@ void test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_re
                          (name[3] == 'a');
     }
     TEST_ASSERT_TRUE_MESSAGE(area_declared, "area is declared in src/area.c");
-    g_cli_guard->persistent_buf_release(scratch, mmgr_owner_of_buf(cli_pool_series_cellularum(), scratch));
+    g_platform_guard->persistent_buf_release(scratch, mmgr_owner_of_buf(platform_pool_series(), scratch));
     // a file written anew moves its stamp, which the tree reports where nothing else reports its changes
     s_stamp_line = (VerbaLinea){s_stamps, sizeof(s_stamps), 0ull};
     cli_unity_file(s_tree, "src/use.c",
@@ -408,8 +408,8 @@ static void many_path(unsigned int number, char *path, size_t room)
     (void)mmgr_line_finish(&line);
 }
 
-// More branches than a run holds, joined over several merges. Every other one is let go, and each one kept is found
-// at its own place. Each one let go is not found, and a branch joined again after them is found
+// More branches than a run holds, joined over several merges. The test lets every other one go, and finds each one
+// kept at its own place. It finds no one let go, and finds a branch joined again after them
 void test_many_branches_are_found_through_the_merges_and_the_ones_let_go_are_not(void)
 {
     tree_begun();

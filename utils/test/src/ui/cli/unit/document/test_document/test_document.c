@@ -241,7 +241,7 @@ void test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit
     unsigned long long after = 0ull;
     unsigned long long temporary = 0ull;
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
-    char *const text = g_cli_guard->persistent_buf_alloc(size, g_checks_owner);
+    char *const text = g_platform_guard->persistent_buf_alloc(size, g_checks_owner);
     TEST_ASSERT_NOT_NULL(text);
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
@@ -249,7 +249,7 @@ void test_a_large_text_accepts_characters_one_edit_at_a_time_each_where_its_edit
     }
     (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "large", .text = text, .size = size,
                      .shape = &shape);
-    g_cli_guard->persistent_buf_release(text, g_checks_owner);
+    g_platform_guard->persistent_buf_release(text, g_checks_owner);
     cli_pool_report(&pool, &before, &temporary);
     int edited = 1;
     for (unsigned int at = 0u; at < 20u; at += 1u)
@@ -432,7 +432,7 @@ void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
     unsigned int reserved = 0u;
     while (reserved < DOCUMENT_TAKEN_MAX)
     {
-        s_allocated[reserved] = g_cli_guard->persistent_buf_alloc(DOCUMENT_TAKEN_CELL, g_checks_owner);
+        s_allocated[reserved] = g_platform_guard->persistent_buf_alloc(DOCUMENT_TAKEN_CELL, g_checks_owner);
         if (s_allocated[reserved] == NULL)
         {
             break;
@@ -442,7 +442,7 @@ void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
     if (reserved != 0u)
     {
         reserved -= 1u;
-        g_cli_guard->persistent_buf_release(s_allocated[reserved], g_checks_owner);
+        g_platform_guard->persistent_buf_release(s_allocated[reserved], g_checks_owner);
     }
     (void)EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "little", .text = "one line\ntwo lines",
                      .size = 18ull, .shape = &shape);
@@ -450,7 +450,7 @@ void test_a_small_text_is_searched_while_the_pool_has_little_capacity(void)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "little");
     for (unsigned int at = 0u; at < reserved; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(s_allocated[at], g_checks_owner);
+        g_platform_guard->persistent_buf_release(s_allocated[at], g_checks_owner);
     }
 }
 
@@ -516,8 +516,8 @@ static int pool_taken_until_refused(unsigned long long bytes, int temporary)
     unsigned int *const count = temporary ? &s_starved_temporary_count : &s_starved_count;
     while (*count < DOCUMENT_COMPACT_CELLS)
     {
-        cells[*count] = temporary ? g_cli_guard->temporary_buf_alloc(bytes, g_checks_owner)
-                                  : g_cli_guard->persistent_buf_alloc(bytes, g_checks_owner);
+        cells[*count] = temporary ? g_platform_guard->temporary_buf_alloc(bytes, g_checks_owner)
+                                  : g_platform_guard->persistent_buf_alloc(bytes, g_checks_owner);
         if (cells[*count] == NULL)
         {
             return 1;
@@ -531,7 +531,7 @@ static int pool_taken_until_refused(unsigned long long bytes, int temporary)
 // sweeps for a free run
 static void pool_trimmed(void)
 {
-    TEST_ASSERT_NULL(g_cli_guard->persistent_buf_alloc(64ull << 20u, g_checks_owner));
+    TEST_ASSERT_NULL(g_platform_guard->persistent_buf_alloc(64ull << 20u, g_checks_owner));
 }
 
 // The pool starved so that a compaction's work cell fits the bytes between the tiers. The cell it moves the runs into
@@ -544,25 +544,25 @@ static void pool_starved(void)
     s_starved_temporary_count = 0u;
     TEST_ASSERT_TRUE(pool_taken_until_refused(8ull << 20u, 0) && pool_taken_until_refused(1ull << 20u, 0));
     while ((s_starved_count != 0u) &&
-           (g_cli_guard->buf_available() < (DOCUMENT_COMPACT_LEFT + DOCUMENT_COMPACT_MARGIN)))
+           (g_platform_guard->buf_available() < (DOCUMENT_COMPACT_LEFT + DOCUMENT_COMPACT_MARGIN)))
     {
         s_starved_count -= 1u;
-        g_cli_guard->persistent_buf_release(s_starved[s_starved_count], g_checks_owner);
+        g_platform_guard->persistent_buf_release(s_starved[s_starved_count], g_checks_owner);
         pool_trimmed();
     }
-    const unsigned long long before = g_cli_guard->buf_available();
+    const unsigned long long before = g_platform_guard->buf_available();
     TEST_ASSERT_TRUE(before >= (DOCUMENT_COMPACT_LEFT + DOCUMENT_COMPACT_MARGIN));
     const unsigned int cut = s_starved_count;
-    s_starved[cut] = g_cli_guard->persistent_buf_alloc(before - DOCUMENT_COMPACT_MARGIN, g_checks_owner);
+    s_starved[cut] = g_platform_guard->persistent_buf_alloc(before - DOCUMENT_COMPACT_MARGIN, g_checks_owner);
     TEST_ASSERT_NOT_NULL(s_starved[cut]);
     s_starved_count += 1u;
     TEST_ASSERT_TRUE(pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 0) &&
                      pool_taken_until_refused(DOCUMENT_COMPACT_HOLE, 1));
-    g_cli_guard->persistent_buf_release(s_starved[cut], g_checks_owner);
+    g_platform_guard->persistent_buf_release(s_starved[cut], g_checks_owner);
     pool_trimmed();
-    const unsigned long long available = g_cli_guard->buf_available();
+    const unsigned long long available = g_platform_guard->buf_available();
     TEST_ASSERT_TRUE(available >= DOCUMENT_COMPACT_LEFT);
-    s_starved[cut] = g_cli_guard->persistent_buf_alloc(available - DOCUMENT_COMPACT_LEFT, g_checks_owner);
+    s_starved[cut] = g_platform_guard->persistent_buf_alloc(available - DOCUMENT_COMPACT_LEFT, g_checks_owner);
     TEST_ASSERT_NOT_NULL(s_starved[cut]);
 }
 
@@ -571,11 +571,11 @@ static void pool_given_back(void)
 {
     for (unsigned int at = 0u; at < s_starved_temporary_count; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(s_starved_temporary[at], g_checks_owner);
+        g_platform_guard->persistent_buf_release(s_starved_temporary[at], g_checks_owner);
     }
     for (unsigned int at = 0u; at < s_starved_count; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(s_starved[at], g_checks_owner);
+        g_platform_guard->persistent_buf_release(s_starved[at], g_checks_owner);
     }
     s_starved_temporary_count = 0u;
     s_starved_count = 0u;
@@ -821,9 +821,9 @@ static void nest_entered(unsigned long long line, char *state, unsigned long lon
                                 .last = line, .state = state, .capacity = room, .each = lines_given));
 }
 
-// More states than a run of the states' index holds, so that the index merges its runs: 150 braces opened a line each
-// and closed again, then 150 parens the same way. Each depth of each sign is one state, root's the one more. A line
-// that closes back to a depth enters in the state of the line that opened to it. The depth keeps the deepest state's
+// More states than a run of the states' index holds, and the index then merges its runs. 150 braces opened a line
+// each and closed again, then 150 parens the same way. Each depth of each sign is one state, root's the one more. A
+// line that closes back to a depth enters in the state of the line that opened to it. The depth keeps the deepest state's
 // text inside the colorer's bound for it
 void test_the_states_of_deep_blocks_hold_through_the_merges_of_the_index(void)
 {

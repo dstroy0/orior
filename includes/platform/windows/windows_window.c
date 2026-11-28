@@ -1,0 +1,1657 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// windows_window.c: the window on Windows. A popup window with a sizing frame whose non-client area is nothing, so the
+// client is the whole window and the system still drags, snaps and resizes it by what the window answers to the
+// hit test, the compositor rounding its corners and drawing its one-pixel border; the raster it is passed flipped
+// through the graphics device or blitted into the client as a top-down 32-bit bitmap; the thread woken by a message
+// posted to the window, inside the system's own drag loop too; the scale and the refresh rate read from the window's
+// monitor. The records of the three windows that are at once are this file's own
+#define _WIN32_WINNT 0x0A00
+#define UNICODE
+#define _UNICODE
+#include "../../../ui/cli/src/command_line/callback_cfg.h"
+#include "../../../ui/gui/src/system.h"
+
+#include "../../../ui/cli/src/command_line/cli_internal.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+
+#define COBJMACROS
+#include <windows.h>
+
+#include <d3d12.h>
+#include <dxgi1_6.h>
+
+#include <dwmapi.h>
+#include <windowsx.h>
+
+// The graphics device the frames are flipped through: whether it is ready; the device, its queue, the allocator
+// and list a copy is recorded in, the fence a copy is waited on through and its event and last value; the swapchain,
+// its two buffers and their size; and the heap opened over the framebuffers' pages, those pages, and a buffer placed
+// over each framebuffer with where in the pages it lies.
+//
+// The swapchain keeps each buffer's pixels between presents. `stale` holds, for each buffer, the rectangle where its
+// pixels differ from the raster. A flip copies that rectangle alone.
+typedef struct
+{
+    int ready;
+    ID3D12Device3 *device;
+    ID3D12CommandQueue *queue;
+    ID3D12CommandAllocator *allocator;
+    ID3D12GraphicsCommandList *list;
+    ID3D12Fence *fence;
+    HANDLE fence_event;
+    unsigned long long fence_value;
+    IDXGISwapChain3 *chain;
+    ID3D12Resource *back[2];
+    GuiRect stale[2];
+    unsigned int back_width;
+    unsigned int back_height;
+    ID3D12Heap *heap;
+    void *heap_pages;
+    ID3D12Resource *positioned[2];
+    unsigned long long positioned_at[2];
+} SystemDevice;
+struct GuiSystem
+{
+    int taken;
+    HWND window;
+    const GuiSystemEvents *events;
+    void *context;
+    GuiRaster displayed;
+    int closed;
+    unsigned short high_surrogate;
+    unsigned int mods;
+    unsigned int frame_ms;
+    SystemDevice device;
+    int device_tried;
+    DWORD leave_watched;
+    int owner;
+    int min_width;
+    int min_height;
+    // the window a modal window disables while it is, NULL for a window that is not modal
+    HWND modal_owner;
+    // the wheel's units turned down that add up to no whole notch yet, retained for the next turn's count of rows
+    int wheel_rest;
+    // whether the system moves or sizes the window, its own cursor shown for it
+    int sizing;
+    // whether the window reads the mouse's raw input, and whether the pointer is locked in the window's middle
+    int raw;
+    int locked;
+};
+// the message another thread posts to wake the window's thread
+#define GUI_WAKE_MESSAGE (WM_APP + 1u)
+// the rows one notch of the wheel scrolls
+#define GUI_WHEEL_ROWS 3
+// the windows that are at once: the main one, Preferences' and the dialog's
+#define SYSTEM_WINDOWS 3u
+
+static GuiSystem s_systems[SYSTEM_WINDOWS];
+
+// the boundary a framebuffer's buffer is placed on in its heap, and the bytes a copied row's pitch steps by
+#define SYSTEM_PLACE (64ULL << 10u)
+#define SYSTEM_ROW_STEP 256u
+
+// the COM object released where there is one, and the pointer left NULL
+#define SYSTEM_RELEASED(object_, release_)                                                                             \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if ((object_) != NULL)                                                                                         \
+        {                                                                                                              \
+            release_(object_);                                                                                         \
+            (object_) = NULL;                                                                                          \
+        }                                                                                                              \
+    } while (0)
+
+typedef struct
+{
+    SystemDevice *device;
+    HWND window;
+    const GuiRaster *raster;
+    GuiSystem *system;
+    const GuiSystem *system_read;
+    WPARAM key;
+    int down;
+    char *name;
+    unsigned long long capacity;
+    WPARAM unit;
+    HDC context;
+    unsigned int from;
+    unsigned int rows;
+    unsigned int left;
+    unsigned int columns;
+    DWORD flags;
+    unsigned int hit;
+    int active;
+    HWND owner;
+    void *pages;
+    const CliWindowPosition *place;
+    const char *title;
+    const GuiSystemEvents *events;
+    void *context_bytess;
+    VerbaLinea *err_msg;
+    MSG *message;
+    HRAWINPUT raw;
+    GuiRect part;
+    GuiRect other;
+} SystemWindowsCtx;
+// the device's buffers and the swapchain's let go, the heap with them, after the queue has done every copy
+EMBED_INLINE void system_surfaces_release(const SystemWindowsCtx *args)
+{
+    if ((args->device->queue != NULL) && (args->device->fence != NULL))
+    {
+        args->device->fence_value += 1ULL;
+        ID3D12CommandQueue_Signal(args->device->queue, args->device->fence, args->device->fence_value);
+        if (ID3D12Fence_GetCompletedValue(args->device->fence) < args->device->fence_value)
+        {
+            ID3D12Fence_SetEventOnCompletion(args->device->fence, args->device->fence_value, args->device->fence_event);
+            WaitForSingleObject(args->device->fence_event, INFINITE);
+        }
+    }
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        SYSTEM_RELEASED(args->device->positioned[at], ID3D12Resource_Release);
+        args->device->positioned_at[at] = 0ULL;
+    }
+    SYSTEM_RELEASED(args->device->heap, ID3D12Heap_Release);
+    args->device->heap_pages = NULL;
+}
+
+// the swapchain's buffers let go
+EMBED_INLINE void system_back_release(const SystemWindowsCtx *args)
+{
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        SYSTEM_RELEASED(args->device->back[at], ID3D12Resource_Release);
+    }
+}
+
+// the device let go whole
+EMBED_INLINE void system_device_release(const SystemWindowsCtx *args)
+{
+    system_surfaces_release(args);
+    system_back_release(args);
+    SYSTEM_RELEASED(args->device->chain, IDXGISwapChain3_Release);
+    SYSTEM_RELEASED(args->device->list, ID3D12GraphicsCommandList_Release);
+    SYSTEM_RELEASED(args->device->allocator, ID3D12CommandAllocator_Release);
+    SYSTEM_RELEASED(args->device->fence, ID3D12Fence_Release);
+    SYSTEM_RELEASED(args->device->queue, ID3D12CommandQueue_Release);
+    SYSTEM_RELEASED(args->device->device, ID3D12Device3_Release);
+    if (args->device->fence_event != NULL)
+    {
+        CloseHandle(args->device->fence_event);
+        args->device->fence_event = NULL;
+    }
+    args->device->ready = 0;
+}
+
+// the device made for `window`: its queue, its copy's allocator and list, its fence, and a flip swapchain of two
+// buffers over the window; first a heap opened over `pages`, which a device that cannot read pages where they lie
+// refuses before any swapchain is over the window: 1, or 0 with nothing made
+EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
+{
+    memor.set(&(MemoriaCfg){.dst = args->device, .val = 0, .bytes = sizeof(*args->device)});
+    ID3D12Device *made = NULL;
+    if (FAILED(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, (void **)&made)))
+    {
+        return 0;
+    }
+    const HRESULT requested = ID3D12Device_QueryInterface(made, &IID_ID3D12Device3, (void **)&args->device->device);
+    ID3D12Device_Release(made);
+    if (FAILED(requested))
+    {
+        return 0;
+    }
+    ID3D12Heap *trial_heap = NULL;
+    const int pinned = SUCCEEDED(ID3D12Device3_OpenExistingHeapFromAddress(args->device->device, args->pages,
+                                                                           &IID_ID3D12Heap, (void **)&trial_heap));
+    SYSTEM_RELEASED(trial_heap, ID3D12Heap_Release);
+    D3D12_COMMAND_QUEUE_DESC queue_desc;
+    memor.set(&(MemoriaCfg){.dst = &queue_desc, .val = 0, .bytes = sizeof(queue_desc)});
+    queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    IDXGIFactory4 *factory = NULL;
+    IDXGISwapChain1 *chain = NULL;
+    DXGI_SWAP_CHAIN_DESC1 chain_desc;
+    memor.set(&(MemoriaCfg){.dst = &chain_desc, .val = 0, .bytes = sizeof(chain_desc)});
+    chain_desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    chain_desc.SampleDesc.Count = 1u;
+    chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    chain_desc.BufferCount = 2u;
+    chain_desc.Scaling = DXGI_SCALING_NONE;
+    chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+    chain_desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+    args->device->fence_event = CreateEventW(NULL, FALSE, FALSE, NULL);
+    const int created_all =
+        pinned && (args->device->fence_event != NULL) &&
+        SUCCEEDED(ID3D12Device3_CreateCommandQueue(args->device->device, &queue_desc, &IID_ID3D12CommandQueue,
+                                                   (void **)&args->device->queue)) &&
+        SUCCEEDED(ID3D12Device3_CreateCommandAllocator(args->device->device, D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                                       &IID_ID3D12CommandAllocator,
+                                                       (void **)&args->device->allocator)) &&
+        SUCCEEDED(ID3D12Device3_CreateCommandList(args->device->device, 0u, D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                                  args->device->allocator, NULL, &IID_ID3D12GraphicsCommandList,
+                                                  (void **)&args->device->list)) &&
+        SUCCEEDED(ID3D12GraphicsCommandList_Close(args->device->list)) &&
+        SUCCEEDED(ID3D12Device3_CreateFence(args->device->device, 0ULL, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence,
+                                            (void **)&args->device->fence)) &&
+        SUCCEEDED(CreateDXGIFactory2(0u, &IID_IDXGIFactory4, (void **)&factory)) &&
+        SUCCEEDED(IDXGIFactory4_CreateSwapChainForHwnd(factory, (IUnknown *)args->device->queue, args->window,
+                                                       &chain_desc, NULL, NULL, &chain)) &&
+        SUCCEEDED(IDXGISwapChain1_QueryInterface(chain, &IID_IDXGISwapChain3, (void **)&args->device->chain));
+    if (factory != NULL)
+    {
+        IDXGIFactory4_MakeWindowAssociation(factory, args->window, DXGI_MWA_NO_ALT_ENTER);
+        IDXGIFactory4_Release(factory);
+    }
+    SYSTEM_RELEASED(chain, IDXGISwapChain1_Release);
+    if (!created_all)
+    {
+        system_device_release(args);
+        return 0;
+    }
+    args->device->ready = 1;
+    return 1;
+}
+
+// the swapchain's buffers sized to `window`'s client and taken: 1, or 0 where they could not be
+EMBED_INLINE int system_back_resize(const SystemWindowsCtx *args)
+{
+    RECT client;
+    GetClientRect(args->window, &client);
+    // the client's sides are not negative and far inside what an unsigned int holds
+    const unsigned int width = (unsigned int)(client.right - client.left);
+    const unsigned int height = (unsigned int)(client.bottom - client.top);
+    if ((width == 0u) || (height == 0u))
+    {
+        return 0;
+    }
+    if ((args->device->back[0] != NULL) && (width == args->device->back_width) && (height == args->device->back_height))
+    {
+        return 1;
+    }
+    system_surfaces_release(args);
+    system_back_release(args);
+    if (FAILED(IDXGISwapChain3_ResizeBuffers(args->device->chain, 2u, width, height, DXGI_FORMAT_B8G8R8A8_UNORM, 0u)))
+    {
+        return 0;
+    }
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        if (FAILED(IDXGISwapChain3_GetBuffer(args->device->chain, at, &IID_ID3D12Resource,
+                                             (void **)&args->device->back[at])))
+        {
+            system_back_release(args);
+            return 0;
+        }
+    }
+    args->device->back_width = width;
+    args->device->back_height = height;
+    // new buffers hold no pixels of the raster: each flip into one of them copies the whole buffer first
+    args->device->stale[0] = (GuiRect){0, 0, (int)width, (int)height};
+    args->device->stale[1] = args->device->stale[0];
+    return 1;
+}
+
+// the buffer placed over `raster`'s pixels in the heap over its pages, the heap opened over the pages where the one
+// open is over others: the buffer, or NULL where the device refuses it
+EMBED_INLINE ID3D12Resource *system_position(const SystemWindowsCtx *args)
+{
+    if (args->device->heap_pages != args->raster->pages)
+    {
+        system_surfaces_release(args);
+        if (FAILED(ID3D12Device3_OpenExistingHeapFromAddress(args->device->device, args->raster->pages, &IID_ID3D12Heap,
+                                                             (void **)&args->device->heap)))
+        {
+            return NULL;
+        }
+        args->device->heap_pages = args->raster->pages;
+    }
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        if ((args->device->positioned[at] != NULL) && (args->device->positioned_at[at] == args->raster->positioned))
+        {
+            return args->device->positioned[at];
+        }
+    }
+    const unsigned int entry = (args->device->positioned[0] == NULL) ? 0u : 1u;
+    SYSTEM_RELEASED(args->device->positioned[entry], ID3D12Resource_Release);
+    D3D12_RESOURCE_DESC desc;
+    memor.set(&(MemoriaCfg){.dst = &desc, .val = 0, .bytes = sizeof(desc)});
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    // the buffer reaches from the raster's place to the region's end, which has the raster at any size its capacity
+    // fits: a raster sized again in the same region is copied through the buffer already placed
+    desc.Width = (UINT64)(args->raster->pages_bytes - args->raster->positioned);
+    desc.Height = 1u;
+    desc.DepthOrArraySize = 1u;
+    desc.MipLevels = 1u;
+    desc.SampleDesc.Count = 1u;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER;
+    if (FAILED(ID3D12Device3_CreatePlacedResource(args->device->device, args->device->heap, args->raster->positioned,
+                                                  &desc, D3D12_RESOURCE_STATE_COMMON, NULL, &IID_ID3D12Resource,
+                                                  (void **)&args->device->positioned[entry])))
+    {
+        return NULL;
+    }
+    args->device->positioned_at[entry] = args->raster->positioned;
+    return args->device->positioned[entry];
+}
+
+// The least rectangle that holds `part` and `other`. Where one of them is empty, it is the other.
+EMBED_INLINE GuiRect system_rect_join(const SystemWindowsCtx *args)
+{
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part))
+    {
+        return args->other;
+    }
+    if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->other))
+    {
+        return args->part;
+    }
+    const int left = (args->part.x < args->other.x) ? args->part.x : args->other.x;
+    const int top = (args->part.y < args->other.y) ? args->part.y : args->other.y;
+    const int part_right = args->part.x + args->part.width;
+    const int other_right = args->other.x + args->other.width;
+    const int part_bottom = args->part.y + args->part.height;
+    const int other_bottom = args->other.y + args->other.height;
+    const int right = (part_right > other_right) ? part_right : other_right;
+    const int bottom = (part_bottom > other_bottom) ? part_bottom : other_bottom;
+    return (GuiRect){left, top, right - left, bottom - top};
+}
+
+// `raster` copied by the device from where it lies into the swapchain's buffer and flipped onto the screen, the copy
+// done before this returns, the raster free to be drawn into again: 1, or 0 where the device cannot, which leaves the
+// raster to the system's drawing calls. The device is made as the first raster with pages comes, on the main window
+// alone. `part` is the rectangle of the raster that changed after the last flip. It is the whole raster where all of it
+// changed
+static int system_flip(const SystemWindowsCtx *args)
+{
+    SystemDevice *const device = &args->system->device;
+    if (!device->ready && !args->system->owner && !args->system->device_tried && (args->raster->pages != NULL))
+    {
+        (void)EMBED_CALL(system_device_init, SystemWindowsCtx, .device = device, .window = args->system->window,
+                         .pages = args->raster->pages);
+        args->system->device_tried = 1;
+    }
+    if (!device->ready || (args->raster->pages == NULL) ||
+        (((unsigned long long)args->raster->width * sizeof(GuiColor)) % SYSTEM_ROW_STEP != 0ULL) ||
+        !EMBED_CALL(system_back_resize, SystemWindowsCtx, .device = device, .window = args->system->window))
+    {
+        return 0;
+    }
+    ID3D12Resource *const source =
+        EMBED_CALL(system_position, SystemWindowsCtx, .device = device, .raster = args->raster);
+    if (source == NULL)
+    {
+        return 0;
+    }
+    const UINT index = IDXGISwapChain3_GetCurrentBackBufferIndex(device->chain);
+    ID3D12Resource *const target = device->back[index];
+    // The raster and the buffers are far inside what an int holds. The part changed in each buffer, so each buffer
+    // takes it into its stale rectangle. The target buffer then takes its whole stale rectangle from the raster.
+    const GuiRect shown = {
+        0, 0, (int)((args->raster->width < device->back_width) ? args->raster->width : device->back_width),
+        (int)((args->raster->height < device->back_height) ? args->raster->height : device->back_height)};
+    const GuiRect part = gui_rect_intersect(&(GuiRasterOneCfg){.one = args->part, .other = shown});
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        device->stale[at] = gui_rect_intersect(&(GuiRasterOneCfg){
+            .one = EMBED_CALL(system_rect_join, SystemWindowsCtx, .part = part, .other = device->stale[at]),
+            .other = shown});
+    }
+    const GuiRect copied = device->stale[index];
+    device->stale[index] = (GuiRect){0, 0, 0, 0};
+    ID3D12CommandAllocator_Reset(device->allocator);
+    ID3D12GraphicsCommandList_Reset(device->list, device->allocator, NULL);
+    D3D12_RESOURCE_BARRIER barrier;
+    memor.set(&(MemoriaCfg){.dst = &barrier, .val = 0, .bytes = sizeof(barrier)});
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = target;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+    ID3D12GraphicsCommandList_ResourceBarrier(device->list, 1u, &barrier);
+    D3D12_TEXTURE_COPY_LOCATION to;
+    memor.set(&(MemoriaCfg){.dst = &to, .val = 0, .bytes = sizeof(to)});
+    to.pResource = target;
+    to.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    to.SubresourceIndex = 0u;
+    D3D12_TEXTURE_COPY_LOCATION from;
+    memor.set(&(MemoriaCfg){.dst = &from, .val = 0, .bytes = sizeof(from)});
+    from.pResource = source;
+    from.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    from.PlacedFootprint.Offset = 0ULL;
+    from.PlacedFootprint.Footprint.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    from.PlacedFootprint.Footprint.Width = args->raster->width;
+    from.PlacedFootprint.Footprint.Height = args->raster->height;
+    from.PlacedFootprint.Footprint.Depth = 1u;
+    from.PlacedFootprint.Footprint.RowPitch = args->raster->width * (UINT)sizeof(GuiColor);
+    // the stale rectangle lies inside the shown one, so its sides are not negative
+    const D3D12_BOX box = {
+        (UINT)copied.x, (UINT)copied.y, 0u, (UINT)(copied.x + copied.width), (UINT)(copied.y + copied.height), 1u};
+    if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = copied))
+    {
+        ID3D12GraphicsCommandList_CopyTextureRegion(device->list, &to, (UINT)copied.x, (UINT)copied.y, 0u, &from, &box);
+    }
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+    ID3D12GraphicsCommandList_ResourceBarrier(device->list, 1u, &barrier);
+    if (FAILED(ID3D12GraphicsCommandList_Close(device->list)))
+    {
+        return 0;
+    }
+    ID3D12CommandList *const lists[1] = {(ID3D12CommandList *)device->list};
+    ID3D12CommandQueue_ExecuteCommandLists(device->queue, 1u, lists);
+    device->fence_value += 1ULL;
+    ID3D12CommandQueue_Signal(device->queue, device->fence, device->fence_value);
+    // The compositor takes the part alone as changed. A part that covers the shown rectangle presents whole.
+    RECT dirty = {part.x, part.y, part.x + part.width, part.y + part.height};
+    const int partial = ((part.width != shown.width) || (part.height != shown.height)) &&
+                        !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = part);
+    const DXGI_PRESENT_PARAMETERS parameters = {.DirtyRectsCount = partial ? 1u : 0u,
+                                                .pDirtyRects = partial ? &dirty : NULL};
+    const HRESULT displayed = IDXGISwapChain3_Present1(device->chain, 1u, 0u, &parameters);
+    if (ID3D12Fence_GetCompletedValue(device->fence) < device->fence_value)
+    {
+        ID3D12Fence_SetEventOnCompletion(device->fence, device->fence_value, device->fence_event);
+        WaitForSingleObject(device->fence_event, INFINITE);
+    }
+    return SUCCEEDED(displayed);
+}
+
+// the milliseconds of one refresh of `window`'s monitor, whole, at least one; 1000 / 60 where the monitor does not
+// say its rate
+EMBED_INLINE unsigned int system_frame_ms_get(const SystemWindowsCtx *args)
+{
+    MONITORINFOEXW info;
+    memor.set(&(MemoriaCfg){.dst = &info, .val = 0, .bytes = sizeof(info)});
+    info.cbSize = sizeof(info);
+    DEVMODEW mode;
+    memor.set(&(MemoriaCfg){.dst = &mode, .val = 0, .bytes = sizeof(mode)});
+    mode.dmSize = sizeof(mode);
+    unsigned int hertz = 60u;
+    if (GetMonitorInfoW(MonitorFromWindow(args->window, MONITOR_DEFAULTTONEAREST), (MONITORINFO *)&info) &&
+        EnumDisplaySettingsW(info.szDevice, ENUM_CURRENT_SETTINGS, &mode) && (mode.dmDisplayFrequency > 1u))
+    {
+        hertz = mode.dmDisplayFrequency;
+    }
+    return (1000u + hertz - 1u) / hertz;
+}
+
+// the modifier keys down, as system.h names them: read from the keys' own messages as they come, which gives a key
+// message posted to the window the modifiers posted before it, and from the keyboard's state as the window takes
+// the focus
+EMBED_INLINE unsigned int system_mods(const SystemWindowsCtx *args)
+{
+    return args->system_read->mods;
+}
+
+static unsigned int system_mods_of_keyboard(void)
+{
+    return ((GetKeyState(VK_SHIFT) < 0) ? GUI_MOD_SHIFT : 0u) | ((GetKeyState(VK_CONTROL) < 0) ? GUI_MOD_CONTROL : 0u) |
+           ((GetKeyState(VK_MENU) < 0) ? GUI_MOD_ALT : 0u);
+}
+
+// a modifier key's message applied to the modifier keys down: 1 where the key is a modifier, else 0
+EMBED_INLINE int system_modifier_key(const SystemWindowsCtx *args)
+{
+    unsigned int bit;
+    if ((args->key == VK_SHIFT) || (args->key == VK_LSHIFT) || (args->key == VK_RSHIFT))
+    {
+        bit = GUI_MOD_SHIFT;
+    }
+    else if ((args->key == VK_CONTROL) || (args->key == VK_LCONTROL) || (args->key == VK_RCONTROL))
+    {
+        bit = GUI_MOD_CONTROL;
+    }
+    else if ((args->key == VK_MENU) || (args->key == VK_LMENU) || (args->key == VK_RMENU))
+    {
+        bit = GUI_MOD_ALT;
+    }
+    else
+    {
+        bit = 0u;
+    }
+    if (bit == 0u)
+    {
+        return 0;
+    }
+    args->system->mods = args->down ? (args->system->mods | bit) : (args->system->mods & ~bit);
+    return 1;
+}
+
+// a virtual key's name as the page's editor names a key, into `name`, which is sized for `capacity`: 1, or 0 for a key
+// that has no name, a modifier among them
+EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
+{
+    WPARAM key = args->key;
+    char *name = args->name;
+    static const struct
+    {
+        WPARAM key;
+        const char *name;
+    } s_named[] = {{VK_LEFT, "Left"},      {VK_RIGHT, "Right"},   {VK_UP, "Up"},           {VK_DOWN, "Down"},
+                   {VK_HOME, "Home"},      {VK_END, "End"},       {VK_PRIOR, "PageUp"},    {VK_NEXT, "PageDown"},
+                   {VK_BACK, "Backspace"}, {VK_DELETE, "Delete"}, {VK_RETURN, "Enter"},    {VK_TAB, "Tab"},
+                   {VK_ESCAPE, "Escape"},  {VK_SPACE, "Space"},   {VK_INSERT, "Insert"},   {VK_OEM_4, "["},
+                   {VK_OEM_6, "]"},        {VK_OEM_2, "/"},       {VK_OEM_5, "\\"},        {VK_OEM_PERIOD, "."},
+                   {VK_OEM_COMMA, ","},    {VK_OEM_1, ";"},       {VK_OEM_7, "'"},         {VK_OEM_3, "`"},
+                   {VK_OEM_MINUS, "-"},    {VK_OEM_PLUS, "="},    {VK_APPS, "ContextMenu"}};
+    VerbaLinea line = {name, args->capacity, 0ULL};
+    for (unsigned int at = 0u; at < sizeof(s_named) / sizeof(s_named[0]); at += 1u)
+    {
+        if (s_named[at].key == key)
+        {
+            mmgr_line_put(&line, s_named[at].name);
+            return mmgr_line_finish(&line) != 0ULL;
+        }
+    }
+    // Explicit cast reads the byte as its code point
+    if (((((key) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(key)}))) ||
+        ((((key) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(key)}))))
+    {
+        // a character's or a digit's virtual key is its own character
+        mmgr_line_ch(&line, (char)key);
+        return mmgr_line_finish(&line) != 0ULL;
+    }
+    if ((key >= VK_F1) && (key <= VK_F24))
+    {
+        mmgr_line_ch(&line, 'F');
+        mmgr_line_decimal(&line, (unsigned long long)(key - VK_F1) + 1ULL, 1u);
+        return mmgr_line_finish(&line) != 0ULL;
+    }
+    return 0;
+}
+
+// a key press passed to the window, the modifier keys down written before its name
+EMBED_INLINE void system_key_press(const SystemWindowsCtx *args)
+{
+    char own[32];
+    if (!EMBED_CALL(system_key_by_name, SystemWindowsCtx, .key = args->key, .name = own, .capacity = sizeof(own)))
+    {
+        return;
+    }
+    const unsigned int mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = args->system);
+    char named[48];
+    VerbaLinea line = {named, sizeof(named), 0ULL};
+    mmgr_line_put(&line, (mods & GUI_MOD_CONTROL) ? "Mod+" : "");
+    mmgr_line_put(&line, (mods & GUI_MOD_ALT) ? "Alt+" : "");
+    mmgr_line_put(&line, (mods & GUI_MOD_SHIFT) ? "Shift+" : "");
+    mmgr_line_put(&line, own);
+    (void)mmgr_line_finish(&line);
+    EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+               .input = GUI_KEY_INPUT(named));
+}
+
+// a character typed passed to the window as UTF-8, a surrogate pair joined across its two messages; a control
+// character and one typed with the control key down are keys, not text
+EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
+{
+    if ((args->unit < 0x20u) || (args->unit == 0x7fu) || ((args->system->mods & (GUI_MOD_CONTROL | GUI_MOD_ALT)) != 0u))
+    {
+        return;
+    }
+    unsigned int character = (unsigned int)args->unit;
+    if ((args->unit >= 0xd800u) && (args->unit <= 0xdbffu))
+    {
+        // the high surrogate waits for its low one
+        args->system->high_surrogate = (unsigned short)args->unit;
+        return;
+    }
+    if ((args->unit >= 0xdc00u) && (args->unit <= 0xdfffu))
+    {
+        if (args->system->high_surrogate == 0u)
+        {
+            return;
+        }
+        character = 0x10000u + (((unsigned int)args->system->high_surrogate - 0xd800u) << 10u) +
+                    ((unsigned int)args->unit - 0xdc00u);
+        args->system->high_surrogate = 0u;
+    }
+    char text[8];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line, .character = character);
+    EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+               .input = GUI_TEXT_INPUT(text, line.at));
+}
+
+static const wchar_t s_class[] = L"orior_window";
+
+// the scale of `window`'s monitor
+EMBED_INLINE int system_scale_get(const SystemWindowsCtx *args)
+{
+    // a monitor's dots an inch over 96, as a percent, far inside what an int represents
+    return (int)(((GetDpiForWindow(args->window) * 100u) + 48u) / 96u);
+}
+
+// the pixels of `window`'s sizing frame a side, at its monitor's scale
+EMBED_INLINE int system_frame_get(const SystemWindowsCtx *args)
+{
+    const UINT dots = GetDpiForWindow(args->window);
+    return GetSystemMetricsForDpi(SM_CXFRAME, dots) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dots);
+}
+
+// The raster displayed blitted into `context`: its `rows` rows from the row `from`, and in them its `columns` columns
+// from the column `left`. The bitmap holds those rows alone. A `columns` of 0 blits the whole width
+EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
+{
+    const GuiRaster *const raster = &args->system->displayed;
+    if ((raster->pixels == NULL) || (args->from >= raster->height) || (args->rows == 0u) ||
+        (args->left >= raster->width))
+    {
+        return;
+    }
+    const unsigned int count = (args->rows < raster->height - args->from) ? args->rows : raster->height - args->from;
+    const unsigned int room = raster->width - args->left;
+    const unsigned int across = ((args->columns != 0u) && (args->columns < room)) ? args->columns : room;
+    BITMAPINFO info;
+    memor.set(&(MemoriaCfg){.dst = &info, .val = 0, .bytes = sizeof(info)});
+    info.bmiHeader.biSize = sizeof(info.bmiHeader);
+    // a raster's sides are far inside what a LONG represents; a negative height positions the rows top down
+    info.bmiHeader.biWidth = (LONG)raster->width;
+    info.bmiHeader.biHeight = -(LONG)count;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    info.bmiHeader.biCompression = BI_RGB;
+    // the row's and the column's places are far inside what an int represents
+    SetDIBitsToDevice(args->context, (int)args->left, (int)args->from, across, count, (int)args->left, 0, 0u, count,
+                      &raster->pixels[args->from * raster->width], &info, DIB_RGB_COLORS);
+}
+
+// the system asked to say when the pointer leaves, by `flags`, the client's or the frame's, where it is not asked that
+// already
+EMBED_INLINE void system_leave_watch(const SystemWindowsCtx *args)
+{
+    if (args->system->leave_watched != args->flags)
+    {
+        // A move comes while the cursor is off the window where the capture holds a drag, or where another program
+        // posts the move. A watch begun there posts its leave at once, a leave for each move. The watch begins only
+        // while the cursor is over the window, and the cursor leaves it once from there
+        POINT at;
+        RECT frame;
+        if (!GetCursorPos(&at) || !GetWindowRect(args->window, &frame) || !PtInRect(&frame, at))
+        {
+            return;
+        }
+        TRACKMOUSEEVENT track = {sizeof(track), args->flags, args->window, 0u};
+        args->system->leave_watched = TrackMouseEvent(&track) ? args->flags : 0u;
+    }
+}
+
+// the pointer gone from the client or the frame: the window told where it is off the window altogether, as a move
+// from the client onto the frame is no leave
+EMBED_INLINE void system_pointer_leave(const SystemWindowsCtx *args)
+{
+    POINT at;
+    RECT frame;
+    if (GetCursorPos(&at) && GetWindowRect(args->window, &frame) && !PtInRect(&frame, at))
+    {
+        EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                   .input = GUI_LEFT_INPUT());
+    }
+}
+
+// the hit test's answer as the system names the places
+EMBED_INLINE LRESULT system_hit_code(const SystemWindowsCtx *args)
+{
+    static const LRESULT s_codes[13] = {HTCLIENT, HTCAPTION, HTLEFT,     HTRIGHT,      HTTOP,
+                                        HTBOTTOM, HTTOPLEFT, HTTOPRIGHT, HTBOTTOMLEFT, HTBOTTOMRIGHT,
+                                        HTCLIENT, HTCLIENT,  HTCLIENT};
+    return (args->hit < 13u) ? s_codes[args->hit] : HTCLIENT;
+}
+
+// the window's one-pixel border colored for `active`: the system's accent while the window is active and the user
+// shows the accent on borders, as the system's own windows do, else the compositor's default for the state
+EMBED_INLINE void system_border_color(const SystemWindowsCtx *args)
+{
+    COLORREF color = DWMWA_COLOR_DEFAULT;
+    DWORD prevalence = 0u;
+    DWORD bytes = sizeof(prevalence);
+    if (args->active &&
+        (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\DWM", L"ColorPrevalence", RRF_RT_REG_DWORD,
+                      NULL, &prevalence, &bytes) == ERROR_SUCCESS) &&
+        (prevalence != 0u))
+    {
+        DWORD accent = 0u;
+        BOOL opaque = FALSE;
+        if (DwmGetColorizationColor(&accent, &opaque) == S_OK)
+        {
+            // the accent comes as alpha, red, green and blue bytes from the top; a COLORREF holds red in its low byte
+            color = RGB((accent >> 16u) & 0xffu, (accent >> 8u) & 0xffu, accent & 0xffu);
+        }
+    }
+    DwmSetWindowAttribute(args->window, DWMWA_BORDER_COLOR, &color, sizeof(color));
+}
+
+// The cursor clipped to the one pixel in the middle of the window's client, on the screen: the pointer stays there and
+// the mouse's motion comes as raw input alone
+EMBED_INLINE void system_lock_clip(const SystemWindowsCtx *args)
+{
+    RECT client;
+    GetClientRect(args->system_read->window, &client);
+    POINT middle = {(client.right - client.left) / 2, (client.bottom - client.top) / 2};
+    ClientToScreen(args->system_read->window, &middle);
+    const RECT pixel = {middle.x, middle.y, middle.x + 1, middle.y + 1};
+    ClipCursor(&pixel);
+}
+
+// One raw input of the mouse read while the window reads raw input: its motion passed on as a relative input in the
+// mouse's own counts. A motion the device gives as a place on the screen, as a pen or a remote session gives it, is
+// no relative motion and is passed on as nothing
+EMBED_INLINE void system_raw_read(const SystemWindowsCtx *args)
+{
+    RAWINPUT input;
+    UINT bytes = sizeof(input);
+    if (!args->system_read->raw ||
+        (GetRawInputData(args->raw, RID_INPUT, &input, &bytes, sizeof(RAWINPUTHEADER)) == (UINT)-1) ||
+        (input.header.dwType != RIM_TYPEMOUSE) || ((input.data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) != 0u) ||
+        ((input.data.mouse.lLastX == 0) && (input.data.mouse.lLastY == 0)))
+    {
+        return;
+    }
+    // a report's counts are a few hundred at most, far inside an int
+    EMBED_CALL(args->system_read->events->input, GuiEachInputCfg, .context = args->system_read->context,
+               .input = &(GuiInput){
+                   .type = GUI_INPUT_RELATIVE, .x = (int)input.data.mouse.lLastX, .y = (int)input.data.mouse.lLastY});
+}
+
+static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_width, LPARAM low)
+{
+    GuiSystem *const system = (GuiSystem *)GetWindowLongPtrW(window, GWLP_USERDATA);
+    if (system == NULL)
+    {
+        return DefWindowProcW(window, message, pixel_width, low);
+    }
+    switch (message)
+    {
+    case WM_SETCURSOR:
+        // the window draws its own pointer over all of its pixels; the system shows its own only while it moves or
+        // sizes the window
+        if (!system->sizing)
+        {
+            SetCursor(NULL);
+            return TRUE;
+        }
+        return DefWindowProcW(window, message, pixel_width, low);
+    case WM_ENTERSIZEMOVE:
+        // the system takes the pointer for the move or the size: the window's own pointer leaves
+        system->sizing = 1;
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context, .input = GUI_LEFT_INPUT());
+        return DefWindowProcW(window, message, pixel_width, low);
+    case WM_EXITSIZEMOVE:
+        system->sizing = 0;
+        return DefWindowProcW(window, message, pixel_width, low);
+    case WM_NCCALCSIZE:
+        if (pixel_width == 0u)
+        {
+            return DefWindowProcW(window, message, pixel_width, low);
+        }
+        // the client is the whole window; a maximized window's frame is past the monitor's edges, which the client
+        // leaves out
+        if (IsZoomed(window))
+        {
+            NCCALCSIZE_PARAMS *const sizes = (NCCALCSIZE_PARAMS *)low;
+            const int frame = EMBED_CALL(system_frame_get, SystemWindowsCtx, .window = window);
+            sizes->rgrc[0].left += frame;
+            sizes->rgrc[0].top += frame;
+            sizes->rgrc[0].right -= frame;
+            sizes->rgrc[0].bottom -= frame;
+        }
+        return 0;
+    case WM_NCACTIVATE:
+        // the window taking or losing the focus: its border colored for the state, and the system told not to paint
+        // its own frame over the client, which -1 in place of the update region does
+        EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = pixel_width != 0u);
+        return DefWindowProcW(window, message, pixel_width, (LPARAM)-1);
+    case WM_NCPAINT:
+        // there is no non-client area to paint
+        return 0;
+    case WM_NCHITTEST: {
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        return EMBED_CALL(system_hit_code, SystemWindowsCtx,
+                          .hit = EMBED_CALL(system->events->hit, GuiEachInputCfg, .context = system->context,
+                                            .input = GUI_MOVED_INPUT(at.x, at.y)));
+    }
+    case WM_SIZE:
+        if (pixel_width == SIZE_MINIMIZED)
+        {
+            EMBED_CALL(system->events->displayed, GuiEachDisplayedCfg, .context = system->context, .displayed = 0);
+        }
+        else
+        {
+            EMBED_CALL(system->events->displayed, GuiEachDisplayedCfg, .context = system->context, .displayed = 1);
+            // the client's sides, as the message carries them, are not negative
+            EMBED_CALL(system->events->sized, GuiEachWidthHeightScaleCfg, .context = system->context,
+                       .width = (unsigned int)LOWORD(low), .height = (unsigned int)HIWORD(low),
+                       .scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window),
+                       .frame_ms = system->frame_ms);
+        }
+        return 0;
+    case WM_SETTINGCHANGE:
+        if (pixel_width == SPI_SETCLIENTAREAANIMATION)
+        {
+            system->events->motion(system->context);
+        }
+        return 0;
+    case WM_GETMINMAXINFO: {
+        // The least size the window is dragged to: the size a window owned opened at, else the main window's least, at
+        // its monitor's scale. A size at a scale is far inside a LONG
+        MINMAXINFO *const limits = (MINMAXINFO *)low;
+        const int scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window);
+        const int owned = (system != NULL) && system->owner;
+        limits->ptMinTrackSize.x = owned ? (LONG)system->min_width : (LONG)((CLI_POSITION_MIN_WIDTH * scale) / 100);
+        limits->ptMinTrackSize.y = owned ? (LONG)system->min_height : (LONG)((CLI_POSITION_MIN_HEIGHT * scale) / 100);
+        // maximized it fills the part of its monitor the taskbar leaves, its frame past those edges
+        MONITORINFO info;
+        info.cbSize = sizeof(info);
+        if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &info))
+        {
+            const int frame = EMBED_CALL(system_frame_get, SystemWindowsCtx, .window = window);
+            limits->ptMaxPosition.x = (info.rcWork.left - info.rcMonitor.left) - frame;
+            limits->ptMaxPosition.y = (info.rcWork.top - info.rcMonitor.top) - frame;
+            limits->ptMaxSize.x = (info.rcWork.right - info.rcWork.left) + (2 * frame);
+            limits->ptMaxSize.y = (info.rcWork.bottom - info.rcWork.top) + (2 * frame);
+            limits->ptMaxTrackSize = limits->ptMaxSize;
+        }
+        return 0;
+    }
+    case WM_DPICHANGED: {
+        const RECT *const suggested = (const RECT *)low;
+        SetWindowPos(window, NULL, suggested->left, suggested->top, suggested->right - suggested->left,
+                     suggested->bottom - suggested->top, SWP_NOZORDER | SWP_NOACTIVATE);
+        system->frame_ms = EMBED_CALL(system_frame_ms_get, SystemWindowsCtx, .window = window);
+        return 0;
+    }
+    case WM_DISPLAYCHANGE:
+        system->frame_ms = EMBED_CALL(system_frame_ms_get, SystemWindowsCtx, .window = window);
+        return 0;
+    case WM_PAINT: {
+        PAINTSTRUCT paint;
+        HDC context = BeginPaint(window, &paint);
+        if ((system->displayed.pixels != NULL) &&
+            !EMBED_CALL(system_flip, SystemWindowsCtx, .system = system, .raster = &system->displayed,
+                        .part = (GuiRect){0, 0, (int)system->displayed.width, (int)system->displayed.height}))
+        {
+            EMBED_CALL(system_blit, SystemWindowsCtx, .system = system, .context = context, .from = 0u,
+                       .rows = system->displayed.height);
+        }
+        EndPaint(window, &paint);
+        return 0;
+    }
+    case WM_ERASEBKGND:
+        return 1;
+    case WM_NCMOUSEMOVE: {
+        EMBED_CALL(system_leave_watch, SystemWindowsCtx, .system = system, .window = window,
+                   .flags = TME_LEAVE | TME_NONCLIENT);
+        // The frame is the window's own pixels: its resize edges and the caption the hit test names. A move over them
+        // reaches the window as a move at the client's point, so a pointer that rests on the window's edge is seen
+        // there, and not only inside the edges
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_MOVED,
+                                        .x = at.x,
+                                        .y = at.y,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return DefWindowProcW(window, message, pixel_width, low);
+    }
+    case WM_MOUSELEAVE:
+    case WM_NCMOUSELEAVE:
+        system->leave_watched = 0;
+        EMBED_CALL(system_pointer_leave, SystemWindowsCtx, .system = system, .window = window);
+        return 0;
+    case WM_MOUSEMOVE:
+        EMBED_CALL(system_leave_watch, SystemWindowsCtx, .system = system, .window = window, .flags = TME_LEAVE);
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_MOVED,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_LBUTTONDOWN:
+        SetCapture(window);
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = GUI_DOWN_INPUT(GET_X_LPARAM(low), GET_Y_LPARAM(low),
+                                           EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)));
+        return 0;
+    case WM_MBUTTONDOWN:
+        // the capture brings the middle button's release and the moves before it in from outside the window
+        SetCapture(window);
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_DOWN,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_MIDDLE,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_MBUTTONUP:
+        // the capture stays while the left button is still down, for its own release
+        if ((pixel_width & MK_LBUTTON) == 0u)
+        {
+            ReleaseCapture();
+        }
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_UP,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_MIDDLE,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_RBUTTONDOWN:
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_DOWN,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_RIGHT,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_RBUTTONUP:
+        // a browser on Windows opens a menu as the right button is let go
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_MENU,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_RIGHT,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_NCRBUTTONDOWN:
+    case WM_NCRBUTTONUP: {
+        // the right button on the bar the system moves the window by is the window's own, at the client's pixel, as
+        // the page's bar takes it: the system opens no window menu of its own there
+        if (pixel_width != HTCAPTION)
+        {
+            return DefWindowProcW(window, message, pixel_width, low);
+        }
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = (message == WM_NCRBUTTONDOWN) ? GUI_INPUT_DOWN : GUI_INPUT_MENU,
+                                        .x = at.x,
+                                        .y = at.y,
+                                        .button = GUI_BUTTON_RIGHT,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    }
+    case WM_LBUTTONUP:
+        // the capture stays while the middle button is still down, for its own release
+        if ((pixel_width & MK_MBUTTON) == 0u)
+        {
+            ReleaseCapture();
+        }
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_UP,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_SETFOCUS:
+        system->mods = system_mods_of_keyboard();
+        // the system frees a clipped cursor as the window loses the focus: a locked pointer is clipped again
+        if (system->locked)
+        {
+            EMBED_CALL(system_lock_clip, SystemWindowsCtx, .system_read = system);
+        }
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_FOCUS});
+        return 0;
+    case WM_KILLFOCUS:
+        system->mods = 0u;
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_BLUR});
+        return 0;
+    case WM_INPUT:
+        EMBED_CALL(system_raw_read, SystemWindowsCtx, .system_read = system, .raw = (HRAWINPUT)low);
+        return DefWindowProcW(window, message, pixel_width, low);
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+        // Alt+F4 is the system's, as a browser leaves it to the system: it closes the window as it closes any, and no
+        // part of the window is passed it
+        if ((message == WM_SYSKEYDOWN) && (pixel_width == VK_F4))
+        {
+            return DefWindowProcW(window, message, pixel_width, low);
+        }
+        if (!EMBED_CALL(system_modifier_key, SystemWindowsCtx, .system = system, .key = pixel_width, .down = 1))
+        {
+            EMBED_CALL(system_key_press, SystemWindowsCtx, .system = system, .key = pixel_width);
+        }
+        return 0;
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+        (void)EMBED_CALL(system_modifier_key, SystemWindowsCtx, .system = system, .key = pixel_width, .down = 0);
+        return 0;
+    case WM_CHAR:
+        EMBED_CALL(system_char_type, SystemWindowsCtx, .system = system, .unit = pixel_width);
+        return 0;
+    case WM_MOUSEWHEEL: {
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        // A notch is WHEEL_DELTA, positive away from the user, which scrolls up. A touchpad and a free wheel send
+        // parts of a notch. The parts add up in the rest, and a whole notch counts its rows
+        const int down = -GET_WHEEL_DELTA_WPARAM(pixel_width);
+        system->wheel_rest += down;
+        const int notches = system->wheel_rest / WHEEL_DELTA;
+        system->wheel_rest -= notches * WHEEL_DELTA;
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = GUI_WHEEL_INPUT(at.x, at.y, notches * GUI_WHEEL_ROWS, down, 0));
+        return 0;
+    }
+    case WM_MOUSEHWHEEL: {
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        // the sideways wheel, positive to the right; it turns no rows
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = GUI_WHEEL_INPUT(at.x, at.y, 0, 0, GET_WHEEL_DELTA_WPARAM(pixel_width)));
+        return 0;
+    }
+    case GUI_WAKE_MESSAGE:
+        system->events->woken(system->context);
+        return 0;
+    case WM_CLOSE:
+        system->events->closing(system->context);
+        return 0;
+    case WM_DESTROY:
+        system->closed = 1;
+        // the loop is the owner's: a window owned going leaves it running
+        if (!system->owner)
+        {
+            PostQuitMessage(0);
+        }
+        return 0;
+    default:
+        return DefWindowProcW(window, message, pixel_width, low);
+    }
+}
+
+// each monitor's area put after those seen, the main one first
+static BOOL CALLBACK system_monitor_visit(HMONITOR monitor, HDC context, LPRECT rect, LPARAM data)
+{
+    (void)context;
+    (void)rect;
+    const GuiSystemAreasCfg *const asked = (const GuiSystemAreasCfg *)data;
+    CliWindowArea *const areas = asked->areas;
+    unsigned int *const count = asked->count_out;
+    MONITORINFO info;
+    info.cbSize = sizeof(info);
+    if (!GetMonitorInfoW(monitor, &info) || (count[0] >= asked->max))
+    {
+        return TRUE;
+    }
+    // a monitor's area is the part the taskbar leaves: a window fitted to it has its foot in view; its sides are
+    // not negative
+    const CliWindowArea area = {info.rcWork.left, info.rcWork.top, (unsigned int)(info.rcWork.right - info.rcWork.left),
+                                (unsigned int)(info.rcWork.bottom - info.rcWork.top)};
+    if ((info.dwFlags & MONITORINFOF_PRIMARY) && (count[0] > 0u))
+    {
+        areas[count[0]] = areas[0];
+        areas[0] = area;
+    }
+    else
+    {
+        areas[count[0]] = area;
+    }
+    count[0] += 1u;
+    return TRUE;
+}
+
+// the monitor's whole size saved in the two words passed on, where it has more pixels than those seen
+static BOOL CALLBACK system_monitor_measure(HMONITOR monitor, HDC context, LPRECT rect, LPARAM data)
+{
+    (void)context;
+    (void)rect;
+    unsigned int *const max = (unsigned int *)data;
+    MONITORINFO info;
+    info.cbSize = sizeof(info);
+    if (GetMonitorInfoW(monitor, &info))
+    {
+        // a monitor's sides are not negative
+        const unsigned int width = (unsigned int)(info.rcMonitor.right - info.rcMonitor.left);
+        const unsigned int height = (unsigned int)(info.rcMonitor.bottom - info.rcMonitor.top);
+        if (((unsigned long long)width * height) > ((unsigned long long)max[0] * max[1]))
+        {
+            max[0] = width;
+            max[1] = height;
+        }
+    }
+    return TRUE;
+}
+
+void gui_system_display_max(const GuiSystemWidthCfg *args)
+{
+    // the system's pixels, not its scaled ones: the first the program asks of the system
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    unsigned int *width = args->width;
+    unsigned int *height = args->height;
+    unsigned int max[2] = {0u, 0u};
+    EnumDisplayMonitors(NULL, NULL, system_monitor_measure, (LPARAM)max);
+    *width = max[0];
+    *height = max[1];
+}
+
+unsigned int gui_system_areas(const GuiSystemAreasCfg *args)
+{
+    unsigned int count = 0u;
+    const GuiSystemAreasCfg counted = {args->areas, args->max, &count};
+    EnumDisplayMonitors(NULL, NULL, system_monitor_visit, (LPARAM)&counted);
+    return count;
+}
+
+// a window made at `place` under `owner`, none for a window of its own, its record made with it and left for the caller
+// to show: the record, or NULL with why given
+static GuiSystem *system_window_init(const SystemWindowsCtx *args)
+{
+    const GuiSystemEvents *events = args->events;
+    void *context = args->context_bytess;
+    GuiSystem *system = NULL;
+    for (unsigned int at = 0u; (at < SYSTEM_WINDOWS) && (system == NULL); at += 1u)
+    {
+        system = s_systems[at].taken ? NULL : &s_systems[at];
+    }
+    if (system == NULL)
+    {
+        mmgr_line_put(args->err_msg, "the program's three windows already are");
+        return NULL;
+    }
+    memor.set(&(MemoriaCfg){.dst = system, .val = 0, .bytes = sizeof(*system)});
+    system->taken = 1;
+    system->events = events;
+    system->context = context;
+    WNDCLASSEXW class_of;
+    memor.set(&(MemoriaCfg){.dst = &class_of, .val = 0, .bytes = sizeof(class_of)});
+    class_of.cbSize = sizeof(class_of);
+    class_of.style = CS_HREDRAW | CS_VREDRAW;
+    class_of.lpfnWndProc = system_message;
+    class_of.hInstance = GetModuleHandleW(NULL);
+    class_of.hCursor = LoadCursorW(NULL, IDC_ARROW);
+    class_of.lpszClassName = s_class;
+    if ((RegisterClassExW(&class_of) == 0) && (GetLastError() != ERROR_CLASS_ALREADY_EXISTS))
+    {
+        system->taken = 0;
+        mmgr_line_put(args->err_msg, "the window's class could not be registered");
+        return NULL;
+    }
+    wchar_t width_title[CLI_NAME_MAX_LEN];
+    const int wrote = MultiByteToWideChar(CP_UTF8, 0, args->title, -1, width_title, CLI_NAME_MAX_LEN);
+    if (wrote <= 0)
+    {
+        width_title[0] = L'\0';
+    }
+    // the place's sides are far inside what an int represents
+    system->window = CreateWindowExW(0, s_class, width_title,
+                                     WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU,
+                                     args->place->x, args->place->y, (int)args->place->width, (int)args->place->height,
+                                     args->owner, NULL, class_of.hInstance, NULL);
+    if (system->window == NULL)
+    {
+        system->taken = 0;
+        mmgr_line_put(args->err_msg, "the window could not be made");
+        return NULL;
+    }
+    SetWindowLongPtrW(system->window, GWLP_USERDATA, (LONG_PTR)system);
+    system->frame_ms = EMBED_CALL(system_frame_ms_get, SystemWindowsCtx, .window = system->window);
+    // the frame's change is taken up now the client is the whole window
+    SetWindowPos(system->window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    // the compositor rounds the window's corners and draws its one-pixel border in the system's color
+    const DWM_WINDOW_CORNER_PREFERENCE corners = DWMWCP_ROUND;
+    DwmSetWindowAttribute(system->window, DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(corners));
+    return system;
+}
+
+GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
+{
+    GuiSystem *const system =
+        EMBED_CALL(system_window_init, SystemWindowsCtx, .owner = NULL, .place = args->place, .title = args->title,
+                   .events = args->events, .context_bytess = args->context, .err_msg = args->err_msg);
+    if (system == NULL)
+    {
+        return NULL;
+    }
+    ShowWindow(system->window, args->place->maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
+    return system;
+}
+
+GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
+{
+    GuiSystem *const system = EMBED_CALL(system_window_init, SystemWindowsCtx, .owner = args->owner->window,
+                                         .place = args->place, .title = args->title, .events = args->events,
+                                         .context_bytess = args->context, .err_msg = args->err_msg);
+    if (system == NULL)
+    {
+        return NULL;
+    }
+    system->owner = 1;
+    // a window owned is dragged no smaller than it opened, the size its owner asked for it; a place's sides are far
+    // inside what an int represents
+    system->min_width = (int)args->place->width;
+    system->min_height = (int)args->place->height;
+    ShowWindow(system->window, SW_SHOW);
+    // A modal window disables its owner, so the system refuses the owner's input until the modal window closes
+    if (args->modal)
+    {
+        system->modal_owner = args->owner->window;
+        EnableWindow(system->modal_owner, FALSE);
+    }
+    return system;
+}
+
+// one message dispatched: a key pressed with control or alt down in the window it is sent to is a key, not text, and is
+// not translated to a character; the character a key makes is queued behind the messages posted already, which would
+// put it past the modifiers' release
+EMBED_INLINE void system_message_alloc(const SystemWindowsCtx *args)
+{
+    const GuiSystem *const system =
+        (args->message->hwnd != NULL) ? (const GuiSystem *)GetWindowLongPtrW(args->message->hwnd, GWLP_USERDATA) : NULL;
+    const int keyed = (args->message->message == WM_KEYDOWN) || (args->message->message == WM_KEYUP) ||
+                      (args->message->message == WM_SYSKEYDOWN) || (args->message->message == WM_SYSKEYUP);
+    if (!keyed || (system == NULL) || ((system->mods & (GUI_MOD_CONTROL | GUI_MOD_ALT)) == 0u))
+    {
+        TranslateMessage(args->message);
+    }
+    DispatchMessageW(args->message);
+}
+
+void gui_system_run(const GuiSystemCfg *args)
+{
+    MSG message;
+    while (!args->system->closed && (GetMessageW(&message, NULL, 0u, 0u) > 0))
+    {
+        EMBED_CALL(system_message_alloc, SystemWindowsCtx, .message = &message);
+    }
+}
+
+void gui_system_pumped(const GuiSystemCfg *args)
+{
+    MSG message;
+    while (!args->system->closed && PeekMessageW(&message, NULL, 0u, 0u, PM_REMOVE))
+    {
+        EMBED_CALL(system_message_alloc, SystemWindowsCtx, .message = &message);
+    }
+}
+
+void *gui_system_native(const GuiSystemPositionCfg *args)
+{
+    return (void *)args->system_read->window;
+}
+
+void gui_system_close(const GuiSystemCfg *args)
+{
+    EMBED_CALL(system_device_release, SystemWindowsCtx, .device = &args->system->device);
+    // The owner of a modal window takes input again before the modal window goes, so the system gives it the focus
+    if (args->system->modal_owner != NULL)
+    {
+        EnableWindow(args->system->modal_owner, TRUE);
+        args->system->modal_owner = NULL;
+    }
+    if (args->system->window != NULL)
+    {
+        DestroyWindow(args->system->window);
+        args->system->window = NULL;
+    }
+    args->system->closed = 1;
+}
+
+void gui_system_free(const GuiSystemCfg *args)
+{
+    args->system->taken = 0;
+}
+
+void gui_system_present(const GuiSystemRasterCfg *args)
+{
+    args->system->displayed = *args->raster;
+    if (!EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster,
+                    .part = (GuiRect){0, 0, (int)args->raster->width, (int)args->raster->height}))
+    {
+        HDC context = GetDC(args->system->window);
+        EMBED_CALL(system_blit, SystemWindowsCtx, .system = args->system, .context = context, .from = 0u,
+                   .rows = args->raster->height);
+        ReleaseDC(args->system->window, context);
+    }
+}
+
+void gui_system_present_part(const GuiSystemRasterCfg *args)
+{
+    args->system->displayed = *args->raster;
+    // the device copies and presents the part alone, and the system's drawing calls write the part where it cannot
+    if (EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster, .part = args->part))
+    {
+        return;
+    }
+    if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part) && (args->part.y >= 0))
+    {
+        // The damage blits alone: its rows, and in them its columns. Its rows are not negative where it is not empty.
+        // A damage that starts left of the raster blits its rows whole
+        const int inside = args->part.x >= 0;
+        HDC context = GetDC(args->system->window);
+        EMBED_CALL(system_blit, SystemWindowsCtx, .system = args->system, .context = context,
+                   .from = (unsigned int)args->part.y, .rows = (unsigned int)args->part.height,
+                   .left = inside ? (unsigned int)args->part.x : 0u,
+                   .columns = inside ? (unsigned int)args->part.width : 0u);
+        ReleaseDC(args->system->window, context);
+    }
+}
+
+void gui_system_wake(const GuiSystemCfg *args)
+{
+    if (args->system->window != NULL)
+    {
+        PostMessageW(args->system->window, GUI_WAKE_MESSAGE, 0u, 0);
+    }
+}
+
+// The timer each thread waits for the refresh on. A timer of high resolution ends at its time, and not at the next step
+// of the system timer. The thread keeps its timer until the process ends
+static _Thread_local HANDLE t_refresh_timer;
+
+int gui_system_refresh_wait(void)
+{
+    // The compositor gives the time of the last blank and the refresh's period, also while it composes nothing. The
+    // next blank after now is a whole count of periods after the last. DwmFlush returns at once where the compositor
+    // has nothing to compose. It is the wait only where the compositor's times or the timer are not available
+    DWM_TIMING_INFO timing;
+    memor.set(&(MemoriaCfg){.dst = &timing, .val = 0, .bytes = sizeof(timing)});
+    timing.cbSize = sizeof(timing);
+    LARGE_INTEGER now;
+    LARGE_INTEGER frequency;
+    if (t_refresh_timer == NULL)
+    {
+        t_refresh_timer =
+            CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
+    }
+    if ((t_refresh_timer == NULL) || FAILED(DwmGetCompositionTimingInfo(NULL, &timing)) ||
+        (timing.qpcRefreshPeriod == 0ULL) || !QueryPerformanceCounter(&now) || !QueryPerformanceFrequency(&frequency))
+    {
+        return DwmFlush() == S_OK;
+    }
+    // the counter's values are not negative
+    const ULONGLONG at = (ULONGLONG)now.QuadPart;
+    const ULONGLONG period = timing.qpcRefreshPeriod;
+    const ULONGLONG next = (at < timing.qpcVBlank)
+                               ? timing.qpcVBlank
+                               : timing.qpcVBlank + ((((at - timing.qpcVBlank) / period) + 1ULL) * period);
+    // The wait is in units of 100 ns, and negative for a time from now. It is less than one period, far inside a
+    // LONGLONG
+    LARGE_INTEGER due;
+    due.QuadPart = -(LONGLONG)(((next - at) * 10000000ULL) / (ULONGLONG)frequency.QuadPart);
+    return SetWaitableTimerEx(t_refresh_timer, &due, 0, NULL, NULL, NULL, 0u) &&
+           (WaitForSingleObject(t_refresh_timer, INFINITE) == WAIT_OBJECT_0);
+}
+
+// an icon made from `raster`'s pixels with their alpha: a 32-bit section the pixels are copied into and an empty mask
+EMBED_INLINE HICON system_icon_init(const SystemWindowsCtx *args)
+{
+    BITMAPV5HEADER header;
+    memor.set(&(MemoriaCfg){.dst = &header, .val = 0, .bytes = sizeof(header)});
+    header.bV5Size = sizeof(header);
+    // a raster's sides are far inside what a LONG represents; a negative height positions the rows top down
+    header.bV5Width = (LONG)args->raster->width;
+    header.bV5Height = -(LONG)args->raster->height;
+    header.bV5Planes = 1;
+    header.bV5BitCount = 32;
+    header.bV5Compression = BI_BITFIELDS;
+    header.bV5RedMask = 0x00ff0000u;
+    header.bV5GreenMask = 0x0000ff00u;
+    header.bV5BlueMask = 0x000000ffu;
+    header.bV5AlphaMask = 0xff000000u;
+    void *bits = NULL;
+    HBITMAP color = CreateDIBSection(NULL, (const BITMAPINFO *)&header, DIB_RGB_COLORS, &bits, NULL, 0u);
+    if ((color == NULL) || (bits == NULL))
+    {
+        return NULL;
+    }
+    memor.cpy(
+        &(MemoriaCfg){.dst = bits,
+                      .src = args->raster->pixels,
+                      .bytes = (unsigned long long)args->raster->width * args->raster->height * sizeof(GuiColor)});
+    HBITMAP mask = CreateBitmap((int)args->raster->width, (int)args->raster->height, 1u, 1u, NULL);
+    ICONINFO info;
+    info.fIcon = TRUE;
+    info.xHotspot = 0u;
+    info.yHotspot = 0u;
+    info.hbmMask = mask;
+    info.hbmColor = color;
+    HICON icon = CreateIconIndirect(&info);
+    DeleteObject(color);
+    if (mask != NULL)
+    {
+        DeleteObject(mask);
+    }
+    return icon;
+}
+
+void gui_system_icon(const GuiSystemTitleIconCfg *args)
+{
+    if (args->system->window == NULL)
+    {
+        return;
+    }
+    HICON title = EMBED_CALL(system_icon_init, SystemWindowsCtx, .raster = args->title_icon);
+    HICON taskbar = EMBED_CALL(system_icon_init, SystemWindowsCtx, .raster = args->taskbar_icon);
+    if (title != NULL)
+    {
+        SendMessageW(args->system->window, WM_SETICON, ICON_SMALL, (LPARAM)title);
+    }
+    if (taskbar != NULL)
+    {
+        SendMessageW(args->system->window, WM_SETICON, ICON_BIG, (LPARAM)taskbar);
+    }
+}
+
+void gui_system_act(const GuiSystemCfg *args)
+{
+    if (args->act == GUI_ACT_MINIMIZE)
+    {
+        ShowWindow(args->system->window, SW_MINIMIZE);
+    }
+    else if (args->act == GUI_ACT_MAXIMIZE)
+    {
+        ShowWindow(args->system->window, IsZoomed(args->system->window) ? SW_RESTORE : SW_MAXIMIZE);
+    }
+    else if ((args->act == GUI_ACT_RAW_ON) || (args->act == GUI_ACT_RAW_OFF))
+    {
+        // the mouse's raw input to this window while it has the focus, or to no window
+        const int on = args->act == GUI_ACT_RAW_ON;
+        RAWINPUTDEVICE device = {0x01u, 0x02u, on ? 0u : RIDEV_REMOVE, on ? args->system->window : NULL};
+        args->system->raw = on && RegisterRawInputDevices(&device, 1u, sizeof(device));
+    }
+    else if (args->act == GUI_ACT_LOCK_ON)
+    {
+        args->system->locked = 1;
+        EMBED_CALL(system_lock_clip, SystemWindowsCtx, .system_read = args->system);
+    }
+    else if (args->act == GUI_ACT_LOCK_OFF)
+    {
+        args->system->locked = 0;
+        ClipCursor(NULL);
+    }
+    else
+    {
+        PostMessageW(args->system->window, WM_CLOSE, 0u, 0);
+    }
+}
+
+void gui_system_on_position(const GuiSystemPositionCfg *args)
+{
+    WINDOWPLACEMENT placement;
+    placement.length = sizeof(placement);
+    GetWindowPlacement(args->system_read->window, &placement);
+    const RECT *const rect = &placement.rcNormalPosition;
+    args->position_out->x = rect->left;
+    args->position_out->y = rect->top;
+    // a window's sides are not negative
+    args->position_out->width = (unsigned int)(rect->right - rect->left);
+    args->position_out->height = (unsigned int)(rect->bottom - rect->top);
+    args->position_out->maximized = (placement.showCmd == SW_SHOWMAXIMIZED) ? 1 : 0;
+}
+
+int gui_system_motion_reduce(const GuiSystemPositionCfg *args)
+{
+    (void)args;
+    BOOL animates = TRUE;
+    return SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0u, &animates, 0u) && !animates;
+}
+
+int gui_system_scale(const GuiSystemPositionCfg *args)
+{
+    return EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = args->system_read->window);
+}
+
+// A pointer's own surface: a layered window over every window that takes no input. The memory context holds its
+// picture's bitmap, a top-down 32-bit bitmap of the largest picture, with the bitmap the context held first. Also
+// recorded: the picture's bits and size, whether the surface shows, and whether it failed to open
+typedef struct
+{
+    HWND window;
+    HDC context;
+    HBITMAP picture;
+    HGDIOBJ first;
+    void *bits;
+    SIZE size;
+    int shown;
+    int refused;
+} SystemPointer;
+static SystemPointer s_pointers[GUI_SYSTEM_POINTERS];
+static const wchar_t s_pointer_class[] = L"orior_pointer";
+
+// a pointer's window answers each hit test as clear, so a press goes to the window under it
+static LRESULT CALLBACK system_pointer_message(HWND window, UINT message, WPARAM word, LPARAM low)
+{
+    if (message == WM_NCHITTEST)
+    {
+        return HTTRANSPARENT;
+    }
+    return DefWindowProcW(window, message, word, low);
+}
+
+// Every part of the surface `pointer` let go, and the record left empty with its refusal kept
+static void system_pointer_release(SystemPointer *pointer)
+{
+    if ((pointer->context != NULL) && (pointer->first != NULL))
+    {
+        SelectObject(pointer->context, pointer->first);
+    }
+    if (pointer->picture != NULL)
+    {
+        DeleteObject(pointer->picture);
+    }
+    if (pointer->context != NULL)
+    {
+        DeleteDC(pointer->context);
+    }
+    if (pointer->window != NULL)
+    {
+        DestroyWindow(pointer->window);
+    }
+    const int refused = pointer->refused;
+    memor.set(&(MemoriaCfg){.dst = pointer, .val = 0, .bytes = sizeof(*pointer)});
+    pointer->refused = refused;
+}
+
+// The surface `pointer` opened: the class the surfaces share, its window, its bitmap and the context that holds the
+// bitmap. A part the system refuses lets every part go, and the surface is not opened again
+static void system_pointer_open(SystemPointer *pointer)
+{
+    WNDCLASSEXW class_of;
+    memor.set(&(MemoriaCfg){.dst = &class_of, .val = 0, .bytes = sizeof(class_of)});
+    class_of.cbSize = sizeof(class_of);
+    class_of.lpfnWndProc = system_pointer_message;
+    class_of.hInstance = GetModuleHandleW(NULL);
+    class_of.lpszClassName = s_pointer_class;
+    if ((RegisterClassExW(&class_of) == 0) && (GetLastError() != ERROR_CLASS_ALREADY_EXISTS))
+    {
+        pointer->refused = 1;
+        return;
+    }
+    pointer->window =
+        CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+                        s_pointer_class, L"", WS_POPUP, 0, 0, 1, 1, NULL, NULL, class_of.hInstance, NULL);
+    BITMAPINFO header;
+    memor.set(&(MemoriaCfg){.dst = &header, .val = 0, .bytes = sizeof(header)});
+    header.bmiHeader.biSize = sizeof(header.bmiHeader);
+    header.bmiHeader.biWidth = (LONG)GUI_POINTER_PIXELS_MAX;
+    // a negative height puts the rows top down
+    header.bmiHeader.biHeight = -(LONG)GUI_POINTER_PIXELS_MAX;
+    header.bmiHeader.biPlanes = 1;
+    header.bmiHeader.biBitCount = 32;
+    header.bmiHeader.biCompression = BI_RGB;
+    pointer->context = CreateCompatibleDC(NULL);
+    pointer->picture = CreateDIBSection(NULL, &header, DIB_RGB_COLORS, &pointer->bits, NULL, 0u);
+    if ((pointer->window == NULL) || (pointer->context == NULL) || (pointer->picture == NULL) ||
+        (pointer->bits == NULL))
+    {
+        system_pointer_release(pointer);
+        pointer->refused = 1;
+        return;
+    }
+    pointer->first = SelectObject(pointer->context, pointer->picture);
+}
+
+void gui_system_pointer_put(const GuiSystemPointerCfg *args)
+{
+    if (args->at >= GUI_SYSTEM_POINTERS)
+    {
+        return;
+    }
+    SystemPointer *const pointer = &s_pointers[args->at];
+    if ((pointer->window == NULL) && !pointer->refused)
+    {
+        system_pointer_open(pointer);
+    }
+    if (pointer->window == NULL)
+    {
+        return;
+    }
+    if (!args->shown)
+    {
+        if (pointer->shown)
+        {
+            ShowWindow(pointer->window, SW_HIDE);
+            pointer->shown = 0;
+        }
+        return;
+    }
+    const int pictured =
+        (args->picture != NULL) && (args->width <= GUI_POINTER_PIXELS_MAX) && (args->height <= GUI_POINTER_PIXELS_MAX);
+    if (pictured)
+    {
+        for (unsigned int row = 0u; row < args->height; row += 1u)
+        {
+            memor.cpy(
+                &(MemoriaCfg){.dst = (GuiColor *)pointer->bits + ((unsigned long long)row * GUI_POINTER_PIXELS_MAX),
+                              .src = args->picture + ((unsigned long long)row * args->width),
+                              .bytes = (unsigned long long)args->width * sizeof(GuiColor)});
+        }
+        // a picture's sides are a few dozen pixels, far inside a LONG
+        pointer->size = (SIZE){(LONG)args->width, (LONG)args->height};
+    }
+    POINT at = {args->x, args->y};
+    if (args->system_read != NULL)
+    {
+        ClientToScreen(args->system_read->window, &at);
+    }
+    // A new picture goes with its place. A move alone moves the window, and the bits the compositor holds stay
+    if (pictured)
+    {
+        POINT origin = {0, 0};
+        BLENDFUNCTION blend = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
+        UpdateLayeredWindow(pointer->window, NULL, &at, &pointer->size, pointer->context, &origin, 0u, &blend,
+                            ULW_ALPHA);
+    }
+    else
+    {
+        UpdateLayeredWindow(pointer->window, NULL, &at, NULL, NULL, NULL, 0u, NULL, 0u);
+    }
+    if (!pointer->shown)
+    {
+        SetWindowPos(pointer->window, HWND_TOPMOST, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        pointer->shown = 1;
+    }
+}
+
+void gui_system_pointer_close(const GuiSystemPointerCfg *args)
+{
+    (void)args;
+    for (unsigned int at = 0u; at < GUI_SYSTEM_POINTERS; at += 1u)
+    {
+        system_pointer_release(&s_pointers[at]);
+    }
+}

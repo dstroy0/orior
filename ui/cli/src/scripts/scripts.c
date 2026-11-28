@@ -179,7 +179,7 @@ static void scripts_overseen_end(void *context)
 EMBED_INLINE int scripts_options(const ScriptsCtx *args)
 {
     VerbaLinea *const out = args->out;
-    char *const code_text = g_cli_guard->temporary_buf_alloc(CLI_SCRIPTS_CODE_MAX, g_cli_scripts_owner);
+    char *const code_text = g_platform_guard->temporary_buf_alloc(CLI_SCRIPTS_CODE_MAX, g_cli_scripts_owner);
     if (code_text == NULL)
     {
         mmgr_line_put(args->err_msg, "no room for the plugin's code");
@@ -215,8 +215,8 @@ EMBED_INLINE int scripts_options(const ScriptsCtx *args)
                         ((state != NULL) && (state_size > 0ULL)) ? state_size : 4ULL);
         mmgr_line_put(out, "}");
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)state, g_cli_scripts_owner);
-    g_cli_guard->persistent_buf_release(code_text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)state, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(code_text, g_cli_scripts_owner);
     if (read && !mmgr_line_ok(out))
     {
         mmgr_line_put(args->err_msg, "the plugin's code and state do not fit the host's options");
@@ -261,7 +261,8 @@ EMBED_INLINE int scripts_start(const ScriptsCtx *args)
     (void)EMBED_CALL(cli_plugins_settings_of_table.of, CliPluginsSettingsOfCfg, .id = args->id,
                      .each = scripts_resources_read, .context = &resources);
     const unsigned long long options_capacity = (CLI_SCRIPTS_CODE_MAX * 6ULL) + CLI_SCRIPTS_STATE_MAX + 512ULL;
-    char *const options_text = ready ? g_cli_guard->temporary_buf_alloc(options_capacity, g_cli_scripts_owner) : NULL;
+    char *const options_text =
+        ready ? g_platform_guard->temporary_buf_alloc(options_capacity, g_cli_scripts_owner) : NULL;
     VerbaLinea options = mmgr_line_over(options_text, (options_text != NULL) ? options_capacity : 0ULL);
     ready = ready && (options_text != NULL) &&
             EMBED_CALL(scripts_options, ScriptsCtx, .id = args->id, .err_msg = args->err_msg, .out = &options);
@@ -281,7 +282,7 @@ EMBED_INLINE int scripts_start(const ScriptsCtx *args)
                            .length = options.at, .recv = scripts_recv, .context = &s_hosts[args->at],
                            .overseen = args->id, .overseen_role = CLI_OVERSEER_PLUGIN)
               : NULL;
-    g_cli_guard->persistent_buf_release(options_text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(options_text, g_cli_scripts_owner);
     cli_gate_shut(&s_gate);
     s_hosts[args->at].lsp = lsp;
     s_hosts[args->at].used = (lsp != NULL);
@@ -327,7 +328,7 @@ EMBED_INLINE void scripts_kept_stop(const ScriptsCtx *args)
                              .bytes = answer.text, .size = answer.size, .fresh = 1);
         }
     }
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = args->lsp);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = args->lsp);
 }
@@ -388,7 +389,7 @@ int cli_scripts_ask(const CliScriptsCfg *args)
     }
     static const char *const s_sources[3] = {"command", "event", "server"};
     const unsigned long long params_capacity = args->length + (CLI_PATH_MAX_LEN * 2ULL);
-    char *const asked_text = g_cli_guard->temporary_buf_alloc(params_capacity, g_cli_scripts_owner);
+    char *const asked_text = g_platform_guard->temporary_buf_alloc(params_capacity, g_cli_scripts_owner);
     VerbaLinea params = mmgr_line_over(asked_text, (asked_text != NULL) ? params_capacity : 0ULL);
     mmgr_line_put(&params, "{\"source\":\"");
     mmgr_line_put(&params, s_sources[(args->source < 3u) ? args->source : 0u]);
@@ -416,8 +417,8 @@ int cli_scripts_ask(const CliScriptsCfg *args)
     {
         mmgr_line_put_n(args->answer, answer.text, answer.size);
     }
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(asked_text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(asked_text, g_cli_scripts_owner);
     cli_gate_shut(&s_gate);
     s_hosts[at].asks -= (s_hosts[at].asks > 0u) ? 1u : 0u;
     s_hosts[at].quiet_from = cli_clock_milliseconds();

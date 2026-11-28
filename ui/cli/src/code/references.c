@@ -62,9 +62,9 @@ static References s_references;
 // grows, the path of the file the last reference was in, and whether every write fit
 typedef struct
 {
-    CliGrownLine files;
-    CliGrownLine ones;
-    CliGrownLine bytes;
+    PlatformText files;
+    PlatformText ones;
+    PlatformText bytes;
     char last_path[CLI_PATH_MAX_LEN];
     unsigned int count;
     int whole;
@@ -110,12 +110,12 @@ static char *references_open_text(const CliOpenTextCfg *args)
     {
         return NULL;
     }
-    char *const text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner);
     VerbaLinea line = {text, size + 1ULL, 0ULL};
     if ((text == NULL) || !EMBED_CALL(cli_servers_path_out_err_msg_from_to.text_get, CliServersPathOutErrMsgFromToCfg,
                                       .path = args->path, .out = &line))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_code_owner);
         return NULL;
     }
     *args->size = mmgr_line_finish(&line);
@@ -135,10 +135,10 @@ static void references_each(const CliUsageCfg *args)
         (read->count != 0u) &&
         cellul.eq(&(CatenaFinitaCfg){
             .src = read->last_path, .cap = CLI_PATH_MAX_LEN, .other = args->path, .other_cap = CLI_PATH_MAX_LEN});
-    unsigned int files = (unsigned int)(cli_grown_size(&read->files) / sizeof(ReferencesFile));
+    unsigned int files = (unsigned int)(platform_text_size(&read->files) / sizeof(ReferencesFile));
     if (!same)
     {
-        const ReferencesFile file = {cli_grown_size(&read->bytes),
+        const ReferencesFile file = {platform_text_size(&read->bytes),
                                      path_length,
                                      EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                 .text = args->path, .at = path_length, .set = "/"),
@@ -158,7 +158,8 @@ static void references_each(const CliUsageCfg *args)
     last.count += 1u;
     memor.cpy(
         &(MemoriaCfg){.dst = read->files.cell + ((files - 1u) * sizeof(last)), .src = &last, .bytes = sizeof(last)});
-    const Reference one = {cli_grown_size(&read->bytes), args->length, files - 1u, args->line, args->from, args->to};
+    const Reference one = {
+        platform_text_size(&read->bytes), args->length, files - 1u, args->line, args->from, args->to};
     (void)mmgr_line_put_n(&read->bytes.line, args->text, args->length);
     mmgr_line_ch(&read->bytes.line, '\0');
     (void)mmgr_line_put_n(&read->ones.line, (const char *)&one, sizeof(one));
@@ -174,7 +175,7 @@ EMBED_INLINE void references_layout(const ReferencesCtx *args)
     for (unsigned int at = 0u; at < s_references.files; at += 1u)
     {
         ReferencesFile file;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_references.cell, .offset = REFERENCES_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
         rows += 1u + (file.closed ? 0u : file.count);
     }
@@ -232,9 +233,12 @@ EMBED_INLINE int references_collect(const ReferencesCtx *args)
     cli_references_end();
     ReferencesRead read;
     memor.set(&(MemoriaCfg){.dst = &read, .val = 0, .bytes = sizeof(read)});
-    cli_grown_begin(&read.files, CLI_REFERENCES_CAPACITY, g_cli_servers_owner);
-    cli_grown_begin(&read.ones, CLI_REFERENCES_CAPACITY, g_cli_servers_owner);
-    cli_grown_begin(&read.bytes, CLI_REFERENCES_CAPACITY, g_cli_servers_owner);
+    platform_text_begun(&read.files, CLI_REFERENCES_CAPACITY, platform_place_g_cli_servers_owner,
+                        PLATFORM_TIER_TEMPORARY);
+    platform_text_begun(&read.ones, CLI_REFERENCES_CAPACITY, platform_place_g_cli_servers_owner,
+                        PLATFORM_TIER_TEMPORARY);
+    platform_text_begun(&read.bytes, CLI_REFERENCES_CAPACITY, platform_place_g_cli_servers_owner,
+                        PLATFORM_TIER_TEMPORARY);
     read.whole = (read.files.cell != NULL) && (read.ones.cell != NULL) && (read.bytes.cell != NULL);
     int found = 0;
     if (!read.whole)
@@ -255,10 +259,10 @@ EMBED_INLINE int references_collect(const ReferencesCtx *args)
     }
     if (found == 1)
     {
-        const unsigned long long files_bytes = cli_grown_size(&read.files);
-        const unsigned long long ones_bytes = cli_grown_size(&read.ones);
-        const unsigned long long bytes = cli_grown_size(&read.bytes);
-        s_references.cell = g_cli_guard->movable_buf_alloc(files_bytes + ones_bytes + bytes, g_cli_servers_owner);
+        const unsigned long long files_bytes = platform_text_size(&read.files);
+        const unsigned long long ones_bytes = platform_text_size(&read.ones);
+        const unsigned long long bytes = platform_text_size(&read.bytes);
+        s_references.cell = g_platform_guard->movable_buf_alloc(files_bytes + ones_bytes + bytes, g_cli_servers_owner);
         if (s_references.cell == NULL)
         {
             mmgr_line_put(args->err_msg, "the cells cannot hold the references");
@@ -269,23 +273,23 @@ EMBED_INLINE int references_collect(const ReferencesCtx *args)
             s_references.files = (unsigned int)(files_bytes / sizeof(ReferencesFile));
             s_references.references = read.count;
             s_references.bytes_at = files_bytes + ones_bytes;
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = s_references.cell, .offset = 0ULL, .src = read.files.cell, .bytes = (embed_word)files_bytes});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_references.cell,
-                                                                     .offset = files_bytes,
-                                                                     .src = read.ones.cell,
-                                                                     .bytes = (embed_word)ones_bytes});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_references.cell,
-                                                                     .offset = s_references.bytes_at,
-                                                                     .src = read.bytes.cell,
-                                                                     .bytes = (embed_word)bytes});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_references.cell,
+                                                                          .offset = files_bytes,
+                                                                          .src = read.ones.cell,
+                                                                          .bytes = (embed_word)ones_bytes});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_references.cell,
+                                                                          .offset = s_references.bytes_at,
+                                                                          .src = read.bytes.cell,
+                                                                          .bytes = (embed_word)bytes});
             EMBED_CALL(references_name_read, ReferencesCtx, .read = &read);
             EMBED_CALL(references_layout, ReferencesCtx, .at = 0ULL);
         }
     }
-    cli_grown_end(&read.files);
-    cli_grown_end(&read.ones);
-    cli_grown_end(&read.bytes);
+    platform_text_ended(&read.files);
+    platform_text_ended(&read.ones);
+    platform_text_ended(&read.bytes);
     EMBED_CALL(references_report, ReferencesCtx, .at = 0ULL);
     return found;
 }
@@ -343,16 +347,16 @@ EMBED_INLINE unsigned int references_view_of(const ReferencesCtx *args)
 EMBED_INLINE int references_file_rename(const ReferencesCtx *args)
 {
     ReferencesFile file;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_references.cell, .offset = REFERENCES_FILE_AT(args->file_at), .dst = &file, .bytes = sizeof(file)});
     char path[CLI_PATH_MAX_LEN];
     // the bytes at `file.path`, cut to the room, and a zero after them
     const unsigned long long path_copied =
         (file.path_length < sizeof(path) - 1ULL) ? file.path_length : sizeof(path) - 1ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
-                                                            .offset = s_references.bytes_at + file.path,
-                                                            .dst = path,
-                                                            .bytes = (embed_word)path_copied});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
+                                                                 .offset = s_references.bytes_at + file.path,
+                                                                 .dst = path,
+                                                                 .bytes = (embed_word)path_copied});
     path[path_copied] = '\0';
     unsigned int at = EMBED_CALL(references_view_of, ReferencesCtx, .path = path);
     const int opened_here = at == cli_view_count();
@@ -377,10 +381,11 @@ EMBED_INLINE int references_file_rename(const ReferencesCtx *args)
     for (unsigned int back = file.count; (written >= 0) && (back > 0u); back -= 1u)
     {
         Reference one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
-                                                                .offset = REFERENCES_ONE_AT((file.first + back - 1u)),
-                                                                .dst = &one,
-                                                                .bytes = sizeof(one)});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_references.cell,
+                                .offset = REFERENCES_ONE_AT((file.first + back - 1u)),
+                                .dst = &one,
+                                .bytes = sizeof(one)});
         const CliViewInput replace = {.type = CLI_VIEW_REPLACE,
                                       .text = args->name,
                                       .length = args->name_length,
@@ -451,7 +456,7 @@ EMBED_INLINE int references_row_find(const ReferencesCtx *args)
     for (unsigned int file_at = 0u; file_at < s_references.files; file_at += 1u)
     {
         ReferencesFile file;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_references.cell, .offset = REFERENCES_FILE_AT(file_at), .dst = &file, .bytes = sizeof(file)});
         const unsigned int rows = 1u + (file.closed ? 0u : file.count);
         if (args->at < (unsigned long long)row + rows)
@@ -475,17 +480,17 @@ int cli_references_row(const CliReferencesAtRowCfg *args)
         return 0;
     }
     ReferencesFile file;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_references.cell, .offset = REFERENCES_FILE_AT(file_at), .dst = &file, .bytes = sizeof(file)});
     memor.set(&(MemoriaCfg){.dst = args->row, .val = 0, .bytes = sizeof(*args->row)});
     // the bytes args->at `file.path`, cut to the room, and a zero after them
     const unsigned long long path_copied = (file.path_length < sizeof(args->row->path_copied) - 1ULL)
                                                ? file.path_length
                                                : sizeof(args->row->path_copied) - 1ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
-                                                            .offset = s_references.bytes_at + file.path,
-                                                            .dst = args->row->path_copied,
-                                                            .bytes = (embed_word)path_copied});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
+                                                                 .offset = s_references.bytes_at + file.path,
+                                                                 .dst = args->row->path_copied,
+                                                                 .bytes = (embed_word)path_copied});
     args->row->path_copied[path_copied] = '\0';
     args->row->path = args->row->path_copied;
     if (inside == 0u)
@@ -499,10 +504,11 @@ int cli_references_row(const CliReferencesAtRowCfg *args)
         return 1;
     }
     Reference one;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
-                                                            .offset = REFERENCES_ONE_AT((file.first + inside - 1u)),
-                                                            .dst = &one,
-                                                            .bytes = sizeof(one)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_references.cell,
+                            .offset = REFERENCES_ONE_AT((file.first + inside - 1u)),
+                            .dst = &one,
+                            .bytes = sizeof(one)});
     args->row->type = CLI_REFERENCES_ROW_PLACE;
     args->row->line = one.line;
     args->row->col = one.from;
@@ -510,10 +516,10 @@ int cli_references_row(const CliReferencesAtRowCfg *args)
     // the bytes args->at `one.text`, cut to the room, and a zero after them
     const unsigned long long text_copied =
         (one.length < sizeof(args->row->text_copied) - 1ULL) ? one.length : sizeof(args->row->text_copied) - 1ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
-                                                            .offset = s_references.bytes_at + one.text,
-                                                            .dst = args->row->text_copied,
-                                                            .bytes = (embed_word)text_copied});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_references.cell,
+                                                                 .offset = s_references.bytes_at + one.text,
+                                                                 .dst = args->row->text_copied,
+                                                                 .bytes = (embed_word)text_copied});
     args->row->text_copied[text_copied] = '\0';
     args->row->text_length = text_copied;
     args->row->text = args->row->text_copied;
@@ -540,10 +546,10 @@ int cli_references_press(const CliReferencesAtRowCfg *args)
     unsigned int inside = 0u;
     (void)EMBED_CALL(references_row_find, ReferencesCtx, .at = args->at, .files_out = &file_at, .inside_out = &inside);
     ReferencesFile file;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_references.cell, .offset = REFERENCES_FILE_AT(file_at), .dst = &file, .bytes = sizeof(file)});
     file.closed = !file.closed;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_references.cell, .offset = REFERENCES_FILE_AT(file_at), .src = &file, .bytes = sizeof(file)});
     EMBED_CALL(references_layout, ReferencesCtx, .at = 0ULL);
     return 0;
@@ -559,7 +565,7 @@ void cli_references_end(void)
 {
     if (s_references.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_references.cell, g_cli_servers_owner);
+        (void)g_platform_guard->movable_buf_release(s_references.cell, g_cli_servers_owner);
     }
     memor.set(&(MemoriaCfg){.dst = &s_references, .val = 0, .bytes = sizeof(s_references)});
 }

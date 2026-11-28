@@ -108,7 +108,7 @@ EMBED_INLINE int found_declared_alloc(void)
     CliTestsWorkState *const work = s_work_state;
     const unsigned int capacity = (work->capacity == 0u) ? CLI_TESTS_DECLARED : (work->capacity * 2u);
     TestsDeclared *const grown =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(TestsDeclared), g_cli_tests_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)capacity * sizeof(TestsDeclared), g_cli_tests_owner);
     if (grown == NULL)
     {
         return 0;
@@ -118,7 +118,7 @@ EMBED_INLINE int found_declared_alloc(void)
         memor.cpy(&(MemoriaCfg){
             .dst = grown, .src = work->declared, .bytes = (embed_word)work->count * sizeof(TestsDeclared)});
     }
-    g_cli_guard->persistent_buf_release(work->declared, g_cli_tests_owner);
+    g_platform_guard->persistent_buf_release(work->declared, g_cli_tests_owner);
     work->declared = grown;
     work->capacity = capacity;
     return 1;
@@ -358,7 +358,7 @@ EMBED_INLINE int found_read(const TestingFoundCtx *args)
     }
     work->lines = EMBED_CALL(found_lines, TestingFoundCtx, .text = args->text, .size = args->size);
     const unsigned long long bytes = ((unsigned long long)work->lines + (2ULL * work->count)) * sizeof(unsigned int);
-    work->line_start = g_cli_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
+    work->line_start = g_platform_guard->temporary_buf_alloc(bytes, g_cli_tests_owner);
     if (work->line_start == NULL)
     {
         return 0;
@@ -372,15 +372,15 @@ EMBED_INLINE int found_read(const TestingFoundCtx *args)
 EMBED_INLINE void found_release(void)
 {
     CliTestsWorkState *const work = s_work_state;
-    g_cli_guard->persistent_buf_release(work->read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(work->read.leaf, g_cli_leaves_owner);
     work->read.leaf = NULL;
     work->read.count = 0u;
     work->read.capacity = 0u;
-    g_cli_guard->persistent_buf_release(work->declared, g_cli_tests_owner);
+    g_platform_guard->persistent_buf_release(work->declared, g_cli_tests_owner);
     work->declared = NULL;
     work->count = 0u;
     work->capacity = 0u;
-    g_cli_guard->persistent_buf_release(work->line_start, g_cli_tests_owner);
+    g_platform_guard->persistent_buf_release(work->line_start, g_cli_tests_owner);
     work->line_start = NULL;
 }
 
@@ -504,7 +504,7 @@ static void python_files_found(const CliFilesEachCfg *view)
         {
             continue;
         }
-        unsigned char *const bytes = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_tests_owner);
+        unsigned char *const bytes = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_tests_owner);
         if (bytes == NULL)
         {
             continue;
@@ -517,7 +517,7 @@ static void python_files_found(const CliFilesEachCfg *view)
             EMBED_CALL(found_in, TestingFoundCtx, .file = file, .text = text, .size = read,
                        .rules = &s_work_state->rules, .each = args->each, .context = args->context);
         }
-        g_cli_guard->persistent_buf_release(bytes, g_cli_tests_owner);
+        g_platform_guard->persistent_buf_release(bytes, g_cli_tests_owner);
     }
 }
 
@@ -574,10 +574,10 @@ void cli_tests_find(const CliTestingRootCfg *args)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
+        g_platform_guard->persistent_buf_release(piece, g_cli_cargo_owner);
         piece = next;
     }
-    g_cli_guard->persistent_buf_release(s_work_state->cargo.found, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(s_work_state->cargo.found, g_cli_cargo_owner);
     s_work_state->cargo = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     s_work_state = NULL;
 }

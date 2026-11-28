@@ -9,7 +9,7 @@
 //
 //     launch_queue_check
 #include "../../../../../../../src/cu/transpiler/lstar/interface/interface.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <pthread.h>
 #include <stdatomic.h>

@@ -78,7 +78,7 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
     {
         return 0u;
     }
-    s_words = (tokens.count != 0u) ? g_cli_guard->temporary_buf_alloc(
+    s_words = (tokens.count != 0u) ? g_platform_guard->temporary_buf_alloc(
                                          (unsigned long long)tokens.count * sizeof(CliSqlWord), g_cli_db_owner)
                                    : NULL;
     for (unsigned int at = 0u; (s_words != NULL) && (at < tokens.count); at += 1u)
@@ -115,7 +115,7 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
 // the words' cell given back, then the tokens' under it
 EMBED_INLINE void cli_words_release(void)
 {
-    g_cli_guard->persistent_buf_release(s_words, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(s_words, g_cli_db_owner);
     s_words = NULL;
     EMBED_CALL(cli_sql_text_length_dialect.tokens_free, CliSqlTextLengthDialectCfg, .tokens = &s_words_tokens);
 }
@@ -403,16 +403,16 @@ int cli_sql_unbounded(const CliSqlLengthDialectCfg *args)
 {
     // the tables' text is at max the statement's, a separator and its 0 after
     const unsigned long long capacity = args->length + 3ULL;
-    char *const source = g_cli_guard->temporary_buf_alloc(capacity, g_cli_db_owner);
+    char *const source = g_platform_guard->temporary_buf_alloc(capacity, g_cli_db_owner);
     if (source == NULL)
     {
         return 0;
     }
-    const int found = EMBED_CALL(cli_unbounded_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
-                                 .dialect = args->dialect, .out = args->out, .out_capacity = source,
-                                 .capacity = capacity);
+    const int found =
+        EMBED_CALL(cli_unbounded_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
+                   .dialect = args->dialect, .out = args->out, .out_capacity = source, .capacity = capacity);
     cli_words_release();
-    g_cli_guard->persistent_buf_release(source, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(source, g_cli_db_owner);
     return found;
 }
 

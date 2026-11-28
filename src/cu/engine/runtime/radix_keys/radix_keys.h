@@ -3,7 +3,7 @@
 #ifndef RADIX_KEYS_H
 #define RADIX_KEYS_H
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
 

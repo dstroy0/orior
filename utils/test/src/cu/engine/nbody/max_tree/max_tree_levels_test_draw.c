@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_levels_test_draw.c: draws, fills, floods and stored nodes
 #include "max_tree_levels_test_internal.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 void levels_check(LevelsResults *results, int passed, const char *what, unsigned int volume, unsigned int level)
 {

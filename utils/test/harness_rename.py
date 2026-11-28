@@ -2,18 +2,34 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """A word renamed across the tree's own sources: in identifiers and in comments, never in string literals.
 
-    harness.py source rename WORD NEW [--plural NEWS] [--write] [--folders ...]
+    harness.py source rename WORD NEW [--plural NEWS] [--whole] [--write] [--folders ...]
+    harness.py source rename --pairs FILE [--whole] [--write] [--folders ...]
 
-Each C, CUDA, C++, Python and JavaScript file under the folders that carries the tree's copyright line is cut into
-code, comment and string pieces. In code, an identifier part that is the word or its plural becomes the new word in
-the same case: with WORD count and NEW total, count_of becomes total_of, COUNT_X becomes TOTAL_X. In a comment and a
-Python docstring, the word becomes the new word, with its case retained. A string literal retains its text, but the code in
-an f-string's braces and in a template literal's `${}` is code. A JavaScript property name, after a dot or before a
-colon in an object, retains its text, since it names a key that JSON carries.
+With --pairs, FILE holds one rename a line, the old word and the new one apart by a tab. The command reads and cuts the
+tree once for all of them.
 
-Without --write, the command writes nothing: it lists each name the rename makes that the tree has already, each a
-collision to settle first, and counts the changes by file. With --write, it writes the files, and does not write
-where a collision is.
+The command reads each C, CUDA, C++, Python and JavaScript file under the folders that carries the tree's copyright
+line. It cuts each into code, comment and string pieces. In code, an identifier part that is the word or its plural
+becomes the new word in the same case. With WORD count and NEW total, count_of becomes total_of, and COUNT_X becomes
+TOTAL_X.
+
+In a comment and a Python docstring, the word becomes the new word, with its case retained. A string literal
+retains its text, but the code in an f-string's braces and in a template literal's `${}` is code. A JavaScript property
+name, after a dot or before a colon in an object, retains its text, since it names a key that JSON carries.
+
+    harness.py source call FUNCTION NEW TEMPLATE [--write] [--folders ...]
+
+Each call of the C function FUNCTION becomes a call of NEW, in code and never in a comment or a string. TEMPLATE makes
+its arguments of the old ones: {0} is the first as written, {1} the second, and so on. A declaration or a definition
+of FUNCTION retains its text. Without --write, it writes the report of each line it changes alone.
+
+With --whole, WORD is a whole identifier. It becomes NEW only where an identifier in code, or a word in a comment or a
+docstring, is WORD exactly, in its own case. With WORD g_cli_guard and NEW g_platform_guard, g_cli_guard_set retains
+its text.
+
+Without --write, the command writes nothing. It lists each name the rename makes that the tree has already, each a
+collision to settle first, and counts the changes by file. With --write, it writes the files, and does not write where
+a collision is.
 """
 
 import os
@@ -41,7 +57,10 @@ def cased(old, new):
 
 
 def word_renamed(text, word, new, plural, news):
-    """Each whole word `word` or `plural` in `text` as `new` or `news`, its case retained."""
+    """Each whole word `word` or `plural` in `text` as `new` or `news`, its case retained. Where `plural` is None, `word`
+    is a whole identifier, and only that identifier, in its own case, becomes `new`."""
+    if plural is None:
+        return re.sub(r"(?<![A-Za-z0-9_])%s(?![A-Za-z0-9_])" % re.escape(word), new, text)
 
     def swap(match):
         found = match.group(0)
@@ -51,7 +70,10 @@ def word_renamed(text, word, new, plural, news):
 
 
 def identifier_renamed(name, word, new, plural, news):
-    """The identifier `name` with each part that is the word or its plural renamed, its case retained."""
+    """The identifier `name` with each part that is the word or its plural renamed, its case retained. Where `plural` is
+    None, `word` is a whole identifier, and `name` becomes `new` only where it is `word`."""
+    if plural is None:
+        return new if name == word else name
     parts = PART.findall(name)
     if "".join(parts) != name:
         return name
@@ -122,7 +144,8 @@ def pieces(text, language):
             continue
         prefix = ""
         if language == "python":
-            match = re.match(r"(?i)(rb|br|fr|rf|r|b|f|u)?('''|\"\"\"|'|\")", text[at:at + 5])
+            # three quotes as a count of one quote, so that the pattern holds no run of three quotes itself
+            match = re.match(r"(?i)(rb|br|fr|rf|r|b|f|u)?('{3}|\"{3}|'|\")", text[at:at + 5])
             if match and (at == 0 or not (text[at - 1].isalnum() or text[at - 1] == "_")):
                 prefix = match.group(1) or ""
                 quote = match.group(2)
@@ -168,7 +191,7 @@ def code_renamed(code, word, new, plural, news, language, names_made, brackets=N
 
     In JavaScript, `brackets` is the stack of the brackets open before the run, and the run updates it. A name after
     `.` is a property and retains its text. A name first in a pair of an object, after `{` or `,` with a `{` innermost,
-    is a key: before `:` it retains its text, and as a shorthand before `,` or `}` it becomes `key: renamed`, so the key
+    is a key. Before `:` it retains its text. As a shorthand before `,` or `}` it becomes `key: renamed`, and the key
     stays the same.
     """
     brackets = [] if brackets is None else brackets
@@ -287,8 +310,8 @@ def bare_names(code, language):
 def regions(text, language):
     """The file cut into regions, each a (first line, bare names) pair.
 
-    In C and JavaScript, a region runs from the end of the region before it to the brace that closes a block at the
-    top level, and so holds a function with its parameters, or a struct with its members. In Python, a region runs
+    In C and JavaScript, a region runs from the end of the region before it to a top-level brace that closes a block.
+    It holds a function with its parameters, or a struct with its members. In Python, a region runs
     from one line at the left margin to the next. The first region also holds the names of the top level.
     """
     out = []
@@ -339,24 +362,34 @@ def tracked(folders):
     return [name for name in listed.decode("utf-8", "replace").split("\0") if name and language_of(name)]
 
 
+def renames_of(a):
+    """The renames of one run, each (word, new, plural, news): every line `old<TAB>new` of --pairs, or WORD and NEW. A
+    whole identifier matches in its own case and has no plural."""
+    if a.pairs:
+        with open(a.pairs, encoding="utf-8") as listed:
+            pairs = [line.rstrip("\r\n").split("\t") for line in listed if line.strip() and not line.startswith("#")]
+    else:
+        pairs = [[a.word, a.new]]
+    renames = []
+    for old, new in pairs:
+        if a.whole:
+            renames.append((old, new, None, None))
+        else:
+            renames.append((old.lower(), new, (old + "s").lower(), a.plural or (new + "s")))
+    return renames
+
+
 def cmd_source_rename(a):
-    word = a.word.lower()
-    plural = (a.word + "s").lower()
-    new = a.new
-    news = a.plural or (a.new + "s")
+    if not a.pairs and not (a.word and a.new):
+        print("rename: WORD and NEW, or --pairs FILE")
+        return 2
+    renames = renames_of(a)
     files = [name for name in tracked(a.folders) if name not in a.exclude]
-    # every identifier the tree has already, by language, to find the names a rename makes that are already
-    located = {"c": set(), "python": set(), "script": set()}  # noqa: F841
     texts = {}
     for name in files:
         path = os.path.join(ROOT, name)
         with open(path, encoding="utf-8", errors="surrogateescape", newline="") as handle:
-            text = handle.read()
-        language = language_of(name)
-        texts[name] = (text, language)
-        for piece, body in pieces(text, language):
-            if piece == "code":
-                located[language].update(IDENTIFIER.findall(body))
+            texts[name] = (handle.read(), language_of(name))
     changed = {}
     made = {"c": set(), "python": set(), "script": set()}
     collisions = []
@@ -364,7 +397,12 @@ def cmd_source_rename(a):
         if not owned(text):
             continue
         names_made = set()
-        renamed = file_renamed(text, language, word, new, plural, news, names_made)
+        renamed = text
+        for word, new, plural, news in renames:
+            # the loop cuts no file that holds no form of the word
+            held = renamed if plural is None else renamed.lower()
+            if word in held:
+                renamed = file_renamed(renamed, language, word, new, plural, news, names_made)
         if renamed == text:
             continue
         changed[name] = renamed
@@ -376,7 +414,7 @@ def cmd_source_rename(a):
                 if (old in region) and (new_name in region) and (new_name not in olds):
                     collisions.append((language, "%s:%d: %s" % (name, line, old), new_name))
     os.makedirs(HARNESS_BUILD, exist_ok=True)
-    report = os.path.join(HARNESS_BUILD, "rename_%s.txt" % word)
+    report = os.path.join(HARNESS_BUILD, "rename_%s.txt" % (os.path.splitext(os.path.basename(a.pairs))[0] if a.pairs else a.word))
     with open(report, "w", encoding="utf-8") as out:
         for language, old, renamed in collisions:
             out.write("collision %s %s -> %s\n" % (language, old, renamed))
@@ -404,12 +442,120 @@ def cmd_source_rename(a):
     return 0
 
 
+def masked(text, language):
+    """`text` with each comment and string blanked to spaces of the same length, its line ends kept. A search of the
+    code then finds no word inside one, and each place in it is the same place in `text`."""
+    return "".join(body if piece == "code" else re.sub(r"[^\n]", " ", body) for piece, body in pieces(text, language))
+
+
+def call_arguments(hidden, opening):
+    """The arguments of the call whose `(` is at `opening` in the masked text `hidden`. They are the (start, end) span
+    of each, split at the commas of the call's own depth, and the place after its `)`. None where the brackets do not
+    close."""
+    depth = 0
+    spans = []
+    start = opening + 1
+    for at in range(opening, len(hidden)):
+        char = hidden[at]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+            if depth == 0:
+                if hidden[start:at].strip() or spans:
+                    spans.append((start, at))
+                return spans, at + 1
+        elif char == "," and depth == 1:
+            spans.append((start, at))
+            start = at + 1
+    return None
+
+
+# the words that come before a call and not before a declaration's name
+CALL_KEYWORDS = ("return", "else", "case", "do", "sizeof")
+
+
+def file_recalled(text, language, function, new, template):
+    """The file's text with each call of `function` written as a call of `new`, its arguments recast by `template`. In
+    `template`, {0}, {1} and the rest are the call's arguments as written. A declaration or a definition of `function`,
+    its name after a type, retains its text. The text and the count of calls recast."""
+    hidden = masked(text, language)
+    out = []
+    at = 0
+    count = 0
+    for match in re.finditer(r"(?<![A-Za-z0-9_.>])%s[ \t]*\(" % re.escape(function), hidden):
+        before = re.search(r"([A-Za-z0-9_]+)\s*$", hidden[:match.start()])
+        if before is not None and before.group(1) not in CALL_KEYWORDS:
+            continue
+        found = call_arguments(hidden, match.end() - 1)
+        if found is None:
+            continue
+        spans, end = found
+        words = [text[start:stop].strip() for start, stop in spans]
+        out.append(text[at:match.start()])
+        out.append("%s(%s)" % (new, template.format(*words)))
+        at = end
+        count += 1
+    out.append(text[at:])
+    return "".join(out), count
+
+
+def cmd_source_call(a):
+    files = [name for name in tracked(a.folders) if name not in a.exclude and language_of(name) == "c"]
+    changed = {}
+    report_lines = []
+    for name in files:
+        path = os.path.join(ROOT, name)
+        with open(path, encoding="utf-8", errors="surrogateescape", newline="") as handle:
+            text = handle.read()
+        if not owned(text):
+            continue
+        try:
+            recast, count = file_recalled(text, "c", a.function, a.new, a.template)
+        except IndexError:
+            print("  %s: a call has fewer arguments than the template names" % name)
+            return 1
+        if count:
+            changed[name] = recast
+            report_lines.append("file %s %d" % (name, count))
+            before = text.splitlines()
+            after = recast.splitlines()
+            report_lines.extend("  - %s\n  + %s" % (one.strip(), other.strip())
+                                for one, other in zip(before, after) if one != other)
+    os.makedirs(HARNESS_BUILD, exist_ok=True)
+    report = os.path.join(HARNESS_BUILD, "call_%s.txt" % a.function)
+    with open(report, "w", encoding="utf-8") as out:
+        out.write("\n".join(report_lines) + "\n")
+    calls = sum(int(line.rsplit(" ", 1)[1]) for line in report_lines if line.startswith("file "))
+    print("%d calls in %d files recast: %s" % (calls, len(changed), report))
+    if not a.write:
+        return 0
+    for name, recast in changed.items():
+        with open(os.path.join(ROOT, name), "w", encoding="utf-8", errors="surrogateescape", newline="") as handle:
+            handle.write(recast)
+    print("written")
+    return 0
+
+
 def register(source):
-    """The rename command added to the source group's subparsers."""
+    """The rename and call commands added to the source group's subparsers."""
+    p = source.add_parser("call", help="each call of a C function written as a call of another, its arguments recast")
+    p.add_argument("function", help="the function whose calls are recast")
+    p.add_argument("new", help="the function that each call becomes")
+    p.add_argument("template", help="the new call's arguments, {0}, {1} and the rest the old call's, as written")
+    p.add_argument("--folders", nargs="+", default=["ui", "src", "utils", "examples", "includes"],
+                   help="the folders read, from the top of the tree")
+    p.add_argument("--exclude", nargs="+", default=[], help="the files excluded, from the top of the tree")
+    p.add_argument("--write", action="store_true", help="the files written; else the report alone")
+    p.set_defaults(fn=cmd_source_call)
     p = source.add_parser("rename", help="a word renamed in the tree's own identifiers and comments, never in strings")
-    p.add_argument("word", help="the word renamed, singular")
-    p.add_argument("new", help="the word it becomes, singular")
+    p.add_argument("word", nargs="?", default="", help="the word renamed, singular")
+    p.add_argument("new", nargs="?", default="", help="the word it becomes, singular")
+    p.add_argument("--pairs", default="", metavar="FILE",
+                   help="a file of renames, one `old<TAB>new` a line, every one of them made in one pass of the tree")
     p.add_argument("--plural", default="", help="the new word's plural, the new word and s where none")
+    p.add_argument("--whole", action="store_true",
+                   help="the word is a whole identifier, renamed only where an identifier or a comment's word is it exactly")
     p.add_argument("--folders", nargs="+", default=["ui", "src", "utils", "examples", "evidence"],
                    help="the folders read, from the top of the tree")
     p.add_argument("--exclude", nargs="+", default=[], help="the files excluded, from the top of the tree")

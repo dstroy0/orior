@@ -15,7 +15,7 @@ typedef struct
 {
     const char *typed;
     unsigned long long length;
-    CliGrownLine transferred;
+    PlatformText transferred;
     CliDeclared each;
     void *context;
 } CliComplete;
@@ -45,7 +45,7 @@ EMBED_INLINE void complete_offer(const SymbolsCompleteCtx *args)
         return;
     }
     const int saved = mmgr_line_ok(&args->complete->transferred.line);
-    for (unsigned long long at = 0ULL; saved && (at < cli_grown_size(&args->complete->transferred));
+    for (unsigned long long at = 0ULL; saved && (at < platform_text_size(&args->complete->transferred));
          at +=
          cellul.len(&(CatenaFinitaCfg){.src = args->complete->transferred.cell + at, .cap = CLI_POOL_BYTES}) + 1ULL)
     {
@@ -79,7 +79,7 @@ EMBED_INLINE void complete_branch(const SymbolsCompleteCtx *args)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = branch.cell, .dst = scratch, .bytes = branch.bytes});
     const CliDeclaration *const declared = EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations,
                                                       CliSymbolsTreeBranchScratchCfg, .scratch_read = scratch);
@@ -88,7 +88,7 @@ EMBED_INLINE void complete_branch(const SymbolsCompleteCtx *args)
         EMBED_CALL(complete_offer, SymbolsCompleteCtx, .complete = args->complete, .name = scratch + declared[at].name,
                    .length = declared[at].length, .type = scratch + declared[at].type, .line = declared[at].line);
     }
-    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_code_owner);
 }
 
 // The names on the line under edit, `read` its leaves, offered on that line, the word typed at the leaf `place` left
@@ -145,10 +145,11 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
                       ((read.leaf[place].is & CLI_LEAF_NAME) != 0u) && ((read.leaf[place].is & words) == 0u);
     CliComplete complete = {named ? args->text + start + read.leaf[place].from : "",
                             named ? at - read.leaf[place].from : 0ULL,
-                            {NULL, 0ULL, 0ULL, NULL, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL}},
+                            {NULL},
                             args->each_declared,
                             args->context};
-    cli_grown_begin(&complete.transferred, CLI_COMPLETE_CAPACITY, g_cli_code_owner);
+    platform_text_begun(&complete.transferred, CLI_COMPLETE_CAPACITY, platform_place_g_cli_code_owner,
+                        PLATFORM_TIER_TEMPORARY);
     const int done = complete.transferred.cell != NULL;
     if (done)
     {
@@ -165,8 +166,8 @@ int cli_symbols_complete(const CliSymbolsPathTextSizeCfg *args)
     }
     if (leaved)
     {
-        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     }
-    cli_grown_end(&complete.transferred);
+    platform_text_ended(&complete.transferred);
     return done;
 }

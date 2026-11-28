@@ -81,7 +81,7 @@ int cli_toolchains_environment(const CliToolchainsCfg *args)
 int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args)
 {
     const char *const words[5] = {args->shell, "-l", "-c", "printf '%s' \"$PATH\"", NULL};
-    CliSpawned spawned;
+    PlatformProgram spawned;
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = words,
@@ -124,7 +124,7 @@ int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args)
 static void cli_shell_read_state(void *context)
 {
     const char *const shell = (const char *)context;
-    char *const text = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
     const int read = (text != NULL) && EMBED_CALL(cli_toolchains_shell_internal.path_of_shell, CliToolchainsShellCtx,
                                                   .shell = shell, .path = text, .size = CLI_PATH_TEXT);
     if (read)
@@ -134,7 +134,7 @@ static void cli_shell_read_state(void *context)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}) + 1u});
         s_shell_read = 1;
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_toolchains_owner);
     s_shell_ended = 1;
 }
 
@@ -236,7 +236,7 @@ EMBED_INLINE unsigned int cli_registry_folders(const ToolchainsPathCtx *args)
     unsigned int count = args->count;
     unsigned int capacity = args->capacity;
     // the PATH as the registry stores it and as it reads expanded, a cell of the two
-    char *const registry_buf = g_cli_guard->temporary_buf_alloc(2ULL * CLI_PATH_TEXT, g_cli_toolchains_owner);
+    char *const registry_buf = g_platform_guard->temporary_buf_alloc(2ULL * CLI_PATH_TEXT, g_cli_toolchains_owner);
     if (registry_buf != NULL)
     {
         char *const expanded = registry_buf + CLI_PATH_TEXT;
@@ -257,7 +257,7 @@ EMBED_INLINE unsigned int cli_registry_folders(const ToolchainsPathCtx *args)
                                .capacity = capacity);
         }
     }
-    g_cli_guard->persistent_buf_release(registry_buf, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(registry_buf, g_cli_toolchains_owner);
     return count;
 }
 
@@ -265,7 +265,7 @@ unsigned int cli_toolchains_path_folders(const CliToolchainsCountCfg *args)
 {
     char (*folders)[CLI_PATH_MAX_LEN] = args->folders;
     unsigned int capacity = args->capacity;
-    char *const text = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
     unsigned int count =
         EMBED_CALL(cli_toolchains_count.tree_tools, CliToolchainsCountCfg, .folders = folders, .capacity = capacity);
     count =
@@ -281,7 +281,7 @@ unsigned int cli_toolchains_path_folders(const CliToolchainsCountCfg *args)
         count = EMBED_CALL(cli_split, ToolchainsPathCtx, .text = text, .folders = folders, .count = count,
                            .capacity = capacity);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_toolchains_owner);
     return count;
 }
 
@@ -299,7 +299,7 @@ EMBED_INLINE unsigned int cli_parts(const ToolchainsPathCtx *args)
 char (*cli_toolchains_path_allocated(unsigned int *count, const CellOwner *owner)) [CLI_PATH_MAX_LEN] {
     // the max folders the tree's tools, the registry's two paths, the PATH and the shell's PATH name, counted from
     // their texts as cli_toolchains_path_folders reads them
-    char *const text = g_cli_guard->temporary_buf_alloc(2ULL * CLI_PATH_TEXT, g_cli_toolchains_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(2ULL * CLI_PATH_TEXT, g_cli_toolchains_owner);
     char *const expanded = (text != NULL) ? text + CLI_PATH_TEXT : NULL;
     if (text == NULL)
     {
@@ -327,9 +327,9 @@ char (*cli_toolchains_path_allocated(unsigned int *count, const CellOwner *owner
     max += EMBED_CALL(cli_shell_path, ToolchainsPathCtx, .path = text, .size = CLI_PATH_TEXT)
                ? EMBED_CALL(cli_parts, ToolchainsPathCtx, .text = text)
                : 0u;
-    g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_toolchains_owner);
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, owner);
     *count = (folders != NULL) ? EMBED_CALL(cli_toolchains_count.path_folders, CliToolchainsCountCfg,
                                             .folders = folders, .capacity = max)
                                : 0u;
@@ -348,7 +348,7 @@ int cli_toolchains_on_path(const CliToolchainsNamesCfg *args)
                            .count = args->count, .path = args->program);
         at += 1u;
     }
-    g_cli_guard->persistent_buf_release(path, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(path, g_cli_toolchains_owner);
     return found;
 }
 
@@ -362,14 +362,14 @@ unsigned int cli_toolchains_system_path(const CliToolchainsCountCfg *args)
         return EMBED_CALL(cli_registry_folders, ToolchainsPathCtx, .folders = folders, .count = 0u,
                           .capacity = capacity);
     }
-    char *const text = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
     const unsigned int count =
         ((text != NULL) && EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
                                       .value_out = text, .capacity = CLI_PATH_TEXT))
             ? EMBED_CALL(cli_split, ToolchainsPathCtx, .text = text, .folders = folders, .count = 0u,
                          .capacity = capacity)
             : 0u;
-    g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_toolchains_owner);
     return count;
 }
 
@@ -437,10 +437,10 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
     // of their count
     const unsigned int max = count + bins + CLI_TREE_TOOLS + counted.count + path_count;
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)max * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
     if (folders == NULL)
     {
-        g_cli_guard->persistent_buf_release(path_folders, g_cli_toolchains_owner);
+        g_platform_guard->persistent_buf_release(path_folders, g_cli_toolchains_owner);
         EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
                    .value_out = args->path, .capacity = args->size);
         return;
@@ -458,7 +458,7 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
     list_entries =
         EMBED_CALL(cli_folders_append, ToolchainsPathCtx, .folders = folders, .list_entries = chosen.count,
                    .capacity = max, .from = (const char (*)[CLI_PATH_MAX_LEN])path_folders, .count = path_count);
-    g_cli_guard->persistent_buf_release(path_folders, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(path_folders, g_cli_toolchains_owner);
     // each folder once by its key, in order
     VerbaLinea line = {args->path, args->size, 0ULL};
     unsigned int folder_count = 0u;
@@ -485,7 +485,7 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
             folder_count += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(folders, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(folders, g_cli_toolchains_owner);
     if (mmgr_line_finish(&line) == 0ULL)
     {
         EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
@@ -516,9 +516,9 @@ EMBED_INLINE const CarcerMovableEntry *cli_cell_grown(const ToolchainsPathCtx *a
     }
     if (args->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->cell, g_cli_toolchains_owner);
+        (void)g_platform_guard->movable_buf_release(args->cell, g_cli_toolchains_owner);
     }
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(args->needed, g_cli_toolchains_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(args->needed, g_cli_toolchains_owner);
     *args->bytes = (cell != NULL) ? args->needed : 0ULL;
     return cell;
 }
@@ -540,10 +540,11 @@ EMBED_INLINE unsigned int cli_cell_split(const ToolchainsPathCtx *args)
         mmgr_line_put_n(&line, args->text + from, at - from);
         if ((at > from) && (mmgr_line_finish(&line) != 0ULL))
         {
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->cell,
-                                                                     .offset = (embed_word)count * CLI_PATH_MAX_LEN,
-                                                                     .src = folder,
-                                                                     .bytes = line.at + 1ULL});
+            (void)g_platform_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = args->cell,
+                                    .offset = (embed_word)count * CLI_PATH_MAX_LEN,
+                                    .src = folder,
+                                    .bytes = line.at + 1ULL});
             count += 1u;
         }
         from = at + 1ULL;
@@ -556,7 +557,7 @@ CliToolchainsFolders cli_toolchains_run_folders(void)
     CliToolchainsFolders folders = {NULL, 0u};
     // the PATH's text in a cell of the temporary tier for the call, its folders into the process's cell, one slot for
     // each separator and one more
-    char *const text = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_owner);
     if (text == NULL)
     {
         return folders;
@@ -571,7 +572,7 @@ CliToolchainsFolders cli_toolchains_run_folders(void)
     folders.cell = s_run_cell;
     folders.count =
         (s_run_cell != NULL) ? EMBED_CALL(cli_cell_split, ToolchainsPathCtx, .text = text, .cell = s_run_cell) : 0u;
-    g_cli_guard->persistent_buf_release(text, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_toolchains_owner);
     return folders;
 }
 
@@ -580,7 +581,7 @@ CliToolchainsFolders cli_toolchains_system_folders(void)
     CliToolchainsFolders folders = {NULL, 0u};
     // the system's folders read at their bound into a cell of the temporary tier for the call, then written into the
     // process's cell at their count
-    char (*const scratch)[CLI_PATH_MAX_LEN] = g_cli_guard->temporary_buf_alloc(
+    char (*const scratch)[CLI_PATH_MAX_LEN] = g_platform_guard->temporary_buf_alloc(
         (unsigned long long)CLI_PATH_FOLDERS * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
     if (scratch == NULL)
     {
@@ -592,7 +593,7 @@ CliToolchainsFolders cli_toolchains_system_folders(void)
                                .needed = (unsigned long long)count * CLI_PATH_MAX_LEN);
     for (unsigned int at = 0u; (s_system_cell != NULL) && (at < count); at += 1u)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_system_cell,
             .offset = (embed_word)at * CLI_PATH_MAX_LEN,
             .src = scratch[at],
@@ -600,7 +601,7 @@ CliToolchainsFolders cli_toolchains_system_folders(void)
     }
     folders.cell = s_system_cell;
     folders.count = (s_system_cell != NULL) ? count : 0u;
-    g_cli_guard->persistent_buf_release(scratch, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_toolchains_owner);
     return folders;
 }
 

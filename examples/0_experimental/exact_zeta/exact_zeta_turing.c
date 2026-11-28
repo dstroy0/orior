@@ -84,7 +84,7 @@
  *       Z of Riemann-Siegel within the two bounds.
  */
 #include "zeta_riemann_siegel.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_machine.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

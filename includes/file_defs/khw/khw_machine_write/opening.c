@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // opening.c: the place the least opening begins at and the probe place, each read from the part's .ksc
 #include "opening.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 
 #include "../../ksc/ksc.h"

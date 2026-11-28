@@ -303,7 +303,7 @@ void cli_db_results_lines(const CliDbContextCtx *args)
         row += 1ULL;
         at = line_end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_db_owner);
 }
 
 // a buffered row's line written into the page after those before it

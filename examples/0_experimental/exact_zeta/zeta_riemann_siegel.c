@@ -5,7 +5,7 @@
  * @brief Z(t) by the formula of Riemann and Siegel, and every C_n of Gabcke, as zeta_riemann_siegel.h states them.
  */
 #include "zeta_riemann_siegel.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_theta.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

@@ -98,11 +98,11 @@ typedef struct
 } CliQuickChoice;
 
 // the quick open opened by the command `command`, palette, file, symbol, symbol-tree, line or search-everywhere, for
-// the tree at `root` and the view displayed under `key`, NULL for none, with `length` bytes of `text` typed after what the
-// command reads, `displayed` rows in the box, at `now_ms`: 1, or 0 where the command is none of these. `length` bytes of
-// `text` typed at the caret, a control character and what follows it left out, at `now_ms`. The key `name`: while
-// open Backspace, Delete, Left, Right, Home, End and Mod+V edit the text and move the caret, and while closed the keys
-// of one of the commands above open it as that command does: 1 where the key was taken
+// the tree at `root` and the view displayed under `key`, NULL for none, with `length` bytes of `text` typed after what
+// the command reads, `displayed` rows in the box, at `now_ms`: 1, or 0 where the command is none of these. `length`
+// bytes of `text` typed at the caret, a control character and what follows it left out, at `now_ms`. The key `name`:
+// while open Backspace, Delete, Left, Right, Home, End and Mod+V edit the text and move the caret, and while closed the
+// keys of one of the commands above open it as that command does: 1 where the key was taken
 int cli_quick_open(const CliQuickCfg *args);
 void cli_quick_type(const CliQuickCfg *args);
 int cli_quick_key(const CliQuickCfg *args);
@@ -120,8 +120,8 @@ int cli_quick_choose(const CliQuickCfg *args);
 int cli_quick_again(const CliQuickCfg *args);
 unsigned long long cli_quick_deadline_ms(const CliQuickCfg *args);
 // the key `name` at `now_ms` for the double Shift: Shift a second time within CLI_QUICK_SHIFT_MS of the first, no other
-// key between, opens Search Everywhere for `root` and `key` with `displayed` rows: 1 where it opened; and the box closed,
-// its cells released
+// key between, opens Search Everywhere for `root` and `key` with `displayed` rows: 1 where it opened; and the box
+// closed, its cells released
 int cli_quick_shift(const CliQuickCfg *args);
 void cli_quick_close(const CliQuickCfg *args);
 struct CliQuickCfg

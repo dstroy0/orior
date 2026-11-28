@@ -12,7 +12,7 @@
 //     orior_sass_listing_seeds <listing.sass> [--modifiers]
 //
 // Exit 0 with the seeds on the standard output; 1 where the listing did not read; 2 where the words are not these
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

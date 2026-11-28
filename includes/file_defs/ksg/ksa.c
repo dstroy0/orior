@@ -3,7 +3,7 @@
 // ksa.c: the table of schemes an approval of a seal is made by, and an approval made and verified, as ksa.h positions
 // them out. Each scheme signs KSA_CONTEXT and then the seal's trailer
 #include "ksa.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

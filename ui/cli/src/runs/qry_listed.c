@@ -414,7 +414,8 @@ EMBED_INLINE unsigned int runs_lessons_read(const QryListedCtx *args)
         }
         at = end + 1ULL;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_qry_listing_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text),
+                                             g_cli_qry_listing_owner);
     return count;
 }
 

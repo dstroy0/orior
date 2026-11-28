@@ -46,7 +46,7 @@
 #include <stdlib.h>
 
 #include "sha256_core.h"
-#include "../../src/platform/platform.h"
+#include "../../includes/platform/platform.h"
 
 /**
  * @brief How many leading zero BITS the digest of a nonce must carry for the collection to keep it.

@@ -11,7 +11,7 @@
 //
 // It runs in a query run (qry_run.sh), the folder within the top of the tree.
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "../../../../../../../includes/parsers/who.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"

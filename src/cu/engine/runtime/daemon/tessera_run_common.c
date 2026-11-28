@@ -1,12 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_common.c: tessera_run's clock, arguments, paths, limits, record and log
-#include "../../../../platform/platform.h"
+// the internal header comes first, since it sets the macros of the system before any header
+#include "tessera_run_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
 #include "../../engine_note.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include "tessera_run_internal.h"
 
 #if (defined(_WIN32))
 _Alignas(8) static const char s_run_daemon[] = "tessera_daemon.exe";
@@ -17,47 +19,18 @@ _Alignas(8) static const char s_run_daemon[] = "tessera_daemon";
 
 unsigned long long run_now(void)
 {
-#if defined(_WIN32)
-    LARGE_INTEGER counter;
-    LARGE_INTEGER frequency;
-    QueryPerformanceCounter(&counter);
-    QueryPerformanceFrequency(&frequency);
-    // a performance counter and its frequency are positive
-    const unsigned long long ticks = (unsigned long long)counter.QuadPart;
-    // a performance counter and its frequency are positive
-    const unsigned long long rate = (unsigned long long)frequency.QuadPart;
-    return ((ticks / rate) * RUN_MILLION) + (((ticks % rate) * RUN_MILLION) / rate);
-#else
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * RUN_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
-#endif
+    return platform_clock_ns() / RUN_THOUSAND;
 }
 
 void run_pause(unsigned long long microseconds)
 {
-#if defined(_WIN32)
-    // a pause's milliseconds fit a DWORD
-    Sleep((DWORD)(microseconds / RUN_THOUSAND));
-#else
-    struct timespec pause;
-    // whole seconds of a pause fit a time_t
-    pause.tv_sec = (time_t)(microseconds / RUN_MILLION);
-    // the remainder is below a billion nanoseconds, which a long represents
-    pause.tv_nsec = (long)((microseconds % RUN_MILLION) * 1000ULL);
-    nanosleep(&pause, NULL);
-#endif
+    // each pause of tessera_run is whole milliseconds
+    platform_paused(microseconds / RUN_THOUSAND);
 }
 
 unsigned long long run_self_pid(void)
 {
-#if defined(_WIN32)
-    return GetCurrentProcessId();
-#else
-    // a process's own pid is positive. It converts exactly
-    return (unsigned long long)getpid();
-#endif
+    return platform_process_id();
 }
 
 int run_arguments(int count, char **arguments, RunRequest *request)

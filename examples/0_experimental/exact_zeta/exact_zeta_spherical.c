@@ -27,7 +27,7 @@
  *       of 2^-62 at most, as bounds() counts them.
  */
 #include "zeta_exact.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include <stdlib.h>

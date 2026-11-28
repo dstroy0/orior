@@ -7,7 +7,7 @@
 
 #include "compression.h"
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

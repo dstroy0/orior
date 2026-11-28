@@ -176,12 +176,13 @@ EMBED_INLINE int aliases_alloc(const VersionCatalogAliasesCtx *args)
     const unsigned long long capacity = g_cli_versions.used + (16ULL * count) + (2ULL * g_cli_versions.items);
     // the capacity is under CLI_VERSIONS_ALIASES_TEXT, so it fits an unsigned int
     aliases->capacity = (unsigned int)((capacity < CLI_VERSIONS_ALIASES_TEXT) ? capacity : CLI_VERSIONS_ALIASES_TEXT);
-    aliases->alias = g_cli_guard->temporary_buf_alloc((count + 1ULL) * sizeof(CliVersionsAlias), g_cli_versions_owner);
-    aliases->text = g_cli_guard->temporary_buf_alloc(aliases->capacity + 1ULL, g_cli_versions_owner);
+    aliases->alias =
+        g_platform_guard->temporary_buf_alloc((count + 1ULL) * sizeof(CliVersionsAlias), g_cli_versions_owner);
+    aliases->text = g_platform_guard->temporary_buf_alloc(aliases->capacity + 1ULL, g_cli_versions_owner);
     if ((aliases->alias == NULL) || (aliases->text == NULL))
     {
-        g_cli_guard->persistent_buf_release(aliases->text, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(aliases->alias, g_cli_versions_owner);
+        g_platform_guard->persistent_buf_release(aliases->text, g_cli_versions_owner);
+        g_platform_guard->persistent_buf_release(aliases->alias, g_cli_versions_owner);
         aliases->alias = NULL;
         aliases->text = NULL;
         aliases->count = 0u;

@@ -131,13 +131,6 @@ typedef struct
     char open[QUERY_PATH_MAX_LEN];
 } QueryContext;
 
-// a process started: its handle, and the pipe its output and its errors come through, 0 where it has none
-typedef struct
-{
-    unsigned long long process;
-    unsigned long long output;
-} QueryProcess;
-
 // where a started process's output and errors go: nowhere, piped back to this process, where this process's own go,
 // or its output alone piped back and its errors nowhere
 #define QUERY_OUTPUT_NONE 0
@@ -154,8 +147,8 @@ typedef struct
 int query_process_start(const QueryStartedCtx *args);
 unsigned long long query_process_read(const QueryProcessPieceCtx *args);
 long long query_process_wait(const QueryProcessCtx *args);
-// the max bytes of one environment variable's value as UTF-8 with its zero: Windows stores 32767 characters of UTF-16 in
-// one, each at max three bytes of UTF-8, and a POSIX system's is no longer than that in practice
+// the max bytes of one environment variable's value as UTF-8 with its zero: Windows stores 32767 characters of UTF-16
+// in one, each at max three bytes of UTF-8, and a POSIX system's is no longer than that in practice
 #define QUERY_ENVIRONMENT_MAX_LEN ((32767u * 3u) + 1u)
 
 // an environment variable of this process set, which every process it starts after inherits, or read into `value`,
@@ -385,7 +378,7 @@ struct QueryCapacityQryPathCtx
 
 struct QueryStartedCtx
 {
-    QueryProcess *started;
+    PlatformProgram *started;
     const char *const *words;
     const char *folder;
     int output;
@@ -459,7 +452,7 @@ struct QueryCapacityPathCtx
 
 struct QueryProcessPieceCtx
 {
-    const QueryProcess *process;
+    const PlatformProgram *process;
     char *piece;
     unsigned long long capacity_u64;
 };
@@ -551,7 +544,7 @@ struct QueryMillisecondsCtx
 
 struct QueryProcessCtx
 {
-    QueryProcess *process_out;
+    PlatformProgram *process_out;
 };
 
 typedef struct

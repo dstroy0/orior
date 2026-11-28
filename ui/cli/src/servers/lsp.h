@@ -191,7 +191,7 @@ struct CliLspErrMsgCfg
     const char *const *request;
     const char *root;
     const char *options;
-    const CliSetting *settings;
+    const PlatformSetting *settings;
     unsigned int setting_count;
     CliLspRecvFn recv;
     void *context;

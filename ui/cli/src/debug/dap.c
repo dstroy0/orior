@@ -243,7 +243,7 @@ static void dap_read(void *context)
         }
         if (!transferred)
         {
-            g_cli_guard->persistent_buf_release(message, g_cli_debug_owner);
+            g_platform_guard->persistent_buf_release(message, g_cli_debug_owner);
         }
     }
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
@@ -481,7 +481,7 @@ void cli_dap_stop(const CliDapCfg *args)
                      .arguments = arguments,
                      .length = cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_POOL_BYTES}), .wait = 3000ULL,
                      .answer = &answer, .err_msg = &err_buf);
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_debug_owner);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 100u);
     EMBED_CALL(cli_dap_internal.end, CliDapCtx, .dap = args->dap);
 }
@@ -514,7 +514,7 @@ void cli_dap_unref(const CliDapCfg *args)
     // the answers no request took, with no reader left to hand another
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(args->dap->waiters[at].answer.message, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(args->dap->waiters[at].answer.message, g_cli_debug_owner);
         args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ULL};
     }
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->dap->socket);

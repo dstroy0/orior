@@ -525,12 +525,12 @@ static const CliViewFrame *window_frame_read(const char *key, void **cell_out)
 {
     *cell_out = NULL;
     const unsigned long long bytes = cli_view_frame_bytes(&(CliViewAtCfg){.key = key});
-    void *const cell = (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_view_owner) : NULL;
+    void *const cell = (bytes != 0ULL) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_view_owner) : NULL;
     const CliViewFrame *const frame =
         (cell != NULL) ? cli_view_frame_read(&(CliViewAtCfg){.key = key, .frame_out = cell, .capacity = bytes}) : NULL;
     if (frame == NULL)
     {
-        g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
+        g_platform_guard->persistent_buf_release(cell, g_cli_view_owner);
         return NULL;
     }
     *cell_out = cell;
@@ -540,7 +540,7 @@ static const CliViewFrame *window_frame_read(const char *key, void **cell_out)
 // The editor's frame read anew for the view on display, in place of the one the call read before
 EMBED_INLINE void window_editor_frame_read(const GuiWindowCtx *args)
 {
-    g_cli_guard->persistent_buf_release(s_frames.cell[0], g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(s_frames.cell[0], g_cli_view_owner);
     s_frames.cell[0] = NULL;
     const char *const key = EMBED_CALL(window_displayed_key, GuiWindowCtx, .at = 0u);
     args->window->editor.frame = (key != NULL) ? window_frame_read(key, &s_frames.cell[0]) : NULL;
@@ -550,7 +550,7 @@ EMBED_INLINE void window_editor_frame_read(const GuiWindowCtx *args)
 EMBED_INLINE void window_terminal_frame_read(const GuiWindowCtx *args)
 {
     GuiTerminal *const terminal = &args->window->terminal;
-    g_cli_guard->persistent_buf_release(s_frames.cell[1u + args->at], g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(s_frames.cell[1u + args->at], g_cli_view_owner);
     s_frames.cell[1u + args->at] = NULL;
     terminal->frame[args->at] = terminal->framed[args->at]
                                     ? window_frame_read(terminal->view[args->at].key, &s_frames.cell[1u + args->at])
@@ -583,7 +583,7 @@ static void window_frames_given(void)
     }
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(s_frames.cell[at], g_cli_view_owner);
+        g_platform_guard->persistent_buf_release(s_frames.cell[at], g_cli_view_owner);
         s_frames.cell[at] = NULL;
     }
     if (s_window != NULL)
@@ -2185,7 +2185,7 @@ EMBED_INLINE void window_preference_force_add(const GuiWindowCtx *args)
         CliChain tree;
         CliLayers layers;
     } WindowForceRead;
-    WindowForceRead *const read = g_cli_guard->temporary_buf_alloc(sizeof(*read), g_cli_settings_owner);
+    WindowForceRead *const read = g_platform_guard->temporary_buf_alloc(sizeof(*read), g_cli_settings_owner);
     if (read == NULL)
     {
         return;
@@ -2230,18 +2230,18 @@ EMBED_INLINE void window_preference_force_add(const GuiWindowCtx *args)
     }
     if (read->layers.text != NULL)
     {
-        cli_grown_end(&read->layers.grown);
+        platform_text_ended(&read->layers.grown);
     }
     const CliChain *const chains[2] = {&read->reader, &read->tree};
     for (unsigned int chain = 0u; chain < 2u; chain += 1u)
     {
         if (chains[chain]->json.node != NULL)
         {
-            g_cli_guard->persistent_buf_release(
-                chains[chain]->json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), chains[chain]->json.node));
+            g_platform_guard->persistent_buf_release(
+                chains[chain]->json.node, mmgr_owner_of_buf(platform_pool_series(), chains[chain]->json.node));
         }
     }
-    g_cli_guard->persistent_buf_release(read, g_cli_settings_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_settings_owner);
 }
 
 // One row of the section `section` for the catalog's setting `item`, where the chain `name` puts the item in that
@@ -3056,8 +3056,8 @@ EMBED_INLINE void window_palette_rebuild(const GuiWindowCtx *args)
 // the themes written to the entry in orior's folder
 EMBED_INLINE void window_themes_save(const GuiWindowCtx *args)
 {
-    CliGrownLine out;
-    cli_grown_begin(&out, GUI_WINDOW_THEMES_TEXT, g_cli_view_owner);
+    PlatformText out;
+    platform_text_begun(&out, GUI_WINDOW_THEMES_TEXT, platform_place_g_cli_view_owner, PLATFORM_TIER_TEMPORARY);
     if (out.cell == NULL)
     {
         return;
@@ -3067,7 +3067,7 @@ EMBED_INLINE void window_themes_save(const GuiWindowCtx *args)
     {
         EMBED_CALL(window_setting_save, GuiWindowCtx, .key = GUI_WINDOW_THEMES_KEY, .value = out.cell);
     }
-    cli_grown_end(&out);
+    platform_text_ended(&out);
 }
 
 // The theme `at` chosen, the count for the scheme's own colors. Its name goes into the setting, the setting's row gets
@@ -3091,7 +3091,7 @@ EMBED_INLINE void window_themes_read(const GuiWindowCtx *args)
     const unsigned long long size =
         cli_state_entry_size(&(CliStateEntryCfg){.entries = args->entries, .key = GUI_WINDOW_THEMES_KEY});
     char *const text_cell = ((size != CLI_STATE_NONE) && (size < GUI_WINDOW_THEMES_TEXT))
-                                ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_view_owner)
+                                ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_view_owner)
                                 : NULL;
     const char *const text =
         (text_cell != NULL)
@@ -3100,7 +3100,7 @@ EMBED_INLINE void window_themes_read(const GuiWindowCtx *args)
             : NULL;
     EMBED_CALL(gui_themes_text_table.read, GuiThemesTextCfg, .themes = &window->themes, .text = text,
                .size = (text != NULL) ? size : 0ULL, .owner = g_cli_view_owner);
-    g_cli_guard->persistent_buf_release(text_cell, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(text_cell, g_cli_view_owner);
     char chosen_text[CLI_NAME_MAX_LEN];
     const char *const chosen = cli_state_entry_value(&(CliStateEntryCfg){
         .entries = args->entries, .key = GUI_WINDOW_THEME_KEY, .out = chosen_text, .capacity = sizeof(chosen_text)});
@@ -3233,7 +3233,8 @@ EMBED_INLINE int window_theme_new_run(const GuiWindowCtx *args)
 EMBED_INLINE int window_theme_import_run(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
-    char *const cell = g_cli_guard->temporary_buf_alloc(GUI_WINDOW_THEME_TEXT + sizeof(GuiTheme), g_cli_view_owner);
+    char *const cell =
+        g_platform_guard->temporary_buf_alloc(GUI_WINDOW_THEME_TEXT + sizeof(GuiTheme), g_cli_view_owner);
     if (cell == NULL)
     {
         return 0;
@@ -3279,7 +3280,7 @@ EMBED_INLINE int window_theme_import_run(const GuiWindowCtx *args)
     {
         cli_notice_post(&(CliNoticesCfg){.text = "The clipboard holds no theme.", .failed = 1});
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_view_owner);
     return taken;
 }
 
@@ -3287,7 +3288,8 @@ EMBED_INLINE int window_theme_import_run(const GuiWindowCtx *args)
 EMBED_INLINE void window_theme_export_run(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
-    char *const cell = g_cli_guard->temporary_buf_alloc(GUI_WINDOW_THEME_TEXT + sizeof(GuiTheme), g_cli_view_owner);
+    char *const cell =
+        g_platform_guard->temporary_buf_alloc(GUI_WINDOW_THEME_TEXT + sizeof(GuiTheme), g_cli_view_owner);
     if (cell == NULL)
     {
         return;
@@ -3308,7 +3310,7 @@ EMBED_INLINE void window_theme_export_run(const GuiWindowCtx *args)
     {
         EMBED_CALL(window_clipboard_put, GuiWindowCtx, .name = cell);
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_view_owner);
 }
 
 // theme-color <name> [color]: the palette's color `name` set to the color, or put back to the scheme's where the words
@@ -3627,8 +3629,8 @@ EMBED_INLINE int window_folder_window_open(const GuiWindowCtx *args)
         return 0;
     }
     const char *const words[2] = {program, NULL};
-    const CliSetting settings[1] = {{"ORIOR_ROOT", args->name}};
-    CliSpawned spawned;
+    const PlatformSetting settings[1] = {{"ORIOR_ROOT", args->name}};
+    PlatformProgram spawned;
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .words = words, .folder = args->name,
                     .settings = settings, .count = 1u, .detached = 1, .spawned = &spawned, .err_msg = &err_msg))
     {
@@ -3920,15 +3922,16 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "compare-clipboard"))
     {
         // the clipboard's text against the displayed file; the view copies the text, and the cell goes back at once
-        CliGrownLine text;
-        cli_grown_begin(&text, GUI_WINDOW_CLIPBOARD_BYTES, g_cli_view_owner);
+        PlatformText text;
+        platform_text_begun(&text, GUI_WINDOW_CLIPBOARD_BYTES, platform_place_g_cli_view_owner,
+                            PLATFORM_TIER_TEMPORARY);
         if (text.cell == NULL)
         {
             cli_notice_post(&(CliNoticesCfg){.text = "The clipboard's text could not be taken.", .failed = 1});
             return 0;
         }
         (void)cli_clipboard_text_read(&(CliCtx){.text_verba_linea_pointer = &text.line});
-        const unsigned long long length = (mmgr_line_finish(&text.line) != 0ULL) ? cli_grown_size(&text) : 0ULL;
+        const unsigned long long length = (mmgr_line_finish(&text.line) != 0ULL) ? platform_text_size(&text) : 0ULL;
         int opened = 0;
         if (length == 0ULL)
         {
@@ -3939,7 +3942,7 @@ EMBED_INLINE int window_edit_run(const GuiWindowCtx *args)
             opened = EMBED_CALL(window_diff_opened, GuiWindowCtx, .window = window, .event = CLI_DIFF_VIEW_CLIPBOARD,
                                 .value = text.cell, .row = length);
         }
-        cli_grown_end(&text);
+        platform_text_ended(&text);
         return opened;
     }
     if (EMBED_CALL(window_is, GuiWindowCtx, .name = name, .key = "macro-record"))
@@ -4826,14 +4829,14 @@ EMBED_INLINE void window_tab_save(const GuiWindowCtx *args)
                              .before = (const char *)before, .before_size = before_size, .text = (const char *)written,
                              .size = size, .err_msg = &history_msg);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)written, g_cli_view_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)written, g_cli_view_owner);
     }
     else
     {
         cli_notice_post(&(CliNoticesCfg){
             .text = (mmgr_line_finish(&err_msg) != 0ULL) ? why : "The file could not be written.", .failed = 1});
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)before, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)before, g_cli_view_owner);
     args->window->pending = 1;
 }
 

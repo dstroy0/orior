@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// builds_adjacent.c: the names nearest one that is not known, by the fewest edits of one character that turn one into the
-// other, near enough to be what was meant, the three nearest retained, each once. A name of more than
+// builds_adjacent.c: the names nearest one that is not known, by the fewest edits of one character that turn one into
+// the other, near enough to be what was meant, the three nearest retained, each once. A name of more than
 // CLI_BUILD_ADJACENT_MAX_LEN characters is near none
 #include "../text/text.h"
 #include "builds.h"
@@ -21,8 +21,8 @@ unsigned long long cli_build_distance(const CliBuildsACfg *args)
             return ~0ULL;
         }
         unsigned long long length = 0ULL;
-        characters[count] = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->b, .size = args->b_size, .at = at,
-                                    .length = &length);
+        characters[count] = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->b, .size = args->b_size,
+                                       .at = at, .length = &length);
         at += length;
     }
     for (unsigned int at = 0u; at <= count; at += 1u)
@@ -33,8 +33,8 @@ unsigned long long cli_build_distance(const CliBuildsACfg *args)
     for (unsigned long long at = 0ULL; at < args->a_size; index += 1u)
     {
         unsigned long long length = 0ULL;
-        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->a, .size = args->a_size,
-                                               .at = at, .length = &length);
+        const unsigned int character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = args->a,
+                                                  .size = args->a_size, .at = at, .length = &length);
         at += length;
         unsigned long long last = row[0];
         row[0] = index + 1u;
@@ -90,7 +90,7 @@ void cli_build_adjacent_offer(const CliBuildsSizeAdjacentCfg *args)
         return;
     }
     const unsigned long long characters = EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg,
-                                                  .text = args->adjacent->name, .size = args->adjacent->name_size);
+                                                     .text = args->adjacent->name, .size = args->adjacent->name_size);
     const unsigned long long max = ((characters / 4u) > 2u) ? (characters / 4u) : 2u;
     const unsigned long long far =
         EMBED_CALL(cli_builds_a.build_distance, CliBuildsACfg, .a = args->adjacent->name,

@@ -6,7 +6,8 @@
 // `tab` makes the tab's width, and `tab_width`.
 //
 // A section's pattern names a file by its name wherever it is, or by its path from the folder of its
-// `.editorconfig` where it has a `/`. `*` is any characters of a name, `**` any characters and folders, `?` one character,
+// `.editorconfig` where it has a `/`. `*` is any characters of a name, `**` any characters and folders, `?` one
+// character,
 // `[abc]` and `[!abc]` one character of or not of those, `{a,b}` either text, and `{1..3}` any whole number between
 #ifndef EDITORCONFIG_H
 #define EDITORCONFIG_H

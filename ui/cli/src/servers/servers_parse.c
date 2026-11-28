@@ -67,7 +67,7 @@ void cli_servers_forget_tokens(void)
     for (unsigned int at = 0u; at < g_cli_servers_parses.entries; at += 1u)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_servers_parses.page[at / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
@@ -75,7 +75,7 @@ void cli_servers_forget_tokens(void)
         CliServersParseHead head = {0ULL, 1u, 0u, 0u, 0u, 0u};
         if (one.used && (one.text_size >= sizeof(head)))
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = one.cell, .offset = (embed_word)one.text_at, .dst = &head, .bytes = sizeof(head)});
         }
         if (one.used && !head.integer)

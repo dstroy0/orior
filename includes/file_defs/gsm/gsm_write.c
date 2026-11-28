@@ -20,7 +20,7 @@
 // It runs in a query run, the .qry that QRY names (qry_member.h). The forms that the writer of the vendor passes back
 // are the blob GSM_FORMS_NAME of the run. What it prints goes to the run as GSM_MACHINE_NAME.
 #include "../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "../../parsers/line_read.h"
 #include "../qry/writer/qry_member.h"
 #include "../vendor_writer_run.h"

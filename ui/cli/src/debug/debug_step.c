@@ -163,7 +163,7 @@ EMBED_INLINE int step_send(const DebugStepCtx *args)
         const int answered = EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->session->dap,
                                         .command = args->how, .arguments = args_local.out, .length = args_local.at,
                                         .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS, .answer = &answer, .err_msg = err_msg);
-        g_cli_guard->persistent_buf_release(answer.message, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(answer.message, g_cli_debug_owner);
         return answered;
     }
     unsigned long long seq = 0ULL;

@@ -119,18 +119,14 @@ int main(void)
   run_test(test_the_audit_lists_the_owner_with_its_bytes, "test_the_audit_lists_the_owner_with_its_bytes", 243);
   run_test(test_a_released_cell_comes_off_its_owner, "test_a_released_cell_comes_off_its_owner", 256);
   run_test(test_a_cell_answers_the_owner_it_counts_to, "test_a_cell_answers_the_owner_it_counts_to", 263);
-  run_test(test_a_take_past_the_pool_is_refused_and_counts_nothing,
-           "test_a_take_past_the_pool_is_refused_and_counts_nothing", 271);
+  run_test(test_a_take_past_the_pool_is_refused_and_counts_nothing, "test_a_take_past_the_pool_is_refused_and_counts_nothing", 271);
   run_test(test_a_file_of_one_page_ends_where_the_file_ends, "test_a_file_of_one_page_ends_where_the_file_ends", 278);
   run_test(test_a_file_of_two_pages_ends_where_the_file_ends, "test_a_file_of_two_pages_ends_where_the_file_ends", 283);
   run_test(test_a_grown_line_holds_a_long_text_whole, "test_a_grown_line_holds_a_long_text_whole", 288);
   run_test(test_a_grown_line_fills_at_the_max_it_is_given, "test_a_grown_line_fills_at_the_max_it_is_given", 318);
-  run_test(test_a_grown_line_begun_over_again_keeps_its_cell_at_the_size_it_grew_to,
-           "test_a_grown_line_begun_over_again_keeps_its_cell_at_the_size_it_grew_to", 338);
-  run_test(test_an_owners_usage_is_the_pools_bytes_its_peak_and_a_zero_and_the_reports_run_outside_a_run,
-           "test_an_owners_usage_is_the_pools_bytes_its_peak_and_a_zero_and_the_reports_run_outside_a_run", 354);
-  run_test(test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes,
-           "test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes", 379);
+  run_test(test_a_grown_line_begun_over_again_keeps_its_cell_at_the_size_it_grew_to, "test_a_grown_line_begun_over_again_keeps_its_cell_at_the_size_it_grew_to", 338);
+  run_test(test_an_owners_usage_is_the_pools_bytes_its_peak_and_a_zero_and_the_reports_run_outside_a_run, "test_an_owners_usage_is_the_pools_bytes_its_peak_and_a_zero_and_the_reports_run_outside_a_run", 354);
+  run_test(test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes, "test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes", 379);
 
   return UNITY_END();
 }

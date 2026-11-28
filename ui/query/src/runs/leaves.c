@@ -167,7 +167,7 @@ EMBED_INLINE int query_line_same(const LeavesCtx *args)
 EMBED_INLINE void *query_diff_part(const LeavesCtx *args)
 {
     size_t size = args->size_size;
-    return (args->count > 0ULL) ? g_cli_guard->persistent_buf_alloc(args->count * size, g_query_owner) : NULL;
+    return (args->count > 0ULL) ? g_platform_guard->persistent_buf_alloc(args->count * size, g_query_owner) : NULL;
 }
 
 // the lines of `before` and `after` counted, then cut into cells of their counts, with the reach over every diagonal
@@ -394,27 +394,27 @@ void query_leaf_show(const QueryPathTreeCtx *args)
             mmgr_line_put(args->displayed, name);
             mmgr_line_ch(args->displayed, ':');
             EMBED_CALL(query_render, LeavesCtx, .diff_read = &diff, .changes = changes, .displayed = args->displayed);
-            g_cli_guard->persistent_buf_release((void *)diff.before, g_query_owner);
-            g_cli_guard->persistent_buf_release(diff.before_length, g_query_owner);
-            g_cli_guard->persistent_buf_release((void *)diff.after, g_query_owner);
-            g_cli_guard->persistent_buf_release(diff.after_length, g_query_owner);
-            g_cli_guard->persistent_buf_release(diff.reach, g_query_owner);
-            g_cli_guard->persistent_buf_release(diff.band, g_query_owner);
-            g_cli_guard->persistent_buf_release(diff.change, g_query_owner);
-            g_cli_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
-            g_cli_guard->persistent_buf_release(diff.change_length, g_query_owner);
+            g_platform_guard->persistent_buf_release((void *)diff.before, g_query_owner);
+            g_platform_guard->persistent_buf_release(diff.before_length, g_query_owner);
+            g_platform_guard->persistent_buf_release((void *)diff.after, g_query_owner);
+            g_platform_guard->persistent_buf_release(diff.after_length, g_query_owner);
+            g_platform_guard->persistent_buf_release(diff.reach, g_query_owner);
+            g_platform_guard->persistent_buf_release(diff.band, g_query_owner);
+            g_platform_guard->persistent_buf_release(diff.change, g_query_owner);
+            g_platform_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
+            g_platform_guard->persistent_buf_release(diff.change_length, g_query_owner);
             memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(diff)});
             return;
         }
-        g_cli_guard->persistent_buf_release((void *)diff.before, g_query_owner);
-        g_cli_guard->persistent_buf_release(diff.before_length, g_query_owner);
-        g_cli_guard->persistent_buf_release((void *)diff.after, g_query_owner);
-        g_cli_guard->persistent_buf_release(diff.after_length, g_query_owner);
-        g_cli_guard->persistent_buf_release(diff.reach, g_query_owner);
-        g_cli_guard->persistent_buf_release(diff.band, g_query_owner);
-        g_cli_guard->persistent_buf_release(diff.change, g_query_owner);
-        g_cli_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
-        g_cli_guard->persistent_buf_release(diff.change_length, g_query_owner);
+        g_platform_guard->persistent_buf_release((void *)diff.before, g_query_owner);
+        g_platform_guard->persistent_buf_release(diff.before_length, g_query_owner);
+        g_platform_guard->persistent_buf_release((void *)diff.after, g_query_owner);
+        g_platform_guard->persistent_buf_release(diff.after_length, g_query_owner);
+        g_platform_guard->persistent_buf_release(diff.reach, g_query_owner);
+        g_platform_guard->persistent_buf_release(diff.band, g_query_owner);
+        g_platform_guard->persistent_buf_release(diff.change, g_query_owner);
+        g_platform_guard->persistent_buf_release((void *)diff.change_line, g_query_owner);
+        g_platform_guard->persistent_buf_release(diff.change_length, g_query_owner);
         memor.set(&(MemoriaCfg){.dst = (&diff), .val = 0, .bytes = sizeof(diff)});
     }
     mmgr_line_put(args->displayed, name);
@@ -464,7 +464,7 @@ EMBED_INLINE void query_leaf_printed(const LeavesCtx *args)
     const unsigned long long required =
         ((args->before_size + args->after_size) * QUERY_DISPLAYED_WIDER) + QUERY_PATH_MAX_LEN + 256ULL;
     const unsigned long long capacity = (required < QUERY_DISPLAYED_MAX) ? required : QUERY_DISPLAYED_MAX;
-    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_query_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(capacity, g_query_owner);
     VerbaLinea displayed = mmgr_line_over(text, capacity);
     EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = args->what,
                .tree = (args->before != NULL) ? args->before : (const unsigned char *)"",
@@ -474,7 +474,7 @@ EMBED_INLINE void query_leaf_printed(const LeavesCtx *args)
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = text);
     }
-    g_cli_guard->persistent_buf_release(text, g_query_owner);
+    g_platform_guard->persistent_buf_release(text, g_query_owner);
 }
 
 // the answer for the file `what`: yes where every file is left, no where none is, else the `prompter`'s

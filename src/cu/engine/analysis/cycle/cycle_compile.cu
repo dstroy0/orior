@@ -11,7 +11,7 @@
 // The run copies the lane's inputs from the device, and its records and errors back. The check (CYCLE_RECORD_CHECK=1)
 // checks it against the interpreter as it checks the device's. On Windows the compiler is nvcc, which gives the source
 // to the host compiler alone, with -ccbin $CYCLE_HOST_CCBIN where it is set. Elsewhere it is $CXX, else c++
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../engine_note.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -355,16 +355,10 @@ static int cycle_host_program_built(const EngineRecordLayout *layout, CycleRecor
     {
         return 0;
     }
-#if defined(_WIN32)
-    _mkdir(folder);
-    const int process = _getpid();
-    const char *const separator = "\\";
-#else
-    mkdir(folder, 0755);
-    // a pid is positive. It converts exactly
-    const int process = (int)getpid();
-    const char *const separator = "/";
-#endif
+    (void)platform_folder_made(folder);
+    // a process id of the system is positive and fits an int
+    const int process = (int)platform_process_id();
+    const char *const separator = g_platform_separator;
     char stem[PLATFORM_PATH_BYTES];
     {
         VerbaLinea buffer_line = mmgr_line_over(stem, sizeof(stem));
@@ -410,8 +404,8 @@ static int cycle_host_program_built(const EngineRecordLayout *layout, CycleRecor
         // the call leaves a name that another process took first as it is, and loads its library
         if (built)
         {
-            (void)platform_file_moved(partial_library, named_library);
-            (void)platform_file_moved(partial_source, named_source);
+            (void)platform_file_relocated(partial_library, named_library);
+            (void)platform_file_relocated(partial_source, named_source);
         }
         const char *const left[4] = {CYCLE_HOST_LIBRARY, ".cpp", ".lib", ".exp"};
         for (unsigned int at = 0u; at < 4u; at += 1u)

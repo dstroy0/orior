@@ -153,7 +153,7 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = dir, .each = cli_user_count,
                .context_bytess = &user);
     // the names live for this call alone: a cell of the temporary tier
-    user.name = (user.capacity != 0u) ? g_cli_guard->temporary_buf_alloc(
+    user.name = (user.capacity != 0u) ? g_platform_guard->temporary_buf_alloc(
                                             (unsigned long long)user.capacity * CLI_NAME_MAX_LEN, g_cli_plugins_owner)
                                       : NULL;
     user.capacity = (user.name != NULL) ? user.capacity : 0u;
@@ -189,9 +189,9 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
         // a plugin's bytes are its JSON's text
         const CliPlugin plugin = {user.name[at], "user", folder, (const char *)bytes, size};
         EMBED_CALL(args->each, CliEachPluginCfg, .context = args->context, .plugin = &plugin);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_plugins_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_plugins_owner);
     }
-    g_cli_guard->persistent_buf_release(user.name, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(user.name, g_cli_plugins_owner);
 }
 
 void cli_plugins_each(const CliPluginsEachCfg *args)
@@ -472,7 +472,7 @@ EMBED_INLINE void cli_languages_placed(const PluginsCtx *args)
     const CarcerMovableEntry *const before = (const CarcerMovableEntry *)(embed_word)EMBED_CALL(
         embed_atomic_word_table.exchange, EmbedAtomicWordExchangeCfg, .word = &s_languages,
         .value = (embed_atomic_word_value)(embed_word)args->pairs);
-    (void)g_cli_guard->movable_buf_release(before, g_cli_plugins_owner);
+    (void)g_platform_guard->movable_buf_release(before, g_cli_plugins_owner);
 }
 
 // The walk over the plugins reads the pairs and the grammars into one cell of the temporary tier, at their max. The
@@ -481,7 +481,7 @@ void cli_plugins_languages_changed(void)
 {
     // the call reads the settings again first, and then reads the languages from them
     cli_plugins_settings_changed();
-    CliLanguagePair *const pair = g_cli_guard->temporary_buf_alloc(
+    CliLanguagePair *const pair = g_platform_guard->temporary_buf_alloc(
         ((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(CliLanguagePair)) +
             ((unsigned long long)CLI_LANGUAGE_GRAMMARS * sizeof(CliLanguageGrammarEntry)),
         g_cli_plugins_owner);
@@ -494,21 +494,21 @@ void cli_plugins_languages_changed(void)
                                (CliLanguageGrammarEntry *)(void *)(pair + CLI_LANGUAGE_PAIRS), 0u};
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_language_each, .context = &built);
     const CarcerMovableEntry *const pairs =
-        g_cli_guard->movable_buf_alloc(CLI_LANGUAGE_GRAMMAR_AT(built.count, built.grammars), g_cli_plugins_owner);
+        g_platform_guard->movable_buf_alloc(CLI_LANGUAGE_GRAMMAR_AT(built.count, built.grammars), g_cli_plugins_owner);
     const CliLanguagesHead head = {built.count, built.grammars};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = pairs, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = pairs,
                             .offset = CLI_LANGUAGE_KEY_AT(0u),
                             .src = built.pair,
                             .bytes = (unsigned long long)built.count * sizeof(CliLanguagePair)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = pairs,
                             .offset = CLI_LANGUAGE_GRAMMAR_AT(built.count, 0u),
                             .src = built.grammar,
                             .bytes = (unsigned long long)built.grammars * sizeof(CliLanguageGrammarEntry)});
-    g_cli_guard->persistent_buf_release(pair, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(pair, g_cli_plugins_owner);
     EMBED_CALL(cli_languages_placed, PluginsCtx, .pairs = pairs);
 }
 
@@ -527,14 +527,14 @@ int cli_plugins_grammar_of(const CliPluginsGrammarOfCfg *args)
     }
     const CarcerMovableEntry *const pairs = cli_languages_token();
     CliLanguagesHead head = {0u, 0u};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = pairs, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     const unsigned long long wanted_bytes =
         cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_NAME_MAX_LEN}) + 1ULL;
     unsigned int at = 0u;
     while (
         (at < head.grammars) &&
-        (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+        (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
              .cell = pairs, .offset = CLI_LANGUAGE_GRAMMAR_AT(head.count, at), .src = wanted, .bytes = wanted_bytes}) !=
          0))
     {
@@ -542,7 +542,7 @@ int cli_plugins_grammar_of(const CliPluginsGrammarOfCfg *args)
     }
     CliLanguageGrammarEntry entry;
     if ((at == head.grammars) ||
-        !g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        !g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = pairs, .offset = CLI_LANGUAGE_GRAMMAR_AT(head.count, at), .dst = &entry, .bytes = sizeof(entry)}))
     {
         return 0;
@@ -563,11 +563,11 @@ int cli_plugins_grammar_of(const CliPluginsGrammarOfCfg *args)
                                   .err_msg = &err_msg)
                            ? 1
                            : -1;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = pairs,
-                                                                 .offset = CLI_LANGUAGE_GRAMMAR_AT(head.count, at) +
-                                                                           offsetof(CliLanguageGrammarEntry, stored),
-                                                                 .src = &entry.stored,
-                                                                 .bytes = sizeof(entry.stored)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
+            .cell = pairs,
+            .offset = CLI_LANGUAGE_GRAMMAR_AT(head.count, at) + offsetof(CliLanguageGrammarEntry, stored),
+            .src = &entry.stored,
+            .bytes = sizeof(entry.stored)});
     }
     VerbaLinea key = {out->key, sizeof(out->key), 0ULL};
     mmgr_line_put(&key, "plugin:");
@@ -608,9 +608,9 @@ static const CarcerMovableEntry *cli_languages_token(void)
 // the id of the pair `at` of the cell `pairs` read into `id_out` with its end: 1
 EMBED_INLINE int cli_language_id_read(const PluginsCtx *args)
 {
-    const unsigned long long length = g_cli_guard->movable_buf_measure(
+    const unsigned long long length = g_platform_guard->movable_buf_measure(
         &(CarcerMovableCfg){.cell = args->pairs, .offset = CLI_LANGUAGE_ID_AT(args->at)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->pairs, .offset = CLI_LANGUAGE_ID_AT(args->at), .dst = args->id_out, .bytes = length + 1ULL});
     return 1;
 }
@@ -619,7 +619,7 @@ EMBED_INLINE int cli_language_id_read(const PluginsCtx *args)
 EMBED_INLINE char cli_language_key_first(const PluginsCtx *args)
 {
     char first = '\0';
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->pairs, .offset = CLI_LANGUAGE_KEY_AT(args->at), .dst = &first, .bytes = 1u});
     return first;
 }
@@ -644,7 +644,7 @@ static int cli_language_pattern_for(const PluginsCtx *args)
             continue;
         }
         char key[CLI_NAME_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->pairs, .offset = CLI_LANGUAGE_KEY_AT(at), .dst = key, .bytes = sizeof(key)});
         Regexp pattern;
         EMBED_CALL(regexp_capacity.capacity, RegexpWorkStateCfg, .regexp_out = &pattern, .work_state = &work_state);
@@ -673,7 +673,7 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
 {
     const CarcerMovableEntry *const pairs = cli_languages_token();
     CliLanguagesHead head = {0u};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = pairs, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     name = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
@@ -684,7 +684,7 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
     unsigned long long key_bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = sizeof(key)}) + 1ULL;
     for (unsigned int at = 0u; at < head.count; at += 1u)
     {
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+        if (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                 .cell = pairs, .offset = CLI_LANGUAGE_KEY_AT(at), .src = key, .bytes = key_bytes}) == 0)
         {
             return EMBED_CALL(cli_language_id_read, PluginsCtx, .pairs = pairs, .at = at, .id_out = args->id_out);
@@ -715,7 +715,7 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
     {
         const char first = EMBED_CALL(cli_language_key_first, PluginsCtx, .pairs = pairs, .at = at);
         if ((first != '/') && (first != '?') &&
-            (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+            (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                  .cell = pairs, .offset = CLI_LANGUAGE_KEY_AT(at), .src = key, .bytes = key_bytes}) == 0))
         {
             return EMBED_CALL(cli_language_id_read, PluginsCtx, .pairs = pairs, .at = at, .id_out = args->id_out);
@@ -748,8 +748,8 @@ static void plugins_code_each(const CliEachPluginCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = code->folder,
                             .src = folder,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}) + 1u});
-    g_cli_guard->persistent_buf_release(code->text, g_cli_plugins_owner);
-    code->text = g_cli_guard->temporary_buf_alloc(args->plugin->size + 1ULL, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(code->text, g_cli_plugins_owner);
+    code->text = g_platform_guard->temporary_buf_alloc(args->plugin->size + 1ULL, g_cli_plugins_owner);
     code->size = (code->text != NULL) ? args->plugin->size : 0ULL;
     if (code->text != NULL)
     {
@@ -804,7 +804,7 @@ int cli_plugins_code_get(const CliPluginsIdCfg *args)
         mmgr_line_put(args->err_msg,
                       code.user ? ": its plugin.json does not read" : " comes with orior and runs no code");
     }
-    g_cli_guard->persistent_buf_release(code.text, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(code.text, g_cli_plugins_owner);
     return done;
 }
 void cli_plugins_slug(const CliPluginsIdNameCfg *args)

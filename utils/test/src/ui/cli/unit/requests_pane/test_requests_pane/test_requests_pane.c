@@ -295,12 +295,12 @@ void test_a_send_runs_on_its_worker_send_reading_sending_until_its_answers_come(
     while (!taken && (cli_clock_milliseconds() < until))
     {
         taken = EMBED_CALL(cli_requests_pane.step, CliRequestsPaneCfg, .root = s_root, .displayed = 0);
-        cli_thread_yield();
+        platform_thread_yield();
     }
     TEST_ASSERT_TRUE(taken);
     while ((EMBED_ATOMIC_LOAD(&s_woken_count) == 0u) && (cli_clock_milliseconds() < until))
     {
-        cli_thread_yield();
+        platform_thread_yield();
     }
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_ATOMIC_LOAD(&s_woken_count));
     TEST_ASSERT_FALSE(EMBED_CALL(cli_requests_pane.sending, CliRequestsPaneCfg, .at = 0u));

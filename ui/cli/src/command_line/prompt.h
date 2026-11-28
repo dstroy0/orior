@@ -3,8 +3,8 @@
 // prompt.h: the one ask the foot tools share, located in a foot pane's rows in place of the page's sheets: a sentence,
 // the statement it asks about in the code face, a field and a row of buttons. The ask's texts are in one cell sized
 // to them, the rows are numbers over it, and the field is in a cell of its own sized to the characters typed; a
-// password field answers the count of its characters and never its text. A button pressed passes the field's text and the
-// button's place to the continuation the ask opened with, and the ask closes (prompt.c)
+// password field answers the count of its characters and never its text. A button pressed passes the field's text and
+// the button's place to the continuation the ask opened with, and the ask closes (prompt.c)
 #ifndef PROMPT_H
 #define PROMPT_H
 #include "../text/typed.h"
@@ -113,8 +113,8 @@ EMBED_TABLE_STORAGE CliPromptRowsNs cli_prompt_rows EMBED_UNUSED = {
 };
 
 // `size` bytes of `text` typed at the field's end, a UTF-8 run, while an ask is; and the key `name` pressed:
-// Backspace erases the field's last character, Enter presses the first button, Escape closes the ask with no answer, each
-// 1, any other key 0
+// Backspace erases the field's last character, Enter presses the first button, Escape closes the ask with no answer,
+// each 1, any other key 0
 void cli_prompt_type(const CliPromptInputCfg *args);
 int cli_prompt_key(const CliPromptInputCfg *args);
 struct CliPromptInputCfg

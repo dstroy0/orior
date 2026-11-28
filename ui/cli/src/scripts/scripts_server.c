@@ -79,7 +79,7 @@ EMBED_INLINE void server_taken(const ScriptsServerCtx *args)
     {
         return;
     }
-    char *const answer_text = g_cli_guard->temporary_buf_alloc(CLI_SCRIPTS_SERVER_ANSWER, g_cli_scripts_owner);
+    char *const answer_text = g_platform_guard->temporary_buf_alloc(CLI_SCRIPTS_SERVER_ANSWER, g_cli_scripts_owner);
     VerbaLinea answer = mmgr_line_over(answer_text, (answer_text != NULL) ? CLI_SCRIPTS_SERVER_ANSWER : 0ULL);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -100,7 +100,7 @@ EMBED_INLINE void server_taken(const ScriptsServerCtx *args)
                          .request = request_text, .result_text = has ? answer_text : "null",
                          .length = has ? answer.at : 4ULL);
     }
-    g_cli_guard->persistent_buf_release(answer_text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(answer_text, g_cli_scripts_owner);
 }
 
 // the worker: each message of the queue taken in order, and a wait while the queue is empty
@@ -122,7 +122,7 @@ static void server_work(void *context)
             continue;
         }
         EMBED_CALL(server_taken, ScriptsServerCtx, .body = message.json, .size = message.size);
-        g_cli_guard->persistent_buf_release(message.json, g_cli_scripts_owner);
+        g_platform_guard->persistent_buf_release(message.json, g_cli_scripts_owner);
     }
 }
 
@@ -132,7 +132,7 @@ void cli_scripts_server_emit(const CliEachEventJsonSizeCfg *args)
     {
         return;
     }
-    char *const json = g_cli_guard->persistent_buf_alloc(args->size + 1ULL, g_cli_scripts_owner);
+    char *const json = g_platform_guard->persistent_buf_alloc(args->size + 1ULL, g_cli_scripts_owner);
     if (json == NULL)
     {
         return;
@@ -154,7 +154,7 @@ void cli_scripts_server_emit(const CliEachEventJsonSizeCfg *args)
     cli_gate_opened(&s_queue_gate);
     if (!queued)
     {
-        g_cli_guard->persistent_buf_release(json, g_cli_scripts_owner);
+        g_platform_guard->persistent_buf_release(json, g_cli_scripts_owner);
     }
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
 }

@@ -3,7 +3,7 @@
 #include "cycle.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 _Static_assert(ORIOR_EXACT_LIMBS >= 2u, "cycle: a record constant is 64 bits and needs two limbs");

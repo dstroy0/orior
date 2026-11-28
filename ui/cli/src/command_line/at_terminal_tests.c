@@ -15,7 +15,7 @@
 // Lines a run prints, buffered through the run: the line grown to them, and how many are buffered
 typedef struct
 {
-    CliGrownLine line;
+    PlatformText line;
     unsigned long long lines;
 } CliTestLines;
 // the max files and settings one import takes; the max bytes of the lines a run's failed tests or its coverage print;
@@ -45,14 +45,14 @@ typedef struct
     const char *name;
     unsigned int done;
     CliJson *json_out;
-    CliGrownLine *grown;
+    PlatformText *grown;
 } AtTerminalTestsCtx;
 // `size` bytes of `text` put after the lines buffered, a line of its own, a line past the max the lines contain left
 // out
 EMBED_INLINE void tests_line_append(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
-    if (cli_grown_size(&lines->line) + args->size + 1ULL > CLI_AT_TERMINAL_LINES)
+    if (platform_text_size(&lines->line) + args->size + 1ULL > CLI_AT_TERMINAL_LINES)
     {
         return;
     }
@@ -65,7 +65,8 @@ EMBED_INLINE void tests_line_append(const AtTerminalTestsCtx *args)
 EMBED_INLINE void tests_lines_begin(const AtTerminalTestsCtx *args)
 {
     CliTestLines *lines = args->lines;
-    cli_grown_begin(&lines->line, CLI_AT_TERMINAL_LINES + 1ULL, g_cli_command_line_owner);
+    platform_text_begun(&lines->line, CLI_AT_TERMINAL_LINES + 1ULL, platform_place_g_cli_command_line_owner,
+                        PLATFORM_TIER_TEMPORARY);
     lines->lines = 0ULL;
 }
 
@@ -74,10 +75,10 @@ EMBED_INLINE void tests_lines_write(const AtTerminalTestsCtx *args)
 {
     if (mmgr_line_ok(&args->lines->line.line) && (args->lines->lines > 0ULL))
     {
-        (void)mmgr_line_put_n(args->into, args->lines->line.cell, cli_grown_size(&args->lines->line));
+        (void)mmgr_line_put_n(args->into, args->lines->line.cell, platform_text_size(&args->lines->line));
         mmgr_line_ch(args->into, '\n');
     }
-    cli_grown_end(&args->lines->line);
+    platform_text_ended(&args->lines->line);
     args->lines->lines = 0ULL;
 }
 
@@ -261,7 +262,7 @@ static void tests_event(const CliEachJsonSizeCfg *args)
         s_done = 1;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
-    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -283,9 +284,9 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
     if (!EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = root, .supplied = supplied, .count = count,
                     .parallel = 1, .cover = cover, .sink = sink, .number = &run, .err_msg = err_msg))
     {
-        cli_grown_end(&s_failed.line);
+        platform_text_ended(&s_failed.line);
         s_failed.lines = 0ULL;
-        cli_grown_end(&s_covered.line);
+        platform_text_ended(&s_covered.line);
         s_covered.lines = 0ULL;
         return 0;
     }
@@ -315,10 +316,10 @@ EMBED_INLINE unsigned int tests_tree_get(const AtTerminalTestsCtx *args)
     const unsigned int root =
         mmgr_line_ok(&args->grown->line)
             ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json,
-                         .text = args->grown->cell, .size = cli_grown_size(args->grown), .nodes_more = 0u,
+                         .text = args->grown->cell, .size = platform_text_size(args->grown), .nodes_more = 0u,
                          .text_more = 0ULL, .err_msg = &ignored, .owner = g_cli_command_line_owner)
             : CLI_JSON_NONE;
-    cli_grown_end(args->grown);
+    platform_text_ended(args->grown);
     return root;
 }
 
@@ -335,8 +336,9 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     {
         return 0;
     }
-    CliGrownLine differences;
-    cli_grown_begin(&differences, CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
+    PlatformText differences;
+    platform_text_begun(&differences, CLI_AT_TERMINAL_TRANSFERRED, platform_place_g_cli_command_line_owner,
+                        PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_settings_sync_home.differences, CliSettingsSyncHomeCfg, .home = home, .there = &s_there,
                .out = &differences.line);
     CliJson tree;
@@ -346,10 +348,10 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     const unsigned int capacity =
         ((json->nodes + 1u) < CLI_AT_TERMINAL_ALLOCATED) ? (json->nodes + 1u) : CLI_AT_TERMINAL_ALLOCATED;
     const char **const chosen_positions =
-        g_cli_guard->temporary_buf_alloc(2ULL * capacity * sizeof(const char *), g_cli_command_line_owner);
+        g_platform_guard->temporary_buf_alloc(2ULL * capacity * sizeof(const char *), g_cli_command_line_owner);
     if (chosen_positions == NULL)
     {
-        g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+        g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "the cell the places and settings taken are listed in could not be taken");
@@ -432,8 +434,9 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
     }
     else
     {
-        CliGrownLine allocating;
-        cli_grown_begin(&allocating, CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
+        PlatformText allocating;
+        platform_text_begun(&allocating, CLI_AT_TERMINAL_TRANSFERRED, platform_place_g_cli_command_line_owner,
+                            PLATFORM_TIER_TEMPORARY);
         done = EMBED_CALL(cli_settings_sync_home.take, CliSettingsSyncHomeCfg, .home = home, .from = from,
                           .there = &s_there, .positions = chosen_positions, .count = positions, .keys = chosen_keys,
                           .key_count = keys, .out = &allocating.line, .err_msg = err_msg);
@@ -462,13 +465,13 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
             mmgr_line_put_n(out, (id != NULL) ? id : "", id_size);
             mmgr_line_put(out, " writes them back.");
         }
-        g_cli_guard->persistent_buf_release(consumed_tree.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), consumed_tree.node));
+        g_platform_guard->persistent_buf_release(consumed_tree.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), consumed_tree.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&consumed_tree),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
-    g_cli_guard->persistent_buf_release(chosen_positions, g_cli_command_line_owner);
-    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    g_platform_guard->persistent_buf_release(chosen_positions, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;
@@ -480,8 +483,9 @@ int cli_at_terminal_undo(const CliAtTerminalCfg *args)
     const char *id = args->id;
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
-    CliGrownLine allocating;
-    cli_grown_begin(&allocating, CLI_AT_TERMINAL_TRANSFERRED, g_cli_command_line_owner);
+    PlatformText allocating;
+    platform_text_begun(&allocating, CLI_AT_TERMINAL_TRANSFERRED, platform_place_g_cli_command_line_owner,
+                        PLATFORM_TIER_TEMPORARY);
     const int done = EMBED_CALL(cli_settings_sync_home_out.undo, CliSettingsSyncHomeOutCfg, .home = home, .id = id,
                                 .out = &allocating.line, .err_msg = err_msg);
     CliJson tree;
@@ -499,7 +503,7 @@ int cli_at_terminal_undo(const CliAtTerminalCfg *args)
         mmgr_line_put_n(out, (from != NULL) ? from : "", size);
         mmgr_line_put(out, " is undone.");
     }
-    g_cli_guard->persistent_buf_release(tree.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), tree.node));
+    g_platform_guard->persistent_buf_release(tree.node, mmgr_owner_of_buf(platform_pool_series(), tree.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&tree),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;

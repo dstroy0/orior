@@ -334,7 +334,7 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                           EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases,
                                      CliVersionCatalogTextSizeAliasesCtx, .text = (const char *)catalog, .size = read,
                                      .aliases = &aliases);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)catalog, g_cli_gradle_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)catalog, g_cli_gradle_owner);
         if (!whole)
         {
             continue;
@@ -344,8 +344,8 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                    .out_capacity = displayed);
         EMBED_CALL(cli_version_catalog_lines_internal.gradle_references, CliVersionCatalogLinesCtx, .lines = lines,
                    .found = found, .name = s_catalogs.name[at], .displayed = displayed, .aliases_read = &aliases);
-        g_cli_guard->persistent_buf_release(aliases.text, g_cli_versions_owner);
-        g_cli_guard->persistent_buf_release(aliases.alias, g_cli_versions_owner);
+        g_platform_guard->persistent_buf_release(aliases.text, g_cli_versions_owner);
+        g_platform_guard->persistent_buf_release(aliases.alias, g_cli_versions_owner);
         aliases.alias = NULL;
         aliases.text = NULL;
         aliases.count = 0u;
@@ -353,9 +353,9 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
         aliases.capacity = 0u;
     }
     CliGradleScript *const script = &g_cli_gradle;
-    g_cli_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
-    g_cli_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
-    g_cli_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
     script->class_of = NULL;
     script->block = NULL;
     script->stray = NULL;

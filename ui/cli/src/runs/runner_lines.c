@@ -101,7 +101,7 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->bytes, .at = length,
                         .set = "\n\r");
     const unsigned long long capacity = (3ULL * length) + 1ULL;
-    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_runs_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(capacity, g_cli_runs_owner);
     if (text == NULL)
     {
         return;
@@ -124,7 +124,7 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
     mmgr_line_finish(&line);
     EMBED_CALL(cli_runner_run_stream_internal.run_line, CliRunnerRunStreamCtx, .run = args->transport->run,
                .stream = args->transport->stream, .text = text);
-    g_cli_guard->persistent_buf_release(text, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_runs_owner);
 }
 
 // the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered or no buffer
@@ -205,8 +205,8 @@ void cli_run_output_relay(const CliRunnerRunSpawnedCtx *args)
     // the step's two carriers, retained as long as the step goes, each with a cell of the max a line holds
     CliTransport out_transport = {args->run, args->spawned->out, "stdout", 0, NULL, 0ULL};
     CliTransport err_transport = {args->run, args->spawned->err, "stderr", 0, NULL, 0ULL};
-    out_transport.pending = g_cli_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);
-    err_transport.pending = g_cli_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);
+    out_transport.pending = g_platform_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);
+    err_transport.pending = g_platform_guard->temporary_buf_alloc(CLI_TRANSFERRED_LINE, g_cli_runs_owner);
     CliTransport *const out = &out_transport;
     CliTransport *const err = &err_transport;
     CliThread errors = {cli_errors_stream_thread, err};
@@ -222,8 +222,8 @@ void cli_run_output_relay(const CliRunnerRunSpawnedCtx *args)
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_transferred_wake, .seen = wake_seen);
         wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_transferred_wake);
     }
-    g_cli_guard->persistent_buf_release(out_transport.pending, g_cli_runs_owner);
-    g_cli_guard->persistent_buf_release(err_transport.pending, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(out_transport.pending, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(err_transport.pending, g_cli_runs_owner);
 }
 
 // a path put among the pages where it is in the tree, by its path there, once
@@ -319,7 +319,8 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
     const unsigned long long longest =
         EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
     // each line read out of the run's rings into one temporary cell sized for the longest
-    char *const read = (lines_count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_runs_owner) : NULL;
+    char *const read =
+        (lines_count != 0u) ? g_platform_guard->temporary_buf_alloc(longest + 1ULL, g_cli_runs_owner) : NULL;
     for (unsigned int index = 0u; (read != NULL) && (index < lines_count); index += 1u)
     {
         (void)EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines, .index = index,
@@ -375,6 +376,6 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = root, .path = path, .views = views, .count = &count);
         }
     }
-    g_cli_guard->persistent_buf_release(read, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_runs_owner);
     return count;
 }

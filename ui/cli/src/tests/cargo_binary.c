@@ -125,7 +125,7 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
                           .src = executable,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = executable, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return named;
@@ -189,7 +189,7 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
     words[count + 1u] = manifest;
     words[count + 2u] = NULL;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
-    const CliSetting settings[1] = {{"PATH", s_path}};
+    const PlatformSetting settings[1] = {{"PATH", s_path}};
     CliRunResult *const run_result = cli_run_result_alloc();
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->package, .settings = settings,
                     .count = 1u, .run_result = run_result, .err_msg = err_msg))
@@ -261,10 +261,10 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
+        g_platform_guard->persistent_buf_release(piece, g_cli_cargo_owner);
         piece = next;
     }
-    g_cli_guard->persistent_buf_release(s_binary_tests.found, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(s_binary_tests.found, g_cli_cargo_owner);
     s_binary_tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return built;
 }

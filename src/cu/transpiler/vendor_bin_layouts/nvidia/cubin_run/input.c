@@ -4,7 +4,7 @@
 // lines, the cases of a launch, and what the carrier reports of an answer, a dry run or a call
 #include "../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../includes/parsers/who.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../lstar/protocol/table_text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_run_internal.h"

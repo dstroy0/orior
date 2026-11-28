@@ -255,7 +255,7 @@ void test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0(void
     TEST_ASSERT_TRUE(answer.text > answer.message);
     CLI_TEST_ASSERT_TEXT("[1, 2]", answer.text, answer.size);
     TEST_ASSERT_EQUAL_CHAR('\0', answer.text[answer.size]);
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = server);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
 }
@@ -271,7 +271,7 @@ void test_an_answers_cell_stays_allocated_until_the_caller_releases_it(void)
     CliLspAnswer answer;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = server, .method = "orior/echo", .params = "[1,2]", .length = 5ull, .wait = 5000ull, .answer = &answer, .err_msg = &err_msg));
     TEST_ASSERT_GREATER_THAN_UINT64(before, mmgr_owner_in_use(g_cli_servers_owner));
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     TEST_ASSERT_EQUAL_UINT64(before, mmgr_owner_in_use(g_cli_servers_owner));
     EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = server);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
@@ -331,6 +331,6 @@ void test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other(void
     TEST_ASSERT_EQUAL_CHAR('\0', message[size]);
     TEST_ASSERT_GREATER_THAN_UINT64(debug_before, mmgr_owner_in_use(g_cli_debug_owner));
     TEST_ASSERT_EQUAL_UINT64(servers_before, mmgr_owner_in_use(g_cli_servers_owner));
-    g_cli_guard->persistent_buf_release(message, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(message, g_cli_debug_owner);
     TEST_ASSERT_EQUAL_UINT64(debug_before, mmgr_owner_in_use(g_cli_debug_owner));
 }

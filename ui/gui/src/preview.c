@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// preview.c: the preview's items drawn as the CLI positions them, each type in the raster's own strokes: a run of text in
-// its face and size, struck through or underlined by its flags; a box filled in its role and bordered in its stroke; a
-// rule; a line segment; and a block marked by the cursor's line outlined in the signal. Every color is a role the
+// preview.c: the preview's items drawn as the CLI positions them, each type in the raster's own strokes: a run of text
+// in its face and size, struck through or underlined by its flags; a box filled in its role and bordered in its stroke;
+// a rule; a line segment; and a block marked by the cursor's line outlined in the signal. Every color is a role the
 // palette answers; every place a page pixel the frame's scale positions
 #include "preview.h"
 

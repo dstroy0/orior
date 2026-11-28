@@ -142,7 +142,7 @@ for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching c
         [ -f "$source" ] && C_SOURCES+=("$source")
     done
 done
-C_SOURCES+=("$TOP/includes/file_defs/qry/writer/qry_member.c" "$TOP/includes/file_defs/qry/writer/platform/"*.c
+C_SOURCES+=("$TOP/includes/file_defs/qry/writer/qry_member.c" "${PLATFORM_QRY_RUN[@]}"
     "$TOP/includes/file_defs/qry/qry_read.c" "${EXACT_TYPES_PLATFORM_LIBRARY[@]}")
 shared_objects_built C_WORDS "${C_SOURCES[@]}" || exit 1
 OBJECTS+=("${SHARED_OBJECTS[@]}")

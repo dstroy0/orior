@@ -7,7 +7,7 @@
 #include "record.h"
 
 #include "core_radius_weights.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 // The datum enters the core through Z_{-2A} Pi alone, and the tangent of the rule of core_radius_weights.h along a
 // datum direction p is the same rule taken once in the tangent of each field: with j = k - i,
@@ -464,6 +464,28 @@ static CoreRadiusSequence core_tangent_over_transport(const CoreRadiusSequence &
     return core_tangent_quotient(core_tangent_quotient(scaled, root, reach), root, reach);
 }
 
+// the line "mu <mu>" of the record
+static void core_tangent_mu_recorded(FILE *record, SimRational mu)
+{
+    PlatformText line;
+    record_line_begun(&line);
+    mmgr_line_put(&line.line, "mu ");
+    record_rational(&line.line, mu);
+    record_line_ended(record, &line);
+}
+
+// the line "  <power> <coefficient>" of the record
+static void core_tangent_power_recorded(FILE *record, unsigned int power, SimRational coefficient)
+{
+    PlatformText line;
+    record_line_begun(&line);
+    mmgr_line_put(&line.line, "  ");
+    mmgr_line_decimal(&line.line, power, 1u);
+    mmgr_line_ch(&line.line, ' ');
+    record_rational(&line.line, coefficient);
+    record_line_ended(record, &line);
+}
+
 int program_main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
@@ -595,22 +617,33 @@ int program_main(int count, char **arguments)
     int one_sign = (sim_rational_sign(sigma_point) > 0) && (sim_rational_sign(d_point) > 0) && (sim_rational_sign(l_point) > 0);
     if (record != NULL)
     {
-        record_text(record, ("tangent along e^(mu eta) at eta " + term_book_rational(eta_point) + ", xi " + term_book_rational(xi) + ", sigma " +
-                             term_book_rational(sigma_point) + ": for each k, the coefficients of mu^0 to mu^k of dF_k e^(-mu eta)")
-                                .c_str());
+        PlatformText line;
+        record_line_begun(&line);
+        mmgr_line_put(&line.line, "tangent along e^(mu eta) at eta ");
+        record_rational(&line.line, eta_point);
+        mmgr_line_put(&line.line, ", xi ");
+        record_rational(&line.line, xi);
+        mmgr_line_put(&line.line, ", sigma ");
+        record_rational(&line.line, sigma_point);
+        mmgr_line_put(&line.line, ": for each k, the coefficients of mu^0 to mu^k of dF_k e^(-mu eta)");
+        record_line_ended(record, &line);
     }
     SimRational l_power = one;
     for (unsigned int k = 1u; k <= last; k += 1u)
     {
         l_power = core_radius_times(l_power, core_radius_times(l_point, l_point));
-        std::string row = "  " + std::to_string(k);
-        for (size_t n = 0u; n < df[k].size(); n += 1u)
-        {
-            row += " " + term_book_rational(core_radius_over(core_radius_value(df[k][n], xi), l_power));
-        }
         if (record != NULL)
         {
-            record_text(record, row.c_str());
+            PlatformText line;
+            record_line_begun(&line);
+            mmgr_line_put(&line.line, "  ");
+            mmgr_line_decimal(&line.line, k, 1u);
+            for (size_t n = 0u; n < df[k].size(); n += 1u)
+            {
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line, core_radius_over(core_radius_value(df[k][n], xi), l_power));
+            }
+            record_line_ended(record, &line);
         }
         if (k >= 2u)
         {
@@ -665,14 +698,28 @@ int program_main(int count, char **arguments)
         }
         if (record != NULL)
         {
-            record_text(record, ("measurement at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(measure_rho) + ", to order " +
-                                 std::to_string(reach) + ": s_0 " + term_book_rational(transport[0]) +
-                                 "; then Y and phi, Phi = sqrt(2 s_0 Y) phi; then for each mu, Y, principal axial, full axial, principal swirl, full swirl")
-                                    .c_str());
+            PlatformText line;
+            record_line_begun(&line);
+            mmgr_line_put(&line.line, "measurement at the vertex eta ");
+            record_rational(&line.line, eta_v);
+            mmgr_line_put(&line.line, " of E_rho, rho ");
+            record_rational(&line.line, measure_rho);
+            mmgr_line_put(&line.line, ", to order ");
+            mmgr_line_decimal(&line.line, reach, 1u);
+            mmgr_line_put(&line.line, ": s_0 ");
+            record_rational(&line.line, transport[0]);
+            mmgr_line_put(&line.line, "; then Y and phi, Phi = sqrt(2 s_0 Y) phi; then for each mu, Y, principal "
+                                      "axial, full axial, principal swirl, full swirl");
+            record_line_ended(record, &line);
             for (unsigned long long index = 1ull; index <= measure_count; index += 1ull)
             {
                 const SimRational y_point = core_radius_times(measure_step, core_radius_number((long long)index, 1ll));
-                record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(core_tangent_sum_at(phi_series, y_point))).c_str());
+                record_line_begun(&line);
+                mmgr_line_put(&line.line, "  ");
+                record_rational(&line.line, y_point);
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line, core_tangent_sum_at(phi_series, y_point));
+                record_line_ended(record, &line);
             }
         }
         for (const SimRational &mu : measure_mu)
@@ -686,15 +733,22 @@ int program_main(int count, char **arguments)
             core_tangent_principal_at(u_v, f_v, l_v, d_v, eta_v, scale.d, reach, mu, &axial_principal, &swirl_principal);
             if (record != NULL)
             {
-                record_text(record, ("mu " + term_book_rational(mu)).c_str());
+                core_tangent_mu_recorded(record, mu);
                 for (unsigned long long index = 1ull; index <= measure_count; index += 1ull)
                 {
                     const SimRational y_point = core_radius_times(measure_step, core_radius_number((long long)index, 1ll));
-                    record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(core_tangent_sum_at(axial_principal, y_point)) + " " +
-                                         term_book_rational(core_tangent_sum_at(axial_full, y_point)) + " " +
-                                         term_book_rational(core_tangent_sum_at(swirl_principal, y_point)) + " " +
-                                         term_book_rational(core_tangent_sum_at(swirl_full, y_point)))
-                                            .c_str());
+                    PlatformText line;
+                    record_line_begun(&line);
+                    mmgr_line_put(&line.line, "  ");
+                    record_rational(&line.line, y_point);
+                    const CoreRadiusSequence *const series[4] = {&axial_principal, &axial_full, &swirl_principal,
+                                                                 &swirl_full};
+                    for (unsigned int which = 0u; which < 4u; which += 1u)
+                    {
+                        mmgr_line_ch(&line.line, ' ');
+                        record_rational(&line.line, core_tangent_sum_at(*series[which], y_point));
+                    }
+                    record_line_ended(record, &line);
                 }
             }
         }
@@ -733,10 +787,17 @@ int program_main(int count, char **arguments)
         int principal_same = 1;
         if (record != NULL)
         {
-            record_text(record, ("remainder taken apart at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(apart_rho) +
-                                 ", to order " + std::to_string(reach) +
-                                 ": for each mu, Y, then axial and swirl each for the principal, the slope alone, the plain terms alone, the pressure alone, and every part")
-                                    .c_str());
+            PlatformText line;
+            record_line_begun(&line);
+            mmgr_line_put(&line.line, "remainder taken apart at the vertex eta ");
+            record_rational(&line.line, eta_v);
+            mmgr_line_put(&line.line, " of E_rho, rho ");
+            record_rational(&line.line, apart_rho);
+            mmgr_line_put(&line.line, ", to order ");
+            mmgr_line_decimal(&line.line, reach, 1u);
+            mmgr_line_put(&line.line, ": for each mu, Y, then axial and swirl each for the principal, the slope alone, "
+                                      "the plain terms alone, the pressure alone, and every part");
+            record_line_ended(record, &line);
         }
         for (const SimRational &mu : apart_mu)
         {
@@ -756,20 +817,25 @@ int program_main(int count, char **arguments)
             }
             if (record != NULL)
             {
-                record_text(record, ("mu " + term_book_rational(mu)).c_str());
+                core_tangent_mu_recorded(record, mu);
                 for (unsigned long long index = 1ull; index <= apart_count; index += 1ull)
                 {
                     const SimRational y_point = core_radius_times(apart_step, core_radius_number((long long)index, 1ll));
-                    std::string row = "  " + term_book_rational(y_point);
+                    PlatformText line;
+                    record_line_begun(&line);
+                    mmgr_line_put(&line.line, "  ");
+                    record_rational(&line.line, y_point);
                     for (unsigned int choice = 0u; choice < 5u; choice += 1u)
                     {
-                        row += " " + term_book_rational(core_tangent_sum_at(axial_parts[choice], y_point));
+                        mmgr_line_ch(&line.line, ' ');
+                        record_rational(&line.line, core_tangent_sum_at(axial_parts[choice], y_point));
                     }
                     for (unsigned int choice = 0u; choice < 5u; choice += 1u)
                     {
-                        row += " " + term_book_rational(core_tangent_sum_at(swirl_parts[choice], y_point));
+                        mmgr_line_ch(&line.line, ' ');
+                        record_rational(&line.line, core_tangent_sum_at(swirl_parts[choice], y_point));
                     }
-                    record_text(record, row.c_str());
+                    record_line_ended(record, &line);
                 }
             }
         }
@@ -804,10 +870,17 @@ int program_main(int count, char **arguments)
         }
         if (record != NULL)
         {
-            record_text(record, ("slope's share at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(slope_rho) + ", to order " +
-                                 std::to_string(reach) +
-                                 ": for each mu, Y, then axial and swirl each as principal, slope alone, and the last order's term over the sum for each")
-                                    .c_str());
+            PlatformText line;
+            record_line_begun(&line);
+            mmgr_line_put(&line.line, "slope's share at the vertex eta ");
+            record_rational(&line.line, eta_v);
+            mmgr_line_put(&line.line, " of E_rho, rho ");
+            record_rational(&line.line, slope_rho);
+            mmgr_line_put(&line.line, ", to order ");
+            mmgr_line_decimal(&line.line, reach, 1u);
+            mmgr_line_put(&line.line, ": for each mu, Y, then axial and swirl each as principal, slope alone, and the "
+                                      "last order's term over the sum for each");
+            record_line_ended(record, &line);
         }
         const CoreTangentParts slope_alone = {1, 0, 0};
         for (const SimRational &mu : slope_mu)
@@ -820,7 +893,7 @@ int program_main(int count, char **arguments)
             core_tangent_principal_at(u_v, f_v, l_v, d_v, eta_v, scale.d, reach, mu, &axial_principal, &swirl_principal);
             if (record != NULL)
             {
-                record_text(record, ("mu " + term_book_rational(mu)).c_str());
+                core_tangent_mu_recorded(record, mu);
                 for (const SimRational &y_point : slope_y)
                 {
                     SimRational last_power = one;
@@ -828,15 +901,21 @@ int program_main(int count, char **arguments)
                     {
                         last_power = core_radius_times(last_power, y_point);
                     }
-                    std::string row = "  " + term_book_rational(y_point);
+                    PlatformText line;
+                    record_line_begun(&line);
+                    mmgr_line_put(&line.line, "  ");
+                    record_rational(&line.line, y_point);
                     const CoreRadiusSequence *const series[4] = {&axial_principal, &axial_slope, &swirl_principal, &swirl_slope};
                     for (unsigned int which = 0u; which < 4u; which += 1u)
                     {
                         const SimRational sum = core_tangent_sum_at(*series[which], y_point);
                         const SimRational last_term = core_radius_times((*series[which])[reach], last_power);
-                        row += " " + term_book_rational(sum) + " " + term_book_rational(core_radius_over(last_term, sum));
+                        mmgr_line_ch(&line.line, ' ');
+                        record_rational(&line.line, sum);
+                        mmgr_line_ch(&line.line, ' ');
+                        record_rational(&line.line, core_radius_over(last_term, sum));
                     }
-                    record_text(record, row.c_str());
+                    record_line_ended(record, &line);
                 }
             }
         }
@@ -1117,13 +1196,23 @@ int program_main(int count, char **arguments)
                   "the swirl's b_0 is -L d f_0 / s_0 and its first coefficient (3/2) s_0 (L_eta / L + d_eta / d) + (1/2) s_0 f_eta / f_0 - 2 s_eta at Y = 0");
         if (record != NULL)
         {
-            record_text(record, ("phase at the vertex eta " + term_book_rational(eta_v) + " of E_rho, rho " + term_book_rational(phase_rho) + ", to order " +
-                                 std::to_string(reach) + ": s_0 " + term_book_rational(transport[0]) + ", s_eta at Y = 0 " + term_book_rational(transport_eta[0]) +
-                                 "; then for each n the coefficient of Y^n of Phi_1")
-                                    .c_str());
+            PlatformText line;
+            record_line_begun(&line);
+            mmgr_line_put(&line.line, "phase at the vertex eta ");
+            record_rational(&line.line, eta_v);
+            mmgr_line_put(&line.line, " of E_rho, rho ");
+            record_rational(&line.line, phase_rho);
+            mmgr_line_put(&line.line, ", to order ");
+            mmgr_line_decimal(&line.line, reach, 1u);
+            mmgr_line_put(&line.line, ": s_0 ");
+            record_rational(&line.line, transport[0]);
+            mmgr_line_put(&line.line, ", s_eta at Y = 0 ");
+            record_rational(&line.line, transport_eta[0]);
+            mmgr_line_put(&line.line, "; then for each n the coefficient of Y^n of Phi_1");
+            record_line_ended(record, &line);
             for (unsigned int power = 1u; power <= reach; power += 1u)
             {
-                record_text(record, ("  " + std::to_string(power) + " " + term_book_rational(phi_slope[power])).c_str());
+                core_tangent_power_recorded(record, power, phi_slope[power]);
             }
             record_text(record, "Y, Phi_1(Y) and the last order's term over the sum");
             for (const SimRational &y_point : phase_y)
@@ -1134,14 +1223,19 @@ int program_main(int count, char **arguments)
                     last_power = core_radius_times(last_power, y_point);
                 }
                 const SimRational sum = core_tangent_sum_at(phi_slope, y_point);
-                record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(sum) + " " +
-                                     term_book_rational(core_radius_over(core_radius_times(phi_slope[reach], last_power), sum)))
-                                        .c_str());
+                record_line_begun(&line);
+                mmgr_line_put(&line.line, "  ");
+                record_rational(&line.line, y_point);
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line, sum);
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line, core_radius_over(core_radius_times(phi_slope[reach], last_power), sum));
+                record_line_ended(record, &line);
             }
             record_text(record, "the amplitude past Phi_1, D(Y) = sqrt(Y / (2 s_0)) sum d_n Y^n: for each n the coefficient d_n");
             for (unsigned int power = 0u; power <= reach; power += 1u)
             {
-                record_text(record, ("  " + std::to_string(power) + " " + term_book_rational(amplitude_slope[power])).c_str());
+                core_tangent_power_recorded(record, power, amplitude_slope[power]);
             }
             record_text(record, "Y, sum d_n Y^n and the last order's term over the sum");
             for (const SimRational &y_point : phase_y)
@@ -1152,14 +1246,20 @@ int program_main(int count, char **arguments)
                     last_power = core_radius_times(last_power, y_point);
                 }
                 const SimRational sum = core_tangent_sum_at(amplitude_slope, y_point);
-                record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(sum) + " " +
-                                     term_book_rational(core_radius_over(core_radius_times(amplitude_slope[reach], last_power), sum)))
-                                        .c_str());
+                record_line_begun(&line);
+                mmgr_line_put(&line.line, "  ");
+                record_rational(&line.line, y_point);
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line, sum);
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line,
+                                core_radius_over(core_radius_times(amplitude_slope[reach], last_power), sum));
+                record_line_ended(record, &line);
             }
             record_text(record, "the swirl's amplitude past Phi_1, C(Y) = e^(Phi_1) sqrt(Y / (2 s_0)) sum c_n Y^n: for each n the coefficient c_n");
             for (unsigned int power = 0u; power <= reach; power += 1u)
             {
-                record_text(record, ("  " + std::to_string(power) + " " + term_book_rational(swirl_slope[power])).c_str());
+                core_tangent_power_recorded(record, power, swirl_slope[power]);
             }
             record_text(record, "Y, sum c_n Y^n and the last order's term over the sum");
             for (const SimRational &y_point : phase_y)
@@ -1170,9 +1270,14 @@ int program_main(int count, char **arguments)
                     last_power = core_radius_times(last_power, y_point);
                 }
                 const SimRational sum = core_tangent_sum_at(swirl_slope, y_point);
-                record_text(record, ("  " + term_book_rational(y_point) + " " + term_book_rational(sum) + " " +
-                                     term_book_rational(core_radius_over(core_radius_times(swirl_slope[reach], last_power), sum)))
-                                        .c_str());
+                record_line_begun(&line);
+                mmgr_line_put(&line.line, "  ");
+                record_rational(&line.line, y_point);
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line, sum);
+                mmgr_line_ch(&line.line, ' ');
+                record_rational(&line.line, core_radius_over(core_radius_times(swirl_slope[reach], last_power), sum));
+                record_line_ended(record, &line);
             }
         }
         mmgr_line_put(&results.line, "  phase at the vertex written to the record\n");

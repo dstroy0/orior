@@ -373,7 +373,7 @@ static void tool_look(const CliEachPluginCfg *args)
     // the plugin's tree in a cell of its own sized to its text, the one before given back, retained until the capacity
     // is
     CliJson *const json = &g_cli_validate->json;
-    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     // the copy comes from the tree the plugins module keeps for the plugin, and the call does not read the text again
@@ -458,16 +458,16 @@ int cli_validate_tool_for(const CliValidateCfg *args)
                                 .src = min,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = min, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_guard->persistent_buf_release(g_cli_validate->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->json.node));
+    g_platform_guard->persistent_buf_release(g_cli_validate->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_validate->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(g_cli_validate->manifest.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->manifest.node));
+    g_platform_guard->persistent_buf_release(g_cli_validate->manifest.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_validate->manifest.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->manifest),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
-    g_cli_guard->persistent_buf_release(g_cli_validate, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(g_cli_validate, g_cli_plugins_owner);
     g_cli_validate = NULL;
     return min != NULL;
 }

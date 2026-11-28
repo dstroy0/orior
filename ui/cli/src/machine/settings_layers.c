@@ -56,7 +56,8 @@ unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
     // the texts in a grown line of the settings owner, taken small and grown to what they hold up to CLI_SETTINGS_TEXT
     if (args->layers->capacity == 0ULL)
     {
-        cli_grown_begin(&args->layers->grown, CLI_SETTINGS_TEXT, g_cli_settings_owner);
+        platform_text_begun(&args->layers->grown, CLI_SETTINGS_TEXT, platform_place_g_cli_settings_owner,
+                            PLATFORM_TIER_TEMPORARY);
         if (args->layers->grown.cell == NULL)
         {
             return 0u;
@@ -520,16 +521,16 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
     for (unsigned int at = 0u; at < files; at += 1u)
     {
         const int of_tree = at >= args->reader->files;
-        members += EMBED_CALL(cli_settings_layers_internal.file_members, CliSettingsLayersCtx, .layers = args->layers,
-                              .chain = of_tree ? args->tree : args->reader,
-                              .file = of_tree ? (at - args->reader->files) : at);
+        members +=
+            EMBED_CALL(cli_settings_layers_internal.file_members, CliSettingsLayersCtx, .layers = args->layers,
+                       .chain = of_tree ? args->tree : args->reader, .file = of_tree ? (at - args->reader->files) : at);
     }
     const unsigned long long parts_bytes = (unsigned long long)files * CLI_LAYER_FILE_PARTS * sizeof(CliPart);
     const unsigned long long values_bytes = (unsigned long long)members * sizeof(CliPartValue);
     const unsigned long long types_bytes = (unsigned long long)members * sizeof(CliTypeSet);
     const unsigned long long raws_bytes = (unsigned long long)members * sizeof(CliRaw);
     const unsigned long long texts_bytes = ((unsigned long long)CLI_SETTINGS_NAMES_DEEP + 2ULL) * CLI_LAYER_VALUE;
-    char *const cell = g_cli_guard->temporary_buf_alloc(
+    char *const cell = g_platform_guard->temporary_buf_alloc(
         parts_bytes + values_bytes + types_bytes + raws_bytes + texts_bytes, g_cli_settings_owner);
     if (cell == NULL)
     {
@@ -581,5 +582,5 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
     {
         EMBED_CALL(cli_type_set_read, SettingsLayersCtx, .layers = args->layers, .set = &s_lists.types[at - 1u]);
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_settings_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_settings_owner);
 }

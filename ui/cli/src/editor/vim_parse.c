@@ -49,8 +49,8 @@ EMBED_INLINE int parse_among(const VimParseCtx *args)
 // whether `character` is an operator
 EMBED_INLINE int parse_operator(const VimParseCtx *args)
 {
-    return (args->character == 'd') || (args->character == 'c') || (args->character == 'y') || (args->character == '>') ||
-           (args->character == '<');
+    return (args->character == 'd') || (args->character == 'c') || (args->character == 'y') ||
+           (args->character == '>') || (args->character == '<');
 }
 
 // a count read where the tokens are, its digits taken, a 0 first being no count: the count, 0 where none is
@@ -107,8 +107,8 @@ EMBED_INLINE unsigned int parse_motion(const VimParseCtx *args)
     return CLI_VIM_PARSE_NONE;
 }
 
-// the keys after an operator `character` read: a second count, then the operator again for whole lines, a text object or
-// a motion, the counts multiplied
+// the keys after an operator `character` read: a second count, then the operator again for whole lines, a text object
+// or a motion, the counts multiplied
 EMBED_INLINE void parse_operated(const VimParseCtx *args)
 {
     VimTokens *const tokens = args->tokens;
@@ -146,7 +146,8 @@ EMBED_INLINE void parse_operated(const VimParseCtx *args)
         command->status = CLI_VIM_PARSE_WHOLE;
         return;
     }
-    command->status = EMBED_CALL(parse_motion, VimParseCtx, .tokens = tokens, .character = target, .command_out = command);
+    command->status =
+        EMBED_CALL(parse_motion, VimParseCtx, .tokens = tokens, .character = target, .command_out = command);
 }
 
 void cli_vim_parse(const CliVimCtx *args)
@@ -184,7 +185,7 @@ void cli_vim_parse(const CliVimCtx *args)
     const unsigned int name = tokens.token[tokens.at];
     tokens.at += 1u;
     CliVimView view;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_vim_state.view,
                             .offset = (unsigned long long)(args->at) * sizeof(CliVimView),
                             .dst = &view,

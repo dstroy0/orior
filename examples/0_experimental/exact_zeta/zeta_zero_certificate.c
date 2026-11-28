@@ -41,7 +41,7 @@
  *       alone. Their winding is already one circle, and the checker refuses their chords.
  */
 #include "zeta_search.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>

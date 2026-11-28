@@ -250,20 +250,20 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
                .height = &height);
     // the pages printed, the objects' offsets and a page's contents, in cells sized to the pages arranged
     const unsigned int max = (positioned->pages < CLI_PRINT_PAGES) ? positioned->pages : CLI_PRINT_PAGES;
-    unsigned int *const printed =
-        g_cli_guard->temporary_buf_alloc(((unsigned long long)max + 1ULL) * sizeof(unsigned int), g_cli_print_owner);
+    unsigned int *const printed = g_platform_guard->temporary_buf_alloc(
+        ((unsigned long long)max + 1ULL) * sizeof(unsigned int), g_cli_print_owner);
     unsigned long long *const offsets =
-        g_cli_guard->temporary_buf_alloc((7ULL + (2ULL * max)) * sizeof(unsigned long long), g_cli_print_owner);
-    CliGrownLine content;
-    cli_grown_begin(&content, CLI_PDF_CONTENT_CAPACITY, g_cli_print_owner);
+        g_platform_guard->temporary_buf_alloc((7ULL + (2ULL * max)) * sizeof(unsigned long long), g_cli_print_owner);
+    PlatformText content;
+    platform_text_begun(&content, CLI_PDF_CONTENT_CAPACITY, platform_place_g_cli_print_owner, PLATFORM_TIER_TEMPORARY);
     const int begun = content.cell != NULL;
     *pages = 0ULL;
     if ((printed == NULL) || (offsets == NULL) || !begun)
     {
         // with no capacity to write it in, nothing is written
-        g_cli_guard->persistent_buf_release(printed, g_cli_print_owner);
-        g_cli_guard->persistent_buf_release(offsets, g_cli_print_owner);
-        cli_grown_end(&content);
+        g_platform_guard->persistent_buf_release(printed, g_cli_print_owner);
+        g_platform_guard->persistent_buf_release(offsets, g_cli_print_owner);
+        platform_text_ended(&content);
         return;
     }
     unsigned int count = 0u;
@@ -316,10 +316,10 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
         mmgr_line_put(args->out, "] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> >> /Contents ");
         mmgr_line_decimal(args->out, page + 1u, 1u);
         mmgr_line_put(args->out, " 0 R >>\nendobj\n");
-        cli_grown_reset(&content);
+        platform_text_reset(&content);
         EMBED_CALL(cli_content, PdfCtx, .positioned = positioned, .page = printed[at], .height = height,
                    .gray = args->layout->gray, .out = &content.line);
-        const unsigned long long length = mmgr_line_ok(&content.line) ? cli_grown_size(&content) : 0ULL;
+        const unsigned long long length = mmgr_line_ok(&content.line) ? platform_text_size(&content) : 0ULL;
         EMBED_CALL(cli_object, PdfCtx, .out = args->out, .offsets = offsets, .number = page + 1u);
         mmgr_line_put(args->out, "<< /Length ");
         mmgr_line_decimal(args->out, length, 1u);
@@ -342,7 +342,7 @@ void cli_print_pdf(const CliPrintLayoutListingOutCfg *args)
     mmgr_line_decimal(args->out, xref, 1u);
     mmgr_line_put(args->out, "\n%%EOF\n");
     *pages = count;
-    g_cli_guard->persistent_buf_release(printed, g_cli_print_owner);
-    g_cli_guard->persistent_buf_release(offsets, g_cli_print_owner);
-    cli_grown_end(&content);
+    g_platform_guard->persistent_buf_release(printed, g_cli_print_owner);
+    g_platform_guard->persistent_buf_release(offsets, g_cli_print_owner);
+    platform_text_ended(&content);
 }

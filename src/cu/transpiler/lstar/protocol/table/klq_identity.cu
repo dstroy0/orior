@@ -53,7 +53,7 @@
 // would trap on or leave undefined. Each identity goes to Lstar.klq after its keys, with the forms of the given
 // rulesets whose texts write its links. With it goes the rule a link breaks where a query of the part as written would
 // end it
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "identity/identity_internal.h"
 
 // The pool the identity asks for: the slice's windows, one cell of about 300 MB on the temporary tier, and every pair's

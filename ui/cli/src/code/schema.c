@@ -18,8 +18,8 @@ CliSchemaStore *g_cli_schema_store;
 int cli_schema_lock(void)
 {
     // the two live from the lock to its unlock within one call: cells of the temporary tier
-    g_cli_schema_read = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_schema_read), g_cli_code_owner);
-    g_cli_schema_store = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_schema_store), g_cli_code_owner);
+    g_cli_schema_read = g_platform_guard->temporary_buf_alloc(sizeof(*g_cli_schema_read), g_cli_code_owner);
+    g_cli_schema_store = g_platform_guard->temporary_buf_alloc(sizeof(*g_cli_schema_store), g_cli_code_owner);
     if (g_cli_schema_read != NULL)
     {
         g_cli_schema_read->node = NULL;
@@ -49,7 +49,7 @@ void cli_schema_free(void)
     cli_schema_complete_free();
     if (g_cli_schema_read != NULL)
     {
-        g_cli_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
+        g_platform_guard->persistent_buf_release(g_cli_schema_read->node, g_cli_schema_owner);
         g_cli_schema_read->node = NULL;
         g_cli_schema_read->member = NULL;
         g_cli_schema_read->pool = NULL;
@@ -59,14 +59,13 @@ void cli_schema_free(void)
     }
     if (g_cli_schema_store != NULL)
     {
-        g_cli_guard->persistent_buf_release(
-            g_cli_schema_store->json.node,
-            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_schema_store->json.node));
+        g_platform_guard->persistent_buf_release(
+            g_cli_schema_store->json.node, mmgr_owner_of_buf(platform_pool_series(), g_cli_schema_store->json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_schema_store->json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
-    g_cli_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(g_cli_schema_store, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(g_cli_schema_read, g_cli_code_owner);
     g_cli_schema_store = NULL;
     g_cli_schema_read = NULL;
 }
@@ -206,8 +205,8 @@ void cli_schema_check(const CliSchemaCfg *args)
         }
     }
     EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &s_found, .out = out);
-    g_cli_guard->persistent_buf_release(s_found.finding, g_cli_build_owner);
+    g_platform_guard->persistent_buf_release(s_found.finding, g_cli_build_owner);
     s_found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
-    g_cli_guard->persistent_buf_release(starts, g_cli_build_owner);
+    g_platform_guard->persistent_buf_release(starts, g_cli_build_owner);
     cli_schema_free();
 }

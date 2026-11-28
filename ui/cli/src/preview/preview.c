@@ -89,7 +89,7 @@ EMBED_INLINE void cell_released(const PreviewCtx *args)
 {
     if (args->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->cell, g_cli_preview_owner);
+        (void)g_platform_guard->movable_buf_release(args->cell, g_cli_preview_owner);
     }
 }
 
@@ -124,10 +124,10 @@ EMBED_INLINE unsigned int block_by_top(const PreviewCtx *args)
 {
     const unsigned int count = s_preview.items.blocks;
     CliPreviewBlock first = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
-                                                            .dst = &first,
-                                                            .bytes = sizeof(first)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                 .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
+                                                                 .dst = &first,
+                                                                 .bytes = sizeof(first)});
     if ((count == 0u) || (first.top > args->top_px))
     {
         return PREVIEW_NONE_AT;
@@ -138,7 +138,7 @@ EMBED_INLINE unsigned int block_by_top(const PreviewCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         CliPreviewBlock probed = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_preview.items.cell,
                                 .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, middle),
                                 .dst = &probed,
@@ -160,10 +160,10 @@ EMBED_INLINE unsigned int block_by_line(const PreviewCtx *args)
 {
     const unsigned int count = s_preview.items.blocks;
     CliPreviewBlock first = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
-                                                            .dst = &first,
-                                                            .bytes = sizeof(first)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                 .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
+                                                                 .dst = &first,
+                                                                 .bytes = sizeof(first)});
     if ((count == 0u) || (first.line > args->line))
     {
         return PREVIEW_NONE_AT;
@@ -174,7 +174,7 @@ EMBED_INLINE unsigned int block_by_line(const PreviewCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         CliPreviewBlock probed = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_preview.items.cell,
                                 .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, middle),
                                 .dst = &probed,
@@ -240,27 +240,28 @@ EMBED_INLINE unsigned int heading_of(const PreviewCtx *args)
     {
         return PREVIEW_NONE_AT;
     }
-    char *const text = g_cli_guard->temporary_buf_alloc(items->text_bytes, g_cli_preview_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(items->text_bytes, g_cli_preview_owner);
     if (text == NULL)
     {
         return PREVIEW_NONE_AT;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = items->text_cell, .offset = 0u, .dst = text, .bytes = items->text_bytes});
     unsigned int found = PREVIEW_NONE_AT;
     for (unsigned int block = 0u; (found == PREVIEW_NONE_AT) && (block < items->blocks); block += 1u)
     {
         CliPreviewBlock here = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
-                                                                .dst = &here,
-                                                                .bytes = sizeof(here)});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                                .dst = &here,
+                                .bytes = sizeof(here)});
         if (!here.heading)
         {
             continue;
         }
         CliPreviewBlock after = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_preview.items.cell,
                                 .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block + 1u),
                                 .dst = &after,
@@ -271,7 +272,7 @@ EMBED_INLINE unsigned int heading_of(const PreviewCtx *args)
         for (unsigned int at = here.item + 1u; same && (at < end); at += 1u)
         {
             CliPreviewItem item = {0};
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
             for (unsigned int character = 0u; same && (item.type == CLI_PREVIEW_ITEM_TEXT) && (character < item.length);
                  character += 1u)
@@ -288,7 +289,7 @@ EMBED_INLINE unsigned int heading_of(const PreviewCtx *args)
         }
         found = (same && (matched == args->length)) ? block : PREVIEW_NONE_AT;
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_preview_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_preview_owner);
     return found;
 }
 
@@ -399,10 +400,11 @@ EMBED_INLINE unsigned int address_followed(const PreviewCtx *args)
             return CLI_PREVIEW_OPEN_NONE;
         }
         CliPreviewBlock here = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
-                                                                .dst = &here,
-                                                                .bytes = sizeof(here)});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                                .dst = &here,
+                                .bytes = sizeof(here)});
         EMBED_CALL(top_led, PreviewCtx, .top_px = here.top);
         open->top_px = s_preview.top_px;
         open->target = CLI_PREVIEW_OPEN_PLACE;
@@ -411,7 +413,7 @@ EMBED_INLINE unsigned int address_followed(const PreviewCtx *args)
     if (EMBED_CALL(address_out, PreviewCtx, .text = args->text, .length = args->length))
     {
         // the address with its end, in a cell for the opening alone
-        char *const address = g_cli_guard->temporary_buf_alloc(args->length + 1ULL, g_cli_preview_owner);
+        char *const address = g_platform_guard->temporary_buf_alloc(args->length + 1ULL, g_cli_preview_owner);
         if (address == NULL)
         {
             return CLI_PREVIEW_OPEN_NONE;
@@ -422,7 +424,7 @@ EMBED_INLINE unsigned int address_followed(const PreviewCtx *args)
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         const int opened =
             EMBED_CALL(cli_report_err_msg.open_url, CliReportErrMsgCfg, .url = address, .err_msg = &err_msg);
-        g_cli_guard->persistent_buf_release(address, g_cli_preview_owner);
+        g_platform_guard->persistent_buf_release(address, g_cli_preview_owner);
         open->target = opened ? CLI_PREVIEW_OPEN_OUT : CLI_PREVIEW_OPEN_NONE;
         return open->target;
     }
@@ -497,7 +499,8 @@ void cli_preview_mode_set(const CliPreviewCfg *args)
     }
     s_preview.mode = (mode < 3u) ? mode : CLI_PREVIEW_OFF;
     // the folder it is saved in and the error line, for the save alone
-    char *const folder = g_cli_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_preview_owner);
+    char *const folder =
+        g_platform_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_preview_owner);
     if (folder == NULL)
     {
         return;
@@ -508,7 +511,7 @@ void cli_preview_mode_set(const CliPreviewCfg *args)
         (void)cli_state_value_save(&(CliStateValueCfg){
             .folder = folder, .key = CLI_PREVIEW_MODE_KEY, .value = s_mode_words[s_preview.mode], .err_msg = &err_msg});
     }
-    g_cli_guard->persistent_buf_release(folder, g_cli_preview_owner);
+    g_platform_guard->persistent_buf_release(folder, g_cli_preview_owner);
 }
 
 int cli_preview_show(const CliPreviewCfg *args)
@@ -566,11 +569,11 @@ static void preview_text_looked(const CliEachTextLengthCfg *args)
     const char *const text = args->text;
     const unsigned long long size = args->length;
     const int same = s_preview.positioned && (size == s_preview.source_length) &&
-                     ((size == 0ULL) || (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                     ((size == 0ULL) || (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                                              .cell = s_preview.source_cell, .src = text, .bytes = size}) == 0));
     // the text retained in a movable cell of its own for the next look's compare, the positioned items in theirs
     const CarcerMovableEntry *const source =
-        (!same && (size != 0ULL)) ? g_cli_guard->movable_buf_alloc(size, g_cli_preview_owner) : NULL;
+        (!same && (size != 0ULL)) ? g_platform_guard->movable_buf_alloc(size, g_cli_preview_owner) : NULL;
     CliPreviewItems fresh = {0};
     if (!same && ((size == 0ULL) || (source != NULL)) &&
         EMBED_CALL(cli_preview_markdown.layout, CliPreviewMarkdownCfg, .text = text, .length = size, .first_line = 0u,
@@ -579,7 +582,7 @@ static void preview_text_looked(const CliEachTextLengthCfg *args)
         EMBED_CALL(items_released, PreviewCtx, .key = NULL);
         if (source != NULL)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = source, .offset = 0u, .src = text, .bytes = size});
         }
         s_preview.items = fresh;
@@ -670,14 +673,14 @@ const CliPreviewItem *cli_preview_item_row(const CliPreviewItemCfg *args)
         return NULL;
     }
     s_row = (CliPreviewItem){0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(args->at), .dst = &s_row, .bytes = sizeof(s_row)});
     if (s_row.type == CLI_PREVIEW_ITEM_TEXT)
     {
         s_row.length = (s_row.length < CLI_PREVIEW_ROW_TEXT) ? s_row.length : CLI_PREVIEW_ROW_TEXT;
         if (s_row.length != 0u)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_preview.items.text_cell, .offset = s_row.text, .dst = s_row_text, .bytes = s_row.length});
         }
     }
@@ -696,17 +699,19 @@ unsigned int cli_preview_item_first(const CliPreviewItemCfg *args)
         return 0u;
     }
     CliPreviewBlock here = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
-                                                            .dst = &here,
-                                                            .bytes = sizeof(here)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                            .dst = &here,
+                            .bytes = sizeof(here)});
     while ((block > 0u) && (here.depth > 0u))
     {
         block -= 1u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
-                                                                .dst = &here,
-                                                                .bytes = sizeof(here)});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, block),
+                                .dst = &here,
+                                .bytes = sizeof(here)});
     }
     return here.item;
 }
@@ -744,22 +749,24 @@ unsigned long long cli_preview_scroll_line_at(const CliPreviewScrollCfg *args)
     if (at == PREVIEW_NONE_AT)
     {
         CliPreviewBlock first = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
-                                                                .dst = &first,
-                                                                .bytes = sizeof(first)});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, 0u),
+                                .dst = &first,
+                                .bytes = sizeof(first)});
         return first.line;
     }
     CliPreviewBlock here = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at),
-                                                            .dst = &here,
-                                                            .bytes = sizeof(here)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                 .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at),
+                                                                 .dst = &here,
+                                                                 .bytes = sizeof(here)});
     CliPreviewBlock after = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at + 1u),
-                                                            .dst = &after,
-                                                            .bytes = sizeof(after)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at + 1u),
+                            .dst = &after,
+                            .bytes = sizeof(after)});
     const CliPreviewBlock next = (at + 1u < s_preview.items.blocks) ? after : here;
     if (next.top <= here.top)
     {
@@ -785,15 +792,16 @@ int cli_preview_scroll_top_of(const CliPreviewScrollCfg *args)
         return 0;
     }
     CliPreviewBlock here = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at),
-                                                            .dst = &here,
-                                                            .bytes = sizeof(here)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                 .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at),
+                                                                 .dst = &here,
+                                                                 .bytes = sizeof(here)});
     CliPreviewBlock after = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at + 1u),
-                                                            .dst = &after,
-                                                            .bytes = sizeof(after)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, at + 1u),
+                            .dst = &after,
+                            .bytes = sizeof(after)});
     const CliPreviewBlock next = (at + 1u < s_preview.items.blocks) ? after : here;
     if (next.line <= here.line)
     {
@@ -809,19 +817,20 @@ int cli_preview_scroll_top_of(const CliPreviewScrollCfg *args)
 EMBED_INLINE void block_marked(const PreviewCtx *args)
 {
     CliPreviewBlock marked = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, args->at),
-                                                            .dst = &marked,
-                                                            .bytes = sizeof(marked)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_preview.items.cell,
+                            .offset = CLI_PREVIEW_BLOCK_AT(&s_preview.items, args->at),
+                            .dst = &marked,
+                            .bytes = sizeof(marked)});
     const unsigned int at = marked.item;
     CliPreviewItem item = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
     item.flags = args->here ? (item.flags | CLI_PREVIEW_HERE) : (item.flags & ~CLI_PREVIEW_HERE);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_preview.items.cell,
-                                                             .offset = CLI_PREVIEW_ITEM_AT(at),
-                                                             .src = &item,
-                                                             .bytes = sizeof(CliPreviewItem)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_preview.items.cell,
+                                                                  .offset = CLI_PREVIEW_ITEM_AT(at),
+                                                                  .src = &item,
+                                                                  .bytes = sizeof(CliPreviewItem)});
 }
 
 int cli_preview_mark_line(const CliPreviewMarkCfg *args)
@@ -857,7 +866,7 @@ unsigned int cli_preview_mark_press(const CliPreviewMarkCfg *args)
          at += 1u)
     {
         CliPreviewItem item = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_preview.items.cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
         if ((item.type == CLI_PREVIEW_ITEM_BLOCK) && (item.y > y))
         {
@@ -868,16 +877,16 @@ unsigned int cli_preview_mark_press(const CliPreviewMarkCfg *args)
         if (inside && (item.type == CLI_PREVIEW_ITEM_TEXT) && (item.link_length != 0u))
         {
             // the link's address read into a cell of this call for the follow
-            char *const address = g_cli_guard->temporary_buf_alloc(item.link_length, g_cli_preview_owner);
+            char *const address = g_platform_guard->temporary_buf_alloc(item.link_length, g_cli_preview_owner);
             if (address == NULL)
             {
                 return CLI_PREVIEW_OPEN_NONE;
             }
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = items->text_cell, .offset = item.link, .dst = address, .bytes = item.link_length});
             const unsigned int target =
                 EMBED_CALL(address_followed, PreviewCtx, .text = address, .length = item.link_length, .open_out = open);
-            g_cli_guard->persistent_buf_release(address, g_cli_preview_owner);
+            g_platform_guard->persistent_buf_release(address, g_cli_preview_owner);
             return target;
         }
     }

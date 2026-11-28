@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_form.c: the connection form as the Database pane's rows. Each field is in a cell sized to its characters; the
-// rows are places positioned again as the type changes, the server's fields located for PostgreSQL and MySQL and the file
-// for SQLite, the guard's choice while the connection matters, and the refusal of the last save under the buttons. A
-// save writes the connection into databases.json, a rename through the name it had, and a remove takes it out; the
+// rows are places positioned again as the type changes, the server's fields located for PostgreSQL and MySQL and the
+// file for SQLite, the guard's choice while the connection matters, and the refusal of the last save under the buttons.
+// A save writes the connection into databases.json, a rename through the name it had, and a remove takes it out; the
 // pane's text and keys go to the field that has the keys, or to the ask while the pane asks
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "db_pane_internal.h"
@@ -109,10 +109,10 @@ void cli_db_pane_form_open(const CliDbPaneCtx *args)
     {
         // the chosen connection read out of the connections cell
         CliDbConnection connection_read;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->connections_cell,
-                                                                .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
-                                                                .dst = &connection_read,
-                                                                .bytes = sizeof(connection_read)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->connections_cell,
+                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
+                                                                     .dst = &connection_read,
+                                                                     .bytes = sizeof(connection_read)});
         const CliDbConnection *const connection = &connection_read;
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = form->was, .src = connection->name, .cap = CLI_NAME_MAX_LEN});
         const char *const texts[CLI_DB_FORM_FIELDS] = {connection->name, connection->host,     "",

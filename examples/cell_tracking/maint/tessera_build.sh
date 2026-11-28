@@ -102,7 +102,8 @@ tessera_run_build()
     rm -f "$run"
     local words
     tessera_words words
-    shared_objects_built words "$ENGINE/runtime/daemon"/tessera_run_{common,windows,posix,child,main}.c || return 1
+    shared_objects_built words "$ENGINE/runtime/daemon"/tessera_run_{common,child,main}.c "${PLATFORM_TESSERA_RUN[@]}" \
+        || return 1
     nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" "${long_paths[@]}" -o "$run" "${SHARED_OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" \
         "${linea_objects[@]}" "${TESSERA_PLATFORM[@]}" "${TESSERA_SEAL[@]}" "${run_libraries[@]}" \
         "${EXACT_TYPES_LIBRARIES[@]}"

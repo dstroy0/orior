@@ -29,14 +29,14 @@ typedef struct
     int mapped;
     CliLeafRead read;
     int leaved;
-    CliGrownLine functions;
+    PlatformText functions;
     unsigned int count;
 } CliCallsFile;
 // The calls found: each one, its paths with a zero after each, and the file the usages are read in
 typedef struct
 {
-    CliGrownLine found;
-    CliGrownLine paths;
+    PlatformText found;
+    PlatformText paths;
     unsigned int count;
 } CliCallsFound;
 // the max bytes the regions, the calls and the usages each grow to
@@ -172,8 +172,7 @@ static int calls_file_read(const SymbolsCallsCtx *args)
 {
     CliCallsFile *file = args->file_out;
     const char *path = args->path;
-    *file = (CliCallsFile){
-        NULL, 0ULL, 0, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL}, 0u};
+    *file = (CliCallsFile){NULL, 0ULL, 0, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL}, 0u};
     char *const supplied = (args->open_text != NULL)
                                ? EMBED_CALL(args->open_text, CliOpenTextCfg, .context = args->open_text_context,
                                             .path = path, .size = &file->size)
@@ -198,7 +197,7 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     {
         return 0;
     }
-    cli_grown_begin(&file->functions, CLI_CALLS_CAPACITY, g_cli_code_owner);
+    platform_text_begun(&file->functions, CLI_CALLS_CAPACITY, platform_place_g_cli_code_owner, PLATFORM_TIER_TEMPORARY);
     if (file->functions.cell == NULL)
     {
         return -1;
@@ -250,22 +249,22 @@ EMBED_INLINE void calls_dispatch(const SymbolsCallsCtx *args)
 // read
 EMBED_INLINE void calls_file_released(const SymbolsCallsCtx *args)
 {
-    cli_grown_end(&args->file_out->functions);
+    platform_text_ended(&args->file_out->functions);
     if (args->file_out->leaved)
     {
-        g_cli_guard->persistent_buf_release(args->file_out->read.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(args->file_out->read.leaf, g_cli_leaves_owner);
         args->file_out->read.leaf = NULL;
         args->file_out->read.count = 0u;
         args->file_out->read.capacity = 0u;
     }
     if (args->file_out->mapped && (args->file_out->text != NULL))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->file_out->text),
-                                            g_cli_code_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->file_out->text),
+                                                 g_cli_code_owner);
     }
     else
     {
-        g_cli_guard->persistent_buf_release(args->file_out->text, g_cli_code_owner);
+        g_platform_guard->persistent_buf_release(args->file_out->text, g_cli_code_owner);
     }
 }
 
@@ -304,7 +303,7 @@ EMBED_INLINE CliCallFound calls_found_at(const SymbolsCallsCtx *args)
 // a call put after those found: the file and span its group is keyed by, and where it is
 EMBED_INLINE void calls_found_append(const SymbolsCallsCtx *args)
 {
-    const CliCallFound one = {cli_grown_size(&args->calls->paths), args->line, args->from, args->to, args->site};
+    const CliCallFound one = {platform_text_size(&args->calls->paths), args->line, args->from, args->to, args->site};
     mmgr_line_put(&args->calls->paths.line, args->path);
     mmgr_line_ch(&args->calls->paths.line, '\0');
     mmgr_line_put_n(&args->calls->found.line, (const char *)&one, sizeof(one));
@@ -326,8 +325,8 @@ static void calls_usage_append(const CliUsageCfg *args)
 EMBED_INLINE int calls_found_begin(const SymbolsCallsCtx *args)
 {
     CliCallsFound *calls = args->calls;
-    cli_grown_begin(&calls->found, CLI_CALLS_CAPACITY, g_cli_code_owner);
-    cli_grown_begin(&calls->paths, CLI_CALLS_CAPACITY, g_cli_code_owner);
+    platform_text_begun(&calls->found, CLI_CALLS_CAPACITY, platform_place_g_cli_code_owner, PLATFORM_TIER_TEMPORARY);
+    platform_text_begun(&calls->paths, CLI_CALLS_CAPACITY, platform_place_g_cli_code_owner, PLATFORM_TIER_TEMPORARY);
     calls->count = 0u;
     return (calls->found.cell != NULL) && (calls->paths.cell != NULL);
 }
@@ -443,8 +442,8 @@ int cli_symbols_callers(const CliSymbolsPathContextLineCfg *args)
                 first = next;
             }
         }
-        cli_grown_end(&usages.found);
-        cli_grown_end(&usages.paths);
+        platform_text_ended(&usages.found);
+        platform_text_ended(&usages.paths);
     }
     if (found < 0)
     {
@@ -553,8 +552,8 @@ int cli_symbols_callees(const CliSymbolsPathContextLineCfg *args)
             EMBED_CALL(calls_callees_dispatch, SymbolsCallsCtx, .calls_read = &calls, .file = &file, .each = args->each,
                        .context = args->context);
         }
-        cli_grown_end(&calls.found);
-        cli_grown_end(&calls.paths);
+        platform_text_ended(&calls.found);
+        platform_text_ended(&calls.paths);
     }
     if (found < 0)
     {

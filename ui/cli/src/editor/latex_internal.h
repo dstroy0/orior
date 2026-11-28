@@ -85,8 +85,8 @@ void cli_tex_names_init(const CliLatexNamesRootCtx *args);
 int cli_tex_names_get(const CliLatexLengthCtx *args);
 
 // the name a file is made under into `job`, sized for CLI_PATH_MAX_LEN: its own where that is a plain one, of ASCII
-// characters, digits, - and _, which preserves \jobname and the bibliography made beside it, and `preview` for any other
-// (latex.c)
+// characters, digits, - and _, which preserves \jobname and the bibliography made beside it, and `preview` for any
+// other (latex.c)
 void cli_latex_job_get(const CliLatexFileCtx *args);
 
 struct CliLatexTextCtx

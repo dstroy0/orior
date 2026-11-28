@@ -234,7 +234,7 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
         s_counts[place] = 1ULL;
         verdicts += 1u;
     }
-    g_cli_guard->persistent_buf_release(dry, g_query_owner);
+    g_platform_guard->persistent_buf_release(dry, g_query_owner);
     for (unsigned int place = 0u; place < verdicts; place += 1u)
     {
         char text[160];
@@ -252,7 +252,7 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
 int query_bar0_driver_runs(void)
 {
     const char *const words[4] = {"sc.exe", "query", QUERY_LISTENER, NULL};
-    QueryProcess child;
+    PlatformProgram child;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &child, .words = words,
                     .folder = NULL, .output = QUERY_OUTPUT_PIPED))
     {

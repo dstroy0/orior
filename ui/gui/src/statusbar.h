@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // statusbar.h: the status bar across the foot, tinted with the ink: at its left the crumbs of the file displayed, its
-// folders then it, and after them the notice displayed, its first line cut short with an ellipsis past half the window's
-// width, a failure's in the fail color, and Silence beside it, quieter; at its right what orior holds in RAM, Focus
-// while it holds the notices with how many wait, then the editor's line while a file is displayed, the cursor as line and
-// column, what is selected, the line ends, the encoding, the indentation and the lock (statusbar.c)
+// folders then it, and after them the notice displayed, its first line cut short with an ellipsis past half the
+// window's width, a failure's in the fail color, and Silence beside it, quieter; at its right what orior holds in RAM,
+// Focus while it holds the notices with how many wait, then the editor's line while a file is displayed, the cursor as
+// line and column, what is selected, the line ends, the encoding, the indentation and the lock (statusbar.c)
 #ifndef GUI_WINDOW_STATUSBAR_H
 #define GUI_WINDOW_STATUSBAR_H
 #include "../../../includes/window/frame.h"

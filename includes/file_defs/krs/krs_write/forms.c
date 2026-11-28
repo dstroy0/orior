@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: the vendor's run, the forms, costs and givens read, a form's cost and given, and the forms of a
 // word ranked
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/line_read.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "krs_write_internal.h"

@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// crumbs.h: the crumbs of the file displayed, as the status bar positions them: each folder of its path from the tree's top, the
-// file, and each declaration of the outline the cursor's line is inside, outermost first. The rows are as
-// indices into one cell with their texts after them, read when the file displayed is another and again when the cursor's
-// line leaves the lines the innermost declaration's crumb answers for; the outline's rows are in the order of their
-// lines, so the declaration a line is in is found by halving. What is beside a crumb is the menus' own rows:
-// a folder's entries, or the declarations at a declaration's depth under the one it is in. The setting, on until
-// set off, is saved under CLI_CRUMBS_KEY in orior's folder (crumbs.c)
+// crumbs.h: the crumbs of the file displayed, as the status bar positions them: each folder of its path from the tree's
+// top, the file, and each declaration of the outline the cursor's line is inside, outermost first. The rows are as
+// indices into one cell with their texts after them, read when the file displayed is another and again when the
+// cursor's line leaves the lines the innermost declaration's crumb answers for; the outline's rows are in the order of
+// their lines, so the declaration a line is in is found by halving. What is beside a crumb is the menus' own rows: a
+// folder's entries, or the declarations at a declaration's depth under the one it is in. The setting, on until set off,
+// is saved under CLI_CRUMBS_KEY in orior's folder (crumbs.c)
 #ifndef CRUMBS_H
 #define CRUMBS_H
 #include "../command_line/cli_internal.h"
@@ -36,8 +36,8 @@ typedef struct
 
 // the setting restored from `entries`, on where none is saved
 void cli_crumbs_begin(const CliCrumbsCfg *args);
-// the crumbs of the file at `path` displayed under `key`, the cursor at the line `line`: the folders and the file always,
-// and the declarations of the outline where `key` is not NULL; none where `path` is NULL or the setting is off
+// the crumbs of the file at `path` displayed under `key`, the cursor at the line `line`: the folders and the file
+// always, and the declarations of the outline where `key` is not NULL; none where `path` is NULL or the setting is off
 void cli_crumbs_read(const CliCrumbsCfg *args);
 // how many crumbs are; and the crumb `at` into `row`: 1, or 0 past the last
 unsigned int cli_crumbs_rows(const CliCrumbsCfg *args);

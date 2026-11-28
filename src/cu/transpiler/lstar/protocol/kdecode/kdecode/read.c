@@ -5,7 +5,7 @@
 // from the run
 #include "../../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../../includes/parsers/who.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../table_text.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"

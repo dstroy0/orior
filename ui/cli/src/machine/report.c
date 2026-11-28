@@ -21,8 +21,8 @@
 #define CLI_REPORT_STRUCK_MORE 64ULL
 
 // the run's recent errors, movable cells each of its error's bytes with their end, the segments of MMgr's ring, under
-// the lock; the ring is positioned over its part of the rings block at the first error, its segments a power of two over
-// the max retained
+// the lock; the ring is positioned over its part of the rings block at the first error, its segments a power of two
+// over the max retained
 EMBED_STATIC_ASSERT(MMGR_RING_POW2(CLI_REPORT_RETAIN_RING) && (CLI_REPORT_RETAIN_RING >= CLI_REPORT_RETAIN_MAX),
                     "the errors ring's segments are a power of two over the errors retained");
 static mmgr_ring s_errors_ring;
@@ -106,14 +106,14 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
     {
         read = CLI_JSON_NONE;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
     const unsigned int root = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                          .node = read, .type = CFG_JSON_OBJECT)
                                   ? read
                                   : CLI_JSON_NONE;
     if (args->copied && (root == CLI_JSON_NONE))
     {
-        g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+        g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         (void)EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = json,
@@ -137,7 +137,7 @@ EMBED_INLINE int cli_answer(const ReportCtx *args)
                                     .node = answer, .type = CFG_JSON_FALSE);
     *on = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = answer,
                      .type = CFG_JSON_TRUE);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return answered;
@@ -231,7 +231,7 @@ int cli_report_set_auto(const CliReportOnCfg *args)
     }
     const unsigned long long out_capacity = EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity,
                                                        CliJsonTreeNodeOutCfg, .json_read = &json, .indent = 2u);
-    char *const out_cell = g_cli_guard->temporary_buf_alloc(out_capacity, g_cli_machine_owner);
+    char *const out_cell = g_platform_guard->temporary_buf_alloc(out_capacity, g_cli_machine_owner);
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     const int begun = out.out != NULL;
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = made, .out = &out,
@@ -239,8 +239,8 @@ int cli_report_set_auto(const CliReportOnCfg *args)
     const int written = begun && !json.full && mmgr_line_ok(&out) &&
                         EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                                    .bytes = out.out, .size = out.at);
-    g_cli_guard->persistent_buf_release(out.out, g_cli_machine_owner);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(out.out, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!written)
@@ -277,9 +277,9 @@ EMBED_INLINE void cli_on_replace(const ReportCtx *args)
     mmgr_line_finish(args->out);
 }
 
-// `found`, three characters or more, struck from the text `*struck` contains as `put`, as it is, with its slashes leaning
-// forward, and with them leaning back, each pass into a cell of its own sized to the text and the one before given
-// back; where a cell is refused the text is let go whole, and nothing it contained goes out unstruck
+// `found`, three characters or more, struck from the text `*struck` contains as `put`, as it is, with its slashes
+// leaning forward, and with them leaning back, each pass into a cell of its own sized to the text and the one before
+// given back; where a cell is refused the text is let go whole, and nothing it contained goes out unstruck
 EMBED_INLINE void cli_strike(const ReportCtx *args)
 {
     char **struck = args->struck;
@@ -307,14 +307,14 @@ EMBED_INLINE void cli_strike(const ReportCtx *args)
         const unsigned long long capacity =
             length + ((length / 3ULL) * cellul.len(&(CatenaFinitaCfg){.src = args->put, .cap = CLI_POOL_BYTES})) +
             CLI_REPORT_STRUCK_MORE;
-        char *const out_cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_machine_owner);
+        char *const out_cell = g_platform_guard->temporary_buf_alloc(capacity, g_cli_machine_owner);
         VerbaLinea out = mmgr_line_over(out_cell, capacity);
         EMBED_CALL(cli_on_replace, ReportCtx, .text = text, .found = forms[form], .put = args->put, .out = &out);
-        g_cli_guard->persistent_buf_release(*struck, g_cli_machine_owner);
+        g_platform_guard->persistent_buf_release(*struck, g_cli_machine_owner);
         *struck = mmgr_line_ok(&out) ? out_cell : NULL;
         if (*struck == NULL)
         {
-            g_cli_guard->persistent_buf_release(out_cell, g_cli_machine_owner);
+            g_platform_guard->persistent_buf_release(out_cell, g_cli_machine_owner);
         }
     }
 }
@@ -322,7 +322,7 @@ EMBED_INLINE void cli_strike(const ReportCtx *args)
 void cli_report_scrub(const CliReportTextCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
-    char *struck = g_cli_guard->temporary_buf_alloc(length + 1ULL, g_cli_machine_owner);
+    char *struck = g_platform_guard->temporary_buf_alloc(length + 1ULL, g_cli_machine_owner);
     if (struck != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = struck, .src = args->text, .bytes = length + 1u});
@@ -369,7 +369,7 @@ void cli_report_scrub(const CliReportTextCfg *args)
         }
     }
     mmgr_line_put(args->out, (struck != NULL) ? struck : "");
-    g_cli_guard->persistent_buf_release(struck, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(struck, g_cli_machine_owner);
 }
 
 void cli_report_fingerprint(const CliReportCategoryTextCfg *args)
@@ -394,7 +394,7 @@ void cli_report_fingerprint(const CliReportCategoryTextCfg *args)
 
 void cli_report_save(const CliReportTextCfg *args)
 {
-    char *const line_cell = g_cli_guard->temporary_buf_alloc(CLI_REPORT_ERROR, g_cli_machine_owner);
+    char *const line_cell = g_platform_guard->temporary_buf_alloc(CLI_REPORT_ERROR, g_cli_machine_owner);
     if (line_cell == NULL)
     {
         return;
@@ -404,13 +404,13 @@ void cli_report_save(const CliReportTextCfg *args)
     // an error stored is its first CLI_REPORT_ERROR bytes at max
     line.at = (line.at < CLI_REPORT_ERROR) ? line.at : (CLI_REPORT_ERROR - 1u);
     line.out[(line.at < line.capacity) ? line.at : (line.capacity - 1u)] = '\0';
-    const CarcerMovableEntry *const stored = g_cli_guard->movable_buf_alloc(line.at + 1ULL, g_cli_machine_owner);
+    const CarcerMovableEntry *const stored = g_platform_guard->movable_buf_alloc(line.at + 1ULL, g_cli_machine_owner);
     if (stored != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .src = line.out, .bytes = line.at + 1ULL});
     }
-    g_cli_guard->persistent_buf_release(line_cell, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(line_cell, g_cli_machine_owner);
     if (stored == NULL)
     {
         return;
@@ -420,17 +420,17 @@ void cli_report_save(const CliReportTextCfg *args)
         s_errors = (const CarcerMovableEntry **)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg,
                                                                    .part = CLI_RINGS_REPORT_ERRORS);
         s_errors_positioned = anularis.init(&(AnularisCfg){.ring = &s_errors_ring,
-                                                     .buf = (embed_u8 *)(void *)s_errors,
-                                                     .capacity = CLI_REPORT_ERRORS_RING_BYTES,
-                                                     .segment_count = CLI_REPORT_RETAIN_RING,
-                                                     .segment_bytes = sizeof(s_errors[0])});
+                                                           .buf = (embed_u8 *)(void *)s_errors,
+                                                           .capacity = CLI_REPORT_ERRORS_RING_BYTES,
+                                                           .segment_count = CLI_REPORT_RETAIN_RING,
+                                                           .segment_bytes = sizeof(s_errors[0])});
     }
     // the max retained located, the oldest's cell let go and its segment released
     if (anularis.seg_inflight(&(AnularisCfg){.ring = &s_errors_ring}) == CLI_REPORT_RETAIN_MAX)
     {
         size_t front = 0u;
         (void)anularis.seg_front(&(AnularisCfg){.ring = &s_errors_ring, .out_index = &front});
-        (void)g_cli_guard->movable_buf_release(s_errors[front], g_cli_machine_owner);
+        (void)g_platform_guard->movable_buf_release(s_errors[front], g_cli_machine_owner);
         anularis.seg_release(&(AnularisCfg){.ring = &s_errors_ring});
     }
     size_t segment = 0u;
@@ -448,18 +448,18 @@ void cli_report_recent(const CliReportRootOutCfg *args)
     size_t front = 0u;
     (void)anularis.seg_front(&(AnularisCfg){.ring = &s_errors_ring, .out_index = &front});
     const size_t count = anularis.seg_inflight(&(AnularisCfg){.ring = &s_errors_ring});
-    char *const copied = g_cli_guard->temporary_buf_alloc(CLI_REPORT_ERROR, g_cli_machine_owner);
+    char *const copied = g_platform_guard->temporary_buf_alloc(CLI_REPORT_ERROR, g_cli_machine_owner);
     for (size_t at = 0u; (copied != NULL) && (at < count); at += 1u)
     {
         const CarcerMovableEntry *const stored = s_errors[MMGR_RING_WRAP(front + at, CLI_REPORT_RETAIN_RING)];
         const unsigned long long length =
-            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = stored, .offset = 0ULL});
-        (void)g_cli_guard->movable_buf_read(
+            g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = stored, .offset = 0ULL});
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .dst = copied, .bytes = length + 1ULL});
         mmgr_line_put(args->out, (at != 0u) ? "\n\n" : "");
         mmgr_line_put(args->out, copied);
     }
-    g_cli_guard->persistent_buf_release(copied, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(copied, g_cli_machine_owner);
 }
 
 const char *cli_report_panic_category(const CliReportCfg *args)

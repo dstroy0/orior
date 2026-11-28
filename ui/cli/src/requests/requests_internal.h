@@ -211,9 +211,9 @@ extern CliRequestsParsed g_cli_requests_parsed;
 // a file of requests read into `parsed`, what it contained before given back, the lock above acquired: 1, or 0 where it
 // is larger than `parsed` fits or its cells are refused; its cells given back, `parsed` left empty; the request whose
 // part contains line `line`, or the last before it, the first where none does: NULL where the file contains none; a
-// text of the pool (requests_white.c); the part of a text from `start` to `end` with the white characters at its two ends
-// passed over, as Rust's str::trim trims it; and the bytes of the white character at `at` of a text ending at `end`, 0
-// where the character there is not white (requests_parse.c, requests_white.c)
+// text of the pool (requests_white.c); the part of a text from `start` to `end` with the white characters at its two
+// ends passed over, as Rust's str::trim trims it; and the bytes of the white character at `at` of a text ending at
+// `end`, 0 where the character there is not white (requests_parse.c, requests_white.c)
 int cli_requests_parse(const CliRequestsTextSizeParsedCtx *args);
 const CliRequest *cli_requests_at(const CliRequestsCtx *args);
 const char *cli_requests_text(const CliRequestsPoolCtx *args);
@@ -299,8 +299,8 @@ typedef struct
 } CliRequestsWords;
 
 // the words of `size` bytes of a shell line as bash reads them into `words`: 1, or 0 with why given; and `size` bytes
-// of a line copied for cmd as bash reads it, each caret taking the character after it as it is and a caret at the end of a
-// line joining it to the next, into `out` (requests_words.c)
+// of a line copied for cmd as bash reads it, each caret taking the character after it as it is and a caret at the end
+// of a line joining it to the next, into `out` (requests_words.c)
 int cli_requests_words(const CliRequestsSizeCtx *args);
 void cli_requests_uncareted(const CliRequestsSizeOutCtx *args);
 

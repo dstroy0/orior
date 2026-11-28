@@ -105,7 +105,7 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
         return;
     }
     // each line's start and length, the old text's then the new's, in one cell of their count
-    unsigned long long *const counted = g_cli_guard->temporary_buf_alloc(
+    unsigned long long *const counted = g_platform_guard->temporary_buf_alloc(
         2ULL * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), g_cli_deploy_owner);
     if (counted == NULL)
     {
@@ -146,7 +146,7 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
         EMBED_CALL(existing_line_print, DeployStandingCtx, .mark = "+ ", .text = args->new_text + news_lines.start[at],
                    .size = news_lines.size[at]);
     }
-    g_cli_guard->persistent_buf_release(counted, g_cli_deploy_owner);
+    g_platform_guard->persistent_buf_release(counted, g_cli_deploy_owner);
 }
 
 // the copy of `path` the place at `index` has read as text into a cell of the max that is compared and one byte past
@@ -157,7 +157,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
     unsigned long long *size = args->size_pointer;
     const CliDeployPosition *const place = &g_cli_deploy.place[args->index];
     const unsigned long long capacity = CLI_DEPLOY_COMPARED + 2ULL;
-    char *const theirs = g_cli_guard->temporary_buf_alloc(capacity, g_cli_deploy_owner);
+    char *const theirs = g_platform_guard->temporary_buf_alloc(capacity, g_cli_deploy_owner);
     VerbaLinea text = mmgr_line_over(theirs, capacity);
     int read = 0;
     if (place->here)
@@ -171,7 +171,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text, .text_bytes = bytes,
                        .length = mapped);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
     }
     else
     {
@@ -190,7 +190,7 @@ EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
     if (!read || !mmgr_line_ok(&text) || (*size > CLI_DEPLOY_COMPARED) ||
         (memor.chr(&(MemoriaCfg){.src = theirs, .bytes = (embed_word)*size, .val = 0u}) != NULL))
     {
-        g_cli_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
+        g_platform_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
         return NULL;
     }
     return theirs;
@@ -242,10 +242,10 @@ EMBED_INLINE void existing_change(const DeployStandingCtx *args)
             EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = theirs, .old_size = theirs_size,
                        .new_text = (const char *)ours_index, .new_size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)ours_index, g_cli_deploy_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)ours_index, g_cli_deploy_owner);
         break;
     }
-    g_cli_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
+    g_platform_guard->persistent_buf_release(theirs, g_cli_deploy_owner);
 }
 
 // a file at the place at `index` that the tree no longer has printed, and what becomes of it
@@ -378,8 +378,8 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
     const CliDeployPair *const preserved = args->replace ? NULL : run->changed_list[args->index];
     const unsigned int preserved_count = args->replace ? 0u : run->changed[args->index];
     // the record holds a path and a hash for each file, as a place's hashes do
-    CliGrownLine record_grown;
-    cli_grown_begin(&record_grown, CLI_DEPLOY_HASHES, g_cli_deploy_owner);
+    PlatformText record_grown;
+    platform_text_begun(&record_grown, CLI_DEPLOY_HASHES, platform_place_g_cli_deploy_owner, PLATFORM_TIER_TEMPORARY);
     VerbaLinea *const record_line = &record_grown.line;
     mmgr_line_ch(record_line, '{');
     unsigned int sent = 0u;
@@ -413,7 +413,7 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
     if (mmgr_line_ok(record_line))
     {
         (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = record_grown.cell,
-                         .size = cli_grown_size(&record_grown), .fresh = 1);
+                         .size = platform_text_size(&record_grown), .fresh = 1);
     }
-    cli_grown_end(&record_grown);
+    platform_text_ended(&record_grown);
 }

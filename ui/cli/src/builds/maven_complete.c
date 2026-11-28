@@ -65,7 +65,7 @@ EMBED_INLINE void complete_properties(const MavenCompleteCtx *args)
                    .value_size = s_model.name_size[at], .type = "constant",
                    .detail = s_model.text + s_model.value_at[at], .detail_size = s_model.value_size[at]);
     }
-    g_cli_guard->persistent_buf_release(s_model.name_at, g_cli_maven_model_owner);
+    g_platform_guard->persistent_buf_release(s_model.name_at, g_cli_maven_model_owner);
     s_model = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
     for (unsigned int at = 0u; at < 11u; at += 1u)
     {
@@ -92,7 +92,7 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
     const char *token = args->token;
     unsigned long long token_size = args->token_size;
     CliCompletions *items = args->items;
-    g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
+    g_platform_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
     s_xml = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     EMBED_CALL(cli_maven_xml_text_internal.xml_parse, CliMavenXmlTextCtx, .text = text, .size = args->end,
                .xml_out = &s_xml);
@@ -253,7 +253,7 @@ EMBED_INLINE void complete_coordinates(const MavenCompleteCtx *args)
     {
         return;
     }
-    g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
+    g_platform_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
     s_xml = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     EMBED_CALL(cli_maven_xml_text_internal.xml_parse, CliMavenXmlTextCtx, .text = text, .size = args->tag_end,
                .xml_out = &s_xml);
@@ -379,7 +379,7 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
     else if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lead, .size = comment_prefix_size,
                         .suffix = "</"))
     {
-        g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
+        g_platform_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
         s_xml = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
         EMBED_CALL(cli_maven_xml_text_internal.xml_parse, CliMavenXmlTextCtx, .text = args->text, .size = token - 2u,
                    .xml_out = &s_xml);
@@ -419,7 +419,7 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
                 lettered =
                     EMBED_CALL(cli_maven_internal.xml_name_character, CliMavenCtx,
                                .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = lead,
-                                                    .size = comment_prefix_size, .at = name_end, .length = &length));
+                                                       .size = comment_prefix_size, .at = name_end, .length = &length));
                 name_end += lettered ? length : 0ULL;
             }
             static char s_name[1u << 12u];
@@ -437,6 +437,6 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
+    g_platform_guard->persistent_buf_release(s_xml.element, g_cli_xml_owner);
     s_xml = (CliXml){s_xml.text, 0ULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
 }

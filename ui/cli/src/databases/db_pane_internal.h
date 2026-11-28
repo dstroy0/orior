@@ -98,9 +98,9 @@ typedef struct
 
 // A connection's schema tree as the pane last showed it: its nodes and their text, each in a movable cell sized to
 // them, and the rows displayed, places among the nodes in a movable cell of their own. The chosen connection's is in
-// the pane itself; each other connection's is retained here while another is chosen, and is the tree the pane shows again
-// when the connection is chosen again, its nodes open as they were left, as every database client shows a connection
-// switched back to
+// the pane itself; each other connection's is retained here while another is chosen, and is the tree the pane shows
+// again when the connection is chosen again, its nodes open as they were left, as every database client shows a
+// connection switched back to
 typedef struct
 {
     const CarcerMovableEntry *node;
@@ -120,14 +120,13 @@ typedef struct
 
 // The pane: the connections, the open one of each, NULL where it is not, the transaction's state of each and the tree
 // retained of each while another is chosen, in one movable cell sized to them, the connections from its start, the open
-// ones from `open_at`, the transactions from `transaction_at` and the retained trees from `retained_at`, each read by copy
-// and written in place; their labels in a movable cell sized to them, each
-// label's place first and the labels' texts after, and the label last read out of it, the one chosen, CLI_DB_PANE_NONE
-// for none, and its name; the schema's nodes and their text, each in a movable cell sized to them; the rows displayed,
-// places among the nodes in a movable cell; whether a sentence row is, the sentence and whether it is a failure;
-// the form; whether the ask is
-// for the pane, the password retried and the statement the ask confirms; the node the menu was built for; the run; and
-// what wakes the view's thread
+// ones from `open_at`, the transactions from `transaction_at` and the retained trees from `retained_at`, each read by
+// copy and written in place; their labels in a movable cell sized to them, each label's place first and the labels'
+// texts after, and the label last read out of it, the one chosen, CLI_DB_PANE_NONE for none, and its name; the schema's
+// nodes and their text, each in a movable cell sized to them; the rows displayed, places among the nodes in a movable
+// cell; whether a sentence row is, the sentence and whether it is a failure; the form; whether the ask is for the pane,
+// the password retried and the statement the ask confirms; the node the menu was built for; the run; and what wakes the
+// view's thread
 typedef struct
 {
     const CarcerMovableEntry *connections_cell;
@@ -162,27 +161,29 @@ typedef struct
 
 extern CliDbPaneState g_cli_db_pane_state;
 
-// the places in the connections cell of the connection `at_`, of its open one, of its transaction and of its retained tree
+// the places in the connections cell of the connection `at_`, of its open one, of its transaction and of its retained
+// tree
 #define CLI_DB_PANE_CONNECTION_AT(at_) ((unsigned long long)(at_) * sizeof(CliDbConnection))
 #define CLI_DB_PANE_OPEN_AT(at_) (g_cli_db_pane_state.open_at + ((unsigned long long)(at_) * sizeof(CliDbOpen *)))
 #define CLI_DB_PANE_TRANSACTION_AT(at_)                                                                                \
     (g_cli_db_pane_state.transaction_at + ((unsigned long long)(at_) * CLI_DB_PANE_TRANSACTION))
-#define CLI_DB_PANE_RETAINED_AT(at_) (g_cli_db_pane_state.retained_at + ((unsigned long long)(at_) * sizeof(CliDbPaneTree)))
+#define CLI_DB_PANE_RETAINED_AT(at_)                                                                                   \
+    (g_cli_db_pane_state.retained_at + ((unsigned long long)(at_) * sizeof(CliDbPaneTree)))
 
-// the labels of the connections positioned again in a movable cell sized to them, each its name, its type and the open mark;
-// the connection `at`'s label read into the pane's label, cut to CLI_DB_PANE_LABEL bytes: its bytes, 0 for none; the
-// sentence row set to `text`, a failure's where `failed`, none where `text` is NULL; the schema let go; the level
+// the labels of the connections positioned again in a movable cell sized to them, each its name, its type and the open
+// mark; the connection `at`'s label read into the pane's label, cut to CLI_DB_PANE_LABEL bytes: its bytes, 0 for none;
+// the sentence row set to `text`, a failure's where `failed`, none where `text` is NULL; the schema let go; the level
 // under the node `at`, or the top where it is CLI_DB_PANE_NONE, read from the chosen connection's schema link and
-// stored after the nodes, a failure stored as one failed node: 1, or 0 where the cells cannot meet it; the rows displayed
-// positioned again from the open nodes; the form's rows positioned again for its type; and the chosen connection opened, its
-// password `text` where it is not NULL: 1, or 0 with the ask for its password opened where the server refused, else
-// the sentence row its failure
+// stored after the nodes, a failure stored as one failed node: 1, or 0 where the cells cannot meet it; the rows
+// displayed positioned again from the open nodes; the form's rows positioned again for its type; and the chosen
+// connection opened, its password `text` where it is not NULL: 1, or 0 with the ask for its password opened where the
+// server refused, else the sentence row its failure
 void cli_db_pane_labels_positioned(const CliDbPaneCtx *args);
 unsigned long long cli_db_pane_label_read(const CliDbPaneCtx *args);
 void cli_db_pane_note_set(const CliDbPaneCtx *args);
 void cli_db_pane_schema_released(const CliDbPaneCtx *args);
-// the chosen connection's tree moved into its retained place, the pane's left empty; and the connection `at`'s retained tree
-// moved into the pane: 1 where one was retained, 0 where the pane is left as it is
+// the chosen connection's tree moved into its retained place, the pane's left empty; and the connection `at`'s retained
+// tree moved into the pane: 1 where one was retained, 0 where the pane is left as it is
 void cli_db_pane_tree_retained(const CliDbPaneCtx *args);
 int cli_db_pane_tree_restored(const CliDbPaneCtx *args);
 int cli_db_pane_level_read(const CliDbPaneCtx *args);
@@ -223,8 +224,9 @@ typedef struct
     int (*form_press)(const CliDbPaneCtx *args);
     void (*form_close)(const CliDbPaneCtx *args);
 } CliDbPaneInternalNs;
-EMBED_TABLE_LAYOUT(CliDbPaneInternalNs, labels_positioned, label_read, note_set, schema_released, tree_retained, tree_restored,
-                   level_read, displayed_positioned, form_positioned, form_row, connected, form_open, form_press, form_close);
+EMBED_TABLE_LAYOUT(CliDbPaneInternalNs, labels_positioned, label_read, note_set, schema_released, tree_retained,
+                   tree_restored, level_read, displayed_positioned, form_positioned, form_row, connected, form_open,
+                   form_press, form_close);
 EMBED_TABLE_STORAGE CliDbPaneInternalNs cli_db_pane_internal EMBED_UNUSED = {
     .labels_positioned = cli_db_pane_labels_positioned,
     .label_read = cli_db_pane_label_read,

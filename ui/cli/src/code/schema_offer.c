@@ -43,14 +43,11 @@ EMBED_INLINE int offer_has_key(const SchemaOfferCtx *args)
     for (unsigned int at = spot->keys_first; at < spot->keys_first + spot->keys; at += 1u)
     {
         CliSchemaOpenKey key = {0ULL, 0ULL};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_key.cell,
-                                                                .offset = (embed_word)at * sizeof(key),
-                                                                .dst = &key,
-                                                                .bytes = sizeof(key)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = g_cli_schema_key.cell, .offset = (embed_word)at * sizeof(key), .dst = &key, .bytes = sizeof(key)});
         if ((key.to - key.from == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = args->text + key.from,
-                                     .other = args->name,
-                                     .bytes = (embed_word)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){
+                 .src = args->text + key.from, .other = args->name, .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
@@ -73,12 +70,12 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
     for (unsigned int reached = 0u; reached < g_cli_schema_reached.count; reached += 1u)
     {
         unsigned int map = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_reached.cell,
-                                                                .offset = (embed_word)reached * sizeof(map),
-                                                                .dst = &map,
-                                                                .bytes = sizeof(map)});
-        const unsigned int properties = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                                   .map = map, .name = "properties");
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_reached.cell,
+                                                                     .offset = (embed_word)reached * sizeof(map),
+                                                                     .dst = &map,
+                                                                     .bytes = sizeof(map)});
+        const unsigned int properties =
+            EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = "properties");
         for (unsigned int one = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
                                            .node = properties, .type = CFG_JSON_OBJECT)
                                     ? json->node[properties].first
@@ -168,7 +165,8 @@ typedef struct
 
 static CliSchemaOffered s_values;
 
-// a value offered, a string's characters inside a string and its JSON outside one, with `detail`, where it is not offered
+// a value offered, a string's characters inside a string and its JSON outside one, with `detail`, where it is not
+// offered
 static void offer_value(const SchemaOfferCtx *args)
 {
     const CliJson *json = args->json;
@@ -259,10 +257,10 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
     for (unsigned int reached = 0u; reached < g_cli_schema_reached.count; reached += 1u)
     {
         unsigned int one = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_reached.cell,
-                                                                .offset = (embed_word)reached * sizeof(one),
-                                                                .dst = &one,
-                                                                .bytes = sizeof(one)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_schema_reached.cell,
+                                                                     .offset = (embed_word)reached * sizeof(one),
+                                                                     .dst = &one,
+                                                                     .bytes = sizeof(one)});
         static char s_detail[1u << 12u];
         VerbaLinea detail = {s_detail, sizeof(s_detail), 0ULL};
         EMBED_CALL(cli_schema_json_out_internal.detail, CliSchemaJsonOutCtx, .json = json, .schema = one,

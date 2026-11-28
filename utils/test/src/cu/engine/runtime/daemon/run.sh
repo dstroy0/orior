@@ -185,10 +185,10 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
     # the host's processors: tessera_run holds a host ticket around its command, beside the daemon it starts
     rm -f "$OUT/tessera_run$SUFFIX" "$OUT/tessera_burn$SUFFIX"
     RUN_OBJECTS=()
-    for name in tessera_run_{common,windows,posix,child,main}; do
-        object="$OUT/${name}_tessera.$OBJECT"
+    for source in "$MODULE"/tessera_run_{common,child,main}.c "${PLATFORM_TESSERA_RUN[@]}"; do
+        object="$OUT/$(basename "$source" .c)_tessera.$OBJECT"
         rm -f "$object"
-        build_host -c "$MODULE/$name.c" -o "$object"
+        build_host -c "$source" -o "$object"
         RUN_OBJECTS+=("$object")
     done
     build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DEVICE_LINK[@]}" \

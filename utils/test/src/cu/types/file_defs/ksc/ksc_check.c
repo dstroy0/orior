@@ -17,7 +17,7 @@
 //
 // It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/ksc/ksc.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "../../../../../../../includes/parsers/who.h"
 #include "cellularum_laboro/cellularum_laboro.h"

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_select.cu: admission, gather, count and scatter
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "max_tree_device_internal.h"
 
 __global__ static void max_tree_select_kernel(const unsigned int *residual, unsigned int voxels, unsigned int *admits)

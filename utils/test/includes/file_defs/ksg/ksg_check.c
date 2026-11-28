@@ -7,7 +7,7 @@
 // KSG_LINE_MAX of it; and the trailer contains the size, KSG_LINE_MAX, the count of leaves and the root. Exit 0 where
 // every one passed
 #include "../../../../../src/cu/engine/runtime/obsignatio/obsignatio_internal.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../../../../includes/file_defs/ksg/ksg.h"
 #include "verba_scribo/verba_scribo.h"
 

@@ -82,10 +82,11 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
         for (unsigned int one = 0u; !positioned && (one < args->session->positioned_count); one += 1u)
         {
             long long placed = 0LL;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->session->positioned_cell,
-                                                                    .offset = (unsigned long long)one * sizeof(placed),
-                                                                    .dst = &placed,
-                                                                    .bytes = sizeof(placed)});
+            (void)g_platform_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = args->session->positioned_cell,
+                                    .offset = (unsigned long long)one * sizeof(placed),
+                                    .dst = &placed,
+                                    .bytes = sizeof(placed)});
             positioned = placed == number;
         }
     }
@@ -120,7 +121,7 @@ EMBED_INLINE int data_stop_rewritten(const DebugEventsCtx *args)
                    .text_more = CLI_DEBUG_EVENT_MORE_TEXT, .err_msg = &err_msg, .owner = g_cli_debug_owner);
     const int written = EMBED_CALL(stop_rewritten, DebugEventsCtx, .session = args->session, .json = &json,
                                    .root = root, .out = args->out);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return written;
@@ -151,7 +152,7 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         {
             session->pid = pid;
         }
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
@@ -176,14 +177,14 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_POOL_BYTES});
     const unsigned long long rewritten_capacity = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ULL;
     char *const rewritten_cell =
-        stopped ? g_cli_guard->temporary_buf_alloc(rewritten_capacity, g_cli_debug_owner) : NULL;
+        stopped ? g_platform_guard->temporary_buf_alloc(rewritten_capacity, g_cli_debug_owner) : NULL;
     VerbaLinea rewritten_body = mmgr_line_over(rewritten_cell, rewritten_capacity);
     const int rewritten = stopped && EMBED_CALL(data_stop_rewritten, DebugEventsCtx, .session = session, .body = body,
                                                 .size = size, .out = &rewritten_body);
     EMBED_CALL(session->sink.emit, CliDebugEventCfg, .context = session->sink.context, .session = session->info.id,
                .event = event, .body = rewritten ? rewritten_body.out : body,
                .size = rewritten ? rewritten_body.at : size);
-    g_cli_guard->persistent_buf_release(rewritten_body.out, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(rewritten_body.out, g_cli_debug_owner);
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_POOL_BYTES}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it

@@ -234,8 +234,8 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
         return;
     }
     // the declarations in a cell of the call, one at most for each answer
-    CliDeclared *const list =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)args->answers * sizeof(CliDeclared), g_cli_plugins_owner);
+    CliDeclared *const list = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)args->answers * sizeof(CliDeclared), g_cli_plugins_owner);
     if (list == NULL)
     {
         return;
@@ -282,5 +282,5 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
         EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = message, .length = message_line.at, .lifted = NULL);
     }
-    g_cli_guard->persistent_buf_release(list, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(list, g_cli_plugins_owner);
 }

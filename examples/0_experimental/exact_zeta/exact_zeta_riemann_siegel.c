@@ -70,7 +70,7 @@
  * @note Drawn null: R left out, and the Gram signs and the gap read again.
  */
 #include "zeta_gram_walk.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_riemann_siegel.h"
 #include "zeta_shuffle.h"
 #include "zeta_theta.h"
@@ -683,7 +683,7 @@ static int past_zero(int64_t n)
  * @param[in]  n       The index of the curve.
  * @param[in]  m       The bits of the parts.
  * @param[in]  coarser The signs at j / 2^(m - 1), 2^(m - 1) + 1 of them, or NULL [BORROWS]. Each even j of the row
- *                     carries the sign at j / 2 of it, and only each odd j is read.
+ *                     carries the sign at j / 2 of it, and the call reads only each odd j.
  * @param[out] row     The signs [BORROWS]. 2^m + 1 of them.
  */
 static void sign_row(int64_t n, int64_t m, const int *coarser, int *row)
@@ -771,8 +771,8 @@ static size_t curve_zeros(int64_t n, int64_t bits, OriorExactInteger *found, int
         OriorExactInteger low;
         z_set(&low, changes[at]);
         int64_t depth = m + 1;
-        // the sign at the change, which the finer row holds: at 0 of an odd curve the row holds the sign past 0, and
-        // the sign at 0 itself is read
+        // the sign at the change, which the finer row holds. At 0 of an odd curve the row holds the sign past 0, and
+        // the loop reads the sign at 0 itself
         const int left = ((changes[at] == 0) && ((n % 2) != 0)) ? sign_at(n, &low, depth) : finer[changes[at]];
         while (depth < bits)
         {

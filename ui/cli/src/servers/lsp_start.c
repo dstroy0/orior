@@ -172,7 +172,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     // the server's options and the members around them
     const unsigned long long params_capacity =
         (CLI_PATH_MAX_LEN * 12ULL) + sizeof(s_capabilities) + args->length + 256ULL;
-    char *const params_text = g_cli_guard->temporary_buf_alloc(params_capacity, g_cli_servers_owner);
+    char *const params_text = g_platform_guard->temporary_buf_alloc(params_capacity, g_cli_servers_owner);
     VerbaLinea params = mmgr_line_over(params_text, params_capacity);
     EMBED_CALL(lsp_initialize_params, LspStartCtx, .root = args->root, .options = args->options, .length = args->length,
                .out = &params);
@@ -186,7 +186,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
         mmgr_line_ok(&params) && EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = lsp,
                                             .method = "initialize", .params = params.out, .length = params.at,
                                             .wait = CLI_LSP_STARTING, .answer = &answer, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(params_text, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(params_text, g_cli_servers_owner);
     if (!initialized)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 200u);
@@ -210,18 +210,18 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     const int has = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = answer.text, .size_value = answer.size,
                                .name = "capabilities", .start = &at, .length_pointer = &size);
     lsp->capabilities_size = has ? size : 4ULL;
-    lsp->capabilities = g_cli_guard->movable_buf_alloc(lsp->capabilities_size + 1ULL, g_cli_servers_owner);
+    lsp->capabilities = g_platform_guard->movable_buf_alloc(lsp->capabilities_size + 1ULL, g_cli_servers_owner);
     if (lsp->capabilities != NULL)
     {
         const char end = '\0';
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = lsp->capabilities,
-                                                                 .offset = 0ULL,
-                                                                 .src = has ? answer.text + at : "null",
-                                                                 .bytes = lsp->capabilities_size});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = lsp->capabilities,
+                                                                      .offset = 0ULL,
+                                                                      .src = has ? answer.text + at : "null",
+                                                                      .bytes = lsp->capabilities_size});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = lsp->capabilities, .offset = lsp->capabilities_size, .src = &end, .bytes = 1ULL});
     }
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unsent = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = lsp, .method = "initialized",

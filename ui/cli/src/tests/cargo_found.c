@@ -61,7 +61,7 @@ EMBED_INLINE const char *found_append(const CargoFoundCtx *args)
         const unsigned long long capacity =
             ((args->length + 1ULL) > CLI_CARGO_PIECE) ? (args->length + 1ULL) : CLI_CARGO_PIECE;
         // the piece is the find's own, given back as the call that found the tests ends
-        piece = g_cli_guard->temporary_buf_alloc(sizeof(*piece) + capacity, g_cli_cargo_owner);
+        piece = g_platform_guard->temporary_buf_alloc(sizeof(*piece) + capacity, g_cli_cargo_owner);
         if (piece == NULL)
         {
             args->tests->full = 1;
@@ -171,7 +171,7 @@ static void found_walk(const CargoFoundCtx *args)
         EMBED_CALL(cli_cargo_tests_internal.cargo_tokens, CliCargoTestsCtx, .text = (const char *)bytes, .size = size);
         count = EMBED_CALL(cli_cargo_tests_internal.cargo_scan, CliCargoTestsCtx, .text = (const char *)bytes);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_cargo_owner);
     for (unsigned int at = first; at < first + count; at += 1u)
     {
         if (g_cli_cargo_scan.items[at].test)
@@ -341,7 +341,7 @@ static void cargo_files_found(const CliFilesEachCfg *view)
                               .folder = package_folder, .text = (const char *)bytes, .size = size, .package = package,
                               .count = &target_count)
                  : NULL;
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_cargo_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_cargo_owner);
         if (!read)
         {
             continue;
@@ -376,20 +376,20 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
+        g_platform_guard->persistent_buf_release(piece, g_cli_cargo_owner);
         piece = next;
     }
-    g_cli_guard->persistent_buf_release(args->tests->found, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(args->tests->found, g_cli_cargo_owner);
     *args->tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
-    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
-    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);
     memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
     // the tests found are the call's own: its caller gives them back as it ends
-    args->tests->found = g_cli_guard->temporary_buf_alloc(
+    args->tests->found = g_platform_guard->temporary_buf_alloc(
         (unsigned long long)CLI_CARGO_FOUND * sizeof(*args->tests->found), g_cli_cargo_owner);
     args->tests->capacity = (args->tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
     const unsigned long long seen_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(*walk.seen);
-    char *const seen_cell = g_cli_guard->temporary_buf_alloc(seen_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
+    char *const seen_cell = g_platform_guard->temporary_buf_alloc(seen_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
     if (seen_cell != NULL)
     {
         walk.seen = (unsigned long long *)(void *)seen_cell;
@@ -401,8 +401,8 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
     (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->root, .each = cargo_files_found,
                      .context = &finding);
     cli_cargo_firsts_free();
-    g_cli_guard->persistent_buf_release(seen_cell, g_cli_cargo_owner);
-    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
-    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(seen_cell, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(g_cli_cargo_scan.items, g_cli_cargo_owner);
     memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
 }

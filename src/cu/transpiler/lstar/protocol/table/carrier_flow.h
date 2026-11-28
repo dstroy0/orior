@@ -16,7 +16,7 @@
 #define CARRIER_FLOW_H
 
 #include "../../../../../../includes/regexp/regexp.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../teacher/run_channel.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

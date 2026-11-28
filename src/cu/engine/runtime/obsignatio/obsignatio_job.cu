@@ -4,7 +4,7 @@
 // obsignatio_bits_job). The host crosses the bytes in, and each job runs in one cooperative launch. The lanes job takes
 // the chaining words of each level on the device, and the grid reduces them between syncs. The host crosses the flag
 // and the signa out. A part with CUDA alone compiles this file.
-#include "../../../../platform/platform_device.h"
+#include "../../../../../includes/platform/platform_device.h"
 #include "../daemon/tessera_job.h"
 #include "memoria_operor/memoria_operor.h"
 #include "obsignatio_internal.h"

@@ -66,8 +66,8 @@ typedef struct
     GuiRect rect;
 } GuiTitle;
 
-// The menu bar: the titles positioned, how many, and the place among the titles from which they are folded into the last; the
-// title the pointer is on, -1 for none; where each menu open is; and each menu's rows as they scroll: the
+// The menu bar: the titles positioned, how many, and the place among the titles from which they are folded into the
+// last; the title the pointer is on, -1 for none; where each menu open is; and each menu's rows as they scroll: the
 // pixels scrolled off its top, the height all its rows take, the serial of the menu they are scrolled in and the row
 // last marked in it, which was scrolled into view
 typedef struct
@@ -85,10 +85,10 @@ typedef struct
 
 // a menu bar holding no menus
 void gui_menubar_init(const GuiMenubarCfg *args);
-// the titles positioned across the frame's bar, as many as the window's width shows, the rest folded into the last, the menus
-// open following them; the titles as a stage of the claim's movement positioned them, `count` of them, the titles from
-// `folded_from` on folded, the menus open following the same way; and the menus open placed under their titles, or the
-// first at the place it was asked for, and beside their items
+// the titles positioned across the frame's bar, as many as the window's width shows, the rest folded into the last, the
+// menus open following them; the titles as a stage of the claim's movement positioned them, `count` of them, the titles
+// from `folded_from` on folded, the menus open following the same way; and the menus open placed under their titles, or
+// the first at the place it was asked for, and beside their items
 void gui_menubar_titles_layout(const GuiMenubarBarCfg *args);
 void gui_menubar_titles_alloc(const GuiMenubarFrameCfg *args);
 void gui_menubar_menus_layout(const GuiMenubarBarCfg *args);

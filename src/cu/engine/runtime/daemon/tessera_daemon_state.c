@@ -1,11 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_state.c: the daemon's lock, clocks, state file, history and tickets
-#include "../../../../platform/platform.h"
+// the internal header comes first, since it sets the macros of the system before any header
+#include "tessera_daemon_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
 #include "../../engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include "tessera_daemon_internal.h"
 
 _Alignas(8) static const char s_daemon_history[] = "history";
 _Alignas(8) static const char s_daemon_history_fresh[] = "history.fresh";
@@ -64,36 +66,13 @@ void daemon_signal_changed(void)
 
 unsigned long long daemon_now(void)
 {
-#if defined(_WIN32)
-    LARGE_INTEGER counter;
-    LARGE_INTEGER frequency;
-    QueryPerformanceCounter(&counter);
-    QueryPerformanceFrequency(&frequency);
-    // a performance counter and its frequency are positive
-    const unsigned long long ticks = (unsigned long long)counter.QuadPart;
-    // a performance counter and its frequency are positive
-    const unsigned long long rate = (unsigned long long)frequency.QuadPart;
-    return ((ticks / rate) * TESSERA_DAEMON_MILLION) + (((ticks % rate) * TESSERA_DAEMON_MILLION) / rate);
-#else
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * TESSERA_DAEMON_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
-#endif
+    // the platform's monotonic clock, which the timed wait of the daemon counts on too (daemon_wait_until)
+    return platform_clock_ns() / 1000ULL;
 }
 
 unsigned long long daemon_wall(void)
 {
-#if defined(_WIN32)
-    FILETIME now;
-    GetSystemTimeAsFileTime(&now);
-    return ((((unsigned long long)now.dwHighDateTime) << 32u) | now.dwLowDateTime) / 10ULL;
-#else
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    // a wall clock after the epoch has seconds and nanoseconds that are not negative
-    return ((unsigned long long)now.tv_sec * TESSERA_DAEMON_MILLION) + ((unsigned long long)now.tv_nsec / 1000ULL);
-#endif
+    return platform_epoch_microseconds();
 }
 
 void daemon_wait_until(unsigned long long when)
@@ -122,38 +101,6 @@ void daemon_wait_until(unsigned long long when)
     until.tv_nsec = (long)((when % TESSERA_DAEMON_MILLION) * 1000ULL);
     pthread_cond_timedwait(&g_daemon_changed, &s_daemon_lock, &until);
 #endif
-}
-
-int daemon_directories_make(const char *path)
-{
-    char walk[ENGINE_PATH_CAPACITY];
-    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
-    if (length >= sizeof(walk))
-    {
-        return 0;
-    }
-    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk, .src = path, .bytes = length + 1u);
-    for (size_t at = 1u; at <= length; at += 1u)
-    {
-        const int separator = (walk[at] == '/') || (walk[at] == '\\') || (walk[at] == '\0');
-        if (!separator || (walk[at - 1u] == ':'))
-        {
-            continue;
-        }
-        const char saved_char = walk[at];
-        walk[at] = '\0';
-#if defined(_WIN32)
-        const int made = (_mkdir(walk) == 0) || (errno == EEXIST);
-#else
-        const int made = (mkdir(walk, 0700) == 0) || (errno == EEXIST);
-#endif
-        walk[at] = saved_char;
-        if (!made)
-        {
-            return 0;
-        }
-    }
-    return 1;
 }
 
 int daemon_state_file(const char *name, char *path)
@@ -283,11 +230,7 @@ int daemon_history_save(void)
     ok = ok && (file != NULL) && (platform_file_write_items(bytes, 1u, (size_t)total, file) == (size_t)total);
     ok = (file != NULL) && (platform_file_close(file) == 0) && ok;
     platform_cell_released(bytes, platform_place_g_program_owner);
-#if defined(_WIN32)
-    ok = ok && (MoveFileExA(fresh, path, MOVEFILE_REPLACE_EXISTING) != 0);
-#else
-    ok = ok && platform_file_moved(fresh, path);
-#endif
+    ok = ok && (platform_file_relocated(fresh, path) == PLATFORM_MOVE_DONE);
     if (!ok)
     {
         EngineNote engine_note;
@@ -304,7 +247,7 @@ static int daemon_ticket_path(unsigned long long identity, const TesseraPeer *pe
 {
     char folder[ENGINE_PATH_CAPACITY];
     if (!tessera_path_lost(g_daemon.device, identity, &peer->signum, folder, ENGINE_PATH_CAPACITY) ||
-        (make && !daemon_directories_make(folder)))
+        (make && !platform_folders_made(folder, TESSERA_DAEMON_FOLDER_MODE)))
     {
         return 0;
     }

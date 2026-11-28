@@ -3,7 +3,7 @@
 // jet_rule.cu: stored functions and their relations, in one normal form (jet_rule.h)
 #include "jet_rule.h"
 
-#include "term_form.h"
+#include "record.h"
 
 // the places of the factors: the fixed ones, then constants and the derivatives of stored functions as they are named
 enum
@@ -512,7 +512,11 @@ std::string jet_rule_text(const JetRule &rule)
     std::string text;
     for (const auto &term : rule)
     {
-        text += term_book_rational(term.second);
+        char rational[RECORD_RATIONAL_ROOM];
+        VerbaLinea rational_line = {rational, sizeof(rational), 0ull};
+        record_rational(&rational_line, term.second);
+        (void)mmgr_line_finish(&rational_line);
+        text += rational;
         for (const JetRuleFactor &factor : term.first)
         {
             std::string name;

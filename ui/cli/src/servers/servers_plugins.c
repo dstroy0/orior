@@ -120,7 +120,7 @@ static void plugins_recv(const CliLspRecvCfg *args)
     char request[64];
     const int later = EMBED_CALL(cli_lsp.answer_later, CliLspCfg, .id = request, .capacity = sizeof(request));
     const unsigned long long capacity = args->size + 512ULL;
-    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
     VerbaLinea event = mmgr_line_over(text, (text != NULL) ? capacity : 0ULL);
     mmgr_line_put(&event, "{\"plugin\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &event,
@@ -140,7 +140,7 @@ static void plugins_recv(const CliLspRecvCfg *args)
         EMBED_CALL(plugin->sink.emit, CliEachEventJsonSizeCfg, .context = plugin->sink.context,
                    .event = "plugin-server", .json = text, .size = event.at);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_servers_owner);
 }
 
 // What one start of a plugin's server holds: the start's own arguments, the place that it takes, and whether its
@@ -210,14 +210,14 @@ static void plugins_started(const CliEachPluginCfg *args)
     {
         return;
     }
-    CliWords *const words = (CliWords *)g_cli_guard->temporary_buf_alloc(sizeof(CliWords), g_cli_servers_owner);
+    CliWords *const words = (CliWords *)g_platform_guard->temporary_buf_alloc(sizeof(CliWords), g_cli_servers_owner);
     const unsigned long long capacity = (start->length * 2ULL) + CLI_PATH_MAX_LEN + 16ULL;
-    char *const options = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    char *const options = g_platform_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
     if ((words == NULL) || (options == NULL))
     {
         mmgr_line_put(start->err_msg, "no room to start the plugin's server");
-        g_cli_guard->persistent_buf_release(words, g_cli_servers_owner);
-        g_cli_guard->persistent_buf_release(options, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(words, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(options, g_cli_servers_owner);
         return;
     }
     words->count = 0u;
@@ -248,8 +248,8 @@ static void plugins_started(const CliEachPluginCfg *args)
     plugin->lsp = lsp;
     plugin->used = (lsp != NULL);
     starting->started = (lsp != NULL);
-    g_cli_guard->persistent_buf_release(words, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(options, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(words, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(options, g_cli_servers_owner);
 }
 
 int cli_servers_plugin_start(const CliServersRootSinkCfg *args)
@@ -343,7 +343,7 @@ int cli_servers_plugin_request(const CliServersErrMsgCfg *args)
     {
         (void)mmgr_line_put_n(args->result, answer.text, answer.size);
     }
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     return done;
 }
 

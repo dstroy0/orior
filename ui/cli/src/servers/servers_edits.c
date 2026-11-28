@@ -261,7 +261,7 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
     EMBED_CALL(edits_walk, ServersEditsCtx, .editing = &editing, .json = args->json, .edit = edit);
     // the edits, on a boundary of their own, and the paths after them
     const unsigned long long edit_bytes = (unsigned long long)editing.edit_capacity * sizeof(CliServersEdit);
-    char *const cell = g_cli_guard->temporary_buf_alloc(
+    char *const cell = g_platform_guard->temporary_buf_alloc(
         edit_bytes + ((unsigned long long)editing.file_capacity * CLI_PATH_MAX_LEN) + 1ULL, g_cli_servers_edits_owner);
     if (cell != NULL)
     {
@@ -292,5 +292,5 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
         mmgr_line_put(args->out, "]}");
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_guard->persistent_buf_release(cell, g_cli_servers_edits_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_servers_edits_owner);
 }

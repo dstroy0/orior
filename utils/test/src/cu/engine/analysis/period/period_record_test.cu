@@ -13,8 +13,8 @@
 // one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/period/period.h"
 #include "../../../../../../../src/cu/engine/analysis/period/period_internal.h"
-#include "../../../../../../../src/platform/platform.h"
-#include "../../../../../../../src/platform/platform_device.h"
+#include "../../../../../../../includes/platform/platform.h"
+#include "../../../../../../../includes/platform/platform_device.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>

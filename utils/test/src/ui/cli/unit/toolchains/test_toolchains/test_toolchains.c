@@ -85,8 +85,8 @@ static void reader_groups_read(char *out, unsigned long long capacity)
         mmgr_line_put(&line, (group != NULL) ? group : "");
     }
     (void)mmgr_line_finish(&line);
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -168,18 +168,18 @@ void test_a_read_the_cells_refuse_reports_no_chosen_folder(void)
     // the pool filled to the word, in cells of a mebibyte, then of a page, then of a word: every take after refuses
     for (unsigned int size = 0u; size < 3u; size += 1u)
     {
-        void *cell = g_cli_guard->persistent_buf_alloc((size_t)s_fill_sizes[size], g_checks_owner);
+        void *cell = g_platform_guard->persistent_buf_alloc((size_t)s_fill_sizes[size], g_checks_owner);
         while ((cell != NULL) && (fills < FILLS_MAX))
         {
             s_fills[fills] = cell;
             fills += 1u;
-            cell = g_cli_guard->persistent_buf_alloc((size_t)s_fill_sizes[size], g_checks_owner);
+            cell = g_platform_guard->persistent_buf_alloc((size_t)s_fill_sizes[size], g_checks_owner);
         }
     }
     EMBED_CALL(cli_toolchains_context.chosen_each, CliToolchainsContextCfg, .each_callback = chosen_counted, .context = &reported);
     for (unsigned int at = 0u; at < fills; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(s_fills[at], g_checks_owner);
+        g_platform_guard->persistent_buf_release(s_fills[at], g_checks_owner);
     }
     TEST_ASSERT_EQUAL_UINT(0u, reported);
 }
@@ -234,8 +234,8 @@ void test_the_jobs_need_git_bash_and_python(void)
             mmgr_line_put(&line, (id != NULL) ? id : "");
         }
     }
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CLI_TEST_ASSERT_TEXT("git|bash|python", needed, line.at);
@@ -302,7 +302,7 @@ void test_the_next_search_reads_what_was_stored(void)
     EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 0, .seen = NULL, .context_read = NULL, .out = &out);
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_checks_owner);
     const int cached = EMBED_CALL(cli_toolchains_id_internal.found_cache, CliToolchainsIdCtx, .id = "git", .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = count, .found = &found);
-    g_cli_guard->persistent_buf_release(path, g_checks_owner);
+    g_platform_guard->persistent_buf_release(path, g_checks_owner);
     TEST_ASSERT_TRUE(cached);
 }
 
@@ -349,8 +349,8 @@ void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https
             paged = paged && (address != NULL) && cellul.starts(&(CatenaFinitaCfg){.src = address, .other = "https://", .cap = CLI_POOL_BYTES});
         }
     }
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_GREATER_THAN_UINT(0u, count);
@@ -469,7 +469,7 @@ void test_the_run_paths_folders_fill_the_processs_cell_at_their_count(void)
     if (expected != 0u)
     {
         char read[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell, .offset = 0u, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell, .offset = 0u, .dst = read, .bytes = CLI_PATH_MAX_LEN});
         TEST_ASSERT_EQUAL_STRING(first, read);
     }
     // a second reading fills the same cell: the process holds one
@@ -485,7 +485,7 @@ void test_the_systems_folders_fill_the_processs_cell(void)
     for (unsigned int at = 0u; at < folders.count; at += 1u)
     {
         char read[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .dst = read, .bytes = CLI_PATH_MAX_LEN});
         TEST_ASSERT_TRUE(read[0] != '\0');
     }
 }
@@ -538,8 +538,8 @@ void test_a_tool_in_a_chosen_folder_is_found_there_first(void)
     const unsigned int tool = EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json, .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &json, .nodes_more = 0u, .text_more = 0ull), .id = "ghdl", .err_msg = &err_msg);
     CliFound found;
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool, .path_callback = NULL, .count = 0u, .found = &found);
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, tool);
@@ -557,14 +557,14 @@ void test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_on
     char ahead[2][CLI_PATH_MAX_LEN];
     cli_unity_folder("toolchains_ahead", ahead[0]);
     memor.cpy(&(MemoriaCfg){.dst = ahead[1], .src = ahead[0], .bytes = sizeof(ahead[0])});
-    char *const path = g_cli_guard->persistent_buf_alloc(CLI_PATH_TEXT, g_checks_owner);
+    char *const path = g_platform_guard->persistent_buf_alloc(CLI_PATH_TEXT, g_checks_owner);
     TEST_ASSERT_NOT_NULL(path);
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg, .ahead = (const char (*)[CLI_PATH_MAX_LEN])ahead, .count = 2u, .path = path, .size = CLI_PATH_TEXT);
     const unsigned long long length = CLI_UNITY_LENGTH(ahead[0]);
     const int first = cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ahead[0], .cap = CLI_POOL_BYTES}) && (path[length] == TOOLCHAINS_SEPARATOR[0]);
     const int once = cellul.find(&(CatenaFinitaCfg){.src = path + length, .cap = CLI_POOL_BYTES, .other = ahead[0], .other_cap = CLI_POOL_BYTES}) == NULL;
     const int goes_on = path[length + 1u] != '\0';
-    g_cli_guard->persistent_buf_release(path, g_checks_owner);
+    g_platform_guard->persistent_buf_release(path, g_checks_owner);
     TEST_ASSERT_TRUE(first);
     TEST_ASSERT_TRUE(once);
     TEST_ASSERT_TRUE(goes_on);
@@ -605,7 +605,7 @@ void test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_
     TEST_ASSERT_TRUE(cli_toolchains_paths_add(&(CliToolchainsPathsCfg){.paths = &paths, .path = "/second"}));
     TEST_ASSERT_EQUAL_UINT(2u, paths.count);
     TEST_ASSERT_NOT_NULL(paths.cell);
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = paths.cell, .offset = CLI_PATH_MAX_LEN, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = paths.cell, .offset = CLI_PATH_MAX_LEN, .dst = read, .bytes = CLI_PATH_MAX_LEN});
     TEST_ASSERT_EQUAL_STRING("/second", read);
     cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &paths});
     TEST_ASSERT_NULL(paths.cell);
@@ -618,7 +618,7 @@ void test_a_path_list_grows_in_its_cell_and_is_given_back_and_the_paths_folders_
     TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = read));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "v*", .joined = pattern);
     TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_toolchains_count.folders_get, CliToolchainsCountCfg, .pattern = pattern, .paths = &paths));
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = paths.cell, .offset = 0u, .dst = read, .bytes = CLI_PATH_MAX_LEN});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = paths.cell, .offset = 0u, .dst = read, .bytes = CLI_PATH_MAX_LEN});
     TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = read, .size = CLI_UNITY_LENGTH(read), .suffix = "v1.10"));
     cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &paths});
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, EMBED_CALL(cli_toolchains_count.path_folders, CliToolchainsCountCfg, .folders = s_folders, .capacity = 256u));

@@ -256,10 +256,10 @@ void cli_toolchains_groups(const CliToolchainsEachCfg *args)
                .tools = &added_tools);
     EMBED_CALL(cli_groups_get, ToolchainsAddedCtx, .bundled = &bundled, .tools_value = tools, .json_read = &json,
                .added_tools = added_tools, .added_groups = groups, .each = each, .context = context);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(bundled.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), bundled.node));
+    g_platform_guard->persistent_buf_release(bundled.node, mmgr_owner_of_buf(platform_pool_series(), bundled.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&bundled),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -514,11 +514,10 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
     }
     if (refused != NULL)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(bundled.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), bundled.node));
+        g_platform_guard->persistent_buf_release(bundled.node, mmgr_owner_of_buf(platform_pool_series(), bundled.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&bundled),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(args->err_msg, (refused[0] == '\0') ? "there is a toolchain " : name);
@@ -543,10 +542,10 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
                .value = made);
     const int saved = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &json,
                                  .node = added, .path_read = path, .sorted = 0, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(bundled.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), bundled.node));
+    g_platform_guard->persistent_buf_release(bundled.node, mmgr_owner_of_buf(platform_pool_series(), bundled.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&bundled),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return saved;
@@ -648,12 +647,12 @@ int cli_toolchains_add_group(const CliToolchainsErrMsgNameCfg *args)
         done = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &s_read.json,
                           .node = s_read.added, .path_read = s_read.path, .sorted = 0, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(s_read.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_platform_guard->persistent_buf_release(s_read.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_read.bundled.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.bundled.node));
+    g_platform_guard->persistent_buf_release(s_read.bundled.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.bundled.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.bundled),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;
@@ -677,12 +676,12 @@ int cli_toolchains_remove(const CliToolchainsIdErrMsgCfg *args)
         done = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &s_read.json,
                           .node = s_read.added, .path_read = s_read.path, .sorted = 0, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(s_read.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_platform_guard->persistent_buf_release(s_read.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_read.bundled.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.bundled.node));
+    g_platform_guard->persistent_buf_release(s_read.bundled.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.bundled.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.bundled),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done && cli_toolchains_id_err_msg.forget(args);
@@ -713,12 +712,12 @@ int cli_toolchains_remove_group(const CliToolchainsErrMsgNameCfg *args)
         done = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &s_read.json,
                           .node = s_read.added, .path_read = s_read.path, .sorted = 0, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(s_read.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_platform_guard->persistent_buf_release(s_read.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_read.bundled.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.bundled.node));
+    g_platform_guard->persistent_buf_release(s_read.bundled.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.bundled.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.bundled),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;
@@ -732,12 +731,12 @@ int cli_toolchains_on_add(const CliToolchainsIdFolderCfg *args)
     const int added = EMBED_CALL(cli_added_read, ToolchainsAddedCtx, .read = &s_read, .err_msg = &err_msg) &&
                       EMBED_CALL(cli_list_contains, ToolchainsAddedCtx, .json_read = &s_read.json,
                                  .list = s_read.added_tools, .key = "id", .text = args->id);
-    g_cli_guard->persistent_buf_release(s_read.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.json.node));
+    g_platform_guard->persistent_buf_release(s_read.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_read.bundled.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_read.bundled.node));
+    g_platform_guard->persistent_buf_release(s_read.bundled.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_read.bundled.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_read.bundled),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return added;

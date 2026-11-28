@@ -39,10 +39,10 @@ typedef struct
 EMBED_INLINE char *recent_text_copy(const RecentCtx *args)
 {
     const RecentList *const list = &s_recent[args->list];
-    char *const copy = (list->text != NULL) ? g_cli_guard->temporary_buf_alloc(list->bytes, args->owner) : NULL;
+    char *const copy = (list->text != NULL) ? g_platform_guard->temporary_buf_alloc(list->bytes, args->owner) : NULL;
     if (copy != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = list->text, .offset = 0ULL, .dst = copy, .bytes = list->bytes});
     }
     return copy;
@@ -66,12 +66,12 @@ EMBED_INLINE void recent_positioned(const RecentCtx *args)
         at = end + 1ULL;
     }
     // the entries positioned in a temporary cell, then written whole into a movable cell of the list's own
-    char *const cell = (bytes != 0ULL) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_machine_owner) : NULL;
+    char *const cell = (bytes != 0ULL) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_machine_owner) : NULL;
     const CarcerMovableEntry *const retained =
-        (cell != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_machine_owner) : NULL;
+        (cell != NULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_machine_owner) : NULL;
     if ((bytes != 0ULL) && (retained == NULL))
     {
-        g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
+        g_platform_guard->persistent_buf_release(cell, g_cli_machine_owner);
         return;
     }
     unsigned int positioned = 0u;
@@ -94,11 +94,11 @@ EMBED_INLINE void recent_positioned(const RecentCtx *args)
     }
     if (retained != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = retained, .offset = 0ULL, .src = cell, .bytes = bytes});
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_machine_owner);
-    (void)g_cli_guard->movable_buf_release(list->text, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_machine_owner);
+    (void)g_platform_guard->movable_buf_release(list->text, g_cli_machine_owner);
     list->text = retained;
     list->bytes = bytes;
     list->count = positioned;
@@ -124,14 +124,14 @@ EMBED_INLINE void recent_read(const RecentCtx *args)
     const unsigned long long size =
         cli_state_entry_size(&(CliStateEntryCfg){.entries = &entries, .key = s_recent_keys[args->list]});
     char *const value =
-        (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_machine_owner) : NULL;
+        (size != CLI_STATE_NONE) ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_machine_owner) : NULL;
     if ((value != NULL) &&
         (cli_state_entry_value(&(CliStateEntryCfg){
              .entries = &entries, .key = s_recent_keys[args->list], .out = value, .capacity = size + 1ULL}) != NULL))
     {
         EMBED_CALL(recent_positioned, RecentCtx, .list = args->list, .text = value, .length = size);
     }
-    g_cli_guard->persistent_buf_release(value, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(value, g_cli_machine_owner);
     cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
 }
 
@@ -159,10 +159,10 @@ void cli_recent_push(const CliRecentCfg *args)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = text + list->start[at], .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     }
-    char *const joined = g_cli_guard->temporary_buf_alloc(bytes + CLI_ERR_MSG_MAX_LEN, g_cli_machine_owner);
+    char *const joined = g_platform_guard->temporary_buf_alloc(bytes + CLI_ERR_MSG_MAX_LEN, g_cli_machine_owner);
     if (joined == NULL)
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_machine_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_machine_owner);
         return;
     }
     VerbaLinea line = {joined, bytes, 0ULL};
@@ -185,8 +185,8 @@ void cli_recent_push(const CliRecentCfg *args)
         (void)cli_state_value_save(&(CliStateValueCfg){
             .folder = folder, .key = s_recent_keys[args->list], .value = joined, .err_msg = &err_msg});
     }
-    g_cli_guard->persistent_buf_release(joined, g_cli_machine_owner);
-    g_cli_guard->persistent_buf_release(text, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(joined, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_machine_owner);
 }
 
 unsigned long long cli_recent_bytes(const CliRecentCfg *args)
@@ -209,7 +209,7 @@ unsigned int cli_recent_read(const CliRecentCfg *args)
     }
     const RecentList *const list = &s_recent[args->list];
     // the entries read out of this module's cell into the caller's buffer, the rows located in it
-    if (!g_cli_guard->movable_buf_read(
+    if (!g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = list->text, .offset = 0ULL, .dst = args->text_out, .bytes = bytes}))
     {
         return 0u;

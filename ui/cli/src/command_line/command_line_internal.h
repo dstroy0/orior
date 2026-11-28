@@ -66,8 +66,8 @@ int cli_job_values(const CliCommandLineCatalogCtx *args);
 void cli_job_subject(const CliCommandLineCatalogJobCtx *args);
 
 // the tree's tests listed, each with its line, or as JSON with `--json`; the tree's jobs listed, those that contain
-// `word` where it is given; a job displayed; and a job run here, reported to the window where a terminal of the window's
-// started this, each giving the code to exit with (command_line_jobs.c)
+// `word` where it is given; a job displayed; and a job run here, reported to the window where a terminal of the
+// window's started this, each giving the code to exit with (command_line_jobs.c)
 int cli_tests_list(const CliCommandLineRootCtx *args);
 int cli_jobs_list(const CliCommandLineWordCtx *args);
 void cli_job_show(const CliCommandLineRootCtx *args);
@@ -77,14 +77,14 @@ int cli_job_run(const CliCommandLineRootCtx *args);
 
 // the jobs of the menu's groups, their places in the catalog into `list_entries`, sized for CLI_LINE_JOBS: their count;
 // a menu's commands and the jobs of a menu of jobs listed, as `imp <menu>` alone shows them, its jobs from the
-// tree at `root`, NULL where there is none; and a job of a menu of jobs displayed, as the window shows it on choosing, each
-// giving the code to exit with (command_line_menus.c)
+// tree at `root`, NULL where there is none; and a job of a menu of jobs displayed, as the window shows it on choosing,
+// each giving the code to exit with (command_line_menus.c)
 unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args);
 int cli_menu_lines(const CliCommandLineWordCtx *args);
 int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args);
 
-// the keys of the bridge listed, those that contain `word` where it is given, or the one it names displayed whole: the code
-// to exit with (command_line_bridge.c)
+// the keys of the bridge listed, those that contain `word` where it is given, or the one it names displayed whole: the
+// code to exit with (command_line_bridge.c)
 int cli_bridge_words(const CliCommandLineWordCtx *args);
 
 // the help, made from the menus, written into `out`; the keys of every command that has some, by menu; the words that

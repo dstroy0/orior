@@ -1,4 +1,4 @@
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>

@@ -4,7 +4,7 @@
 // from its LZ4 archive, and the latencies gathered from the copies out of their buffer
 #include "funnel.h"
 #include "../../../../../../includes/parsers/line_read.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

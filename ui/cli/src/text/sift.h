@@ -3,7 +3,8 @@
 // sift.h: where a needle of bytes is in a text (sift.c): every offset the needle is at, each passed to the
 // caller in order, the alignments overlapping. Each start comes from the library's byte find for the needle's first
 // byte and is proven by its bounded compare, so a zero byte in the text or the needle is a byte like any other. A
-// needle searched without case is searched in ASCII case: each character of the text and of the needle to its lower case
+// needle searched without case is searched in ASCII case: each character of the text and of the needle to its lower
+// case
 #ifndef SIFT_H
 #define SIFT_H
 #include "../command_line/callback_cfg.h"

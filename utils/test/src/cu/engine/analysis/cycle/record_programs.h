@@ -9,7 +9,7 @@
 // digest that two parts' lines compare. It compiles as C and as C++
 
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../includes/exact_types/integers/exact_integer.h"

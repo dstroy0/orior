@@ -24,7 +24,7 @@
 #include <ws2tcpip.h>
 
 #include "cuda_miner.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 #include "json_value.h"
 #include "sha256_core.h"
 

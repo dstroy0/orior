@@ -43,8 +43,8 @@ int cli_plugin_catalog_lock(const CliPluginCatalogCtx *args)
 
 unsigned int cli_plugin_catalog_tree(const CliPluginCatalogCtx *args)
 {
-    g_cli_guard->persistent_buf_release(g_cli_catalog->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_catalog->json.node));
+    g_platform_guard->persistent_buf_release(g_cli_catalog->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_catalog->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_catalog->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,

@@ -69,8 +69,8 @@ const char *cli_test_rule_value(const CliTestingRulesRuleCfg *args);
 int cli_test_rules_in(const CliTestingRulesCfg *args);
 void cli_test_rules_get(const CliTestingRulesCfg *args);
 
-// whether `size` bytes of `name` match the glob `pattern`, its `*` any run of characters and its `?` any one; and whether
-// they match one of the values of `rule`, a value with neither by starting with it
+// whether `size` bytes of `name` match the glob `pattern`, its `*` any run of characters and its `?` any one; and
+// whether they match one of the values of `rule`, a value with neither by starting with it
 int cli_test_glob(const CliTestingSizeCfg *args);
 int cli_test_by_name(const CliTestingRulesRuleSizeCfg *args);
 

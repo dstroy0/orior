@@ -96,7 +96,7 @@
 #endif
 
 #include "divide.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "faces.h"
 #include "output.h"
 #include "scan.h"

@@ -67,7 +67,7 @@ LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
 # The ruleset reader reads the blob of a ruleset through the member reader of a query file, as the engine does
 shared_objects_built SHARED_WORDS "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" \
     "$CYCLE/cycle.c" "$EXACT_RECORD/exact_record.c" "$TOP/includes/file_defs/qry/writer/qry_member.c" \
-    "$TOP/includes/file_defs/qry/writer/platform/"*.c "$TOP/includes/file_defs/qry/qry_read.c" || exit 1
+    "${PLATFORM_QRY_RUN[@]}" "$TOP/includes/file_defs/qry/qry_read.c" || exit 1
 OBJECTS=("${LINEA_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
 # the test is a job on the device's tessera daemon, built beside it
 tessera_build "${LINEA_OBJECTS[@]}" || exit 1

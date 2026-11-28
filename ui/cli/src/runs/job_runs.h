@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // job_runs.h: the Run pane as the CLI carries it. The tree's jobs listed by their group, each group opened or closed,
 // those whose id, title or about contain the filter typed alone; under the job chosen its file and about, a field
-// each param, the choices of the param focused under it, a row each run of the job and under the run displayed its lines,
-// each plain with its color spans as the xterm reads them, and the end of a run that ended. A job is started with the
-// form's values, refused with the runner's sentence where they do not do, and stopped; its runs' threads store what
-// they report under a lock and wake the view's thread, whose step takes it into the rows. The rows are in sections,
-// each its first row, and a row is found by a binary search over those starts; the counts change as the data changes
-// (job_runs.c the store, the sink and the runs; job_runs_rows.c the sections and the rows; job_runs_form.c the filter
-// and the form)
+// each param, the choices of the param focused under it, a row each run of the job and under the run displayed its
+// lines, each plain with its color spans as the xterm reads them, and the end of a run that ended. A job is started
+// with the form's values, refused with the runner's sentence where they do not do, and stopped; its runs' threads store
+// what they report under a lock and wake the view's thread, whose step takes it into the rows. The rows are in
+// sections, each its first row, and a row is found by a binary search over those starts; the counts change as the data
+// changes (job_runs.c the store, the sink and the runs; job_runs_rows.c the sections and the rows; job_runs_form.c the
+// filter and the form)
 #ifndef CLI_RUNS_JOB_RUNS_H
 #define CLI_RUNS_JOB_RUNS_H
 #include "../command_line/catalog.h"
@@ -41,8 +41,8 @@ typedef struct CliJobRunsRunCfg CliJobRunsRunCfg;
 #define CLI_JOB_RUN_END 7u
 
 // a row's flags: a group open, the job chosen or a choice taken, a run going or a job with one going, a param
-// required, the field that takes the keys, a param's default displayed for its empty value, a run that ended with 0, one
-// that ended otherwise or was stopped, and the run displayed
+// required, the field that takes the keys, a param's default displayed for its empty value, a run that ended with 0,
+// one that ended otherwise or was stopped, and the run displayed
 #define CLI_JOB_RUN_OPEN 0x001u
 #define CLI_JOB_RUN_CHOSEN 0x002u
 #define CLI_JOB_RUN_LIVE 0x004u

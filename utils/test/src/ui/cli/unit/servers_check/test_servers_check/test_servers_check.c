@@ -79,7 +79,7 @@ void test_every_file_is_listing_in_order(void)
         at += CLI_UNITY_LENGTH(file) + 1ull;
     }
     TEST_ASSERT_EQUAL_UINT(CHECK_FILES, count);
-    g_cli_guard->persistent_buf_release(list_entries, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(list_entries, g_cli_servers_owner);
 }
 
 void test_another_tree_lists_no_files(void)

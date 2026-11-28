@@ -45,7 +45,7 @@
 // In `costs`, the file holds both. First come the places of the kernel, as `gate` puts them out. Then come the forms
 // that the part answered for, as `final` puts them out. A costs question is a form, written many times over from the
 // probe place inside the places of the kernel. The gate then reads a costs question as stored whole.
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_machine_write/khw_machine_write_internal.h"
 #include "khw_machine_write/opening.h"

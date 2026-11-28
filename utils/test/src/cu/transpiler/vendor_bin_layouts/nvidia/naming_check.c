@@ -14,7 +14,7 @@
 //
 //     naming_check <mnemonics>
 #include "../../../../../../../includes/file_defs/khw/khw_machine_write/khw_machine_write_internal.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

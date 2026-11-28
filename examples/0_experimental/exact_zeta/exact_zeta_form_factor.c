@@ -28,7 +28,7 @@
  *       It reads how the zeros hold to one another.
  */
 #include "zeta_shuffle.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_tension.h"
 
 #include <math.h>

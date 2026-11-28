@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // broken.cu: the broken: ours checked against the answer question by question, each place they part traced to the forms
 // that wrote it
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // one link of ours alone in a question nvcc makes in fewer steps, a step a fold takes away. A form whose text writes

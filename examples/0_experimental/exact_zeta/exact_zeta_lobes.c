@@ -30,7 +30,7 @@
  *       2 artanh(l / D).
  */
 #include "zeta_riemann_siegel.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

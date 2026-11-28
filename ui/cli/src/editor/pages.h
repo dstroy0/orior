@@ -38,8 +38,9 @@ void cli_pages_release(const CliPagesCfg *args);
 
 // A view of a paged text as the page reports it, each frame it moves and once as it rests: the line at its top, the
 // rows it shows, the characters across it reaches, the lines the minimap is beside from `map_from` to before `map_to`,
-// the lines the page holds from `cached_from` to before `cached_to`, cut after `cached_cut` characters, 0 where whole, and
-// the characters a row holds where it wraps its lines, each line as many rows as those characters fill, 0 where it does not
+// the lines the page holds from `cached_from` to before `cached_to`, cut after `cached_cut` characters, 0 where whole,
+// and the characters a row holds where it wraps its lines, each line as many rows as those characters fill, 0 where it
+// does not
 typedef struct
 {
     unsigned long long top;
@@ -71,8 +72,8 @@ typedef struct
 // later at the step it moved since the last, and where it is where that step is no more than its rows,
 // CLI_PAGE_EDGE about them, cut at its reach. Nothing where the page holds those already. A step of lines toward the
 // ends of the page's is no more than CLI_PAGE_REMAINDER_BYTES of their bytes reach, one at the least; and a view that
-// wraps its lines is placed the lines its rows take of those about them, each line as many rows as its characters fill at
-// the view's width, a step as it moves no more than fill the rows placed. 1, or 0 where none is stored under the key
+// wraps its lines is placed the lines its rows take of those about them, each line as many rows as its characters fill
+// at the view's width, a step as it moves no more than fill the rows placed. 1, or 0 where none is stored under the key
 int cli_pages_on_view(const CliPagesViewCfg *args);
 // how many lines the paged text under `key` contains as far as its index has read, into `lines`, and whether the index
 // is whole, into `whole`: 1, or 0 where none is stored under the key; and its lines from `from` to before `to` as far

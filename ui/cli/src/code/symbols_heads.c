@@ -518,11 +518,11 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
                                           .length = args->length, .head = args->head);
     if (counted == args->head->line)
     {
-        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         read.leaf = NULL;
         read.count = 0u;
         read.capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
     return found;
 }

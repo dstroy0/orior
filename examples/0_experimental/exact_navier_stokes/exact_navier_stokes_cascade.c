@@ -16,7 +16,7 @@
  *       the radius of analyticity needs infinitely many orders, and no finite order reaches it.
  * @note Run build_exact_navier_stokes.sh cascade, beside this file.
  */
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "torus_fields.h"
 

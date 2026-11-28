@@ -79,13 +79,13 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
     }
     (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &s_jobs->parts,
                      .max = EMBED_CALL(cli_catalog_capacity_internal.driver_parts, CliCatalogCapacityCtx,
-                                        .source = text, .parts = NULL, .capacity = 0u));
+                                       .source = text, .parts = NULL, .capacity = 0u));
     const unsigned int parts =
         (s_jobs->parts.name != NULL)
             ? EMBED_CALL(cli_catalog_capacity_internal.driver_parts, CliCatalogCapacityCtx, .source = text,
                          .parts = s_jobs->parts.name, .capacity = s_jobs->parts.capacity)
             : 0u;
-    g_cli_guard->persistent_buf_release(text, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_catalog_owner);
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = source, .relative_out = file);
     char *const reserved = EMBED_CALL(cli_catalog_path_internal.about_alloc, CliCatalogPathCtx, .path = source);
     const char *const about = (reserved != NULL) ? reserved : "";
@@ -182,7 +182,7 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
     EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS, .a = "arguments",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
-    g_cli_guard->persistent_buf_release(reserved, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(reserved, g_cli_catalog_owner);
 }
 
 // The other runners: the Navier-Stokes programs on their cfgs and the qasm circuits
@@ -200,15 +200,15 @@ EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
     {
         (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &s_jobs->parts,
                          .max = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
-                                            .text_read = text, .variable = "PROGRAM", .names_callback = NULL,
-                                            .capacity = 0u));
+                                           .text_read = text, .variable = "PROGRAM", .names_callback = NULL,
+                                           .capacity = 0u));
         const unsigned int programs =
             (s_jobs->parts.name != NULL)
                 ? EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
                              .text_read = text, .variable = "PROGRAM", .names_callback = s_jobs->parts.name,
                              .capacity = s_jobs->parts.capacity)
                 : 0u;
-        g_cli_guard->persistent_buf_release(text, g_cli_catalog_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_catalog_owner);
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
                    .name = "examples/navier_stokes/cfg", .path_out = folder);
         const unsigned int configs =
@@ -465,7 +465,7 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
                 : NULL;
         EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = "pipeline",
                    .title = name, .file = file, .about = (about != NULL) ? about : "", .opens = "");
-        g_cli_guard->persistent_buf_release(about, g_cli_catalog_owner);
+        g_platform_guard->persistent_buf_release(about, g_cli_catalog_owner);
         for (unsigned int each = 0u; each < every; each += 1u)
         {
             EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
@@ -510,7 +510,7 @@ static unsigned int cli_collect(const CatalogJobsCtx *args)
         count = EMBED_CALL(cli_collect, CatalogJobsCtx, .under = dir, .name = name, .count = count,
                            .depth = args->depth + 1u);
     }
-    g_cli_guard->persistent_buf_release((&s_jobs->dirs[args->depth])->name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release((&s_jobs->dirs[args->depth])->name, g_cli_catalog_owner);
     (&s_jobs->dirs[args->depth])->name = NULL;
     (&s_jobs->dirs[args->depth])->count = 0u;
     (&s_jobs->dirs[args->depth])->capacity = 0u;
@@ -551,7 +551,7 @@ EMBED_INLINE void cli_tests(const CatalogJobsCtx *args)
 
 void cli_catalog_read(const CliCatalogRootCfg *args)
 {
-    s_jobs = g_cli_guard->temporary_buf_alloc(sizeof(*s_jobs), g_cli_catalog_owner);
+    s_jobs = g_platform_guard->temporary_buf_alloc(sizeof(*s_jobs), g_cli_catalog_owner);
     if (s_jobs == NULL)
     {
         return;
@@ -567,35 +567,35 @@ void cli_catalog_read(const CliCatalogRootCfg *args)
     EMBED_CALL(cli_views, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
     EMBED_CALL(cli_stages, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
     EMBED_CALL(cli_tests, CatalogJobsCtx, .root = args->root, .catalog = args->catalog);
-    g_cli_guard->persistent_buf_release(s_jobs->runs.path, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(s_jobs->runs.path, g_cli_catalog_owner);
     s_jobs->runs.path = NULL;
     s_jobs->runs.capacity = 0u;
-    g_cli_guard->persistent_buf_release(s_jobs->parts.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(s_jobs->parts.name, g_cli_catalog_owner);
     s_jobs->parts.name = NULL;
     s_jobs->parts.count = 0u;
     s_jobs->parts.capacity = 0u;
-    g_cli_guard->persistent_buf_release(s_jobs->paths.path, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(s_jobs->paths.path, g_cli_catalog_owner);
     s_jobs->paths.path = NULL;
     s_jobs->paths.capacity = 0u;
-    g_cli_guard->persistent_buf_release(s_jobs->subjects.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(s_jobs->subjects.name, g_cli_catalog_owner);
     s_jobs->subjects.name = NULL;
     s_jobs->subjects.count = 0u;
     s_jobs->subjects.capacity = 0u;
-    g_cli_guard->persistent_buf_release(s_jobs->inner.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(s_jobs->inner.name, g_cli_catalog_owner);
     s_jobs->inner.name = NULL;
     s_jobs->inner.count = 0u;
     s_jobs->inner.capacity = 0u;
-    g_cli_guard->persistent_buf_release(s_jobs->files.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(s_jobs->files.name, g_cli_catalog_owner);
     s_jobs->files.name = NULL;
     s_jobs->files.count = 0u;
     s_jobs->files.capacity = 0u;
     for (unsigned int depth = 0u; depth < 17u; depth += 1u)
     {
-        g_cli_guard->persistent_buf_release((&s_jobs->dirs[depth])->name, g_cli_catalog_owner);
+        g_platform_guard->persistent_buf_release((&s_jobs->dirs[depth])->name, g_cli_catalog_owner);
         (&s_jobs->dirs[depth])->name = NULL;
         (&s_jobs->dirs[depth])->count = 0u;
         (&s_jobs->dirs[depth])->capacity = 0u;
     }
-    g_cli_guard->persistent_buf_release(s_jobs, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(s_jobs, g_cli_catalog_owner);
     s_jobs = NULL;
 }

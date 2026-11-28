@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // questions.cu: the values a case is made of, a run's blobs read as text, and the links and questions the stick's
 // manifest lists
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // the operations that transfer control or wait, which cubin_safe.h's rule 2 blocks from the part. No question that

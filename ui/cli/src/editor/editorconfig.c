@@ -276,7 +276,7 @@ EMBED_INLINE unsigned int cli_folders_found(const EditorconfigCtx *args)
             folders += 1u;
             // the file's bytes read as text: a char and an unsigned char share their width
             going = !EMBED_CALL(cli_is_root, EditorconfigCtx, .text = (const char *)bytes, .size = size);
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
         }
         going = going && !top;
         end = cut - 1ULL;
@@ -312,7 +312,7 @@ EMBED_INLINE void cli_folders_read(const EditorconfigCtx *args)
             EMBED_CALL(cli_sections_read, EditorconfigCtx, .text = (const char *)bytes, .size = size,
                        .relative = relative, .name = args->name, .style = args->style, .size_value = args->size_value,
                        .width = args->width);
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
         }
     }
 }

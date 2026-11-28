@@ -94,7 +94,7 @@ int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args)
     if (leaved && (read.count != 0u))
     {
         tokens->at =
-            g_cli_guard->temporary_buf_alloc((unsigned long long)read.count * sizeof(CliSqlToken), g_cli_db_owner);
+            g_platform_guard->temporary_buf_alloc((unsigned long long)read.count * sizeof(CliSqlToken), g_cli_db_owner);
         taken = tokens->at != NULL;
         for (unsigned int at = 0u; taken && (at < read.count); at += 1u)
         {
@@ -107,13 +107,13 @@ int cli_sql_tokens(const CliSqlTextLengthDialectCfg *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     return taken;
 }
 
 void cli_sql_tokens_free(const CliSqlTextLengthDialectCfg *args)
 {
-    g_cli_guard->persistent_buf_release(args->tokens->at, g_cli_db_owner);
+    g_platform_guard->persistent_buf_release(args->tokens->at, g_cli_db_owner);
     *args->tokens = (CliSqlTokens){NULL, 0u};
 }
 

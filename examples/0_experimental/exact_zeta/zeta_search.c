@@ -11,7 +11,7 @@
  *       the midpoint into the path. An edge is final where the readings agree and every verdict is positive.
  */
 #include "zeta_search.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

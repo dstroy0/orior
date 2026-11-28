@@ -122,8 +122,8 @@ typedef struct
     int displayed;
 } CliDebugBarItem;
 
-// The field under the views: the text typed and its bytes, the placeholder displayed while it is empty and its bytes, and
-// whether the view displayed has a field
+// The field under the views: the text typed and its bytes, the placeholder displayed while it is empty and its bytes,
+// and whether the view displayed has a field
 typedef struct
 {
     const char *text;
@@ -179,8 +179,8 @@ unsigned int cli_debug_pane_rows(const CliDebugPaneViewCfg *args);
 int cli_debug_pane_row(const CliDebugPaneViewCfg *args);
 int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args);
 int cli_debug_pane_press(const CliDebugPaneViewCfg *args);
-// the view displayed, one of CLI_DEBUG_VIEW_FRAMES and the rest; `view` displayed; and the label of `view`, its bytes into
-// `length_out`
+// the view displayed, one of CLI_DEBUG_VIEW_FRAMES and the rest; `view` displayed; and the label of `view`, its bytes
+// into `length_out`
 unsigned int cli_debug_pane_displayed(const CliDebugPaneViewCfg *args);
 void cli_debug_pane_view_set(const CliDebugPaneViewCfg *args);
 const char *cli_debug_pane_label(const CliDebugPaneViewCfg *args);
@@ -252,8 +252,8 @@ EMBED_TABLE_STORAGE CliDebugPaneBarNs cli_debug_pane_bar EMBED_UNUSED = {
     .status = cli_debug_pane_status,
 };
 
-// the field of the view displayed into `field_out`; `size` bytes of `text` typed at its end; and the key `name` pressed in
-// it for the tree at `root`: Enter adds the text as a watch in Variables and evaluates it in the chosen frame in
+// the field of the view displayed into `field_out`; `size` bytes of `text` typed at its end; and the key `name` pressed
+// in it for the tree at `root`: Enter adds the text as a watch in Variables and evaluates it in the chosen frame in
 // Console, the field emptied, and Backspace erases its last character: 1 where the key was taken
 void cli_debug_pane_field(const CliDebugPaneInputCfg *args);
 void cli_debug_pane_type(const CliDebugPaneInputCfg *args);

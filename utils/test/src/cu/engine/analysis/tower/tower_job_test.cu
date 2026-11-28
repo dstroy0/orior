@@ -6,7 +6,7 @@
 // The lower as one job (tower_lower_job) gives the lanes back after the lift job, and lowers a changed crystal as
 // tower_lower lowers it
 #include "../../../../../../../src/cu/engine/analysis/tower/tower.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

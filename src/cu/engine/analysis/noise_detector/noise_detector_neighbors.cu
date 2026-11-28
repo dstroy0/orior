@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_neighbors.cu: neighbor correlation
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "noise_detector_internal.h"
 
 static const char *const NOISE_RANGE_NAMES[NOISE_NEIGHBOR_RADII] = {"z", "y", "x", "z2", "z4", "z8", "z16", "z32"};

@@ -15,7 +15,7 @@
 #define TABLE_REGEXP_H
 
 #include "../../../../../../includes/regexp/regexp.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

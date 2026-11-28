@@ -152,7 +152,7 @@ static void statement_stopped(void *context)
 static int pool_contains(const char *marked)
 {
     // the pool's bytes from its cellblock's record: a page short of each end
-    const SeriesCellularum *const series = cli_pool_series_cellularum();
+    const SeriesCellularum *const series = platform_pool_series();
     const unsigned char *const start = series->base + 4096ull;
     const unsigned long long bytes = (unsigned long long)series->size - 8192ull;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = marked, .cap = 64u});

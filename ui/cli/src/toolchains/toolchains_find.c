@@ -17,7 +17,7 @@ char (*g_cli_toolchains_path)[CLI_PATH_MAX_LEN];
 unsigned int cli_toolchains_find_path(void)
 {
     unsigned int count = 0u;
-    g_cli_guard->persistent_buf_release(g_cli_toolchains_path, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(g_cli_toolchains_path, g_cli_toolchains_owner);
     g_cli_toolchains_path = cli_toolchains_path_allocated(&count, g_cli_toolchains_owner);
     return count;
 }
@@ -26,12 +26,12 @@ void cli_toolchains_find_release(const CliToolchainsJsonCtx *args)
 {
     if (args->json != NULL)
     {
-        g_cli_guard->persistent_buf_release(args->json->node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), args->json->node));
+        g_platform_guard->persistent_buf_release(args->json->node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), args->json->node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
-    g_cli_guard->persistent_buf_release(g_cli_toolchains_path, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(g_cli_toolchains_path, g_cli_toolchains_owner);
     g_cli_toolchains_path = NULL;
 }
 
@@ -53,7 +53,7 @@ typedef struct
     const void *context_read;
     unsigned long long length;
     unsigned long long *length_out;
-    const CliSpawned *spawned_read;
+    const PlatformProgram *spawned_read;
 } ToolchainsFindCtx;
 // whether the folder is passed over for the tool: a part of it is a name `notIn` lists, case aside
 EMBED_INLINE int cli_passed_over(const ToolchainsFindCtx *args)
@@ -215,10 +215,10 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
     for (unsigned int at = 0u; !placed && (at < positions.count); at += 1u)
     {
         char dir[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = positions.cell,
-                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                .dst = dir,
-                                                                .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = positions.cell,
+                                                                     .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                     .dst = dir,
+                                                                     .bytes = CLI_PATH_MAX_LEN});
         placed = !EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
                  EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = dir) &&
                  EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json,
@@ -381,8 +381,8 @@ static int cli_version_get(const ToolchainsFindCtx *args)
         }
     }
     words[count] = NULL;
-    CliSpawned spawned;
-    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
+    PlatformProgram spawned;
+    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = PLATFORM_PRIORITY_GUEST,
                     .spawned = &spawned, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1,
                     .err_msg = err_msg))
     {

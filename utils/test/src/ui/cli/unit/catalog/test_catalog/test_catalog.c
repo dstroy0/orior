@@ -198,7 +198,7 @@ void test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size(void)
     const CellOwner *const cells = grown.cells;
     if (cells != NULL)
     {
-        g_cli_guard->persistent_buf_release(grown.job, cells);
+        g_platform_guard->persistent_buf_release(grown.job, cells);
     }
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = (&grown), .jobs = NULL, .jobs_max = 0u,
                .params = NULL, .params_max = 0u, .steps = NULL, .steps_max = 0u, .request = NULL, .args_max = 0u,

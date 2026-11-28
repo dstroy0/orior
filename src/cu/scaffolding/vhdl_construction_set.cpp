@@ -10,7 +10,7 @@
 // what the lane's schedule model gives a form it does not name. The set is written as a krep KCS file and read back
 // whole, and the file is removed where the two differ.
 #include "../../../includes/file_defs/krep/krep.h"
-#include "../../platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "crc.h"

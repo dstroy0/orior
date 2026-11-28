@@ -23,7 +23,7 @@
 // where every line ran, 2 where the list or the device was not reached.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../includes/parsers/line_read.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "../cubin_safe.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -347,7 +347,7 @@ int program_main(int count, char **words)
             mmgr_line_put(platform_file_line(answers), "\n");
         }
         // the pause spaces the launches and prevents a run of them from flooding the part
-        Sleep(SASS_RUN_PAUSE_MS);
+        platform_paused(SASS_RUN_PAUSE_MS);
         number += 1UL;
     }
     platform_file_close(answers);

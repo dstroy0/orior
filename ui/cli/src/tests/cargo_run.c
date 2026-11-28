@@ -33,8 +33,8 @@ static unsigned int *s_order;
 EMBED_INLINE void run_cell_take(void)
 {
     const unsigned long long found = s_tests.count;
-    s_run_cell = g_cli_guard->temporary_buf_alloc(found * (sizeof(CliCargoGroup) + (2ULL * sizeof(unsigned int))),
-                                                  g_cli_cargo_owner);
+    s_run_cell = g_platform_guard->temporary_buf_alloc(found * (sizeof(CliCargoGroup) + (2ULL * sizeof(unsigned int))),
+                                                       g_cli_cargo_owner);
     s_groups = (CliCargoGroup *)s_run_cell;
     s_order = (unsigned int *)(s_run_cell + (found * sizeof(CliCargoGroup)));
 }
@@ -42,7 +42,7 @@ EMBED_INLINE void run_cell_take(void)
 // the run's take given back
 EMBED_INLINE void run_cell_release(void)
 {
-    g_cli_guard->persistent_buf_release(s_run_cell, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(s_run_cell, g_cli_cargo_owner);
     s_run_cell = NULL;
     s_groups = NULL;
     s_order = NULL;
@@ -440,7 +440,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
                    .word_text = "--include-ignored");
     }
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
-    const CliSetting settings[2] = {{"PATH", s_path}, {"CARGO_TERM_COLOR", "never"}};
+    const PlatformSetting settings[2] = {{"PATH", s_path}, {"CARGO_TERM_COLOR", "never"}};
     worker->run = run;
     worker->index = run->worker_count;
     worker->cargo = 1;
@@ -459,7 +459,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     mmgr_line_finish(&name_line);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = run->scratch, .relative = name, .joined = worker->seen);
     const int started =
-        EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
+        EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = PLATFORM_PRIORITY_GUEST,
                    .spawned = &worker->spawned, .words = s_words.word_text, .folder = package, .settings = settings,
                    .count = 2u, .detached = 1, .err_msg = err_msg);
     run->worker_count += started ? 1u : 0u;
@@ -469,7 +469,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     }
     EMBED_CALL(cli_test_runs_worker_line_internal.test_errors_start, CliTestRunsWorkerLineCtx, .worker = worker);
     run->going += 1u;
-    worker->thread = (CliThread){run_worker, worker, CLI_PRIORITY_GUEST};
+    worker->thread = (CliThread){run_worker, worker, PLATFORM_PRIORITY_GUEST};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &worker->thread))
     {
         run_worker(worker);
@@ -502,10 +502,10 @@ int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_guard->persistent_buf_release(piece, g_cli_cargo_owner);
+        g_platform_guard->persistent_buf_release(piece, g_cli_cargo_owner);
         piece = next;
     }
-    g_cli_guard->persistent_buf_release(s_tests.found, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(s_tests.found, g_cli_cargo_owner);
     s_tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ULL, 0};
     return started;
 }

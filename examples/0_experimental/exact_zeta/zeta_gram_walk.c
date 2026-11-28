@@ -5,7 +5,7 @@
  * @brief The search of the Gram index, as zeta_gram_walk.h states it.
  */
 #include "zeta_gram_walk.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_theta.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

@@ -4,7 +4,7 @@
 #ifndef OBSIGNATIO_INTERNAL_H
 #define OBSIGNATIO_INTERNAL_H
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "obsignatio.h"
 

@@ -3,7 +3,7 @@
 // verdicts.c: the verdicts: the gated encodings cleared, read line by line, added and loaded, whether a verdict is
 // ready and blocks, the admitted encodings cleared, read and stored, and a verdict's name
 #include "../../../../../../includes/parsers/line_read.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_safe_internal.h"
 #include "memoria_operor/memoria_operor.h"

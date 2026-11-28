@@ -9,7 +9,7 @@
 #if !defined(_WIN32)
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "ksg_tool.h"
 #include "memoria_operor/memoria_operor.h"
 

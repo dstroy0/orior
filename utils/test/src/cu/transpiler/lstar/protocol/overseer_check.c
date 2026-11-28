@@ -40,7 +40,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/overseer/overseer.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
 

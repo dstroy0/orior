@@ -5,7 +5,7 @@
 //
 //     ruleset_read_one <form> <argument> ...
 //     ruleset_read_one predicate_bitxor P0 P1 P2
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "sass_target.h"
 #include "target.h"

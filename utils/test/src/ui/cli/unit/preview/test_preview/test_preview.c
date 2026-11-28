@@ -36,7 +36,7 @@ void tearDown(void)
 static CliPreviewItem item_of(const CliPreviewItems *items, unsigned int at)
 {
     CliPreviewItem item = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = items->cell, .offset = CLI_PREVIEW_ITEM_AT(at), .dst = &item, .bytes = sizeof(item)});
     return item;
 }
@@ -45,7 +45,7 @@ static CliPreviewItem item_of(const CliPreviewItems *items, unsigned int at)
 static CliPreviewBlock block_of(const CliPreviewItems *items, unsigned int at)
 {
     CliPreviewBlock block = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = items->cell, .offset = CLI_PREVIEW_BLOCK_AT(items, at), .dst = &block, .bytes = sizeof(block)});
     return block;
 }
@@ -53,7 +53,7 @@ static CliPreviewBlock block_of(const CliPreviewItems *items, unsigned int at)
 // whether the `length` bytes at `at` of the text of `items` read `text`
 static int text_reads(const CliPreviewItems *items, unsigned int at, unsigned int length, const char *text)
 {
-    return g_cli_guard->movable_buf_compare(
+    return g_platform_guard->movable_buf_compare(
                &(CarcerMovableCfg){.cell = items->text_cell, .offset = at, .src = text, .bytes = length}) == 0;
 }
 
@@ -100,11 +100,11 @@ static void released(CliPreviewItems *items)
 {
     if (items->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(items->cell, g_cli_preview_owner);
+        (void)g_platform_guard->movable_buf_release(items->cell, g_cli_preview_owner);
     }
     if (items->text_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(items->text_cell, g_cli_preview_owner);
+        (void)g_platform_guard->movable_buf_release(items->text_cell, g_cli_preview_owner);
     }
     *items = (CliPreviewItems){0};
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read contains, a piece's
 // reading and name, a form's name and text composed, and a form stored
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_machine_write_internal.h"
 #include "memoria_operor/memoria_operor.h"

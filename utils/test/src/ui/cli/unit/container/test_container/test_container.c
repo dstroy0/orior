@@ -74,7 +74,7 @@ static int process_still(unsigned int id)
 }
 
 // what a started process writes to its output read whole into s_output, until its end
-static unsigned long long output_read(CliSpawned *spawned)
+static unsigned long long output_read(PlatformProgram *spawned)
 {
     unsigned long long size = 0ull;
     for (;;)
@@ -109,8 +109,8 @@ static unsigned int head_run_result(const char *variable, unsigned int *ids)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     (void)EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = program, .capacity_bytes = sizeof(program));
     const char *const words[2] = {program, NULL};
-    const CliSetting settings[1] = {{variable, "1"}};
-    CliSpawned spawned;
+    const PlatformSetting settings[1] = {{variable, "1"}};
+    PlatformProgram spawned;
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = words, .folder = NULL, .settings = settings, .count = 1u, .detached = 0, .err_msg = &err_msg))
     {
         return 0u;
@@ -164,7 +164,7 @@ static int head_code(void)
     {
         return 1;
     }
-    CliSpawned inside;
+    PlatformProgram inside;
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &inside, .words = waiting_words(), .folder = NULL, .settings = NULL, .count = 0u, .detached = 0, .err_msg = &err_msg))
     {
         return 1;
@@ -234,7 +234,7 @@ void test_windows_a_process_started_in_a_group_has_its_own_job_and_runs(void)
     static const char *const s_ran[4] = {"cmd", "/c", "echo ran", NULL};
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliSpawned spawned;
+    PlatformProgram spawned;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = s_ran, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg));
     TEST_ASSERT_NOT_EQUAL(0ull, spawned.group);
     (void)output_read(&spawned);
@@ -252,7 +252,7 @@ void test_windows_a_groups_end_ends_every_process_and_their_output(void)
     static const char *const s_late[4] = {"cmd", "/c", "cmd /c ping -n 30 127.0.0.1 >nul & echo late", NULL};
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliSpawned spawned;
+    PlatformProgram spawned;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = s_late, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg));
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 800u);
     const unsigned long long ended = cli_clock_milliseconds();
@@ -273,7 +273,7 @@ void test_windows_a_group_released_as_orior_ends_ends_every_process_in_it(void)
     static const char *const s_late[4] = {"cmd", "/c", "cmd /c ping -n 30 127.0.0.1 >nul & echo late", NULL};
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliSpawned spawned;
+    PlatformProgram spawned;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = s_late, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg));
     // a process id fits 32 bits
     const unsigned int left = (unsigned int)spawned.id;
@@ -296,7 +296,7 @@ void test_windows_a_groups_end_ends_a_scripts_processes_under_gits_bash_launcher
         TEST_IGNORE_MESSAGE("no bash on this machine");
     }
     const char *const script[4] = {bash, "-c", "echo began; sleep 20; echo late", NULL};
-    CliSpawned spawned;
+    PlatformProgram spawned;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = script, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg));
     char first[8] = "";
     unsigned long long size = 0ull;
@@ -330,7 +330,7 @@ void test_posix_a_tree_end_ends_a_detached_groups_processes_and_their_output(voi
     static const char *const s_late[4] = {"sh", "-c", "echo began; sleep 20; echo late", NULL};
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliSpawned spawned;
+    PlatformProgram spawned;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned, .words = s_late, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg));
     char first[8] = "";
     unsigned long long size = 0ull;

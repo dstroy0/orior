@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_header.c: the file's opening and the object header's messages
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "hdf5_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

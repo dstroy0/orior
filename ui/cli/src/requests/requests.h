@@ -120,8 +120,8 @@ EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
 // its redirects, or why it failed; its times; a group row Headers opening to a row each header; a group row Sent
 // opening to what was sent; its body a row a line, arranged where it is JSON, with a row that reads so where it is cut
 // or not text; and with two answers or more a group row Last answers, a row each answer with its box lit where it is
-// checked and the one displayed marked, and a Compare row inert unless two are checked, the two compared after it a row a
-// line with a sign: a space for a line both have, a minus for one only the older has, a plus for one only the newer
+// checked and the one displayed marked, and a Compare row inert unless two are checked, the two compared after it a row
+// a line with a sign: a space for a line both have, a minus for one only the older has, a plus for one only the newer
 // has. With no answer, one row reads so. Every text is copied into the row's own bytes with its length, cut to
 // CLI_REQUESTS_ROW_TEXT
 #define CLI_REQUESTS_ROW_REFUSAL 0u

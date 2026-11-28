@@ -53,13 +53,13 @@ static QryShared *cli_view(const QryCtx *args)
     {
         CliView view;
         memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
         if ((view.run != NULL) && !qry_member_viewed_writing(view.run))
         {
             qry_member_unshared(view.run);
             view.run = NULL;
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = s_views, .offset = (embed_word)at * sizeof(view), .src = &view, .bytes = sizeof(view)});
         }
     }
@@ -69,7 +69,7 @@ static QryShared *cli_view(const QryCtx *args)
     {
         CliView view;
         memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
         found = ((view.run != NULL) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = view.path, .other = args->path, .cap = CLI_POOL_BYTES})))
@@ -82,7 +82,7 @@ static QryShared *cli_view(const QryCtx *args)
     {
         const unsigned int capacity = (s_views_capacity != 0u) ? s_views_capacity * 2u : 4u;
         const CarcerMovableEntry *const grown =
-            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliView), g_cli_runs_owner);
+            g_platform_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliView), g_cli_runs_owner);
         if (grown != NULL)
         {
             for (unsigned int at = 0u; at < capacity; at += 1u)
@@ -92,15 +92,15 @@ static QryShared *cli_view(const QryCtx *args)
                 memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
                 if (at < s_views_capacity)
                 {
-                    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                         .cell = s_views, .offset = (embed_word)at * sizeof(view), .dst = &view, .bytes = sizeof(view)});
                 }
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = grown, .offset = (embed_word)at * sizeof(view), .src = &view, .bytes = sizeof(view)});
             }
             if (s_views != NULL)
             {
-                (void)g_cli_guard->movable_buf_release(s_views, g_cli_runs_owner);
+                (void)g_platform_guard->movable_buf_release(s_views, g_cli_runs_owner);
             }
             free_view = s_views_capacity;
             s_views = grown;
@@ -122,17 +122,18 @@ static QryShared *cli_view(const QryCtx *args)
         }
         CliView view;
         memor.set(&(MemoriaCfg){.dst = &view, .val = 0, .bytes = sizeof(view)});
-        memor.cpy(&(MemoriaCfg){.dst = view.path,
-                                .src = args->path,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = view.path,
+                          .src = args->path,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
         view.run = run;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_views, .offset = (embed_word)free_view * sizeof(view), .src = &view, .bytes = sizeof(view)});
         found = free_view;
     }
     CliView viewed;
     memor.set(&(MemoriaCfg){.dst = &viewed, .val = 0, .bytes = sizeof(viewed)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_views, .offset = (embed_word)found * sizeof(viewed), .dst = &viewed, .bytes = sizeof(viewed)});
     if (qry_member_viewed_writing(viewed.run))
     {
@@ -140,7 +141,7 @@ static QryShared *cli_view(const QryCtx *args)
     }
     qry_member_unshared(viewed.run);
     viewed.run = NULL;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_views, .offset = (embed_word)found * sizeof(viewed), .src = &viewed, .bytes = sizeof(viewed)});
     return NULL;
 }
@@ -178,7 +179,7 @@ int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
                         EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length
                                                                                               : 0ULL);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_runs_owner);
     if ((bytes == NULL) || (at != size))
     {
         mmgr_line_put(args->err_msg, args->path);
@@ -380,6 +381,6 @@ int cli_qry_records(const CliQryPathFromEachCfg *args)
     }
     *args->rest = ((bytes != NULL) && (size > at)) ? size - at : 0ULL;
     *args->next = at;
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_runs_owner);
     return 0;
 }

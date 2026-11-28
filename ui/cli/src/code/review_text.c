@@ -64,9 +64,9 @@ void cli_review_trim(const CliReviewTextLengthTypeCtx *args)
     for (unsigned long long at = 0ULL; at < *length;)
     {
         unsigned int character = 0u;
-        const unsigned long long step =
-            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)*text, .length = *length, .at = at, .character = &character);
+        const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                   .text_bytes = (const unsigned char *)*text, .length = *length,
+                                                   .at = at, .character = &character);
         if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
         {
             start = (start == *length) ? at : start;
@@ -90,7 +90,7 @@ int cli_review_share(const CliReviewOneCtx *args)
     const unsigned int other_max = EMBED_CALL(text_lines_max, ReviewTextCtx, .text = other, .size = other_size);
     const unsigned long long words = (2ULL * one_max) + (2ULL * other_max);
     unsigned int *const cell =
-        g_cli_guard->temporary_buf_alloc((words * sizeof(unsigned int)) + one_max, g_cli_review_owner);
+        g_platform_guard->temporary_buf_alloc((words * sizeof(unsigned int)) + one_max, g_cli_review_owner);
     if (cell == NULL)
     {
         return 0;
@@ -124,7 +124,7 @@ int cli_review_share(const CliReviewOneCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_review_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_review_owner);
     // two texts of no lines contain all alike
     if (*longest == 0ULL)
     {
@@ -166,9 +166,9 @@ int cli_review_calls(const CliReviewCtx *args)
         unsigned long long rest = cellul.len(&(CatenaFinitaCfg){.src = after, .cap = CLI_POOL_BYTES});
         while (rest > 0ULL)
         {
-            const unsigned long long step =
-                EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                           .text_bytes = (const unsigned char *)after, .length = rest, .at = 0ULL, .character = &character);
+            const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                       .text_bytes = (const unsigned char *)after, .length = rest,
+                                                       .at = 0ULL, .character = &character);
             if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
             {
                 break;

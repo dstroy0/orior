@@ -5,7 +5,7 @@
 // endpoint tessera_path_endpoint names ($TESSERA_RUNTIME in a container), with no daemon path: only a daemon
 // already listening there, or a socket systemd owns, can answer. It prints what came back.
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

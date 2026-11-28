@@ -22,8 +22,8 @@ void query_words_text(const QueryLoopsWordsWordsTextCfg *args)
     static unsigned int s_next;
     if (s_texts == NULL)
     {
-        s_texts =
-            g_cli_guard->persistent_buf_alloc((unsigned long long)QUERY_WORD_TEXTS * QUERY_PATH_MAX_LEN, g_query_owner);
+        s_texts = g_platform_guard->persistent_buf_alloc((unsigned long long)QUERY_WORD_TEXTS * QUERY_PATH_MAX_LEN,
+                                                         g_query_owner);
     }
     if (s_texts == NULL)
     {

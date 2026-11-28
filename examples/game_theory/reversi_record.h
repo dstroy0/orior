@@ -18,7 +18,7 @@
 #ifndef REVERSI_RECORD_H
 #define REVERSI_RECORD_H
 
-#include "../../src/platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "twister_record.h"
 

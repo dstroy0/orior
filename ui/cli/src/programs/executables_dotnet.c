@@ -263,12 +263,12 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
         ((options != CLI_JSON_NONE) &&
          (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = options,
                      .name = "includedFrameworks") == CLI_JSON_NONE))
-            ? g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_DOTNET_POSITIONS * CLI_PATH_MAX_LEN,
-                                               g_cli_executables_owner)
+            ? g_platform_guard->temporary_buf_alloc((unsigned long long)CLI_DOTNET_POSITIONS * CLI_PATH_MAX_LEN,
+                                                    g_cli_executables_owner)
             : NULL;
     if (positions == NULL)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
@@ -292,8 +292,8 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
         EMBED_CALL(cli_framework_check_print, ExecutablesDotnetCtx, .json = &json, .framework = item,
                    .positions = positions, .position_count = position_count, .file = args->file, .sink = args->sink);
     }
-    g_cli_guard->persistent_buf_release(positions, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(positions, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -474,6 +474,6 @@ void cli_executables_built_advice(const CliExecutablesRootCfg *args)
         own.folder = folder;
         EMBED_CALL(cli_executables_text_each_internal.pyinstaller_missing, CliExecutablesTextEachCtx,
                    .text = (warned != NULL) ? warned : "", .each_callback = cli_own_each, .context = &own);
-        g_cli_guard->persistent_buf_release(warned, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release(warned, g_cli_executables_owner);
     }
 }

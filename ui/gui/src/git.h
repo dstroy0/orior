@@ -5,8 +5,8 @@
 // into, which searches the whole history. Then the branch's row with its name and the commits counted, a row a commit
 // with its columns' strokes and its dot, the branches and tags at it in pills, HEAD's in signal and a
 // tag's in the third mark, its subject, its author where authors show and its day, and under a commit opened a row each
-// file it changed with its mark, name, folder and state character, or the notice that none under the tree did. A press on
-// the field takes the keys, which a press elsewhere or Escape lets go; a commit's row pressed opens or closes its
+// file it changed with its mark, name, folder and state character, or the notice that none under the tree did. A press
+// on the field takes the keys, which a press elsewhere or Escape lets go; a commit's row pressed opens or closes its
 // files; a file's row opens the file (git.c)
 #ifndef GUI_WINDOW_GIT_H
 #define GUI_WINDOW_GIT_H

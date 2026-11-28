@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_member.c: a module's run found, its ring taken, a record written once into the ring with its time and CRC, the
 // run's records read where the writer puts them, and the panic line
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "embed_turnstile.h"
 #include "memoria_operor/memoria_operor.h"
 #include "qry_writer_internal.h"
 #include <stdlib.h>
@@ -435,4 +436,35 @@ unsigned long long qry_member_streamed(const char *name, const void *bytes, unsi
     path[qry_length] = ':';
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path + qry_length + 1u, .src = name, .bytes = length + 1u);
     return time;
+}
+
+unsigned long long qry_member_clock(void)
+{
+    return (unsigned long long)embed_clock_ns();
+}
+
+unsigned long long qry_member_process(void)
+{
+    return platform_process_id();
+}
+
+int qry_member_named(char *path, size_t room)
+{
+    return platform_environment(QRY_ENVIRONMENT, path, room) != 0ULL;
+}
+
+unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, unsigned long long room)
+{
+    unsigned long long size = 0ULL;
+    return platform_file_read(path, bytes, room, &size) ? size : QRY_MEMBER_UNREAD;
+}
+
+int qry_writer_file_removed(const char *path)
+{
+    return platform_file_removed(path);
+}
+
+void qry_writer_paused(void)
+{
+    platform_paused(1ULL);
 }

@@ -82,7 +82,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         const unsigned long long created_capacity = 1ull << 16u;
-        char *const created_cell = g_cli_guard->temporary_buf_alloc(created_capacity, g_checks_owner);
+        char *const created_cell = g_platform_guard->temporary_buf_alloc(created_capacity, g_checks_owner);
         VerbaLinea made = mmgr_line_over(created_cell, created_capacity);
         if (made.out == NULL)
         {
@@ -131,10 +131,10 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
         {
             printf("%s\tnot cached: %.*s\n", s_cut_down[at].name, (int)err_msg.at, why);
         }
-        g_cli_guard->persistent_buf_release(cut.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), cut.node));
+        g_platform_guard->persistent_buf_release(cut.node, mmgr_owner_of_buf(platform_pool_series(), cut.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&cut),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(made.out, g_checks_owner);
+        g_platform_guard->persistent_buf_release(made.out, g_checks_owner);
     }
 }
 
@@ -169,7 +169,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
                                                    .json_read = &json, .object = grammar, .name = "ignoreCase"),
                                 .type = CFG_JSON_TRUE);
     unsigned int *const characters =
-        g_cli_guard->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), g_checks_owner);
+        g_platform_guard->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), g_checks_owner);
     for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                              .json_read = &json, .array = rules, .index = index) != CLI_JSON_NONE;
          index += 1u)
@@ -213,10 +213,10 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
         (void)mmgr_line_finish(&name_line);
         bench_row(name, measure);
     }
-    g_cli_guard->persistent_buf_release(characters, g_checks_owner);
+    g_platform_guard->persistent_buf_release(characters, g_checks_owner);
     rules_cut_down(&json, grammar, files, count, repeat, largest);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)text, (g_checks_owner));
 }

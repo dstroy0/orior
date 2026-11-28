@@ -39,7 +39,7 @@ typedef struct CliTerminalShellSystemCtx CliTerminalShellSystemCtx;
 // straight to it, whether it has written and when it last did; and the text typed while it started
 typedef struct
 {
-    CliSpawned spawned;
+    PlatformProgram spawned;
     unsigned int state;
     int hung_up;
     unsigned long long hung_up_ms;
@@ -81,7 +81,7 @@ struct CliTerminalShellSystemCtx
 {
     const char **words;
     char *program;
-    CliSetting *settings;
+    PlatformSetting *settings;
     unsigned int *setting_count;
 };
 

@@ -116,7 +116,7 @@ int cli_scripts_rights_named(const CliScriptsRightsCfg *args)
         return 0;
     }
     ScriptsRightsList *const list =
-        (ScriptsRightsList *)g_cli_guard->temporary_buf_alloc(sizeof(ScriptsRightsList), g_cli_scripts_owner);
+        (ScriptsRightsList *)g_platform_guard->temporary_buf_alloc(sizeof(ScriptsRightsList), g_cli_scripts_owner);
     if (list == NULL)
     {
         return 0;
@@ -149,7 +149,7 @@ int cli_scripts_rights_named(const CliScriptsRightsCfg *args)
     else if ((list->items > 0u) && EMBED_CALL(rights_inside, ScriptsRightsCtx, .name = args->name))
     {
         CliPatterns *const patterns =
-            (CliPatterns *)g_cli_guard->temporary_buf_alloc(sizeof(CliPatterns), g_cli_scripts_owner);
+            (CliPatterns *)g_platform_guard->temporary_buf_alloc(sizeof(CliPatterns), g_cli_scripts_owner);
         if (patterns != NULL)
         {
             EMBED_CALL(cli_patterns_lines.read_set, CliPatternsLinesCfg, .lines = list->line, .count = list->items,
@@ -159,9 +159,9 @@ int cli_scripts_rights_named(const CliScriptsRightsCfg *args)
                     !EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = patterns, .path = args->name,
                                 .dir = 0);
         }
-        g_cli_guard->persistent_buf_release(patterns, g_cli_scripts_owner);
+        g_platform_guard->persistent_buf_release(patterns, g_cli_scripts_owner);
     }
-    g_cli_guard->persistent_buf_release(list, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(list, g_cli_scripts_owner);
     return named;
 }
 
@@ -204,7 +204,7 @@ unsigned int cli_scripts_rights_answer(const CliScriptsRightsCfg *args)
     }
     if (root != CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     }
     return answer;
 }

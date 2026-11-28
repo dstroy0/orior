@@ -195,15 +195,15 @@ static void files_bytes_stored(const CliEachBytesSizeCfg *args)
 // are. The buffer goes back before the call returns
 static void files_archived_stored(const CliArchiveEachCfg *args)
 {
-    char *const bytes = g_cli_guard->temporary_buf_alloc(args->size + 1ULL, g_cli_editor_owner);
-    if ((bytes == NULL) || !g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    char *const bytes = g_platform_guard->temporary_buf_alloc(args->size + 1ULL, g_cli_editor_owner);
+    if ((bytes == NULL) || !g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                                .cell = args->cell, .offset = 0ULL, .dst = bytes, .bytes = args->size + 1ULL}))
     {
-        g_cli_guard->persistent_buf_release(bytes, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(bytes, g_cli_editor_owner);
         return;
     }
     files_bytes_stored(&(CliEachBytesSizeCfg){.context = args->context, .bytes = bytes, .size = args->size});
-    g_cli_guard->persistent_buf_release(bytes, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(bytes, g_cli_editor_owner);
 }
 
 unsigned int cli_files_open(const CliFilesOpenCfg *args)
@@ -241,7 +241,7 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
             const unsigned long long probe = (got < CLI_PROBE_BYTES) ? got : CLI_PROBE_BYTES;
             const int paged_text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = first, .size = got) &&
                                    EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = first, .size = probe, .cut = 1);
-            g_cli_guard->persistent_buf_release((void *)(embed_word)first, g_cli_editor_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)first, g_cli_editor_owner);
             if (!paged_text)
             {
                 return CLI_FILES_OPEN_NOT_TEXT;
@@ -271,7 +271,7 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
             return CLI_FILES_OPEN_REFUSED;
         }
         files_bytes_stored(&(CliEachBytesSizeCfg){.context = &kept, .bytes = (const char *)bytes, .size = size});
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     }
     const int text = kept.text;
     const int stored = kept.stored;

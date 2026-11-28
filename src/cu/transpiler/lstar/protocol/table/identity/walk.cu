@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // walk.cu: the one walk over numbers a relation is true at: the last register, the last predicate, and how far a
 // container's code reaches
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // one question the register walk puts. A chain of ours, its code with every stall the longest, and the register it

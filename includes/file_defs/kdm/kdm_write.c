@@ -16,7 +16,7 @@
 // of it. The tail is the registers, widths, loads and stores of the part, in their block of the language of the
 // ruleset, and its pipes.
 #include "../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

@@ -245,7 +245,7 @@ EMBED_INLINE int signature_file_read(const SymbolsSignatureCtx *args)
         EMBED_CALL(cli_signature_language_is, SymbolsSignatureCtx, .signature_read = args->signature, .path = path);
     if (spoken)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = branch->cell, .dst = scratch, .bytes = branch->bytes});
     }
     return spoken;
@@ -287,7 +287,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
         }
         file += 1u;
     }
-    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_code_owner);
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->signature->root, .relative = args->signature->needle,
                .joined = full);
@@ -327,11 +327,11 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
 }
 
 // the type of the argument at `argument`: a literal's where every leaf of it is a number's or every one a string's,
@@ -418,7 +418,7 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_code_owner);
     const CliSymbolCall *const call = &args->signature->call;
     unsigned int supplied = 0u;
     for (unsigned int argument = 0u; argument < call->arguments; argument += 1u)
@@ -513,7 +513,7 @@ int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args)
 {
     const char *path = args->path;
     CliSymbolSignature *const signature =
-        g_cli_guard->temporary_buf_alloc(sizeof(CliSymbolSignature), g_cli_code_owner);
+        g_platform_guard->temporary_buf_alloc(sizeof(CliSymbolSignature), g_cli_code_owner);
     if (signature == NULL)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet a signature's reading");
@@ -549,11 +549,11 @@ int cli_symbols_signature_read(const CliSymbolsPathTextSizeOutCfg *args)
                              .store = args->store);
     }
     const int refused = read.refused;
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
-    g_cli_guard->persistent_buf_release(signature, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(signature, g_cli_code_owner);
     if (refused)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the leaves of the lines passed");

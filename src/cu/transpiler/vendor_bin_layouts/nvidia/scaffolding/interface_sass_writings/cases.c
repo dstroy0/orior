@@ -3,7 +3,7 @@
 // cases.c: the cases: a file read, an anchor that fits, the relations and the expected answers, the cases written, the
 // kernel, a splice, a mark and a swap, a form that fits, the table and the sources, digits in order, an instruction and
 // the container written
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../engine/rmc/precept_value.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

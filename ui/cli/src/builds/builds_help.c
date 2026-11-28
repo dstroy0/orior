@@ -12,9 +12,10 @@ unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args)
 {
     const unsigned long long count = 1ULL + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = args->text,
                                                        .size = args->size, .byte = '\n');
-    unsigned int *const starts = (count <= 0xffffffffULL)
-                                     ? g_cli_guard->temporary_buf_alloc(count * sizeof(unsigned int), g_cli_build_owner)
-                                     : NULL;
+    unsigned int *const starts =
+        (count <= 0xffffffffULL)
+            ? g_platform_guard->temporary_buf_alloc(count * sizeof(unsigned int), g_cli_build_owner)
+            : NULL;
     // a count no more than 0xffffffff where the cell is taken, which an unsigned int stores
     EMBED_CALL(cli_builds_text_size.build_lines_get, CliBuildsTextSizeCfg, .text = args->text, .size = args->size,
                .starts = starts, .max = (starts != NULL) ? (unsigned int)count : 0u, .lines_out = args->lines_out);
@@ -107,11 +108,12 @@ unsigned long long cli_build_line_start(const CliBuildsLineCfg *args)
 
 void cli_build_findings_begin(const CliBuildsLinesCfg *args)
 {
-    g_cli_guard->persistent_buf_release(args->found->finding, g_cli_build_owner);
+    g_platform_guard->persistent_buf_release(args->found->finding, g_cli_build_owner);
     *args->found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
     const unsigned long long finding_bytes = (unsigned long long)CLI_BUILD_FINDINGS * sizeof(CliBuildFinding);
     const unsigned long long fix_bytes = (unsigned long long)CLI_BUILD_FIXES * sizeof(CliBuildFix);
-    char *const cell = g_cli_guard->temporary_buf_alloc(finding_bytes + fix_bytes + CLI_BUILD_TEXT, g_cli_build_owner);
+    char *const cell =
+        g_platform_guard->temporary_buf_alloc(finding_bytes + fix_bytes + CLI_BUILD_TEXT, g_cli_build_owner);
     if (cell == NULL)
     {
         args->found->full = 1;

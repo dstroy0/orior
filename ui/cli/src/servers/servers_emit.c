@@ -70,7 +70,7 @@ void cli_servers_tree_path(const CliServersPathErrMsgCtx *args)
     {
         // each mount read out of the process's cell
         CliMount mount;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = mounts.cell, .offset = (embed_word)at * sizeof(CliMount), .dst = &mount, .bytes = sizeof(mount)});
         const embed_word base = cellul.len(&(CatenaFinitaCfg){.src = mount.path, .cap = CLI_PATH_MAX_LEN});
         mounted = EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = integer, .other_pointer = mount.path,
@@ -141,10 +141,10 @@ EMBED_INLINE unsigned long long emit_line_end(const ServersEmitCtx *args)
         char window[SERVERS_EMIT_WINDOW];
         const unsigned long long left = args->entry.text_size - at;
         const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
-                                                                .offset = (embed_word)(args->entry.text_at + at),
-                                                                .dst = window,
-                                                                .bytes = (embed_word)bytes});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                     .offset = (embed_word)(args->entry.text_at + at),
+                                                                     .dst = window,
+                                                                     .bytes = (embed_word)bytes});
         const char *const found =
             memor.chr(&(MemoriaCfg){.src = window, .bytes = (embed_word)bytes, .val = (unsigned char)'\n'});
         if (found != NULL)
@@ -166,15 +166,15 @@ EMBED_INLINE int emit_has_line(const ServersEmitCtx *args)
         const unsigned long long end = EMBED_CALL(emit_line_end, ServersEmitCtx, .entry = args->entry, .at = at);
         const unsigned long long start = args->entry.text_at + at;
         if ((end - at == args->length + args->also_length) &&
-            (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
-                                                                  .offset = (embed_word)start,
-                                                                  .src = args->required,
-                                                                  .bytes = (embed_word)args->length}) == 0) &&
+            (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                       .offset = (embed_word)start,
+                                                                       .src = args->required,
+                                                                       .bytes = (embed_word)args->length}) == 0) &&
             ((args->also_length == 0ULL) ||
-             (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
-                                                                   .offset = (embed_word)(start + args->length),
-                                                                   .src = args->also,
-                                                                   .bytes = (embed_word)args->also_length}) == 0)))
+             (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                        .offset = (embed_word)(start + args->length),
+                                                                        .src = args->also,
+                                                                        .bytes = (embed_word)args->also_length}) == 0)))
         {
             return 1;
         }
@@ -323,7 +323,7 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     if (stored != CLI_KEYED_NONE)
     {
         *entry = (CliKeyedEntry){0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_servers_input.page[stored / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(stored % CLI_KEYED_PAGE) * sizeof(*entry),
                                 .dst = entry,
@@ -344,23 +344,23 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     }
     // each name a part of the file's text, and a break after it
     const unsigned long long capacity = (build_size * 2ULL) + 1ULL;
-    char *const joined = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    char *const joined = g_platform_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
     VerbaLinea supplied = mmgr_line_over(joined, capacity);
     EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = path, .text = (const char *)build,
                .size = build_size, .each = emit_name_append, .context = &supplied);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)build, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)build, g_cli_servers_owner);
     const int integer = mmgr_line_ok(&supplied);
     const int put = EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_input,
                                .key = key, .adjacent_value = "", .text = integer ? supplied.out : "",
                                .size_value = integer ? supplied.at : 0ULL);
-    g_cli_guard->persistent_buf_release(joined, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(joined, g_cli_servers_owner);
     const unsigned int placed =
         put ? EMBED_CALL(cli_keyed_key_adjacent.find, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_input, .key = key)
             : CLI_KEYED_NONE;
     if (placed != CLI_KEYED_NONE)
     {
         *entry = (CliKeyedEntry){0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_servers_input.page[placed / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(placed % CLI_KEYED_PAGE) * sizeof(*entry),
                                 .dst = entry,
@@ -395,7 +395,7 @@ EMBED_INLINE void emit_items_position(const ServersEmitCtx *args)
         if (place != CLI_KEYED_NONE)
         {
             supplied = (CliKeyedEntry){0};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = g_cli_servers_supplied.page[place / CLI_KEYED_PAGE],
                                     .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(supplied),
                                     .dst = &supplied,
@@ -463,7 +463,7 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
         CliKeyedEntry one = {0};
         if (place != CLI_KEYED_NONE)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = stores[store]->page[place / CLI_KEYED_PAGE],
                                     .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
                                     .dst = &one,
@@ -471,13 +471,13 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
         }
         sizes[store] = one.used ? one.text_size : 0ULL;
         stored[store] =
-            (sizes[store] > 0ULL) ? g_cli_guard->temporary_buf_alloc(sizes[store], g_cli_servers_owner) : NULL;
+            (sizes[store] > 0ULL) ? g_platform_guard->temporary_buf_alloc(sizes[store], g_cli_servers_owner) : NULL;
         if (stored[store] != NULL)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one.cell,
-                                                                    .offset = (embed_word)one.text_at,
-                                                                    .dst = stored[store],
-                                                                    .bytes = (embed_word)sizes[store]});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one.cell,
+                                                                         .offset = (embed_word)one.text_at,
+                                                                         .dst = stored[store],
+                                                                         .bytes = (embed_word)sizes[store]});
         }
         tokens[store] = ((stored[store] != NULL) && (sizes[store] > 0ULL))
                             ? (EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
@@ -492,10 +492,10 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    CfgJsonToken *const scanned =
-        (tokens_max != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken),
-                                                              g_cli_servers_owner)
-                           : NULL;
+    CfgJsonToken *const scanned = (tokens_max != 0u)
+                                      ? g_platform_guard->temporary_buf_alloc(
+                                            (unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_servers_owner)
+                                      : NULL;
     const int reserved =
         (nodes == 0u) || ((scanned != NULL) && EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg,
                                                           .json = &json, .nodes_max = nodes, .text_max = bytes,
@@ -511,16 +511,16 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
                                         .tokens_max = tokens[store], .err_msg = &ignored)
                            : CLI_JSON_NONE;
     }
-    g_cli_guard->persistent_buf_release(scanned, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(scanned, g_cli_servers_owner);
     for (unsigned int store = 0u; store < SERVERS_EMIT_STORES; store += 1u)
     {
-        g_cli_guard->persistent_buf_release(stored[store], g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(stored[store], g_cli_servers_owner);
     }
     if (!reserved || (displayed_length == 0ULL))
     {
         if (json.node != NULL)
         {
-            g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+            g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
             EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                        .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         }
@@ -537,8 +537,8 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
         max += EMBED_CALL(emit_array_count, ServersEmitCtx, .json = &json, .array = id);
     }
     // the diagnostics positioned in a cell of this call, their messages in the tree's texts
-    CliServerDiagnostic *const items =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CliServerDiagnostic), g_cli_servers_owner);
+    CliServerDiagnostic *const items = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)max * sizeof(CliServerDiagnostic), g_cli_servers_owner);
     unsigned int positioned = 0u;
     if (items != NULL)
     {
@@ -559,26 +559,28 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
     const unsigned long long path_at = CLI_SERVER_REPORT_ITEM_AT(positioned);
     const unsigned long long messages_at = path_at + displayed_length + 1ULL;
     const CarcerMovableEntry *const report =
-        (items != NULL) ? g_cli_guard->movable_buf_alloc(messages_at + message_bytes, g_cli_servers_owner) : NULL;
+        (items != NULL) ? g_platform_guard->movable_buf_alloc(messages_at + message_bytes, g_cli_servers_owner) : NULL;
     if (report != NULL)
     {
         const CliServerReportHead head = {positioned, path_at};
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = report, .offset = path_at, .src = displayed, .bytes = displayed_length + 1ULL});
         unsigned long long message_at = messages_at;
         for (unsigned int at = 0u; at < positioned; at += 1u)
         {
-            const CliServerStoredDiagnostic diagnostic = {items[at].from_line,     items[at].from_col, items[at].to_line,
-                                                      items[at].to_col,        items[at].severity, message_at,
-                                                      items[at].message_length};
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
-                .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .src = &diagnostic, .bytes = sizeof(diagnostic)});
+            const CliServerStoredDiagnostic diagnostic = {
+                items[at].from_line, items[at].from_col, items[at].to_line,       items[at].to_col,
+                items[at].severity,  message_at,         items[at].message_length};
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = report,
+                                                                          .offset = CLI_SERVER_REPORT_ITEM_AT(at),
+                                                                          .src = &diagnostic,
+                                                                          .bytes = sizeof(diagnostic)});
             const char zero = '\0';
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = report, .offset = message_at, .src = items[at].message, .bytes = items[at].message_length});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = report, .offset = message_at + items[at].message_length, .src = &zero, .bytes = 1ULL});
             message_at += items[at].message_length + 1ULL;
         }
@@ -593,10 +595,10 @@ void cli_servers_emit_file(const CliServersSinkKeyCtx *args)
             cli_servers_report_release(&(CliServersReportCfg){.report = report});
         }
     }
-    g_cli_guard->persistent_buf_release(items, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(items, g_cli_servers_owner);
     if (json.node != NULL)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     }
@@ -606,7 +608,7 @@ void cli_servers_report_release(const CliServersReportCfg *args)
 {
     if (args->report != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->report, g_cli_servers_owner);
+        (void)g_platform_guard->movable_buf_release(args->report, g_cli_servers_owner);
     }
 }
 
@@ -621,10 +623,11 @@ static void emit_reporting(const CliEachKeyedEntryCfg *args)
     int found = 0;
     for (unsigned long long at = 0ULL; !found && (at + needle <= args->entry.text_size); at += 1ULL)
     {
-        found = g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
-                                                                     .offset = (embed_word)(args->entry.text_at + at),
-                                                                     .src = s_report,
-                                                                     .bytes = (embed_word)needle}) == 0;
+        found =
+            g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                      .offset = (embed_word)(args->entry.text_at + at),
+                                                                      .src = s_report,
+                                                                      .bytes = (embed_word)needle}) == 0;
     }
     if (found)
     {
@@ -635,12 +638,12 @@ static void emit_reporting(const CliEachKeyedEntryCfg *args)
             (args->entry.key_size < sizeof(key)) ? (args->entry.key_size + 1ULL) : sizeof(key);
         const unsigned long long uri_bytes =
             (args->entry.adjacent_size < sizeof(uri)) ? (args->entry.adjacent_size + 1ULL) : sizeof(uri);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->entry.cell, .offset = 0u, .dst = key, .bytes = (embed_word)key_bytes});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
-                                                                .offset = (embed_word)args->entry.key_size + 1u,
-                                                                .dst = uri,
-                                                                .bytes = (embed_word)uri_bytes});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->entry.cell,
+                                                                     .offset = (embed_word)args->entry.key_size + 1u,
+                                                                     .dst = uri,
+                                                                     .bytes = (embed_word)uri_bytes});
         key[key_bytes - 1ULL] = '\0';
         uri[uri_bytes - 1ULL] = '\0';
         mmgr_line_put_n(reporting, key, key_bytes);
@@ -652,7 +655,7 @@ void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args)
 {
     const unsigned long long capacity =
         EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_published) + 1ULL;
-    char *const reporting = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    char *const reporting = g_platform_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
     VerbaLinea line = mmgr_line_over(reporting, capacity);
     EMBED_CALL(cli_keyed_each_table.each, CliKeyedEachCfg, .keyed = &g_cli_servers_published, .each = emit_reporting,
                .context = &line);
@@ -666,5 +669,5 @@ void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args)
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_POOL_BYTES}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_POOL_BYTES}) + 1u;
     }
-    g_cli_guard->persistent_buf_release(reporting, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(reporting, g_cli_servers_owner);
 }

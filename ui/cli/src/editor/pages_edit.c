@@ -102,7 +102,7 @@ EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
     CliPaged *one = args->one;
     const unsigned int max = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
     CliPagePieces pieces = {
-        g_cli_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CliPagePiece), g_cli_editor_owner), max,
+        g_platform_guard->temporary_buf_alloc((unsigned long long)max * sizeof(CliPagePiece), g_cli_editor_owner), max,
         0u};
     if (pieces.piece == NULL)
     {
@@ -115,7 +115,7 @@ EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
     for (unsigned int index = 0u; index < one->pieces; index += 1u)
     {
         CliPagePiece read = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one->piece, .offset = (embed_word)index * sizeof(read), .dst = &read, .bytes = sizeof(read)});
         const CliPagePiece *const piece = &read;
         const unsigned long long count =
@@ -159,19 +159,19 @@ EMBED_INLINE int cli_on_replace(const PagesEditCtx *args)
     }
     // the pieces retained written into a movable cell sized to them, the cell before given back
     const CarcerMovableEntry *const retained =
-        g_cli_guard->movable_buf_alloc((embed_word)pieces.count * sizeof(CliPagePiece), g_cli_editor_owner);
+        g_platform_guard->movable_buf_alloc((embed_word)pieces.count * sizeof(CliPagePiece), g_cli_editor_owner);
     if (retained == NULL)
     {
-        g_cli_guard->persistent_buf_release(pieces.piece, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(pieces.piece, g_cli_editor_owner);
         mmgr_line_put(args->err_msg, "the pieces a replace retains could not be taken");
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = retained, .src = pieces.piece, .bytes = (embed_word)pieces.count * sizeof(CliPagePiece)});
-    (void)g_cli_guard->movable_buf_release(one->piece, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(one->piece, g_cli_editor_owner);
     one->piece = retained;
     one->pieces = pieces.count;
-    g_cli_guard->persistent_buf_release(pieces.piece, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(pieces.piece, g_cli_editor_owner);
     return 1;
 }
 
@@ -187,9 +187,9 @@ EMBED_INLINE unsigned long long cli_byte_at(const PagesEditCtx *args)
             return at;
         }
         unsigned int character = 0u;
-        at +=
-            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->line, .length = length, .at = at, .character = &character);
+        at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                         .text_bytes = (const unsigned char *)args->line, .length = length, .at = at,
+                         .character = &character);
         units += (character > 0xffffu) ? 2ULL : 1ULL;
     }
     return length;
@@ -264,7 +264,7 @@ EMBED_INLINE int cli_edit_write(const PagesEditCtx *args)
         mmgr_line_put(err_msg, " are more than are retained");
         return 0;
     }
-    char *const text = g_cli_guard->temporary_buf_alloc(size, g_cli_editor_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(size, g_cli_editor_owner);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "an edit's lines as written could not be taken");
@@ -277,13 +277,13 @@ EMBED_INLINE int cli_edit_write(const PagesEditCtx *args)
     mmgr_line_ch(&written, '\n');
     if (!mmgr_line_ok(&written))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_editor_owner);
         mmgr_line_put(err_msg, "an edit's lines as written do not fit the cell sized to them");
         return 0;
     }
     const CliPagePiece put =
         EMBED_CALL(cli_write_append, PagesEditCtx, .one = one, .text = text, .size = written.at, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_editor_owner);
     return (put.lines != 0ULL) && EMBED_CALL(cli_on_replace, PagesEditCtx, .one = one, .from = args->edit->from.line,
                                              .to = reach, .lines_page_piece = put, .err_msg = err_msg);
 }
@@ -329,10 +329,10 @@ int cli_pages_change(const CliPagesPathCfg *args)
         for (unsigned int index = 0u; index < one->pieces; index += 1u)
         {
             CliPagePiece piece = {0};
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->piece,
-                                                                    .offset = (embed_word)index * sizeof(piece),
-                                                                    .dst = &piece,
-                                                                    .bytes = sizeof(piece)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->piece,
+                                                                         .offset = (embed_word)index * sizeof(piece),
+                                                                         .dst = &piece,
+                                                                         .bytes = sizeof(piece)});
             const unsigned long long count =
                 EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = &piece, .indexed = indexed);
             if (piece.written)
@@ -376,7 +376,8 @@ EMBED_INLINE CliLines cli_block_get(const PagesEditCtx *args)
         {
             unsigned int character = 0u;
             at += EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                             .text_bytes = (const unsigned char *)text, .length = size, .at = at, .character = &character);
+                             .text_bytes = (const unsigned char *)text, .length = size, .at = at,
+                             .character = &character);
             const unsigned long long need = (character > 0xffffu) ? 2ULL : 1ULL;
             if ((block.used + need) > block.units_max)
             {
@@ -428,7 +429,7 @@ EMBED_INLINE unsigned long long cli_total(const PagesEditCtx *args)
     for (unsigned int at = 0u; at < one->pieces; at += 1u)
     {
         CliPagePiece piece = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one->piece, .offset = (embed_word)at * sizeof(piece), .dst = &piece, .bytes = sizeof(piece)});
         total += EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = &piece, .indexed = indexed);
     }
@@ -443,7 +444,7 @@ int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = err_msg);
     char *const found_text =
-        (one != NULL) ? g_cli_guard->temporary_buf_alloc(CLI_PAGE_FOUND, g_cli_editor_owner) : NULL;
+        (one != NULL) ? g_platform_guard->temporary_buf_alloc(CLI_PAGE_FOUND, g_cli_editor_owner) : NULL;
     if ((one != NULL) && (found_text == NULL))
     {
         mmgr_line_put(err_msg, "the matches find writes could not be taken");
@@ -469,8 +470,8 @@ int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
         // the block's units and lines a cell sized to the lines read, given back as the block is searched; a block
         // whose units the cells cannot meet is read again as half as many lines
         unsigned char *const storage =
-            read ? g_cli_guard->temporary_buf_alloc(EMBED_CALL(cli_block_bytes, PagesEditCtx, .lines = &lines),
-                                                    g_cli_editor_owner)
+            read ? g_platform_guard->temporary_buf_alloc(EMBED_CALL(cli_block_bytes, PagesEditCtx, .lines = &lines),
+                                                         g_cli_editor_owner)
                  : NULL;
         if (read && (storage == NULL))
         {
@@ -486,11 +487,10 @@ int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
         {
             const CliLines block = EMBED_CALL(cli_block_get, PagesEditCtx, .lines = &lines, .storage = storage);
             found.from = from;
-            read =
-                EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = &block, .needle = needle,
-                           .max = max - found.found, .each = cli_page_match, .context = &found, .err_msg = err_msg);
+            read = EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = &block, .needle = needle,
+                              .max = max - found.found, .each = cli_page_match, .context = &found, .err_msg = err_msg);
         }
-        g_cli_guard->persistent_buf_release(storage, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(storage, g_cli_editor_owner);
         from = to;
     }
     if (read)
@@ -503,7 +503,7 @@ int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
     {
         EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     }
-    g_cli_guard->persistent_buf_release(found_text, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(found_text, g_cli_editor_owner);
     return read;
 }
 
@@ -534,7 +534,7 @@ int cli_pages_save(const CliPagesPathCfg *args)
     }
     // the lines go to the file through a stage of CLI_PAGE_SAVE_STAGE bytes, written whenever the next line would
     // not fit, and a line wider than the stage is written as it lies in the reading
-    char *const stage = g_cli_guard->temporary_buf_alloc(CLI_PAGE_SAVE_STAGE, g_cli_editor_owner);
+    char *const stage = g_platform_guard->temporary_buf_alloc(CLI_PAGE_SAVE_STAGE, g_cli_editor_owner);
     int written = (stage != NULL) && EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = adjacent,
                                                 .bytes = "", .size = 0ULL, .fresh = 1);
     if (stage == NULL)
@@ -576,7 +576,7 @@ int cli_pages_save(const CliPagesPathCfg *args)
     }
     written =
         written && EMBED_CALL(save_stage, PagesEditCtx, .adjacent = adjacent, .block = &block, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(stage, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(stage, g_cli_editor_owner);
     EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     if (!written)
     {

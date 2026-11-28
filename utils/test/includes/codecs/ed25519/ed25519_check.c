@@ -5,7 +5,7 @@
 // signature changed, and a signature with the group's order added to its S each refused. Exit 0 where every one passed
 #include "../../../../../includes/codecs/ed25519/ed25519.h"
 #include "../../../../../includes/codecs/sha512/sha512.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"

@@ -148,11 +148,12 @@ static void toolchains_group(const CliEachGroupCfg *args)
 // every toolchain as impero finds it, a group at a time, and whether impero is on the PATH
 static int toolchains_list(void)
 {
-    CliGrownLine found;
-    cli_grown_begin(&found, CLI_TOOLCHAINS_FOUND, g_cli_toolchains_words_owner);
+    PlatformText found;
+    platform_text_begun(&found, CLI_TOOLCHAINS_FOUND, platform_place_g_cli_toolchains_words_owner,
+                        PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_toolchains_versions.check, CliToolchainsVersionsCfg, .versions = 1, .seen = NULL,
                .context_read = NULL, .out = &found.line);
-    const unsigned long long found_size = (mmgr_line_finish(&found.line) != 0ULL) ? cli_grown_size(&found) : 0ULL;
+    const unsigned long long found_size = (mmgr_line_finish(&found.line) != 0ULL) ? platform_text_size(&found) : 0ULL;
     const char *const found_text = found.cell;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
@@ -164,7 +165,7 @@ static int toolchains_list(void)
                                           .text_more = 0ULL, .err_msg = &unread, .owner = g_cli_toolchains_words_owner)
                              : CLI_JSON_NONE,
         0ULL};
-    cli_grown_end(&found);
+    platform_text_ended(&found);
     if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_json,
                    .node = list_entries.found, .type = CFG_JSON_ARRAY))
     {
@@ -179,7 +180,7 @@ static int toolchains_list(void)
         EMBED_CALL(cli_toolchains_each.groups, CliToolchainsEachCfg, .each = toolchains_group,
                    .context = &list_entries);
     }
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char folder[CLI_PATH_MAX_LEN];
@@ -243,7 +244,7 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
     char bash[CLI_PATH_MAX_LEN];
     // the PATH a setup runs with, as long as the system lets an environment's value be
     char *const path = EMBED_CALL(cli_runner_name.bash, CliRunnerNameCfg, .path = bash, .err_msg = err_msg)
-                           ? g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_words_owner)
+                           ? g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_toolchains_words_owner)
                            : NULL;
     if (path == NULL)
     {
@@ -256,13 +257,13 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
     EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = displayed_text,
                .size = mmgr_line_ok(&displayed) ? displayed.at : 0ULL);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = CLI_PATH_TEXT);
-    const CliSetting setting = {"PATH", path};
+    const PlatformSetting setting = {"PATH", path};
     const char *const words[4] = {bash, "-c", setup_line, NULL};
     long long code = 0LL;
     const int spawned =
         EMBED_CALL(cli_words_err_msg_settings_internal.spawn_share, CliWordsErrMsgSettingsCtx, .words = words,
                    .settings = &setting, .count = 1u, .code = &code, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(path, g_cli_toolchains_words_owner);
+    g_platform_guard->persistent_buf_release(path, g_cli_toolchains_words_owner);
     if (!spawned)
     {
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = 0, .out = out, .err_msg = err_msg);

@@ -14,7 +14,7 @@
 //
 //     constant_check
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.h"
 
 #include <stdio.h>

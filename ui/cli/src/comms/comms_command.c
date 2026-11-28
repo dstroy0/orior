@@ -94,7 +94,7 @@ EMBED_INLINE int command_private(const CommsCommandCtx *args)
     {
         (void)mmgr_line_put_n(args->out, characters, length);
     }
-    g_cli_guard->persistent_buf_release(read.node, g_cli_comms_owner);
+    g_platform_guard->persistent_buf_release(read.node, g_cli_comms_owner);
     return characters != NULL;
 }
 

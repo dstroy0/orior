@@ -334,13 +334,14 @@ EMBED_INLINE void values_cut(const SchemaValuesCtx *args)
 
 void cli_schema_show(const CliSchemaJsonValueCtx *args)
 {
-    CliGrownLine written;
-    cli_grown_begin(&written, CLI_SCHEMA_DISPLAYED_CAPACITY, g_cli_schema_owner);
+    PlatformText written;
+    platform_text_begun(&written, CLI_SCHEMA_DISPLAYED_CAPACITY, platform_place_g_cli_schema_owner,
+                        PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = args->value,
                .out = &written.line, .indent = 0u, .sorted = 1);
     EMBED_CALL(values_cut, SchemaValuesCtx, .text = written.cell,
-               .size = mmgr_line_ok(&written.line) ? cli_grown_size(&written) : 0u, .out = args->out);
-    cli_grown_end(&written);
+               .size = mmgr_line_ok(&written.line) ? platform_text_size(&written) : 0u, .out = args->out);
+    platform_text_ended(&written);
 }
 
 // the member of the object `node_u32`, `node` in `read`, whose key comes first after the key `text`, or first of all
@@ -439,12 +440,13 @@ static void values_write(const SchemaValuesCtx *args)
 
 void cli_schema_displayed_value(const CliSchemaReadNodeCtx *args)
 {
-    CliGrownLine written;
-    cli_grown_begin(&written, CLI_SCHEMA_DISPLAYED_CAPACITY, g_cli_schema_owner);
+    PlatformText written;
+    platform_text_begun(&written, CLI_SCHEMA_DISPLAYED_CAPACITY, platform_place_g_cli_schema_owner,
+                        PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(values_write, SchemaValuesCtx, .read = args->read, .node_u32 = args->node, .out = &written.line);
     EMBED_CALL(values_cut, SchemaValuesCtx, .text = written.cell,
-               .size = mmgr_line_ok(&written.line) ? cli_grown_size(&written) : 0u, .out = args->out);
-    cli_grown_end(&written);
+               .size = mmgr_line_ok(&written.line) ? platform_text_size(&written) : 0u, .out = args->out);
+    platform_text_ended(&written);
 }
 
 void cli_schema_number_show(const CliSchemaOutCtx *args)
@@ -488,8 +490,8 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     // the string's characters, each at least one of its bytes, and the pattern with a terminator after it
     const unsigned long long capacity = (args->size < CLI_SCHEMA_MATCHED) ? args->size : CLI_SCHEMA_MATCHED;
     unsigned int *const characters =
-        g_cli_guard->temporary_buf_alloc((capacity + 1ULL) * sizeof(*characters), g_cli_schema_owner);
-    char *const source = g_cli_guard->temporary_buf_alloc(args->pattern_size + 1ULL, g_cli_schema_owner);
+        g_platform_guard->temporary_buf_alloc((capacity + 1ULL) * sizeof(*characters), g_cli_schema_owner);
+    char *const source = g_platform_guard->temporary_buf_alloc(args->pattern_size + 1ULL, g_cli_schema_owner);
     int found = -1;
     if ((characters != NULL) && (source != NULL))
     {
@@ -513,7 +515,7 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(source, g_cli_schema_owner);
-    g_cli_guard->persistent_buf_release(characters, g_cli_schema_owner);
+    g_platform_guard->persistent_buf_release(source, g_cli_schema_owner);
+    g_platform_guard->persistent_buf_release(characters, g_cli_schema_owner);
     return found;
 }

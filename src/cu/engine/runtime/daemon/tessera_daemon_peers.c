@@ -1,10 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_peers.c: writing to, delivering to and serving the peers
-#include "../../../../platform/platform.h"
+// the internal header comes first, since it sets the macros of the system before any header
+#include "tessera_daemon_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include "tessera_daemon_internal.h"
 
 _Alignas(8) static const char s_daemon_reason_closed[] = "its connection closed";
 
@@ -320,10 +322,8 @@ int daemon_arguments(int count, char **arguments, unsigned long long *idle)
 
 int daemon_socket_passed(void)
 {
-#if defined(_WIN32)
-    return 0;
-#else
-    // systemd passes one listening socket over as fd 3 and names this process as its receiver
+    // systemd passes one listening socket over as fd 3 and names this process as its receiver. A system with no
+    // systemd sets neither variable, and the answer is then 0
     char listen_pid_text[PLATFORM_ENVIRONMENT_BYTES];
     const char *const listen_pid =
         (platform_environment("LISTEN_PID", listen_pid_text, sizeof(listen_pid_text)) != 0ULL) ? listen_pid_text : NULL;
@@ -332,10 +332,9 @@ int daemon_socket_passed(void)
         (platform_environment("LISTEN_FDS", listen_fds_text, sizeof(listen_fds_text)) != 0ULL) ? listen_fds_text : NULL;
     return (listen_pid != NULL) && (listen_fds != NULL) &&
            (EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = listen_pid, .end = NULL, .base = 10) ==
-            (unsigned long long)getpid()) &&
+            platform_process_id()) &&
            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = listen_fds, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1",
                        .ci = EMBED_FALSE));
-#endif
 }
 
 int daemon_error(void)

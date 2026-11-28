@@ -163,7 +163,7 @@ int cli_view_place_saved(const CliViewThreadCfg *args)
             *args->place = record.place;
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_view_owner);
     return found && (args->place->width >= CLI_POSITION_MIN_WIDTH) &&
            (args->place->height >= CLI_POSITION_MIN_HEIGHT) &&
            EMBED_CALL(place_fit, CliPlaceCtx, .position_out = args->place, .areas = args->areas, .count = args->count);
@@ -182,7 +182,7 @@ void cli_view_place_store(const CliViewThreadCfg *args)
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = g_cli_view_owner);
     const unsigned long long max = ((bytes != NULL) ? size : 0ULL) + sizeof(CliPlaceRecord) + key_length;
-    unsigned char *const written = g_cli_guard->temporary_buf_alloc(max, g_cli_view_owner);
+    unsigned char *const written = g_platform_guard->temporary_buf_alloc(max, g_cli_view_owner);
     if (written != NULL)
     {
         // a key's bytes are below what a record's length counts
@@ -212,7 +212,7 @@ void cli_view_place_store(const CliViewThreadCfg *args)
         }
         (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                          .bytes = written, .size = used);
-        g_cli_guard->persistent_buf_release(written, g_cli_view_owner);
+        g_platform_guard->persistent_buf_release(written, g_cli_view_owner);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_view_owner);
 }

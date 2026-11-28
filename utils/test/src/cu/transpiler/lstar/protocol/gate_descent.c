@@ -24,7 +24,7 @@
 // it, against arithmetic that every system that computes agrees about. The target gets questions only on the cases
 // that the descent placed.
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"

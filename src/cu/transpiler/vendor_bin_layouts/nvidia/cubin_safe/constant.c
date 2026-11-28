@@ -3,7 +3,7 @@
 // constant.c: rule 13, a read of the constant bank blocked before the part where it reaches a bank the container has no
 // section for or past the bank's end, read through the vendor's own instruction set
 #include "cubin_safe_internal.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 #include "../tables/read.h"
 

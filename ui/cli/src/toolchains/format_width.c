@@ -118,10 +118,10 @@ int cli_format_nearest(const CliFormatPathCtx *args)
                 continue;
             }
             // the settings stored in a cell sized to the file, ended by a 0, the ones stored before given back
-            g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+            g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
             g_cli_format.settings = EMBED_CALL(cli_format_bytes_internal.utf8, CliFormatBytesCtx,
                                                .bytes = (const char *)bytes, .size = size)
-                                        ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_toolchains_owner)
+                                        ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_toolchains_owner)
                                         : NULL;
             const int text = g_cli_format.settings != NULL;
             if (text)
@@ -130,7 +130,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
                 g_cli_format.settings[size] = '\0';
             }
             g_cli_format.settings_size = text ? size : 0ULL;
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_toolchains_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_toolchains_owner);
             if (text)
             {
                 return 1;
@@ -320,11 +320,11 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
     }
     if (names == NULL)
     {
-        g_cli_guard->persistent_buf_release(g_cli_format.json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
+        g_platform_guard->persistent_buf_release(g_cli_format.json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), g_cli_format.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+        g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
         g_cli_format.settings = NULL;
         g_cli_format.settings_size = 0ULL;
         return 0;
@@ -334,11 +334,11 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "markdown", .cap = CLI_POOL_BYTES})) &&
         !(settings && EMBED_CALL(cli_wraps_prose, FormatWidthCtx, .text = g_cli_format.settings)))
     {
-        g_cli_guard->persistent_buf_release(g_cli_format.json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
+        g_platform_guard->persistent_buf_release(g_cli_format.json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), g_cli_format.json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+        g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
         g_cli_format.settings = NULL;
         g_cli_format.settings_size = 0ULL;
         return 0;
@@ -356,11 +356,11 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
                    .length_pointer = NULL);
     EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->by, .text = name, .otherwise = "");
     *width = found;
-    g_cli_guard->persistent_buf_release(g_cli_format.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_format.json.node));
+    g_platform_guard->persistent_buf_release(g_cli_format.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_format.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_format.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(g_cli_format.settings, g_cli_toolchains_owner);
     g_cli_format.settings = NULL;
     g_cli_format.settings_size = 0ULL;
     return found > 0u;

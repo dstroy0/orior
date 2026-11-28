@@ -686,7 +686,7 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_file_each,
                .context_bytess = &files);
     files = (CliBridgeFiles){
-        g_cli_guard->temporary_buf_alloc((files.count + 1ULL) * sizeof(CliBridgeFile), g_cli_editor_owner), 0u,
+        g_platform_guard->temporary_buf_alloc((files.count + 1ULL) * sizeof(CliBridgeFile), g_cli_editor_owner), 0u,
         files.count};
     if (files.file == NULL)
     {
@@ -790,9 +790,9 @@ unsigned int cli_bridge_read(const CliBridgeCfg *args)
                        .value = EMBED_CALL(cli_bridge_path.ruleset, CliBridgePathCfg, .json = args->json,
                                            .path = relative, .text = text_of, .size = one->size));
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)one->bytes, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)one->bytes, g_cli_editor_owner);
     }
-    g_cli_guard->persistent_buf_release(files.file, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(files.file, g_cli_editor_owner);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = bridge,
                .name = "maps", .value = maps);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = bridge,

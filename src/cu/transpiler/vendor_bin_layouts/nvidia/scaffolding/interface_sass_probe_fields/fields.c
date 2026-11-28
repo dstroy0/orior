@@ -3,7 +3,7 @@
 // fields.c: the fields: each field read off the part, what writes first, a mark, a swap and an address swap, a
 // redirect, and the fields named
 #include "../../../../../../../includes/parsers/line_read.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../engine/engine_note.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"

@@ -46,7 +46,7 @@ static void verify_words_begin(void)
 typedef struct
 {
     const char *folder;
-    const CliSetting *settings;
+    const PlatformSetting *settings;
     unsigned int count;
     unsigned long long patience;
     VerbaLinea *err_msg;
@@ -60,7 +60,7 @@ typedef struct
 EMBED_INLINE CliRunResult *verify_run(const DisasmVerifyStepsCtx *args)
 {
     const char *folder = args->folder;
-    const CliSetting *settings = args->settings;
+    const PlatformSetting *settings = args->settings;
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     CliRunResult *const run_result = cli_run_result_alloc();
@@ -128,7 +128,7 @@ int cli_disasm_build(const CliDisasmVerifyCompilerCfg *args)
                .word_text = script);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                .word_text = args->target);
-    const CliSetting settings[2] = {{"PATH", s_run_path}, {"CC", args->compiler}};
+    const PlatformSetting settings[2] = {{"PATH", s_run_path}, {"CC", args->compiler}};
     CliRunResult *const run_result =
         EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = args->top, .settings = settings, .count = 2u,
                    .patience = CLI_DISASM_BUILD_PATIENCE, .err_msg = err_msg);
@@ -162,7 +162,7 @@ int cli_disasm_lifted(const CliDisasmVerifyIrCfg *args)
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word_text = args->ir);
     }
-    const CliSetting settings[1] = {{"PATH", s_run_path}};
+    const PlatformSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings,
                                                 .count = 1u, .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
     if (run_result == NULL)
@@ -191,9 +191,8 @@ EMBED_INLINE unsigned int verify_listed_functions(const DisasmVerifyStepsCtx *ar
     {
         const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                   .text = args->text, .at = at, .size = args->size, .set = "\n");
-        const unsigned long long word_text =
-            at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->text + at,
-                            .at = end - at, .set = " \t");
+        const unsigned long long word_text = at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                             .text = args->text + at, .at = end - at, .set = " \t");
         const int function =
             ((end - word_text) > 0ULL) && ((end - word_text) < CLI_NAME_MAX_LEN) && (args->text[at] == 'T');
         if (function && (args->names != NULL) && (count < args->capacity))
@@ -221,11 +220,12 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
         return 0u;
     }
     const unsigned int count =
-        args->gnu ? EMBED_CALL(verify_listed_functions, DisasmVerifyStepsCtx, .text = (const char *)text, .size = size,
-                               .names = args->names, .capacity = args->capacity)
-                  : EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg,
-                               .ir = (const char *)text, .size = size, .names = args->names, .capacity = args->capacity);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
+        args->gnu
+            ? EMBED_CALL(verify_listed_functions, DisasmVerifyStepsCtx, .text = (const char *)text, .size = size,
+                         .names = args->names, .capacity = args->capacity)
+            : EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg,
+                         .ir = (const char *)text, .size = size, .names = args->names, .capacity = args->capacity);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
     if (count == 0u)
     {
         mmgr_line_put(err_msg, "the module defines no function");
@@ -244,7 +244,7 @@ unsigned int cli_disasm_symbols(const CliDisasmVerifyCountErrMsgListerCfg *args)
                .word_text = "--defined-only");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                .word_text = args->program);
-    const CliSetting settings[1] = {{"PATH", s_run_path}};
+    const PlatformSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings,
                                                 .count = 1u, .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
     if (run_result == NULL)
@@ -276,7 +276,7 @@ CliRunResult *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args)
     // the symbols' list in a cell of the call sized to them, each with its comma, after the flag
     const unsigned long long list_bytes =
         (((unsigned long long)count + 1ULL) * (CLI_NAME_MAX_LEN + 1ULL)) + CLI_DISASM_LIST_FLAG;
-    char *const symbol_list = g_cli_guard->temporary_buf_alloc(list_bytes, g_cli_programs_owner);
+    char *const symbol_list = g_platform_guard->temporary_buf_alloc(list_bytes, g_cli_programs_owner);
     if (symbol_list == NULL)
     {
         mmgr_line_put(err_msg, "the symbols' list could not be taken");
@@ -297,7 +297,7 @@ CliRunResult *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args)
     if (!mmgr_line_finish(&list_entries))
     {
         mmgr_line_put(err_msg, "the symbols do not fit one disassembler command");
-        g_cli_guard->persistent_buf_release(symbol_list, g_cli_programs_owner);
+        g_platform_guard->persistent_buf_release(symbol_list, g_cli_programs_owner);
         return NULL;
     }
     verify_words_begin();
@@ -314,8 +314,8 @@ CliRunResult *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args)
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                .word_text = args->program);
     // the words copy the list: its cell goes back before the run
-    g_cli_guard->persistent_buf_release(symbol_list, g_cli_programs_owner);
-    const CliSetting settings[1] = {{"PATH", s_run_path}};
+    g_platform_guard->persistent_buf_release(symbol_list, g_cli_programs_owner);
+    const PlatformSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings,
                                                 .count = 1u, .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
     if (run_result != NULL)
@@ -364,10 +364,10 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
                      EMBED_CALL(cli_words_err_msg_internal.private_folder_init, CliWordsErrMsgCtx, .folder = project) &&
                      EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = script,
                                 .bytes = script_text, .size = script_size);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)script_text, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)script_text, g_cli_programs_owner);
     // the symbols' names a line each, in a cell of the call sized to them
     const unsigned long long names_bytes = ((unsigned long long)count + 1ULL) * (CLI_NAME_MAX_LEN + 1ULL);
-    char *const names_text = g_cli_guard->temporary_buf_alloc(names_bytes, g_cli_programs_owner);
+    char *const names_text = g_platform_guard->temporary_buf_alloc(names_bytes, g_cli_programs_owner);
     if (names_text == NULL)
     {
         mmgr_line_put(err_msg, "the names' list could not be taken");
@@ -385,7 +385,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
     const int listed = made && mmgr_line_ok(&list_entries) &&
                        EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = names,
                                   .bytes = names_text, .size = list_entries.at);
-    g_cli_guard->persistent_buf_release(names_text, g_cli_programs_owner);
+    g_platform_guard->persistent_buf_release(names_text, g_cli_programs_owner);
     if (!listed)
     {
         mmgr_line_put(err_msg, "the script and the names could not be written under ");
@@ -429,7 +429,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
     // the output emptied first, so that a script the analyzer could not run leaves nothing to read, not an older run's
     (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = args->into, .bytes = "",
                      .size = 0ULL);
-    const CliSetting settings[1] = {{"PATH", s_run_path}};
+    const PlatformSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result =
         EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = folder, .settings = settings, .count = 1u,
                    .patience = CLI_DISASM_GHIDRA_PATIENCE, .err_msg = err_msg);
@@ -442,7 +442,7 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
                                                  .size_pointer = size, .owner = g_cli_programs_owner);
     if ((text == NULL) || (*size == 0ULL))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)text, g_cli_programs_owner);
         mmgr_line_put(err_msg, "Ghidra's script wrote nothing to ");
         mmgr_line_put(err_msg, args->into);
         mmgr_line_put(err_msg, ": the analyzer's log in the run's errors explains why");
@@ -458,7 +458,7 @@ int cli_disasm_execute(const CliDisasmVerifyCountErrMsgCfg *args)
                .word_text = args->program);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                .word_text = "help");
-    const CliSetting settings[1] = {{"PATH", s_run_path}};
+    const PlatformSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result =
         EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings, .count = 1u,
                    .patience = CLI_DISASM_READ_PATIENCE, .err_msg = args->err_msg);

@@ -52,8 +52,8 @@ EMBED_INLINE int cli_reply_file_read(const CompileDbCmakeCtx *args)
 // a flag put after the compile group's flags
 EMBED_INLINE void cli_flag_append(const CompileDbCmakeCtx *args)
 {
-    CliGrownLine *const text = &g_cli_gather.flags_text;
-    const unsigned long long mark = cli_grown_size(text);
+    PlatformText *const text = &g_cli_gather.flags_text;
+    const unsigned long long mark = platform_text_size(text);
     if ((g_cli_gather.flags >= CLI_GATHER_FLAGS) || (mark > 0xffffffffULL))
     {
         return;
@@ -109,24 +109,24 @@ EMBED_INLINE void cli_fragment_flags(const CompileDbCmakeCtx *args)
     unsigned long long at = args->at;
     const unsigned long long span =
         EMBED_CALL(cli_reply_at.string_span, CliReplyAtCfg, .reply = args->target, .at = at);
-    char *const text = g_cli_guard->temporary_buf_alloc(span + 1ULL, g_cli_build_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(span + 1ULL, g_cli_build_owner);
     if ((text == NULL) || !EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target, .at = at,
                                       .out = text, .capacity = span + 1ULL))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_build_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_build_owner);
         return;
     }
     EMBED_CALL(cli_compile_db_text_internal.compile_words_each, CliCompileDbTextCtx, .text = text,
                .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES}), .each = cli_fragment_word,
                .context = NULL);
-    g_cli_guard->persistent_buf_release(text, g_cli_build_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_build_owner);
 }
 
 // a compile group's flags: its fragments' words, its include folders, its defines and its sysroot
 EMBED_INLINE void cli_group_flags(const CompileDbCmakeCtx *args)
 {
     g_cli_gather.flags = 0u;
-    cli_grown_reset(&g_cli_gather.flags_text);
+    platform_text_reset(&g_cli_gather.flags_text);
     const unsigned long long fragments = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                                     .object = args->group, .key = "compileCommandFragments");
     for (unsigned long long at =

@@ -65,20 +65,21 @@ static void jobs_worker(void *context)
                          &popped, &seen_word);
         const CarcerMovableEntry *const cell = popped;
         JobsCell job = {NULL, 0ULL};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = &job, .bytes = sizeof(job)});
-        char *const bytes = g_cli_guard->temporary_buf_alloc((job.size != 0ULL) ? job.size : 1ULL, g_cli_servers_owner);
+        char *const bytes =
+            g_platform_guard->temporary_buf_alloc((job.size != 0ULL) ? job.size : 1ULL, g_cli_servers_owner);
         if ((bytes != NULL) && (job.size != 0ULL))
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = cell, .offset = sizeof(job), .dst = bytes, .bytes = (embed_word)job.size});
         }
         if (bytes != NULL)
         {
             EMBED_CALL(job.run, CliServersJobCfg, .job = bytes, .size = job.size);
         }
-        g_cli_guard->persistent_buf_release(bytes, g_cli_servers_owner);
-        (void)g_cli_guard->movable_buf_release(cell, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(bytes, g_cli_servers_owner);
+        (void)g_platform_guard->movable_buf_release(cell, g_cli_servers_owner);
         (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &s_turnstiles, &s_ring, stamp,
                          &seen_word);
         (void)EMBED_ATOMIC_ADD_32(&s_done, 1u);
@@ -100,7 +101,7 @@ static void jobs_worker_started(void)
         if (EMBED_ATOMIC_CAS_32(&s_started, &count, count + 1u))
         {
             s_worker_index[count] = count;
-            s_thread[count] = (CliThread){jobs_worker, &s_worker_index[count], CLI_PRIORITY_WORK};
+            s_thread[count] = (CliThread){jobs_worker, &s_worker_index[count], PLATFORM_PRIORITY_WORK};
             (void)EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread[count]);
             return;
         }
@@ -110,17 +111,17 @@ static void jobs_worker_started(void)
 int cli_servers_later(const CliServersRunCtx *args)
 {
     const CarcerMovableEntry *const cell =
-        g_cli_guard->movable_buf_alloc(sizeof(JobsCell) + args->size, g_cli_servers_owner);
+        g_platform_guard->movable_buf_alloc(sizeof(JobsCell) + args->size, g_cli_servers_owner);
     if (cell == NULL)
     {
         return 0;
     }
     const JobsCell head = {args->run, args->size};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     if (args->size != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = cell, .offset = sizeof(head), .src = args->job, .bytes = (embed_word)args->size});
     }
     return EMBED_CALL(cli_servers_run_size_internal.later_dispatch, CliServersRunSizeCtx, .run = args->run,

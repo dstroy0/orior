@@ -4,8 +4,8 @@
 // a list for each, one pattern to a line (patterns.c).
 //
 // A pattern names files and folders as a `.gitignore` line does: `*` is for any characters of a name, `**` for any
-// folders, `?` for one character, and a trailing `/` names folders only. A pattern with no `/` but a trailing one names a
-// file or folder by its name wherever it is; one with a `/` names a path from the tree's top. A folder named takes
+// folders, `?` for one character, and a trailing `/` names folders only. A pattern with no `/` but a trailing one names
+// a file or folder by its name wherever it is; one with a `/` names a path from the tree's top. A folder named takes
 // everything in it. A line starting with `#` and an empty line name nothing.
 //
 // A pattern starting with `!` includes the files it names and hides every other: `!src/` with two stars after it alone
@@ -28,8 +28,8 @@ typedef struct CliPatternsTextCfg CliPatternsTextCfg;
 
 #define CLI_PATTERN_CHARACTERS 16384u
 
-// One pattern: as a path from the tree's top, `**/` before it where it names a name anywhere, its characters `length` of
-// the set's from `first`; and whether it names folders only
+// One pattern: as a path from the tree's top, `**/` before it where it names a name anywhere, its characters `length`
+// of the set's from `first`; and whether it names folders only
 typedef struct
 {
     unsigned int first;

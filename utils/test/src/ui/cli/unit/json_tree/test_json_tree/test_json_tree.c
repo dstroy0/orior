@@ -14,15 +14,15 @@ static void assert_round_trip(const char *text)
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_cli_text_owner);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, root);
     const unsigned long long capacity = EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &json);
-    char *const written = g_cli_guard->temporary_buf_alloc(capacity, g_cli_text_owner);
+    char *const written = g_platform_guard->temporary_buf_alloc(capacity, g_cli_text_owner);
     TEST_ASSERT_NOT_NULL(written);
     VerbaLinea line = mmgr_line_over(written, capacity);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root, .out = &line, .indent = 0u, .sorted = 0);
     TEST_ASSERT_TRUE(mmgr_line_ok(&line));
     CLI_TEST_ASSERT_TEXT(text, written, line.at);
-    g_cli_guard->persistent_buf_release(written, g_cli_text_owner);
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(written, g_cli_text_owner);
+    g_platform_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -36,8 +36,8 @@ static void assert_refused(const char *text, const char *reason)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = g_cli_text_owner);
     (void)mmgr_line_finish(&err_msg);
-    g_cli_guard->persistent_buf_release(json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node,
+                                        mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, root);
@@ -113,7 +113,7 @@ static unsigned int tree_read(CliJson *json, const char *text, unsigned int node
 // the tree's cell given back
 static void tree_released(CliJson *json)
 {
-    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
 }
 

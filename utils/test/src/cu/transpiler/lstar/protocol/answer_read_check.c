@@ -9,7 +9,7 @@
 //   gray       a case the host gives no bracket, whatever the part did there, and a query the gate blocked
 //   truthy     alike alone
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/answer_read.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

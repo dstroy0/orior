@@ -85,7 +85,7 @@ EMBED_INLINE void cell_released(const DiffViewCtx *args)
 {
     if (args->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->cell, g_cli_diff_view_owner);
+        (void)g_platform_guard->movable_buf_release(args->cell, g_cli_diff_view_owner);
     }
 }
 
@@ -285,12 +285,12 @@ EMBED_INLINE int sources_copied(const DiffViewCtx *args)
     CliDiffView *const view = &g_cli_diff_view;
     if (source->size != 0ULL)
     {
-        view->text_cell = g_cli_guard->movable_buf_alloc(source->size, g_cli_diff_view_owner);
+        view->text_cell = g_platform_guard->movable_buf_alloc(source->size, g_cli_diff_view_owner);
         if (view->text_cell == NULL)
         {
             return 0;
         }
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = view->text_cell, .offset = 0ULL, .src = source->text, .bytes = source->size});
     }
     view->source = source->source;
@@ -363,7 +363,7 @@ EMBED_INLINE int read_side(const DiffViewCtx *args)
 {
     DiffViewSide *const side = args->side;
     side->absent = 1;
-    side->scratch = g_cli_guard->temporary_buf_alloc(DIFF_VIEW_TEXT_MAX, g_cli_diff_view_owner);
+    side->scratch = g_platform_guard->temporary_buf_alloc(DIFF_VIEW_TEXT_MAX, g_cli_diff_view_owner);
     if (side->scratch == NULL)
     {
         return 0;
@@ -407,7 +407,7 @@ EMBED_INLINE void clipboard_side(const DiffViewCtx *args)
 {
     DiffViewSide *const side = args->side;
     const CliDiffView *const view = &g_cli_diff_view;
-    side->scratch = g_cli_guard->temporary_buf_alloc(view->size + 1ULL, g_cli_diff_view_owner);
+    side->scratch = g_platform_guard->temporary_buf_alloc(view->size + 1ULL, g_cli_diff_view_owner);
     if (side->scratch == NULL)
     {
         side->text = "";
@@ -416,7 +416,7 @@ EMBED_INLINE void clipboard_side(const DiffViewCtx *args)
     }
     if (view->size != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = view->text_cell, .offset = 0ULL, .dst = side->scratch, .bytes = view->size});
     }
     side->scratch[view->size] = '\0';
@@ -464,7 +464,7 @@ EMBED_INLINE int side_positioned(const DiffViewCtx *args)
         }
     }
     unsigned char *const cell =
-        g_cli_guard->temporary_buf_alloc((16ULL * count) + (2ULL * units) + 2ULL, g_cli_diff_view_owner);
+        g_platform_guard->temporary_buf_alloc((16ULL * count) + (2ULL * units) + 2ULL, g_cli_diff_view_owner);
     if (cell == NULL)
     {
         return 0;
@@ -509,21 +509,21 @@ EMBED_INLINE void side_written(const DiffViewCtx *args)
     side->start_at = at;
     if (from->lines != 0u)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_diff_view.lines_cell, .offset = at, .src = from->start, .bytes = 8ULL * from->lines});
     }
     at += 8ULL * from->lines;
     side->length_at = at;
     if (from->lines != 0u)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_diff_view.lines_cell, .offset = at, .src = from->length, .bytes = 8ULL * from->lines});
     }
     at += 8ULL * from->lines;
     side->unit_at = at;
     if (from->used != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_diff_view.lines_cell, .offset = at, .src = from->unit, .bytes = 2ULL * from->used});
     }
     *args->offset = at + (((2ULL * from->used) + 7ULL) & ~7ULL);
@@ -586,7 +586,7 @@ EMBED_INLINE void sides_released(const DiffViewCtx *args)
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         DiffViewSide *const side = &args->side[at];
-        g_cli_guard->persistent_buf_release(side->scratch, g_cli_diff_view_owner);
+        g_platform_guard->persistent_buf_release(side->scratch, g_cli_diff_view_owner);
         side->scratch = NULL;
         if (side->own)
         {
@@ -631,7 +631,7 @@ EMBED_INLINE int lines_stored(const DiffViewCtx *args)
     const unsigned long long bytes = (16ULL * ((unsigned long long)positioned[0].lines + positioned[1].lines)) +
                                      (((2ULL * positioned[0].used) + 7ULL) & ~7ULL) +
                                      (((2ULL * positioned[1].used) + 7ULL) & ~7ULL) + 8ULL;
-    g_cli_diff_view.lines_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_diff_view_owner);
+    g_cli_diff_view.lines_cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_diff_view_owner);
     if (g_cli_diff_view.lines_cell == NULL)
     {
         return 0;
@@ -651,8 +651,8 @@ EMBED_INLINE int lines_loosened(const DiffViewCtx *args)
     const CliLines *const from = args->lines_read;
     CliLines *const to = args->lines;
     *to = (CliLines){0};
-    unsigned char *const cell =
-        g_cli_guard->temporary_buf_alloc((16ULL * from->lines) + (2ULL * from->used) + 8ULL, g_cli_diff_view_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(
+        (16ULL * from->lines) + (2ULL * from->used) + 8ULL, g_cli_diff_view_owner);
     *args->cell_out = cell;
     if (cell == NULL)
     {
@@ -735,7 +735,7 @@ EMBED_INLINE int rows_positioned(const DiffViewCtx *args)
     const unsigned int left_after = last[3] + (view->right.lines - last[1]);
     rows += (view->left.lines > left_after) ? view->left.lines - left_after : 0u;
     const unsigned long long bytes = CLI_DIFF_VIEW_ROW_AT(rows) + (4ULL * found->hunks);
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_diff_view_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_diff_view_owner);
     if (cell == NULL)
     {
         return 0;
@@ -782,16 +782,16 @@ EMBED_INLINE int rows_positioned(const DiffViewCtx *args)
         positioned += 1u;
         left += 1u;
     }
-    view->rows_cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_diff_view_owner);
+    view->rows_cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_diff_view_owner);
     if (view->rows_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = view->rows_cell, .offset = 0ULL, .src = cell, .bytes = bytes});
         view->change_row_at = CLI_DIFF_VIEW_ROW_AT(rows);
         view->changes = found->hunks;
         view->rows = positioned;
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_diff_view_owner);
     return view->rows_cell != NULL;
 }
 
@@ -814,7 +814,7 @@ EMBED_INLINE int compared(const DiffViewCtx *args)
     }
     const unsigned long long capacity = (unsigned long long)view->left.lines + view->right.lines + 1ULL;
     DiffViewHunks found = {NULL, 0u, 0u};
-    found.hunk = ready ? g_cli_guard->temporary_buf_alloc(16ULL * capacity, g_cli_diff_view_owner) : NULL;
+    found.hunk = ready ? g_platform_guard->temporary_buf_alloc(16ULL * capacity, g_cli_diff_view_owner) : NULL;
     // the changes of two texts are fewer than their lines and one, far inside an unsigned int
     found.capacity = (unsigned int)capacity;
     int positioned = 0;
@@ -827,9 +827,9 @@ EMBED_INLINE int compared(const DiffViewCtx *args)
         positioned =
             !changed || EMBED_CALL(rows_positioned, DiffViewCtx, .lines_read = (const CliLines *)(const void *)&found);
     }
-    g_cli_guard->persistent_buf_release(found.hunk, g_cli_diff_view_owner);
-    g_cli_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
-    g_cli_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(found.hunk, g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
     return positioned;
 }
 
@@ -857,7 +857,7 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     // which of two commits is the older
     const int on = (args->source != CLI_DIFF_VIEW_COMMITS) ||
                    EMBED_CALL(commit_older, DiffViewCtx, .root = args->root, .id = args->id, .other = args->other_id);
-    char *const scratch = g_cli_guard->temporary_buf_alloc(DIFF_VIEW_SENTENCE_MAX, g_cli_diff_view_owner);
+    char *const scratch = g_platform_guard->temporary_buf_alloc(DIFF_VIEW_SENTENCE_MAX, g_cli_diff_view_owner);
     if (scratch == NULL)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the view's sentences");
@@ -867,7 +867,7 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
     EMBED_CALL(sentences_written, DiffViewCtx, .source = args, .path = path, .out = &sentences, .on = on);
     const int copied = mmgr_line_ok(&sentences) &&
                        EMBED_CALL(sources_copied, DiffViewCtx, .source = args, .path = path, .out = &sentences);
-    g_cli_guard->persistent_buf_release(scratch, g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_diff_view_owner);
     // the two sides' lines in cells of this call, compared, then retained in the view's lines cell
     CliLines positioned[2];
     memor.set(&(MemoriaCfg){.dst = positioned, .val = 0, .bytes = sizeof(positioned)});
@@ -877,8 +877,8 @@ int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args)
                                   .lines = positioned, .cell_out = cells) &&
                        EMBED_CALL(compared, DiffViewCtx, .on = on, .lines = positioned) &&
                        EMBED_CALL(lines_stored, DiffViewCtx, .lines = positioned);
-    g_cli_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
-    g_cli_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(cells[0], g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(cells[1], g_cli_diff_view_owner);
     if (!opened)
     {
         if (copied && (args->err_msg->at == 0ULL))

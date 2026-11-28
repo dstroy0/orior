@@ -13,7 +13,7 @@
 //
 //     tables_funnel_check
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

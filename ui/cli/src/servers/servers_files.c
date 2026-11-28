@@ -190,7 +190,7 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
         EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = root,
                    .path = path, .text = disk, .size = read, .sink = &s_sink);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_servers_owner);
     EMBED_CALL(cli_servers_path_lsp_internal.plugins_close, CliServersPathLspCtx, .path = path);
     // a file the editor closes is the check's to give its server, in slices of the disk's text where it slices; a
     // server let go is not started again to close it
@@ -220,7 +220,7 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
     }
     // the text put on the line out of its cell, a window at a time
     CliKeyedEntry one = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_servers_texts.page[place / CLI_KEYED_PAGE],
                             .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
                             .dst = &one,
@@ -230,7 +230,7 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
         char window[SERVERS_FILES_WINDOW];
         const unsigned long long left = one.text_size - at;
         const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one.cell, .offset = (embed_word)(one.text_at + at), .dst = window, .bytes = (embed_word)bytes});
         mmgr_line_put_n(args->out, window, bytes);
         at += bytes;
@@ -250,16 +250,16 @@ char *cli_servers_text_alloc(const CliServersPathSizeTypeCtx *args)
         return NULL;
     }
     CliKeyedEntry one = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_servers_texts.page[place / CLI_KEYED_PAGE],
                             .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
                             .dst = &one,
                             .bytes = sizeof(one)});
     *args->size_pointer = one.text_size;
-    char *const reserved = g_cli_guard->temporary_buf_alloc(one.text_size + 1ULL, g_cli_servers_owner);
+    char *const reserved = g_platform_guard->temporary_buf_alloc(one.text_size + 1ULL, g_cli_servers_owner);
     if (reserved != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one.cell, .offset = (embed_word)one.text_at, .dst = reserved, .bytes = (embed_word)one.text_size});
         reserved[one.text_size] = '\0';
     }
@@ -278,7 +278,7 @@ int cli_servers_text_measure(const CliServersPathSizeTypeCfg *args)
         return 0;
     }
     CliKeyedEntry one = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_servers_texts.page[place / CLI_KEYED_PAGE],
                             .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
                             .dst = &one,

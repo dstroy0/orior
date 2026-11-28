@@ -10,8 +10,8 @@
 #define CLI_DIFF_VIEW_NONE 0xffffffffu
 #define CLI_DIFF_VIEW_WHERE_MAX 48u
 
-// A row as the view positions it: the left line's number and the right's, CLI_DIFF_VIEW_NONE where the side has none, what
-// it is, and how many right lines are above it, which rises with the rows, for a binary search by the right side
+// A row as the view positions it: the left line's number and the right's, CLI_DIFF_VIEW_NONE where the side has none,
+// what it is, and how many right lines are above it, which rises with the rows, for a binary search by the right side
 typedef struct
 {
     unsigned int left;

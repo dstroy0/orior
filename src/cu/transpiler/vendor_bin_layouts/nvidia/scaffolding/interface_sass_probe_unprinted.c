@@ -14,7 +14,7 @@
 //
 // The kernel's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
 // into. The kernel loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "interface_sass_probe_unprinted/unprinted_internal.h"

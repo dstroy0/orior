@@ -30,7 +30,8 @@ EMBED_INLINE unsigned long long gather_character(const DeployGatherCtx *args)
     unsigned long long at = args->at;
     unsigned int character = 0u;
     return EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                      .text_bytes = (const unsigned char *)text, .length = args->size, .at = at, .character = &character);
+                      .text_bytes = (const unsigned char *)text, .length = args->size, .at = at,
+                      .character = &character);
 }
 
 int cli_deploy_fits(const CliDeploySizePatternCtx *args)

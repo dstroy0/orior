@@ -64,7 +64,7 @@
 //               daughter two; the ids count every row of the file from 0
 // A voxel v of a view depth x height x width lies at z = v / (height width), y = (v mod height width) / width,
 // x = v mod width.
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdint.h>
 #include <stdio.h>

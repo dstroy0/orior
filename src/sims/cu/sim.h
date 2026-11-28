@@ -7,7 +7,7 @@
 #include "memoria_operor/memoria_operor.h"
 
 #include "../../../includes/exact_types/integers/exact_integer.h"
-#include "../../platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 

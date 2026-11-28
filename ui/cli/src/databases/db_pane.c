@@ -40,10 +40,10 @@ EMBED_INLINE void transaction_written(const DbPaneCtx *args)
         &(CatenaFinitaCfg){.dst = transaction,
                            .src = EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = args->open),
                            .cap = CLI_DB_PANE_TRANSACTION});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                             .offset = CLI_DB_PANE_TRANSACTION_AT(args->at),
-                                                             .src = transaction,
-                                                             .bytes = sizeof(transaction)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                  .offset = CLI_DB_PANE_TRANSACTION_AT(args->at),
+                                                                  .src = transaction,
+                                                                  .bytes = sizeof(transaction)});
 }
 
 void cli_db_pane_begin(const CliDbPaneCfg *args)
@@ -62,10 +62,10 @@ void cli_db_pane_labels_positioned(const CliDbPaneCtx *args)
     CliDbConnection connection;
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
-                                                                .dst = &connection,
-                                                                .bytes = sizeof(CliDbConnection)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                     .dst = &connection,
+                                                                     .bytes = sizeof(CliDbConnection)});
         bytes += cellul.len(&(CatenaFinitaCfg){.src = connection.name, .cap = CLI_NAME_MAX_LEN}) +
                  cellul.len(&(CatenaFinitaCfg){.src = connection.type, .cap = 16ULL}) + sizeof(PANE_OPEN_MARK) + 4ULL;
     }
@@ -74,11 +74,11 @@ void cli_db_pane_labels_positioned(const CliDbPaneCtx *args)
     const unsigned long long starts = (unsigned long long)pane->connections * sizeof(unsigned long long);
     if (pane->labels != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(pane->labels, g_cli_db_pane_owner);
+        (void)g_platform_guard->movable_buf_release(pane->labels, g_cli_db_pane_owner);
         pane->labels = NULL;
     }
     unsigned char *const positioned =
-        (pane->connections != 0u) ? g_cli_guard->temporary_buf_alloc(starts + bytes, g_cli_db_pane_owner) : NULL;
+        (pane->connections != 0u) ? g_platform_guard->temporary_buf_alloc(starts + bytes, g_cli_db_pane_owner) : NULL;
     if (positioned == NULL)
     {
         return;
@@ -87,29 +87,29 @@ void cli_db_pane_labels_positioned(const CliDbPaneCtx *args)
     VerbaLinea line = {(char *)(positioned + starts), bytes, 0ULL};
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
-                                                                .dst = &connection,
-                                                                .bytes = sizeof(CliDbConnection)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                     .dst = &connection,
+                                                                     .bytes = sizeof(CliDbConnection)});
         label_at[at] = starts + line.at;
         (void)mmgr_line_put(&line, connection.name);
         (void)mmgr_line_put(&line, " (");
         (void)mmgr_line_put(&line, connection.type);
         CliDbOpen *open = NULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_OPEN_AT(at),
-                                                                .dst = &open,
-                                                                .bytes = sizeof(open)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_OPEN_AT(at),
+                                                                     .dst = &open,
+                                                                     .bytes = sizeof(open)});
         (void)mmgr_line_put(&line, (open != NULL) ? ")" PANE_OPEN_MARK : ")");
         mmgr_line_ch(&line, '\0');
     }
-    pane->labels = g_cli_guard->movable_buf_alloc(starts + line.at, g_cli_db_pane_owner);
+    pane->labels = g_platform_guard->movable_buf_alloc(starts + line.at, g_cli_db_pane_owner);
     if (pane->labels != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = pane->labels, .offset = 0ULL, .src = positioned, .bytes = starts + line.at});
     }
-    g_cli_guard->persistent_buf_release(positioned, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(positioned, g_cli_db_pane_owner);
 }
 
 unsigned long long cli_db_pane_label_read(const CliDbPaneCtx *args)
@@ -121,14 +121,14 @@ unsigned long long cli_db_pane_label_read(const CliDbPaneCtx *args)
         return 0ULL;
     }
     unsigned long long place = 0ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->labels,
-                                                            .offset = (unsigned long long)args->at * sizeof(place),
-                                                            .dst = &place,
-                                                            .bytes = sizeof(place)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->labels,
+                                                                 .offset = (unsigned long long)args->at * sizeof(place),
+                                                                 .dst = &place,
+                                                                 .bytes = sizeof(place)});
     const unsigned long long measured =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = pane->labels, .offset = place});
+        g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = pane->labels, .offset = place});
     const unsigned long long length = (measured < sizeof(pane->label) - 1ULL) ? measured : sizeof(pane->label) - 1ULL;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = pane->labels, .offset = place, .dst = pane->label, .bytes = length});
     pane->label[length] = '\0';
     return length;
@@ -146,11 +146,10 @@ void cli_db_pane_note_set(const CliDbPaneCtx *args)
         CliDbOpen *open = NULL;
         if (pane->chosen != CLI_DB_PANE_NONE)
         {
-            (void)g_cli_guard->movable_buf_read(
-                &(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                    .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
-                                    .dst = &open,
-                                    .bytes = sizeof(open)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                         .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                                         .dst = &open,
+                                                                         .bytes = sizeof(open)});
         }
         if (pane->chosen == CLI_DB_PANE_NONE)
         {
@@ -159,10 +158,11 @@ void cli_db_pane_note_set(const CliDbPaneCtx *args)
         else if (open == NULL)
         {
             CliDbConnection connection;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                    .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
-                                                                    .dst = &connection,
-                                                                    .bytes = sizeof(CliDbConnection)});
+            (void)g_platform_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                    .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
+                                    .dst = &connection,
+                                    .bytes = sizeof(CliDbConnection)});
             (void)mmgr_line_put(&line, connection.name);
             (void)mmgr_line_put(&line, PANE_NOT_CONNECTED);
             (void)mmgr_line_finish(&line);
@@ -190,14 +190,14 @@ EMBED_INLINE CliDbOpen *open_named(const DbPaneCtx *args)
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
         CliDbOpen *open = NULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_OPEN_AT(at),
-                                                                .dst = &open,
-                                                                .bytes = sizeof(open)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
-                                                                .dst = &connection,
-                                                                .bytes = sizeof(CliDbConnection)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_OPEN_AT(at),
+                                                                     .dst = &open,
+                                                                     .bytes = sizeof(open)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                     .dst = &connection,
+                                                                     .bytes = sizeof(CliDbConnection)});
         if ((open != NULL) &&
             cellul.eq(&(CatenaFinitaCfg){.src = connection.name, .other = args->name, .cap = CLI_NAME_MAX_LEN}))
         {
@@ -211,7 +211,8 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
 {
     CliDbPaneState *const pane = &g_cli_db_pane_state;
     pane->root = args->root;
-    char *const listed = (args->root != NULL) ? g_cli_guard->temporary_buf_alloc(PANE_LIST, g_cli_db_pane_owner) : NULL;
+    char *const listed =
+        (args->root != NULL) ? g_platform_guard->temporary_buf_alloc(PANE_LIST, g_cli_db_pane_owner) : NULL;
     VerbaLinea out = {listed, (listed != NULL) ? PANE_LIST : 0ULL, 0ULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
@@ -235,7 +236,8 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
     const unsigned long long transaction_bytes = (unsigned long long)count * CLI_DB_PANE_TRANSACTION;
     const unsigned long long retained_bytes = (unsigned long long)count * sizeof(CliDbPaneTree);
     const unsigned long long bytes = connection_bytes + open_bytes + transaction_bytes + retained_bytes;
-    unsigned char *const cell = (count != 0u) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_db_pane_owner) : NULL;
+    unsigned char *const cell =
+        (count != 0u) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_db_pane_owner) : NULL;
     CliDbConnection *const connection = (CliDbConnection *)(void *)cell;
     CliDbOpen **const open = (cell != NULL) ? (CliDbOpen **)(void *)(cell + connection_bytes) : NULL;
     char (*const transaction)[CLI_DB_PANE_TRANSACTION] =
@@ -269,8 +271,8 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
         }
         read_count += 1u;
     }
-    g_cli_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
-    g_cli_guard->persistent_buf_release(listed, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(listed, g_cli_db_pane_owner);
     // an open connection the tree no longer lists is closed; a retained tree moves to its connection's new place, and
     // one of a connection no longer listed is released
     CliDbConnection before;
@@ -278,18 +280,18 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
         CliDbOpen *open_before = NULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_OPEN_AT(at),
-                                                                .dst = &open_before,
-                                                                .bytes = sizeof(open_before)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
-                                                                .dst = &before,
-                                                                .bytes = sizeof(CliDbConnection)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_RETAINED_AT(at),
-                                                                .dst = &retained_before,
-                                                                .bytes = sizeof(CliDbPaneTree)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_OPEN_AT(at),
+                                                                     .dst = &open_before,
+                                                                     .bytes = sizeof(open_before)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                     .dst = &before,
+                                                                     .bytes = sizeof(CliDbConnection)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_RETAINED_AT(at),
+                                                                     .dst = &retained_before,
+                                                                     .bytes = sizeof(CliDbPaneTree)});
         int listed_still = 0;
         int moved = 0;
         for (unsigned int each = 0u; each < read_count; each += 1u)
@@ -310,25 +312,25 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
         }
         if (!moved && (retained_before.node != NULL))
         {
-            (void)g_cli_guard->movable_buf_release(retained_before.node, g_cli_db_pane_owner);
-            (void)g_cli_guard->movable_buf_release(retained_before.text, g_cli_db_pane_owner);
+            (void)g_platform_guard->movable_buf_release(retained_before.node, g_cli_db_pane_owner);
+            (void)g_platform_guard->movable_buf_release(retained_before.text, g_cli_db_pane_owner);
         }
         if (!moved && (retained_before.displayed != NULL))
         {
-            (void)g_cli_guard->movable_buf_release(retained_before.displayed, g_cli_db_pane_owner);
+            (void)g_platform_guard->movable_buf_release(retained_before.displayed, g_cli_db_pane_owner);
         }
     }
     if (pane->connections_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(pane->connections_cell, g_cli_db_pane_owner);
+        (void)g_platform_guard->movable_buf_release(pane->connections_cell, g_cli_db_pane_owner);
     }
-    pane->connections_cell = (cell != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_db_pane_owner) : NULL;
+    pane->connections_cell = (cell != NULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_db_pane_owner) : NULL;
     if (pane->connections_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = pane->connections_cell, .offset = 0ULL, .src = cell, .bytes = bytes});
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_db_pane_owner);
     pane->open_at = connection_bytes;
     pane->transaction_at = connection_bytes + open_bytes;
     pane->retained_at = connection_bytes + open_bytes + transaction_bytes;
@@ -338,10 +340,10 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
     pane->chosen = CLI_DB_PANE_NONE;
     for (unsigned int at = 0u; at < pane->connections; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                                .offset = CLI_DB_PANE_CONNECTION_AT(at),
-                                                                .dst = &before,
-                                                                .bytes = sizeof(CliDbConnection)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                     .offset = CLI_DB_PANE_CONNECTION_AT(at),
+                                                                     .dst = &before,
+                                                                     .bytes = sizeof(CliDbConnection)});
         pane->chosen =
             cellul.eq(&(CatenaFinitaCfg){.src = before.name, .other = pane->chosen_name, .cap = CLI_NAME_MAX_LEN})
                 ? at
@@ -358,10 +360,10 @@ void cli_db_pane_read(const CliDbPaneCfg *args)
     EMBED_CALL(cli_db_pane_internal.labels_positioned, CliDbPaneCtx, .at = 0u);
     EMBED_CALL(cli_db_pane_internal.note_set, CliDbPaneCtx, .text = NULL);
     CliDbOpen *chosen_open = NULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
-                                                            .dst = &chosen_open,
-                                                            .bytes = sizeof(chosen_open)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                 .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                                 .dst = &chosen_open,
+                                                                 .bytes = sizeof(chosen_open)});
     if ((chosen_open != NULL) && (pane->nodes == 0u))
     {
         (void)EMBED_CALL(cli_db_pane_internal.level_read, CliDbPaneCtx, .at = CLI_DB_PANE_NONE);
@@ -436,12 +438,12 @@ int cli_db_pane_row(const CliDbPaneCfg *args)
     // the node's place read out of the displayed cell, the node out of the nodes, and its texts into the row's own
     // bytes
     unsigned int place = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->displayed,
-                                                            .offset = (unsigned long long)args->at * sizeof(place),
-                                                            .dst = &place,
-                                                            .bytes = sizeof(place)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = pane->displayed,
+                                                                 .offset = (unsigned long long)args->at * sizeof(place),
+                                                                 .dst = &place,
+                                                                 .bytes = sizeof(place)});
     CliDbPaneNode node;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = pane->node, .offset = (unsigned long long)place * sizeof(node), .dst = &node, .bytes = sizeof(node)});
     row->type = CLI_DB_PANE_ROW_NODE;
     row->depth = node.depth;
@@ -454,12 +456,12 @@ int cli_db_pane_row(const CliDbPaneCfg *args)
         (detail_length < sizeof(row->detail_copied)) ? detail_length : (sizeof(row->detail_copied) - 1ULL);
     if (row->text_length != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = pane->text, .offset = node.label, .dst = row->text_copied, .bytes = row->text_length});
     }
     if (row->detail_length != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = pane->text, .offset = detail_at, .dst = row->detail_copied, .bytes = row->detail_length});
     }
     row->text_copied[row->text_length] = '\0';
@@ -495,19 +497,19 @@ int cli_db_pane_run(const CliDbPaneCfg *args)
         return 0;
     }
     CliDbOpen *open = NULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
-                                                            .dst = &open,
-                                                            .bytes = sizeof(open)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                 .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                                 .dst = &open,
+                                                                 .bytes = sizeof(open)});
     if ((open == NULL) && !EMBED_CALL(cli_db_pane_internal.connected, CliDbPaneCtx, .text = NULL, .root = args->root))
     {
         return 0;
     }
     CliDbConnection connection;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
-                                                            .dst = &connection,
-                                                            .bytes = sizeof(CliDbConnection)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                 .offset = CLI_DB_PANE_CONNECTION_AT(pane->chosen),
+                                                                 .dst = &connection,
+                                                                 .bytes = sizeof(CliDbConnection)});
     CliDbPaneRunning *const run = &pane->run;
     // the statement and its answer are the run's thread's buffers, so they are fixed outside the pool, one set for
     // the one run located at a time, where they punch no hole in the persistent tier
@@ -524,10 +526,10 @@ int cli_db_pane_run(const CliDbPaneCfg *args)
     run->size = args->size;
     run->answered = args->answered;
     run->open = NULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
-                                                            .dst = &run->open,
-                                                            .bytes = sizeof(run->open)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                 .offset = CLI_DB_PANE_OPEN_AT(pane->chosen),
+                                                                 .dst = &run->open,
+                                                                 .bytes = sizeof(run->open)});
     run->connection = pane->chosen;
     run->out = (VerbaLinea){run->answer, CLI_DB_PANE_ANSWER, 0ULL};
     run->ran = 0;
@@ -595,10 +597,10 @@ EMBED_INLINE void confirm_asked(const DbPaneCtx *args)
                                       .object = confirm, .name = "count"),
                    .length_pointer = NULL);
     CliDbConnection connection;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_CONNECTION_AT(run->connection),
-                                                            .dst = &connection,
-                                                            .bytes = sizeof(CliDbConnection)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                 .offset = CLI_DB_PANE_CONNECTION_AT(run->connection),
+                                                                 .dst = &connection,
+                                                                 .bytes = sizeof(CliDbConnection)});
     const char *const name = connection.name;
     char sentence[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea line = {sentence, sizeof(sentence), 0ULL};
@@ -635,7 +637,7 @@ EMBED_INLINE void confirm_asked(const DbPaneCtx *args)
         (void)mmgr_line_put(&line, " is a connection that matters, and this statement writes.");
     }
     (void)mmgr_line_finish(&line);
-    g_cli_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
     // the statement the ask confirms is until it is answered, copied into a buffer of its own outside the pool
     static char s_confirming[CLI_DB_PANE_STATEMENT];
     memor.cpy(&(MemoriaCfg){.dst = s_confirming, .src = run->statement, .bytes = run->size + 1ULL});
@@ -658,10 +660,10 @@ int cli_db_pane_step(const CliDbPaneCfg *args)
     }
     run->located = 0;
     CliDbConnection connection;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_CONNECTION_AT(run->connection),
-                                                            .dst = &connection,
-                                                            .bytes = sizeof(CliDbConnection)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                 .offset = CLI_DB_PANE_CONNECTION_AT(run->connection),
+                                                                 .dst = &connection,
+                                                                 .bytes = sizeof(CliDbConnection)});
     const char *const name = connection.name;
     const int confirms =
         run->ran && cellul.starts(&(CatenaFinitaCfg){.src = run->answer, .cap = run->out.at, .other = "{\"confirm\""});
@@ -682,10 +684,10 @@ int cli_db_pane_step(const CliDbPaneCfg *args)
     }
     // the transaction as the run left it, read on the view's thread now that the run's thread has ended
     CliDbOpen *open = NULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
-                                                            .offset = CLI_DB_PANE_OPEN_AT(run->connection),
-                                                            .dst = &open,
-                                                            .bytes = sizeof(open)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_db_pane_state.connections_cell,
+                                                                 .offset = CLI_DB_PANE_OPEN_AT(run->connection),
+                                                                 .dst = &open,
+                                                                 .bytes = sizeof(open)});
     if ((run->connection < pane->connections) && (open == run->open))
     {
         EMBED_CALL(transaction_written, DbPaneCtx, .at = run->connection, .open = run->open);

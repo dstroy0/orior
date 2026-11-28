@@ -97,7 +97,7 @@ void cli_catalog_script_job(const CliCatalogPathCtx *args)
     EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = group,
                .title = (title != NULL) ? title : file, .file = file, .about = (about != NULL) ? about : "",
                .opens = opens);
-    g_cli_guard->persistent_buf_release(about, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(about, g_cli_catalog_owner);
 }
 
 // A bash script that takes free words as its job; a build traced: bash takes SHELLOPTS from its environment as its own
@@ -159,7 +159,7 @@ void cli_catalog_builds(const CliCatalogPathCtx *args)
                    .name = examples.name[at], .path_out = list_entries.path[positions]);
         positions += 1u;
     }
-    g_cli_guard->persistent_buf_release(examples.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(examples.name, g_cli_catalog_owner);
     examples.name = NULL;
     examples.count = 0u;
     examples.capacity = 0u;
@@ -175,11 +175,11 @@ void cli_catalog_builds(const CliCatalogPathCtx *args)
                        .root = args->root, .group = "build", .path = path);
         }
     }
-    g_cli_guard->persistent_buf_release(builds.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(builds.name, g_cli_catalog_owner);
     builds.name = NULL;
     builds.count = 0u;
     builds.capacity = 0u;
-    g_cli_guard->persistent_buf_release(list_entries.path, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(list_entries.path, g_cli_catalog_owner);
     list_entries.path = NULL;
     list_entries.capacity = 0u;
 }
@@ -221,7 +221,7 @@ static int cli_find_dir(const CatalogReadCtx *args)
                                    .found = args->found);
         }
     }
-    g_cli_guard->persistent_buf_release(dirs.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(dirs.name, g_cli_catalog_owner);
     dirs.name = NULL;
     dirs.count = 0u;
     dirs.capacity = 0u;
@@ -254,7 +254,7 @@ static int cli_find_file(const CatalogReadCtx *args)
         found_one = EMBED_CALL(cli_find_file, CatalogReadCtx, .under = dir, .name = name, .depth = args->depth + 1u,
                                .found = args->found);
     }
-    g_cli_guard->persistent_buf_release(dirs.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(dirs.name, g_cli_catalog_owner);
     dirs.name = NULL;
     dirs.count = 0u;
     dirs.capacity = 0u;
@@ -270,13 +270,13 @@ char *cli_catalog_script_alloc(const CliCatalogPathOutCtx *args)
     {
         return NULL;
     }
-    char *const text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_catalog_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_catalog_owner);
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (embed_word)size});
         text[size] = '\0';
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
     return text;
 }
 
@@ -299,13 +299,13 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
     CliEntries sources = {NULL, 0u, 0u};
     (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &names,
                      .max = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
-                                        .text_read = text, .variable = "SIM", .names_callback = NULL, .capacity = 0u));
+                                       .text_read = text, .variable = "SIM", .names_callback = NULL, .capacity = 0u));
     const unsigned int count =
         (names.name != NULL)
             ? EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx, .text_read = text,
                          .variable = "SIM", .names_callback = names.name, .capacity = names.capacity)
             : 0u;
-    g_cli_guard->persistent_buf_release(text, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_catalog_owner);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const sim = names.name[at];
@@ -355,7 +355,7 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         }
         EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = "sim",
                    .title = sim, .file = file, .about = (about != NULL) ? about : "", .opens = "");
-        g_cli_guard->persistent_buf_release(about, g_cli_catalog_owner);
+        g_platform_guard->persistent_buf_release(about, g_cli_catalog_owner);
         EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
         EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
                    .program = CLI_PROGRAM_BASH, .text = "src/sims/run.sh", .tool_program = NULL, .system = 0);
@@ -364,11 +364,11 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = catalog, .type_u32 = CLI_ARG_WORDS,
                    .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 1);
     }
-    g_cli_guard->persistent_buf_release(sources.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(sources.name, g_cli_catalog_owner);
     sources.name = NULL;
     sources.count = 0u;
     sources.capacity = 0u;
-    g_cli_guard->persistent_buf_release(names.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(names.name, g_cli_catalog_owner);
     names.name = NULL;
     names.count = 0u;
     names.capacity = 0u;
@@ -392,7 +392,7 @@ unsigned int cli_catalog_paths(const CliCatalogFilterCtx *args)
                    .relative_out = args->list->path[at]);
         at += 1u;
     }
-    g_cli_guard->persistent_buf_release(files.name, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(files.name, g_cli_catalog_owner);
     files.name = NULL;
     files.count = 0u;
     files.capacity = 0u;

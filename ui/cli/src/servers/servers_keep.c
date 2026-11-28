@@ -190,14 +190,14 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     if (found)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_languages.page[place / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         const unsigned long long bytes =
             (one.adjacent_size < sizeof(named)) ? one.adjacent_size : (sizeof(named) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one.cell, .offset = one.key_size + 1u, .dst = named, .bytes = (embed_word)bytes});
         named[bytes] = '\0';
     }
@@ -230,7 +230,7 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
         const int has_sink = g_cli_servers.has_sink;
         sink = g_cli_servers.sink;
         CliServerSpec *const spec =
-            has_sink ? g_cli_guard->temporary_buf_alloc(sizeof(CliServerSpec), g_cli_servers_owner) : NULL;
+            has_sink ? g_platform_guard->temporary_buf_alloc(sizeof(CliServerSpec), g_cli_servers_owner) : NULL;
         char why[1024];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         server = (spec != NULL) ? EMBED_CALL(cli_servers_language_internal.server, CliServersLanguageCtx, .root = root,
@@ -255,8 +255,8 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
             server = NULL;
         }
-        g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
-        g_cli_guard->persistent_buf_release(spec, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(spec, g_cli_servers_owner);
     }
     return server;
 }

@@ -671,7 +671,7 @@ static void cli_flags_let_go(void)
 {
     if (s_saved.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_saved.cell, g_cli_compile_owner);
+        (void)g_platform_guard->movable_buf_release(s_saved.cell, g_cli_compile_owner);
     }
     s_saved.cell = NULL;
     s_saved.text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
@@ -708,7 +708,7 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = CLI_COMPILE_WRITTEN, .joined = path);
     }
-    g_cli_guard->persistent_buf_release(inputs.file, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(inputs.file, g_cli_compile_owner);
     inputs = (CliInputs){0, NULL, 0u, 0u};
     CliStamped stamped = {"", 0ULL};
     const int there = EMBED_CALL(cli_compile_db_path_stamped_internal.compile_stamp, CliCompileDbPathStampedCtx,
@@ -745,7 +745,7 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     const unsigned long long include_bytes = (unsigned long long)include_capacity * sizeof(CliIncludeWord);
     // the lists and the texts are positioned in a cell of this call, then written into a movable cell that is until the
     // tree or its database changes
-    char *const saved = g_cli_guard->temporary_buf_alloc(
+    char *const saved = g_platform_guard->temporary_buf_alloc(
         word_bytes + input_bytes + file_bytes + include_bytes + text_capacity, g_cli_compile_owner);
     if (saved == NULL)
     {
@@ -769,7 +769,7 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     const unsigned int folder_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_FOLDERS);
     const unsigned int id_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .max = CLI_FLAGS_IDS);
     const unsigned long long folder_bytes = (unsigned long long)folder_capacity * sizeof(CliDefineNode);
-    char *const work = g_cli_guard->temporary_buf_alloc(
+    char *const work = g_platform_guard->temporary_buf_alloc(
         folder_bytes + ((unsigned long long)id_capacity * sizeof(unsigned int)), g_cli_compile_owner);
     CliFlagsReadState read_state = {root, NULL, 0u, 0u, NULL, 0u, 0u, NULL, CLI_FLAGS_AWAITS_NONE, 0u, 0};
     if (work != NULL)
@@ -785,10 +785,10 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
         EMBED_CALL(cli_flags_entries, CompileDbFlagsCtx, .read_state = &read_state, .json = &json, .entries = entries);
         EMBED_CALL(cli_flags_lift, CompileDbFlagsCtx, .read_state = &read_state);
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(work, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(work, g_cli_compile_owner);
     // the lists as positioned written into the saved cell, each list's place retained, the pointers into the call's
     // cell dropped
     s_saved.word_at = 0ULL;
@@ -797,16 +797,16 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     s_saved.include_at = word_bytes + input_bytes + file_bytes;
     s_saved.text_at = word_bytes + input_bytes + file_bytes + include_bytes;
     s_saved.text_used = s_saved.text.at;
-    s_saved.cell = g_cli_guard->movable_buf_alloc(s_saved.text_at + s_saved.text_used + 1ULL, g_cli_compile_owner);
+    s_saved.cell = g_platform_guard->movable_buf_alloc(s_saved.text_at + s_saved.text_used + 1ULL, g_cli_compile_owner);
     if (s_saved.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_saved.cell, .offset = 0ULL, .src = saved, .bytes = s_saved.text_at + s_saved.text_used});
         const char zero = '\0';
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_saved.cell, .offset = s_saved.text_at + s_saved.text_used, .src = &zero, .bytes = 1ULL});
     }
-    g_cli_guard->persistent_buf_release(saved, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(saved, g_cli_compile_owner);
     s_saved.text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
     s_saved.word_text = NULL;
     s_saved.supplied = NULL;
@@ -876,45 +876,46 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args)
         for (unsigned int at = 0u; at < s_saved.givens; at += 1u)
         {
             CliDefineNodeInput given = {0u, 0u};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_saved.cell,
                                     .offset = s_saved.input_at + ((unsigned long long)at * sizeof(given)),
                                     .dst = &given,
                                     .bytes = sizeof(given)});
             char node[CLI_FLAGS_TEXT_BYTES];
-            const unsigned long long node_length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+            const unsigned long long node_length = g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){
                 .cell = s_saved.cell, .offset = s_saved.text_at + given.node, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_saved.cell, .offset = s_saved.text_at + given.node, .dst = node, .bytes = node_length});
             node[node_length] = '\0';
             if ((node_length == cut) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = node,
                                                    .other_pointer = args->path, .size = cut))
             {
                 CliDefineWord word_text = {0u, 0u};
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = s_saved.cell,
                     .offset = s_saved.word_at + ((unsigned long long)given.define * sizeof(word_text)),
                     .dst = &word_text,
                     .bytes = sizeof(word_text)});
                 char name[CLI_FLAGS_TEXT_BYTES];
                 char value[CLI_FLAGS_TEXT_BYTES];
-                const unsigned long long name_length =
-                    g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_saved.cell,
-                                                                         .offset = s_saved.text_at + word_text.name,
-                                                                         .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_saved.cell,
-                                                                        .offset = s_saved.text_at + word_text.name,
-                                                                        .dst = name,
-                                                                        .bytes = name_length});
+                const unsigned long long name_length = g_platform_guard->movable_buf_measure(
+                    &(CarcerMovableCfg){.cell = s_saved.cell,
+                                        .offset = s_saved.text_at + word_text.name,
+                                        .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_saved.cell,
+                                                                             .offset = s_saved.text_at + word_text.name,
+                                                                             .dst = name,
+                                                                             .bytes = name_length});
                 name[name_length] = '\0';
-                const unsigned long long value_length =
-                    g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_saved.cell,
-                                                                         .offset = s_saved.text_at + word_text.value,
-                                                                         .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_saved.cell,
-                                                                        .offset = s_saved.text_at + word_text.value,
-                                                                        .dst = value,
-                                                                        .bytes = value_length});
+                const unsigned long long value_length = g_platform_guard->movable_buf_measure(
+                    &(CarcerMovableCfg){.cell = s_saved.cell,
+                                        .offset = s_saved.text_at + word_text.value,
+                                        .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+                (void)g_platform_guard->movable_buf_read(
+                    &(CarcerMovableCfg){.cell = s_saved.cell,
+                                        .offset = s_saved.text_at + word_text.value,
+                                        .dst = value,
+                                        .bytes = value_length});
                 value[value_length] = '\0';
                 EMBED_CALL(cli_flags_define_dispatch, CompileDbFlagsCtx, .name = name, .value = value,
                            .node_text = node, .each = args->each_define_each, .context = args->context);
@@ -933,15 +934,15 @@ void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args)
     for (unsigned int at = 0u; (s_saved.cell != NULL) && (at < s_saved.includes); at += 1u)
     {
         CliIncludeWord include = {0u, 0u};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_saved.cell,
                                 .offset = s_saved.include_at + ((unsigned long long)at * sizeof(include)),
                                 .dst = &include,
                                 .bytes = sizeof(include)});
         char path[CLI_FLAGS_TEXT_BYTES];
-        const unsigned long long length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+        const unsigned long long length = g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){
             .cell = s_saved.cell, .offset = s_saved.text_at + include.path, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_saved.cell, .offset = s_saved.text_at + include.path, .dst = path, .bytes = length});
         path[length] = '\0';
         int before = 0;
@@ -949,15 +950,15 @@ void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args)
         while (!before && (earlier < at))
         {
             CliIncludeWord other = {0u, 0u};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_saved.cell,
                                     .offset = s_saved.include_at + ((unsigned long long)earlier * sizeof(other)),
                                     .dst = &other,
                                     .bytes = sizeof(other)});
-            before = (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_saved.cell,
-                                                                           .offset = s_saved.text_at + other.path,
-                                                                           .src = path,
-                                                                           .bytes = length + 1ULL}) == 0);
+            before = (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_saved.cell,
+                                                                                .offset = s_saved.text_at + other.path,
+                                                                                .src = path,
+                                                                                .bytes = length + 1ULL}) == 0);
             earlier += 1u;
         }
         if (!before)
@@ -989,15 +990,15 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
     for (unsigned int at = 0u; (s_saved.cell != NULL) && (at < s_saved.files); at += 1u)
     {
         CliDefineNode one = {0u, 0u, 0u, 0u, 0u};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_saved.cell,
                                 .offset = s_saved.file_at + ((unsigned long long)at * sizeof(one)),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         char file[CLI_FLAGS_TEXT_BYTES];
-        const unsigned long long file_length = g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){
+        const unsigned long long file_length = g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){
             .cell = s_saved.cell, .offset = s_saved.text_at + one.path, .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_saved.cell, .offset = s_saved.text_at + one.path, .dst = file, .bytes = file_length});
         file[file_length] = '\0';
         if (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = args->path, .cap = CLI_POOL_BYTES}))
@@ -1016,7 +1017,7 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
     for (unsigned int type = 0u; (nearest != CLI_JSON_NONE) && (type < 5u); type += 1u)
     {
         CliDefineNode file = {0u, 0u, 0u, 0u, 0u};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_saved.cell,
                                 .offset = s_saved.file_at + ((unsigned long long)nearest * sizeof(file)),
                                 .dst = &file,
@@ -1024,7 +1025,7 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
         for (unsigned int at = file.include_first; at < (file.include_first + file.includes); at += 1u)
         {
             CliIncludeWord include = {0u, 0u};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_saved.cell,
                                     .offset = s_saved.include_at + ((unsigned long long)at * sizeof(include)),
                                     .dst = &include,
@@ -1033,10 +1034,10 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
             {
                 char path[CLI_FLAGS_TEXT_BYTES];
                 const unsigned long long path_length =
-                    g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_saved.cell,
-                                                                         .offset = s_saved.text_at + include.path,
-                                                                         .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                    g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_saved.cell,
+                                                                              .offset = s_saved.text_at + include.path,
+                                                                              .bytes = CLI_FLAGS_TEXT_BYTES - 1ULL});
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = s_saved.cell, .offset = s_saved.text_at + include.path, .dst = path, .bytes = path_length});
                 path[path_length] = '\0';
                 EMBED_CALL(args->each, CliEachPathTypeCfg, .context = args->context, .path = path,

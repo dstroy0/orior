@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // queries.c: the queries: a question's words and runs read and written, the kernel and the code put, a question queried
 // and pooled, the round carried, the anchor cases and a candidate's answer
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "khw_learn_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

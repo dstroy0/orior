@@ -3,7 +3,7 @@
 //
 // The device's tessera (tessera_device.h): the ledger's decisions made on the device by one thread, from the source
 // the host daemon's ledger makes them by (tessera_ledger_core.h).
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "tessera_device.h"
 #include "tessera_job.h"

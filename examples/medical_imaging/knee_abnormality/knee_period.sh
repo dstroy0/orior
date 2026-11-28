@@ -106,7 +106,7 @@ for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement 
     PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
 done
 # the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
-PORTABLE_SOURCES+=("$TOP/includes/file_defs/qry/writer/qry_member.c" "$TOP/includes/file_defs/qry/writer/platform/"*.c
+PORTABLE_SOURCES+=("$TOP/includes/file_defs/qry/writer/qry_member.c" "${PLATFORM_QRY_RUN[@]}"
     "$TOP/includes/file_defs/qry/qry_read.c" "${EXACT_TYPES_PLATFORM[@]}")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)

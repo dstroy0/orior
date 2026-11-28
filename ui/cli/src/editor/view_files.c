@@ -248,7 +248,7 @@ void cli_view_session_save(const CliViewAtCfg *args)
         displayed_path[0] = '\0';
     }
     bytes += cellul.len(&(CatenaFinitaCfg){.src = displayed_path, .cap = CLI_PATH_MAX_LEN});
-    char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_views_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_views_owner);
     if (cell == NULL)
     {
         return;
@@ -276,7 +276,7 @@ void cli_view_session_save(const CliViewAtCfg *args)
         (void)cli_state_value_save(
             &(CliStateValueCfg){.folder = folder, .key = key, .value = cell, .err_msg = &err_msg});
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_views_owner);
 }
 
 void cli_view_session_restore(const char *root, const CliStateEntries *entries, unsigned int rows, unsigned int columns)
@@ -290,11 +290,11 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
                                         ? cli_state_entry_size(&(CliStateEntryCfg){.entries = entries, .key = key})
                                         : CLI_STATE_NONE;
     char *const session =
-        (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_editor_owner) : NULL;
+        (size != CLI_STATE_NONE) ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_editor_owner) : NULL;
     if ((session == NULL) || (cli_state_entry_value(&(CliStateEntryCfg){
                                   .entries = entries, .key = key, .out = session, .capacity = size + 1ULL}) == NULL))
     {
-        g_cli_guard->persistent_buf_release(session, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(session, g_cli_editor_owner);
         return;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -322,5 +322,5 @@ void cli_view_session_restore(const char *root, const CliStateEntries *entries, 
     {
         (void)cli_view_file_open(root, displayed, rows, columns, NULL, &err_msg);
     }
-    g_cli_guard->persistent_buf_release(session, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(session, g_cli_editor_owner);
 }

@@ -224,7 +224,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         }
         mmgr_line_finish(&print_line);
         EMBED_CALL(cli_print, ExecutablesCompareCtx, .sink = args->sink, .text = print_buf);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)old, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)old, g_cli_executables_owner);
     }
     EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = folder);
     if (EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder_buf))
@@ -233,7 +233,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         EMBED_CALL(cli_path_count_internal.file_pieces_write, CliPathCountCtx, .path = allowed, .pieces = &piece,
                    .count = 1u);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)now, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)now, g_cli_executables_owner);
 }
 
 // each `NAME=value` line of a tree's .env passed to `each`, in order: a leading `export` taken off, a value in quotes
@@ -370,7 +370,7 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
     }
     // the tree's .env text in a cell of the temporary tier for the call
     char env[CLI_PATH_MAX_LEN];
-    char *const env_text = g_cli_guard->temporary_buf_alloc(CLI_ENV_BYTES, g_cli_programs_owner);
+    char *const env_text = g_platform_guard->temporary_buf_alloc(CLI_ENV_BYTES, g_cli_programs_owner);
     if ((env_text != NULL) &&
         EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = args->root,
                    .name = ".env", .out = env) &&
@@ -382,22 +382,22 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
     }
     if (env_text != NULL)
     {
-        g_cli_guard->persistent_buf_release(env_text, g_cli_programs_owner);
+        g_platform_guard->persistent_buf_release(env_text, g_cli_programs_owner);
     }
     if (args->system)
     {
         // the system's folders read off the cell the process holds them in, joined into the PATH the program gets, in
         // a cell of the temporary tier for the call
-        char *const path = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_programs_owner);
+        char *const path = g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_programs_owner);
         const CliToolchainsFolders folders = cli_toolchains_system_folders();
         VerbaLinea joined = {path, (path != NULL) ? CLI_PATH_TEXT : 0ULL, 0ULL};
         for (unsigned int at = 0u; (path != NULL) && (at < folders.count); at += 1u)
         {
             char one[CLI_PATH_MAX_LEN];
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
-                                                                    .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                    .dst = one,
-                                                                    .bytes = CLI_PATH_MAX_LEN});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
+                                                                         .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                         .dst = one,
+                                                                         .bytes = CLI_PATH_MAX_LEN});
             if (at != 0u)
             {
                 mmgr_line_ch(&joined, g_cli_system_facts.list_separator);
@@ -407,7 +407,7 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         (void)mmgr_line_finish(&joined);
         EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "PATH",
                    .value = path);
-        g_cli_guard->persistent_buf_release(path, g_cli_programs_owner);
+        g_platform_guard->persistent_buf_release(path, g_cli_programs_owner);
         mmgr_line_put(args->displayed_verba_linea_pointer,
                       (args->displayed_verba_linea_pointer->at != 0ULL) ? " " : "");
         mmgr_line_put(args->displayed_verba_linea_pointer, "PATH=<the system's PATH>");

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// crumbs.c: the crumbs positioned along the status bar's left, each crumb's text from the CLI's rows, the mark between them,
-// as far as the right edge leaves whole crumbs; the rectangles positioned are for the press that follows
+// crumbs.c: the crumbs positioned along the status bar's left, each crumb's text from the CLI's rows, the mark between
+// them, as far as the right edge leaves whole crumbs; the rectangles positioned are for the press that follows
 #include "crumbs.h"
 
 #include "../../../includes/window/frame.h"

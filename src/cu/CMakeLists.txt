@@ -44,14 +44,17 @@ if(ORIOR_MMGR_ONLY)
 endif()
 
 
-# The platform of a program (src/platform) holds the pool, the owners and the calls into the system. The exact types and
-# the engine take their cells from that pool. The target orior_platform_library is that platform with no main, for a
-# library. The target orior_platform adds main and the process stage. Every executable links it and defines
+# The platform of a program (includes/platform) holds the pool, the owners and the calls into the system. The exact
+# types and the engine take their cells from that pool. The target orior_platform_library is that platform with no main,
+# for a library. The target orior_platform adds main and the process stage. Every executable links it and defines
 # program_main
-set(ORIOR_PLATFORM_LIBRARY_SOURCES ${ORIOR_ROOT}/src/platform/platform_pool.c ${ORIOR_ROOT}/src/platform/platform_file.c
-    ${ORIOR_ROOT}/src/platform/platform_windows.c ${ORIOR_ROOT}/src/platform/platform_posix.c)
+set(ORIOR_PLATFORM_TOP ${ORIOR_ROOT}/includes/platform)
+set(ORIOR_PLATFORM_LIBRARY_SOURCES ${ORIOR_PLATFORM_TOP}/platform_pool.c ${ORIOR_PLATFORM_TOP}/platform_file.c
+    ${ORIOR_PLATFORM_TOP}/windows/platform_windows.c ${ORIOR_PLATFORM_TOP}/posix/platform_posix.c
+    ${ORIOR_PLATFORM_TOP}/posix/linux/platform_linux.c ${ORIOR_PLATFORM_TOP}/posix/macos/platform_macos.c
+    ${ORIOR_PLATFORM_TOP}/platform_shared.c)
 add_library(orior_platform_library STATIC ${ORIOR_PLATFORM_LIBRARY_SOURCES})
-target_include_directories(orior_platform_library PUBLIC ${ORIOR_ROOT}/src/platform)
+target_include_directories(orior_platform_library PUBLIC ${ORIOR_PLATFORM_TOP})
 target_link_libraries(orior_platform_library PUBLIC mmgr_locus_carcerum_host mmgr_memoria_operor_host
     mmgr_cellularum_laboro_host mmgr_verba_scribo_host)
 if(WIN32)
@@ -60,7 +63,7 @@ else()
     find_package(Threads REQUIRED)
     target_link_libraries(orior_platform_library PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
 endif()
-add_library(orior_platform STATIC ${ORIOR_ROOT}/src/platform/platform_process.c)
+add_library(orior_platform STATIC ${ORIOR_PLATFORM_TOP}/platform_process.c)
 target_link_libraries(orior_platform PUBLIC orior_platform_library)
 
 set(ORIOR_EXACT_PORTABLE_SOURCES ${ORIOR_ROOT}/includes/exact_types/integers/exact_integer_add.c

@@ -89,21 +89,21 @@ EMBED_INLINE int cli_map_write(const StateSaveCtx *args)
     EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = json, .object = object);
     // a file past the max read is one that never reads back
     const unsigned long long capacity = CLI_STATE_BYTES + 1ULL;
-    char *const written = g_cli_guard->temporary_buf_alloc(capacity, g_cli_state_owner);
+    char *const written = g_platform_guard->temporary_buf_alloc(capacity, g_cli_state_owner);
     VerbaLinea out = mmgr_line_over(written, capacity);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = object, .out = &out,
                .indent = 2u, .sorted = 1);
     mmgr_line_ch(&out, '\n');
     if (!mmgr_line_ok(&out))
     {
-        g_cli_guard->persistent_buf_release(written, g_cli_state_owner);
+        g_platform_guard->persistent_buf_release(written, g_cli_state_owner);
         mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, ": it is larger than a stored file reads back, or its cell could not be taken");
         return 0;
     }
     const int whole = EMBED_CALL(cli_atomic_write, StateSaveCtx, .path = args->path, .text = out.out, .size = out.at,
                                  .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(written, g_cli_state_owner);
+    g_platform_guard->persistent_buf_release(written, g_cli_state_owner);
     return whole;
 }
 
@@ -123,8 +123,8 @@ EMBED_INLINE unsigned int cli_write(const StateSaveCtx *args)
     const unsigned int tokens_max =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = length) + 1u;
     CfgJsonToken *const tokens =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_state_owner);
-    char *const back_text = g_cli_guard->temporary_buf_alloc(length + 2ULL, g_cli_state_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_state_owner);
+    char *const back_text = g_platform_guard->temporary_buf_alloc(length + 2ULL, g_cli_state_owner);
     const unsigned int value =
         ((tokens != NULL) && (back_text != NULL))
             ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = json,
@@ -140,8 +140,8 @@ EMBED_INLINE unsigned int cli_write(const StateSaveCtx *args)
         same = mmgr_line_ok(&back) && (back.at == length) &&
                (memor.cmp(&(MemoriaCfg){.src = back_text, .other = text, .bytes = length}) == 0);
     }
-    g_cli_guard->persistent_buf_release(back_text, g_cli_state_owner);
-    g_cli_guard->persistent_buf_release(tokens, g_cli_state_owner);
+    g_platform_guard->persistent_buf_release(back_text, g_cli_state_owner);
+    g_platform_guard->persistent_buf_release(tokens, g_cli_state_owner);
     if (same)
     {
         return value;
@@ -220,11 +220,11 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
                                    : 0u;
     char (*const saved_names)[CLI_NAME_MAX_LEN] =
         (count != 0u)
-            ? g_cli_guard->temporary_buf_alloc((unsigned long long)count * CLI_NAME_MAX_LEN, g_cli_state_owner)
+            ? g_platform_guard->temporary_buf_alloc((unsigned long long)count * CLI_NAME_MAX_LEN, g_cli_state_owner)
             : NULL;
     // the one cell each theme is written in, of the max a stored file reads back
     const unsigned long long capacity = CLI_STATE_BYTES + 1ULL;
-    char *const written = (count != 0u) ? g_cli_guard->temporary_buf_alloc(capacity, g_cli_state_owner) : NULL;
+    char *const written = (count != 0u) ? g_platform_guard->temporary_buf_alloc(capacity, g_cli_state_owner) : NULL;
     unsigned int names = 0u;
     for (unsigned int theme = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                          .node = themes, .type = CFG_JSON_ARRAY)
@@ -273,9 +273,9 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
                                                            .text = out.out, .size = out.at, .err_msg = err_msg);
         if (!whole)
         {
-            g_cli_guard->persistent_buf_release(written, g_cli_state_owner);
-            g_cli_guard->persistent_buf_release(saved_names, g_cli_state_owner);
-            g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+            g_platform_guard->persistent_buf_release(written, g_cli_state_owner);
+            g_platform_guard->persistent_buf_release(saved_names, g_cli_state_owner);
+            g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
             EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                        .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
             return 0;
@@ -288,7 +288,7 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
             names += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(written, g_cli_state_owner);
+    g_platform_guard->persistent_buf_release(written, g_cli_state_owner);
     CliJsonFiles files = {NULL, 0u};
     EMBED_CALL(cli_state_folder_internal.json_files, CliStateFolderCtx, .folder = folder, .files = &files);
     for (unsigned int at = 0u; at < files.count; at += 1u)
@@ -308,11 +308,11 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
             EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path);
         }
     }
-    g_cli_guard->persistent_buf_release(files.name, g_cli_state_owner);
+    g_platform_guard->persistent_buf_release(files.name, g_cli_state_owner);
     files.name = NULL;
     files.count = 0u;
-    g_cli_guard->persistent_buf_release(saved_names, g_cli_state_owner);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(saved_names, g_cli_state_owner);
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
@@ -403,7 +403,7 @@ EMBED_INLINE int cli_backup_saved(const StateSaveCtx *args)
                                    .json = &backup, .text = args->text, .length = args->length));
     const int done = EMBED_CALL(cli_map_write, StateSaveCtx, .path = path, .json = &backup, .object = object,
                                 .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(backup.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), backup.node));
+    g_platform_guard->persistent_buf_release(backup.node, mmgr_owner_of_buf(platform_pool_series(), backup.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&backup),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;
@@ -421,8 +421,8 @@ int cli_state_save(const CliStateFolderCfg *args)
     if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &supplied, .node = changed,
                     .type = CFG_JSON_OBJECT))
     {
-        g_cli_guard->persistent_buf_release(supplied.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), supplied.node));
+        g_platform_guard->persistent_buf_release(supplied.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), supplied.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&supplied),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
@@ -488,13 +488,13 @@ int cli_state_save(const CliStateFolderCfg *args)
         done = EMBED_CALL(cli_atomic_write, StateSaveCtx, .path = path, .text = "{}\n", .size = 3ULL,
                           .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(state.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), state.node));
+    g_platform_guard->persistent_buf_release(state.node, mmgr_owner_of_buf(platform_pool_series(), state.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&state),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(settings.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), settings.node));
+    g_platform_guard->persistent_buf_release(settings.node, mmgr_owner_of_buf(platform_pool_series(), settings.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&settings),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(supplied.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), supplied.node));
+    g_platform_guard->persistent_buf_release(supplied.node, mmgr_owner_of_buf(platform_pool_series(), supplied.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&supplied),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return done;

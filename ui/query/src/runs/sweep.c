@@ -215,8 +215,8 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
     (void)EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
     const unsigned int capacity = runs.count * QUERY_SWEEP_ROUNDS;
     unsigned long long *const rates =
-        (capacity != 0u) ? g_cli_guard->persistent_buf_alloc((unsigned long long)QUERY_SWEEP_ENTRIES * capacity * 8ULL,
-                                                             g_query_owner)
+        (capacity != 0u) ? g_platform_guard->persistent_buf_alloc(
+                               (unsigned long long)QUERY_SWEEP_ENTRIES * capacity * 8ULL, g_query_owner)
                          : NULL;
     unsigned int sweeps = 0u;
     for (unsigned int at = 0u; (rates != NULL) && (at < runs.count); at += 1u)
@@ -239,8 +239,8 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
             sweeps += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.path, g_query_owner);
     runs = (QueryRuns){NULL, NULL, 0u};
     unsigned long long median[QUERY_SWEEP_ENTRIES] = {0ULL};
     for (unsigned int entry = 0u; (sweeps >= QUERY_SWEEP_MIN) && (entry < QUERY_SWEEP_ENTRIES); entry += 1u)
@@ -255,7 +255,7 @@ EMBED_INLINE int sweep_pick(const SweepCtx *args)
         }
         median[entry] = EMBED_CALL(sweep_median, SweepCtx, .timed = timed, .count = count);
     }
-    g_cli_guard->persistent_buf_release(rates, g_query_owner);
+    g_platform_guard->persistent_buf_release(rates, g_query_owner);
     const unsigned long long region =
         EMBED_CALL(sweep_alloc, SweepCtx, .what = "region", .adjacent = 0ULL, .median = median);
     const unsigned long long write =
@@ -299,7 +299,7 @@ int query_sweep_run(const QueryLoopCfg *args)
     }
     EMBED_CALL(sweep_path, SweepCtx, .context_read = context, .relative = "build/qry_sweep/scratch.bin",
                .path = s_scratch);
-    s_bytes = g_cli_guard->persistent_buf_alloc(QUERY_SWEEP_READ_BYTES, g_query_owner);
+    s_bytes = g_platform_guard->persistent_buf_alloc(QUERY_SWEEP_READ_BYTES, g_query_owner);
     static unsigned long long s_rates[QUERY_SWEEP_ENTRIES][QUERY_SWEEP_ROUNDS];
     const int timed = s_bytes != NULL;
     if (timed)
@@ -321,7 +321,7 @@ int query_sweep_run(const QueryLoopCfg *args)
         }
         (void)qry_member_append("sweep", s_rates, sizeof(s_rates), QRY_CRITICAL);
     }
-    g_cli_guard->persistent_buf_release(s_bytes, g_query_owner);
+    g_platform_guard->persistent_buf_release(s_bytes, g_query_owner);
     s_bytes = NULL;
     const QueryWriter own = s_run.writer;
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
@@ -361,8 +361,8 @@ void query_swept_again(const QueryRetentionContextCtx *args)
                             .seconds = &seconds) &&
                  ((seconds + (hours * 3600ULL)) > query_now());
     }
-    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.path, g_query_owner);
     runs = (QueryRuns){NULL, NULL, 0u};
     char why[QUERY_LINE_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};

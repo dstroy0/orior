@@ -309,9 +309,9 @@ void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args)
                 ? 1u
                 : 0u;
     }
-    CliCargoFailure *const failures = g_cli_guard->temporary_buf_alloc(
+    CliCargoFailure *const failures = g_platform_guard->temporary_buf_alloc(
         ((unsigned long long)named + 1ULL) * sizeof(CliCargoFailure), g_cli_tests_owner);
-    char *const texts = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_tests_owner);
+    char *const texts = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_tests_owner);
     VerbaLinea text = mmgr_line_over(texts, size + 1ULL);
     unsigned int count = 0u;
     at = 0ULL;
@@ -355,8 +355,8 @@ void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args)
                        .line = failure->line);
         }
     }
-    g_cli_guard->persistent_buf_release(texts, g_cli_tests_owner);
-    g_cli_guard->persistent_buf_release(failures, g_cli_tests_owner);
+    g_platform_guard->persistent_buf_release(texts, g_cli_tests_owner);
+    g_platform_guard->persistent_buf_release(failures, g_cli_tests_owner);
 }
 
 int cli_cargo_build_error(const CliCargoReportSizeCfg *args)
@@ -474,7 +474,7 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
                 (length == 11ULL) &&
                 (memor.cmp(&(MemoriaCfg){.src = bytes + start, .other = "[workspace]", .bytes = 11u}) == 0);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_tests_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_tests_owner);
         if (workspace_table)
         {
             memor.cpy(

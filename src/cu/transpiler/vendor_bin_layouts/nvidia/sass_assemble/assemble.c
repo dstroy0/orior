@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // assemble.c: the assembly: one instruction assembled from its text, a line taken, a label and an instruction
 // distinguished, a label's address, and the lines of a listing assembled
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sass_assemble_internal.h"

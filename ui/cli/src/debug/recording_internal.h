@@ -134,13 +134,13 @@ int cli_replay_lock(void);
 // (recording_shim.c)
 extern const char g_cli_recording_shim[];
 
-// the recording the recorder wrote at `path` read into the replay's, its file's lines retained in the recording's cell; the
-// recording let go; the name at place `at` of its names copied into `name_out`, sized `name_capacity`, cut where it is
-// longer: `name_out`; the last step of frame `serial` at or before step `at`, CLI_RECORDING_NO_STEP for none; the
+// the recording the recorder wrote at `path` read into the replay's, its file's lines retained in the recording's cell;
+// the recording let go; the name at place `at` of its names copied into `name_out`, sized `name_capacity`, cut where it
+// is longer: `name_out`; the last step of frame `serial` at or before step `at`, CLI_RECORDING_NO_STEP for none; the
 // values of frame `serial`'s names as step `at` was about to run, by name, `max` of them at max, in a cell of
-// their count into `reserved`, given back with g_cli_guard->persistent_buf_release: their count; the frames located
-// at step `at`, the innermost first, each frame's number and the step of its line then: their count; and each step
-// where `name` of frame `serial` took a new value, the line that gave it and the value, passed to `each`
+// their count into `reserved`, given back with g_platform_guard->persistent_buf_release: their count; the frames
+// located at step `at`, the innermost first, each frame's number and the step of its line then: their count; and each
+// step where `name` of frame `serial` took a new value, the line that gave it and the value, passed to `each`
 // (recording_read.c, recording_values.c, the last step recording_replay.c)
 void cli_recording_read(const CliRecordingPathCtx *args);
 void cli_recording_let_go(void);
@@ -155,8 +155,8 @@ unsigned long long cli_recording_thread_id(const CliRecordingIndexCtx *args);
 unsigned int cli_recording_thread_name(const CliRecordingIndexCtx *args);
 CliRecordedRaise cli_recording_raise(const CliRecordingIndexCtx *args);
 // the line record that starts at byte `at` of the recording read into `json`, a tree sized to it in a cell of the
-// call's own, which the caller gives back with g_cli_guard->persistent_buf_release: the record's array into `record`,
-// CLI_JSON_NONE where it is none (recording_read.c)
+// call's own, which the caller gives back with g_platform_guard->persistent_buf_release: the record's array into
+// `record`, CLI_JSON_NONE where it is none (recording_read.c)
 void cli_recording_record(const CliRecordingCtx *args);
 unsigned int cli_recording_last_get(const CliRecordingAtCtx *args);
 unsigned int cli_recording_values(const CliRecordingAtCtx *args);

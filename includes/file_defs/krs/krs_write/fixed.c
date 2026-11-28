@@ -4,7 +4,7 @@
 // gave before, or absent. The module also puts a fixed register's placeholder into a form's text where the text holds
 // the register's numeric name.
 #include "fixed.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/line_read.h"
 #include "../../krf/krf.h"
 #include "../../ksc/ksc.h"

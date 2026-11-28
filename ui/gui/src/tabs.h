@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tabs.h: the tabs row above the editor: a tab for each view open, read where the views are (editor/view.h), its
 // file's name in the code face with a close mark after it, ● before the name in the hover's color while its text has
-// changes not saved and ×? for the mark while its close waits on a second, the one displayed on its own ground with a line
-// along its top and down its left, and each tab under a bead of water in the tab's own shape, which a press sinks; a
-// press on a tab's name shows its file and one on its close mark closes it (tabs.c)
+// changes not saved and ×? for the mark while its close waits on a second, the one displayed on its own ground with a
+// line along its top and down its left, and each tab under a bead of water in the tab's own shape, which a press sinks;
+// a press on a tab's name shows its file and one on its close mark closes it (tabs.c)
 #ifndef GUI_WINDOW_TABS_H
 #define GUI_WINDOW_TABS_H
 #include "../../../includes/window/button.h"
@@ -49,8 +49,8 @@ GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args);
 int gui_tabs_whole(const GuiTabsGlyphsCfg *args);
 // the tab at x, y: 1 with its place into `at` and whether the pixel is on its close mark into `closing`, else 0
 int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args);
-// the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one displayed on its
-// own ground with its lines, and the beads over the first GUI_TABS_BEADS tabs as their presses are at `time_ms`,
+// the row drawn in the frame's tabs rectangle: its ground, the line along its foot, and each tab, the one displayed on
+// its own ground with its lines, and the beads over the first GUI_TABS_BEADS tabs as their presses are at `time_ms`,
 // none where `buttons` is NULL. The beads' atlas is arranged for the widest tab at the tabs' places in the row's whole
 // side_menu, so the row's scroll moves the beads without baking them again; one tab's frames bake a draw, and the
 // draw says how many tabs still wait to bake, 0 when every bead is baked

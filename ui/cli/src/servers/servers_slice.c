@@ -36,9 +36,9 @@ typedef struct
 // last line as and its place among the paths; and how many lines are written
 typedef struct
 {
-    CliGrownLine text;
-    CliGrownLine map;
-    CliGrownLine paths;
+    PlatformText text;
+    PlatformText map;
+    PlatformText paths;
     const char *last_input;
     unsigned int last_position;
     unsigned int lines;
@@ -113,7 +113,7 @@ EMBED_INLINE unsigned int slice_path_position(const ServersSliceCtx *args)
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     unsigned long long at = 0ULL;
     int found = 0;
-    while (!found && (at < cli_grown_size(&args->slicing->paths)))
+    while (!found && (at < platform_text_size(&args->slicing->paths)))
     {
         const char *const one = args->slicing->paths.cell + at;
         const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES});
@@ -152,9 +152,12 @@ static void slice_line_append(const CliSliceLineCfg *args)
 EMBED_INLINE int slice_lines_init(const ServersSliceCtx *args)
 {
     CliServersSlicing *slicing = args->slicing;
-    cli_grown_begin(&slicing->text, CLI_SERVERS_SLICE_CAPACITY, g_cli_servers_owner);
-    cli_grown_begin(&slicing->map, CLI_SERVERS_SLICE_CAPACITY, g_cli_servers_owner);
-    cli_grown_begin(&slicing->paths, CLI_SERVERS_SLICE_CAPACITY, g_cli_servers_owner);
+    platform_text_begun(&slicing->text, CLI_SERVERS_SLICE_CAPACITY, platform_place_g_cli_servers_owner,
+                        PLATFORM_TIER_TEMPORARY);
+    platform_text_begun(&slicing->map, CLI_SERVERS_SLICE_CAPACITY, platform_place_g_cli_servers_owner,
+                        PLATFORM_TIER_TEMPORARY);
+    platform_text_begun(&slicing->paths, CLI_SERVERS_SLICE_CAPACITY, platform_place_g_cli_servers_owner,
+                        PLATFORM_TIER_TEMPORARY);
     slicing->last_input = NULL;
     slicing->last_position = CLI_JSON_NONE;
     slicing->lines = 0u;
@@ -172,11 +175,11 @@ static int slice_save(const ServersSliceCtx *args)
     int *fresh = args->fresh;
     args->head->lines = args->slicing_read->lines;
     args->head->root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1ULL;
-    args->head->paths_size = cli_grown_size(&args->slicing_read->paths);
-    const unsigned long long map_size = cli_grown_size(&args->slicing_read->map);
+    args->head->paths_size = platform_text_size(&args->slicing_read->paths);
+    const unsigned long long map_size = platform_text_size(&args->slicing_read->map);
     const unsigned long long hash =
         EMBED_CALL(cli_servers_read_state_internal.hash_get, CliServersReadStateCtx,
-                   .text = args->slicing_read->text.cell, .size = cli_grown_size(&args->slicing_read->text));
+                   .text = args->slicing_read->text.cell, .size = platform_text_size(&args->slicing_read->text));
     *fresh = args->always || (args->head->cut == 0ULL) || (args->head->hash != hash);
     // a file opened afresh has had nothing published of it by the server it is opened in
     if (*fresh && (version == 1ULL))
@@ -190,7 +193,7 @@ static int slice_save(const ServersSliceCtx *args)
     const unsigned long long openers_size = (unsigned long long)args->head->openers * sizeof(unsigned int);
     const unsigned long long stored_size =
         sizeof(*args->head) + openers_size + map_size + args->head->root_size + args->head->paths_size;
-    char *const stored = g_cli_guard->temporary_buf_alloc(stored_size, g_cli_servers_owner);
+    char *const stored = g_platform_guard->temporary_buf_alloc(stored_size, g_cli_servers_owner);
     if (stored != NULL)
     {
         unsigned long long at = 0ULL;
@@ -209,14 +212,14 @@ static int slice_save(const ServersSliceCtx *args)
     const int saved = (stored != NULL) &&
                       EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_slices, .key = key,
                                  .adjacent_value = args->path, .text = stored, .size_value = stored_size);
-    g_cli_guard->persistent_buf_release(stored, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(stored, g_cli_servers_owner);
     return saved;
 }
 
 // the slice of the file at `path` in the tree at `root` cut from `size` bytes of `text` for the view of `head`, its
 // openers `opener`, and stored by `key` with the view and its map as slice_save stores it, to be given as `version`
-// where `*fresh` is 1: its text, in a cell the caller gives back with g_cli_guard->persistent_buf_release, its size
-// into `slice_size`, or NULL with why given
+// where `*fresh` is 1: its text, in a cell the caller gives back with g_platform_guard->persistent_buf_release, its
+// size into `slice_size`, or NULL with why given
 static char *slice_cut(const ServersSliceCtx *args)
 {
     const char *path = args->path;
@@ -246,8 +249,8 @@ static char *slice_cut(const ServersSliceCtx *args)
         integer && EMBED_CALL(slice_save, ServersSliceCtx, .root = args->root, .path = path, .key = args->key,
                               .head = args->head, .opener = opener, .slicing_read = &slicing, .version = args->version,
                               .always = args->always, .fresh = args->fresh);
-    cli_grown_end(&slicing.map);
-    cli_grown_end(&slicing.paths);
+    platform_text_ended(&slicing.map);
+    platform_text_ended(&slicing.paths);
     if (!saved)
     {
         // a walk that could not cut it gave why already
@@ -255,11 +258,11 @@ static char *slice_cut(const ServersSliceCtx *args)
         {
             mmgr_line_put(err_msg, "the slice could not be cut: the cells cannot meet it");
         }
-        cli_grown_end(&slicing.text);
+        platform_text_ended(&slicing.text);
         return NULL;
     }
     // the text's cell is passed to the caller, who gives it back
-    *slice_size = cli_grown_size(&slicing.text);
+    *slice_size = platform_text_size(&slicing.text);
     return slicing.text.cell;
 }
 
@@ -276,7 +279,7 @@ EMBED_INLINE CliKeyedEntry slice_store(const ServersSliceCtx *args)
         return entry;
     }
     entry = (CliKeyedEntry){0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_slices.page[place / CLI_KEYED_PAGE],
                             .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(entry),
                             .dst = &entry,
@@ -286,7 +289,7 @@ EMBED_INLINE CliKeyedEntry slice_store(const ServersSliceCtx *args)
         entry.used = 0;
         return entry;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = entry.cell, .offset = (embed_word)entry.text_at, .dst = args->head, .bytes = sizeof(*args->head)});
     return entry;
 }
@@ -305,7 +308,7 @@ EMBED_INLINE const char *slice_root(const ServersSliceCtx *args)
     // the stored root is below CLI_PATH_MAX_LEN bytes, its 0 among them
     const unsigned long long bytes =
         (args->head_read->root_size < CLI_PATH_MAX_LEN) ? args->head_read->root_size : (CLI_PATH_MAX_LEN - 1ULL);
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->entry.cell,
                             .offset = (embed_word)EMBED_CALL(slice_root_at, ServersSliceCtx, .entry = args->entry,
                                                              .head_read = args->head_read),
@@ -322,10 +325,10 @@ EMBED_INLINE const char *slice_path(const ServersSliceCtx *args)
     const unsigned long long place =
         EMBED_CALL(slice_root_at, ServersSliceCtx, .entry = args->entry, .head_read = args->head_read) +
         args->head_read->root_size + args->at;
-    const unsigned long long measured =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = args->entry.cell, .offset = (embed_word)place});
+    const unsigned long long measured = g_platform_guard->movable_buf_measure(
+        &(CarcerMovableCfg){.cell = args->entry.cell, .offset = (embed_word)place});
     const unsigned long long bytes = (measured < CLI_PATH_MAX_LEN) ? measured : (CLI_PATH_MAX_LEN - 1ULL);
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->entry.cell, .offset = (embed_word)place, .dst = args->root_out, .bytes = (embed_word)bytes});
     args->root_out[bytes] = '\0';
     return args->root_out;
@@ -339,7 +342,7 @@ EMBED_INLINE int slice_line_in(const ServersSliceCtx *args)
     for (unsigned int at = 0u; at < args->head_read->lines; at += 1u)
     {
         CliServersSliceLine one = {CLI_JSON_NONE, 0u};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->entry.cell,
             .offset = (embed_word)(args->entry.text_at + sizeof(*args->head_read) +
                                    ((unsigned long long)args->head_read->openers * sizeof(unsigned int)) +
@@ -373,7 +376,7 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
         for (unsigned int at = 0u; at < head.openers; at += 1u)
         {
             opener[at] = 0u;
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = stored.cell,
                                     .offset = (embed_word)(stored.text_at + sizeof(head) + (at * sizeof(opener[at]))),
                                     .dst = &opener[at],
@@ -408,7 +411,7 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
                                      .language_id = args->id, .text = slice, .length = slice_size, .err_msg = err_msg)
                         : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = args->server,
                                      .path = path, .text = slice, .length = slice_size, .err_msg = err_msg)));
-    g_cli_guard->persistent_buf_release(slice, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(slice, g_cli_servers_owner);
     if (sent && fresh)
     {
         EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = args->server);
@@ -454,9 +457,9 @@ static int slices_window(const CliSliceWindowCfg *args)
                    !mmgr_line_ok(&cut->slicing.paths.line);
     const int going = !cut->refused && EMBED_CALL(cut->window, CliServersWindowCfg, .context = cut->context, .cut = cut,
                                                   .first = args->first, .last = args->last);
-    cli_grown_reset(&cut->slicing.text);
-    cli_grown_reset(&cut->slicing.map);
-    cli_grown_reset(&cut->slicing.paths);
+    platform_text_reset(&cut->slicing.text);
+    platform_text_reset(&cut->slicing.map);
+    platform_text_reset(&cut->slicing.paths);
     cut->slicing.last_input = NULL;
     cut->slicing.last_position = CLI_JSON_NONE;
     cut->slicing.lines = 0u;
@@ -471,7 +474,7 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
     CliServersWindow window = args->window;
     void *context = args->context;
     // a window's slice is cut and passed on where the walk reaches it, the walk's cells saved while it is
-    CliServersCut *const cut = g_cli_guard->temporary_buf_alloc(sizeof(CliServersCut), g_cli_servers_owner);
+    CliServersCut *const cut = g_platform_guard->temporary_buf_alloc(sizeof(CliServersCut), g_cli_servers_owner);
     if (cut == NULL)
     {
         mmgr_line_put(args->err_msg, "the slices could not be cut: the cells cannot meet them");
@@ -503,10 +506,10 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
     {
         mmgr_line_put(args->err_msg, "the slices could not be cut: the cells cannot meet them");
     }
-    cli_grown_end(&cut->slicing.text);
-    cli_grown_end(&cut->slicing.map);
-    cli_grown_end(&cut->slicing.paths);
-    g_cli_guard->persistent_buf_release(cut, g_cli_servers_owner);
+    platform_text_ended(&cut->slicing.text);
+    platform_text_ended(&cut->slicing.map);
+    platform_text_ended(&cut->slicing.paths);
+    g_platform_guard->persistent_buf_release(cut, g_cli_servers_owner);
     return integer;
 }
 
@@ -528,10 +531,10 @@ int cli_servers_cut_send(const CliServersErrMsgServerCtx *args)
         ((args->id != NULL)
              ? EMBED_CALL(cli_lsp_err_msg_text.open, CliLspErrMsgTextCfg, .lsp = args->server, .path = args->cut->path,
                           .language_id = args->id, .text = args->cut->slicing.text.cell,
-                          .length = cli_grown_size(&args->cut->slicing.text), .err_msg = err_msg)
+                          .length = platform_text_size(&args->cut->slicing.text), .err_msg = err_msg)
              : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = args->server,
                           .path = args->cut->path, .text = args->cut->slicing.text.cell,
-                          .length = cli_grown_size(&args->cut->slicing.text), .err_msg = err_msg));
+                          .length = platform_text_size(&args->cut->slicing.text), .err_msg = err_msg));
     if (sent)
     {
         EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = args->server);
@@ -574,13 +577,13 @@ static void slice_owing(const CliEachKeyedEntryCfg *args)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->entry.cell, .offset = (embed_word)args->entry.text_at, .dst = &head, .bytes = sizeof(head)});
     // the slice's key read out of its cell, a path's length at max
     char key[CLI_PATH_MAX_LEN];
     const unsigned long long key_bytes =
         (args->entry.key_size < sizeof(key)) ? args->entry.key_size : (sizeof(key) - 1ULL);
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->entry.cell, .offset = 0u, .dst = key, .bytes = (embed_word)key_bytes});
     key[key_bytes] = '\0';
     const unsigned int published =
@@ -589,14 +592,14 @@ static void slice_owing(const CliEachKeyedEntryCfg *args)
     if (published != CLI_KEYED_NONE)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_published.page[published / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(published % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         if (one.text_size == sizeof(version))
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = one.cell, .offset = (embed_word)one.text_at, .dst = &version, .bytes = sizeof(version)});
         }
     }
@@ -613,7 +616,7 @@ int cli_servers_slices_pending(void)
 // the slice of the viewer's lines alone, cut from `size` bytes of `text` of the file at `path` in the tree at `root`:
 // the lines `opener` names, `head->openers` of them, then the lines `head->first` to `head->last`, each with its line,
 // and stored by `key` as slice_save stores it, to be given as `version` where `*fresh` is 1: its text, in a cell the
-// caller gives back with g_cli_guard->persistent_buf_release, its size into `slice_size`, or NULL with why given
+// caller gives back with g_platform_guard->persistent_buf_release, its size into `slice_size`, or NULL with why given
 static char *slice_view_cut(const ServersSliceCtx *args)
 {
     char own[CLI_PATH_MAX_LEN];
@@ -664,16 +667,16 @@ static char *slice_view_cut(const ServersSliceCtx *args)
         integer && EMBED_CALL(slice_save, ServersSliceCtx, .root = args->root, .path = args->path, .key = args->key,
                               .head = args->head, .opener = args->opener, .slicing_read = &slicing,
                               .version = args->version, .always = 0, .fresh = args->fresh);
-    cli_grown_end(&slicing.map);
-    cli_grown_end(&slicing.paths);
+    platform_text_ended(&slicing.map);
+    platform_text_ended(&slicing.paths);
     if (!saved)
     {
         mmgr_line_put(args->err_msg, "the slice could not be cut: the cells cannot meet it");
-        cli_grown_end(&slicing.text);
+        platform_text_ended(&slicing.text);
         return NULL;
     }
     // the text's cell is passed to the caller, who gives it back
-    *args->slice_size = cli_grown_size(&slicing.text);
+    *args->slice_size = platform_text_size(&slicing.text);
     return slicing.text.cell;
 }
 
@@ -705,7 +708,7 @@ static void slice_gather_job(const CliServersJobCfg *args)
     for (unsigned int at = 0u; same && (at < head.openers); at += 1u)
     {
         unsigned int was = 0u;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored.cell,
                                 .offset = (embed_word)(stored.text_at + sizeof(head) + (at * sizeof(was))),
                                 .dst = &was,
@@ -737,8 +740,8 @@ static void slice_gather_job(const CliServersJobCfg *args)
     {
         EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = server);
     }
-    g_cli_guard->persistent_buf_release(slice, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(slice, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_servers_owner);
     if (server != NULL)
     {
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
@@ -778,7 +781,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
     while (same && (at < named))
     {
         unsigned int was = 0u;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored.cell,
                                 .offset = (embed_word)(stored.text_at + sizeof(head) + (at * sizeof(was))),
                                 .dst = &was,
@@ -812,7 +815,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
         sent = (slice != NULL) &&
                (!cut || EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = server, .path = path,
                                    .text = slice, .length = slice_size, .err_msg = err_msg));
-        g_cli_guard->persistent_buf_release(slice, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(slice, g_cli_servers_owner);
         if (sent)
         {
             CliServersGather gather;
@@ -837,7 +840,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
     {
         EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = server);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_servers_owner);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     if (!sent)
     {
@@ -876,7 +879,7 @@ int cli_servers_slice_out(const CliServersPathLineFromCtx *args)
         CliServersSliceLine one = {CLI_JSON_NONE, 0u};
         if (*line < head.lines)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = stored.cell,
                                     .offset = (embed_word)(stored.text_at + sizeof(head) +
                                                            ((unsigned long long)head.openers * sizeof(unsigned int)) +
@@ -1036,7 +1039,7 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
     const unsigned long long mapped_capacity = (2ULL * size) + CLI_SERVERS_SLICE_MAPPED_MORE;
     char *const mapped_cell = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json,
                                          .node = array, .type = CFG_JSON_ARRAY)
-                                  ? g_cli_guard->temporary_buf_alloc(mapped_capacity, args->owner)
+                                  ? g_platform_guard->temporary_buf_alloc(mapped_capacity, args->owner)
                                   : NULL;
     VerbaLinea mapped = mmgr_line_over(mapped_cell, mapped_capacity);
     const int made = mapped_cell != NULL;
@@ -1059,7 +1062,7 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
             CliServersSliceLine from = {CLI_JSON_NONE, 0u};
             if (start.line < head.lines)
             {
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = found.cell,
                     .offset = (embed_word)(found.text_at + sizeof(head) +
                                            ((unsigned long long)head.openers * sizeof(unsigned int)) +
@@ -1070,7 +1073,7 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
             CliServersSliceLine to = {CLI_JSON_NONE, 0u};
             if (end.line < head.lines)
             {
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = found.cell,
                     .offset = (embed_word)(found.text_at + sizeof(head) +
                                            ((unsigned long long)head.openers * sizeof(unsigned int)) +
@@ -1091,12 +1094,12 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
         }
         mmgr_line_ch(&mapped, ']');
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!made || !mmgr_line_ok(&mapped))
     {
-        g_cli_guard->persistent_buf_release(mapped.out, args->owner);
+        g_platform_guard->persistent_buf_release(mapped.out, args->owner);
         return NULL;
     }
     *mapped_size = mapped.at;

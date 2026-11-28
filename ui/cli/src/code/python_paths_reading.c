@@ -68,7 +68,7 @@ int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
     const unsigned long long line_text_at = at;
     at += line_text;
     // the reading lives for the one script: a cell of the temporary tier
-    s_read_state = g_cli_guard->temporary_buf_alloc(at, g_cli_python_owner);
+    s_read_state = g_platform_guard->temporary_buf_alloc(at, g_cli_python_owner);
     if (s_read_state == NULL)
     {
         return 0;
@@ -94,7 +94,7 @@ int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
 
 void cli_py_read_state_free(void)
 {
-    g_cli_guard->persistent_buf_release(s_read_state, g_cli_python_owner);
+    g_platform_guard->persistent_buf_release(s_read_state, g_cli_python_owner);
     s_read_state = NULL;
     memor.set(&(MemoriaCfg){.dst = &g_cli_py, .val = 0, .bytes = sizeof(g_cli_py)});
     EMBED_CALL(cli_python_paths_text_text_max_internal.py_lines_position, CliPythonPathsTextTextMaxCtx,

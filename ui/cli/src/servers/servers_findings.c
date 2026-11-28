@@ -54,7 +54,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     CliKeyedEntry one = {0};
     if (place != CLI_KEYED_NONE)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_servers_checked.page[place / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(place % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
@@ -63,10 +63,10 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     const unsigned long long size = one.used ? one.text_size : 0ULL;
     // the JSON stored read out of its cell into the reader's own cell for this call
     char *const stored =
-        one.used ? g_cli_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_servers_owner) : NULL;
+        one.used ? g_platform_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_servers_owner) : NULL;
     if ((stored != NULL) && (size != 0ULL))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one.cell, .offset = (embed_word)one.text_at, .dst = stored, .bytes = (embed_word)size});
     }
     unsigned int nodes_more = 1u;
@@ -91,7 +91,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     {
         return 0;
     }
-    g_cli_guard->persistent_buf_release(stored, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(stored, g_cli_servers_owner);
     entry = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &json, .node = entry,
                        .type = CFG_JSON_OBJECT)
                 ? entry
@@ -101,7 +101,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     if ((had != CLI_JSON_NONE) && EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = &json,
                                              .one = had, .other_json = &s_found.json, .other = args->items))
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
@@ -113,7 +113,7 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
     EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = &json, .object = entry);
     const unsigned long long capacity =
         EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &json);
-    char *const entry_written = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    char *const entry_written = g_platform_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
     VerbaLinea written = mmgr_line_over(entry_written, capacity);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = entry,
                .out = &written, .indent = 0u, .sorted = 1);
@@ -122,8 +122,8 @@ EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
         (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_checked,
                          .key = key, .adjacent_value = args->uri_read, .text = written.out, .size_value = written.at);
     }
-    g_cli_guard->persistent_buf_release(entry_written, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(entry_written, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
@@ -142,9 +142,9 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
                                    ? json->node[root].count
                                    : 0u;
     unsigned int *const changed_files =
-        (files > 0u)
-            ? g_cli_guard->temporary_buf_alloc((unsigned long long)files * sizeof(unsigned int), g_cli_servers_owner)
-            : NULL;
+        (files > 0u) ? g_platform_guard->temporary_buf_alloc((unsigned long long)files * sizeof(unsigned int),
+                                                             g_cli_servers_owner)
+                     : NULL;
     unsigned int changed = 0u;
     char uri[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
@@ -175,9 +175,9 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
                        .sink = args->sink);
         }
     }
-    g_cli_guard->persistent_buf_release(changed_files, g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(s_found.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_found.json.node));
+    g_platform_guard->persistent_buf_release(changed_files, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(s_found.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_found.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_found.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

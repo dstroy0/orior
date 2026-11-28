@@ -9,7 +9,7 @@
 #include "../../../../../../../src/cu/engine/analysis/noise_detector/noise_detector.h"
 #include "../../../../../../../src/cu/engine/engine.h"
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 

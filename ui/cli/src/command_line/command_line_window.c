@@ -116,7 +116,7 @@ static void window_watch_take(const CliWatchBatchCfg *args)
     }
     const unsigned long long list_bytes = (unsigned long long)files * sizeof(const char *);
     unsigned char *const cell =
-        (files != 0u) ? g_cli_guard->temporary_buf_alloc(list_bytes + text_bytes, g_cli_command_line_owner) : NULL;
+        (files != 0u) ? g_platform_guard->temporary_buf_alloc(list_bytes + text_bytes, g_cli_command_line_owner) : NULL;
     if (cell == NULL)
     {
         return;
@@ -152,7 +152,7 @@ static void window_watch_take(const CliWatchBatchCfg *args)
         EMBED_CALL(cli_servers_root_sink_count.change, CliServersRootSinkCountCfg, .root = root, .files = path,
                    .count = unique);
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_command_line_owner);
 }
 
 void cli_command_line_tree_begin(void (*woken)(void))

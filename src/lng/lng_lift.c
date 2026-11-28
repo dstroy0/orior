@@ -6,7 +6,7 @@
 // This file holds no rule of the lift. It starts the Lean runtime once, gives the Lean code the columns of the three
 // tables, and reads the answer back. Lng/lift_code.lean proves what the Lean code computes.
 
-#include "../platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "lng.h"
 #include "memoria_operor/memoria_operor.h"

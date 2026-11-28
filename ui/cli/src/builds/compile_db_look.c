@@ -61,7 +61,7 @@ EMBED_INLINE int cli_clangd_names(const CompileDbLookCtx *args)
             named = 1;
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_compile_owner);
     return named;
 }
 
@@ -82,10 +82,10 @@ EMBED_INLINE int cli_input_append(const CompileDbLookCtx *args)
 void cli_compile_inputs(const CliCompileDbInputsCtx *args)
 {
     static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
-    g_cli_guard->persistent_buf_release(args->inputs->file, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(args->inputs->file, g_cli_compile_owner);
     *args->inputs = (CliInputs){0, NULL, 0u, 0u};
-    args->inputs->file = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped),
-                                                          g_cli_compile_owner);
+    args->inputs->file = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped), g_cli_compile_owner);
     args->inputs->capacity = (args->inputs->file != NULL) ? CLI_COMPILE_INPUTS : 0u;
     char own[3][CLI_PATH_MAX_LEN];
     unsigned int owner = 0u;
@@ -133,7 +133,7 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args)
     {
         (void)EMBED_CALL(cli_input_append, CompileDbLookCtx, .inputs = args->inputs, .path = found.path[at]);
     }
-    g_cli_guard->persistent_buf_release(found.path, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(found.path, g_cli_compile_owner);
     found = (CliFoundFolders){NULL, 0u, 0u};
     // sorted by path, then time
     for (unsigned int at = 1u; (args->inputs->file != NULL) && (at < args->inputs->count); at += 1u)
@@ -174,19 +174,19 @@ EMBED_INLINE void cli_inputs_save(const CompileDbLookCtx *args)
 {
     if (s_cache.files != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_cache.files, g_cli_compile_owner);
+        (void)g_platform_guard->movable_buf_release(s_cache.files, g_cli_compile_owner);
     }
     s_cache.files = NULL;
     s_cache.count = 0u;
     const unsigned long long bytes = (unsigned long long)args->read_state->count * sizeof(CliStamped);
-    s_cache.files = (bytes != 0ULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_compile_owner) : NULL;
+    s_cache.files = (bytes != 0ULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_compile_owner) : NULL;
     if (s_cache.files != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_cache.files, .offset = 0ULL, .src = args->read_state->file, .bytes = bytes});
         s_cache.count = args->read_state->count;
     }
-    g_cli_guard->persistent_buf_release(args->read_state->file, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(args->read_state->file, g_cli_compile_owner);
     *args->read_state = (CliInputs){0, NULL, 0u, 0u};
 }
 
@@ -201,10 +201,10 @@ EMBED_INLINE int cli_same_inputs(const CompileDbLookCtx *args)
     for (unsigned int at = 0u; at < s_cache.count; at += 1u)
     {
         CliStamped saved;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_cache.files,
-                                                                .offset = (unsigned long long)at * sizeof(saved),
-                                                                .dst = &saved,
-                                                                .bytes = sizeof(saved)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_cache.files,
+                                                                     .offset = (unsigned long long)at * sizeof(saved),
+                                                                     .dst = &saved,
+                                                                     .bytes = sizeof(saved)});
         if ((saved.time != other->file[at].time) ||
             (!cellul.eq(&(CatenaFinitaCfg){.src = saved.path, .other = other->file[at].path, .cap = CLI_POOL_BYTES})))
         {
@@ -229,7 +229,7 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
                .inputs = &read_state);
     if (same && EMBED_CALL(cli_same_inputs, CompileDbLookCtx, .other = &read_state))
     {
-        g_cli_guard->persistent_buf_release(read_state.file, g_cli_compile_owner);
+        g_platform_guard->persistent_buf_release(read_state.file, g_cli_compile_owner);
         read_state = (CliInputs){0, NULL, 0u, 0u};
         s_cache.at = cli_clock_milliseconds();
         *database = s_cache.database;
