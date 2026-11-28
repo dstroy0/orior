@@ -529,7 +529,6 @@ src/cu/engine/runtime/device_pool/device_pool.h	9
 src/cu/scaffolding/c_target.h	1
 src/cu/scaffolding/record_vhdl_bench.vhd	2
 src/cu/scaffolding/record_vhdl_test.cpp	5
-src/cu/scaffolding/vhdl_construction_set.cpp	12
 src/cu/scaffolding/vhdl_target.h	4
 src/cu/scaffolding/yosys_script.h	2
 src/cu/transpiler/lstar/interface/platform/interface_internal.h	7

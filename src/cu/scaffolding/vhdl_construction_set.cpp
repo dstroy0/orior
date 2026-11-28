@@ -1,14 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The construction set of the register lane's VHDL on a part, measured by the machine (engine_table.md item 11(f)):
-// each form of vhdl.krs written alone through the ruleset (ruleset_form_written) into a clocked entity whose ports give
-// its registers and whose outputs take them, synthesized by GHDL and Yosys, and its cost the longest path from the
-// ports to the registers in Yosys's generic cells (ltp -noff). A register parameter is tried as a word and as a wide
-// word until GHDL analyzes the form; a predicate is a boolean and a count or an offset the integer 7. A form that
-// names what no form alone contains (the lane's opening and close, its states, its memory) is not measured, and costs
-// what the lane's schedule model gives a form it does not name. The set is written as a krep KCS file and read back
-// whole, and the file is removed where the two differ.
+// The construction set of the VHDL of the register lane on a part, measured by the machine (engine_table.md item
+// 11(f)). The program writes each form of vhdl.krs alone through the ruleset (ruleset_form_written) into a clocked
+// entity. The ports of the entity give its registers, and its outputs take them. GHDL and Yosys synthesize it. Its cost
+// is the longest path from the ports to the registers in the generic cells of Yosys (ltp -noff).
+//
+// The program tries a register parameter as a word and as a wide word until GHDL analyzes the form. A predicate is a
+// boolean, and a count or an offset is the integer 7. The program does not measure a form that names what no form
+// alone holds: the opening and close of the lane, its states, its memory. That form costs what the schedule model of
+// the lane gives a form that it does not name. The program writes the set as a krep KCS file and reads it back whole.
+// It removes the file where the two differ.
 #include "../../../includes/file_defs/krep/krep.h"
 #include "../../../includes/platform/platform.h"
 #include "../engine/engine_note.h"
@@ -140,8 +142,8 @@ static void construction_forms(const char *path, PlatformArray *forms)
     platform_text_ended(&text);
 }
 
-// what a parameter is bound to: a predicate a boolean, a count or an offset an integer, and a register a word or a
-// wide word
+// what a parameter binds to. A predicate binds to a boolean, a count or an offset to an integer, and a register to a
+// word or a wide word
 enum ConstructionType
 {
     CONSTRUCTION_BOOLEAN = 0,
@@ -326,8 +328,9 @@ static int construction_bound(const Ruleset *rules, const ConstructionForm *form
            ruleset_form_written(rules, form->name, arguments, form->parameter_count, NULL, &text->line);
 }
 
-// the form's cost measured in `work`: each binding of its registers to words and wide words tried until GHDL analyzes
-// the form alone, which is then synthesized; 1 and the cost where one binding succeeds
+// the cost of the form, measured in `work`. The call tries each binding of its registers to words and wide words,
+// until GHDL analyzes the form alone. Then it synthesizes the form. The return is 1 and the cost where one binding
+// succeeds
 static int construction_measure(const Ruleset *rules, const char *package, const char *work,
                                 const ConstructionForm *form, unsigned long long *cost)
 {
@@ -481,7 +484,8 @@ static int construction_package(const Ruleset *rules, PlatformText *package)
 
 int program_main(int argc, char **argv)
 {
-    // each line reaches the log as it is written, where stdout is a file: each form is synthesized alone
+    // each line reaches the log when the program writes it, where stdout is a file, because each form synthesizes
+    // alone
     platform_line_out_every_write();
     if (argc != 4)
     {
