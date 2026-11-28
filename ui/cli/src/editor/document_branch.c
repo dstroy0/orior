@@ -1038,8 +1038,8 @@ EMBED_INLINE unsigned int branch_roles(const DocumentBranchCtx *args)
                             .name = args->leaves->text + args->leaves->name_at[name]);
 }
 
-// how many of the names of `leaves` before the name at `name` count the depth of a pair: as the text saved it as the
-// bundle's lines were claimed, else counted
+// how many of the names of `leaves` before the name at `name` count the depth of a pair. It is as the text saved it as
+// the walk claimed the lines of the bundle, else counted
 EMBED_INLINE unsigned int branch_depth_rank(const DocumentBranchCtx *args)
 {
     const unsigned int saved =
@@ -1060,12 +1060,9 @@ EMBED_INLINE unsigned int branch_depth_rank(const DocumentBranchCtx *args)
     return rank;
 }
 
-// the regions of one line's leaves recorded as a line's regions are: each run in turn, a region it opens left open
-// until a run after it on the line closes it, and one it closes that no run before it on the line opened counted among
-// those opened above
-// a region a run closes while none is open on its line: the first, where it is a `mark`, marks the line in
-// `found_bits`, and it counts among those the line closes and, while no leaf fills the line before it, among those it
-// closes unled
+// a region that a run closes while none is open on its line. The first, where it is a `mark`, marks the line in
+// `found_bits`. It counts among those that the line closes. While no leaf fills the line before it, it also counts
+// among the `unled` closes
 EMBED_INLINE void branch_region_unopened(const DocumentBranchCtx *args)
 {
     unsigned int *const found = args->found_bits;
@@ -1076,6 +1073,9 @@ EMBED_INLINE void branch_region_unopened(const DocumentBranchCtx *args)
     *closes += (*closes < CLI_DOC_REGION_COUNT) ? 1u : 0u;
 }
 
+// the regions of the leaves of one line, recorded as the regions of a line are. The call takes each run in turn. A
+// region that it opens stays open until a run after it on the line closes it. One that it closes, which no run before
+// it on the line opened, counts among those opened above
 EMBED_INLINE unsigned int branch_regions_get(const DocumentBranchCtx *args)
 {
     unsigned int opens = 0u;
@@ -1111,9 +1111,9 @@ EMBED_INLINE unsigned int branch_regions_get(const DocumentBranchCtx *args)
     return found | opens | (closes << CLI_DOC_REGION_CLOSES_AT) | (unled << CLI_DOC_REGION_UNLED_AT);
 }
 
-// The names a branch's grammar's tokens take written as the page reads them: the names, then each name that counts the
-// depth of a pair followed by `.` and each depth, as the walk names a run of it; the place of the first of those, and
-// how many of the names are written
+// The names that the tokens of the grammar of a branch take, written as the page reads them. That is the names, then
+// each name that counts the depth of a pair, followed by `.` and each depth. The walk names a run of it in that way.
+// Then the place of the first of those, and how many of the names the call writes
 typedef struct
 {
     VerbaLinea *out;
@@ -1121,13 +1121,14 @@ typedef struct
     unsigned int written;
 } CliBranchNames;
 
-// one name of a grammar passed over, as its names are counted
+// one name of a grammar, passed over as the call counts its names
 static void branch_name_pass(const CliNameEachCfg *args)
 {
     (void)args;
 }
 
-// the grammar of the text under `key` copied into `text_out`: 1, or 0 where no text is stored there
+// the grammar of the text under `key`, copied into `text_out`. The return is 1, or 0 where the store holds no text
+// there
 EMBED_INLINE int names_grammar_read(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
@@ -1168,8 +1169,9 @@ unsigned int cli_document_name_place(const CliDocumentNamesCfg *args)
                : 0u;
 }
 
-// the names of `scope` saved only where the region each belongs to is at max `depth` deep and, where `waiting` is 1,
-// none waits for its region to open, the texts of those saved moved down over those let go
+// the names of `scope`, saved only where the region that each belongs to is at max `depth` deep. Where `waiting` is 1,
+// the call also saves only those that do not wait for their region to open. The texts of those saved move down over
+// those let go
 EMBED_INLINE void branch_scope_leave(const DocumentBranchCtx *args)
 {
     unsigned int saved = 0u;
@@ -1196,8 +1198,8 @@ EMBED_INLINE void branch_scope_leave(const DocumentBranchCtx *args)
     args->scope->used = used;
 }
 
-// `size` bytes of `text` declared in `scope`, a use of it named `named`, belonging to the region `belongs` deep and
-// waiting for it to open where `waits` is 1; passed over where the scope holds no more
+// `size` bytes of `text` declared in `scope`, with a use of it named `named`. It belongs to the region `belongs` deep,
+// and waits for it to open where `waits` is 1. The call passes over it where the scope holds no more
 EMBED_INLINE void branch_scope_append(const DocumentBranchCtx *args)
 {
     if ((args->scope->count == CLI_DOC_SCOPE_NAMES) || ((args->scope->used + args->size) > CLI_DOC_SCOPE_TEXT))
@@ -1209,7 +1211,7 @@ EMBED_INLINE void branch_scope_append(const DocumentBranchCtx *args)
     args->scope->size[args->scope->count] = args->size;
     args->scope->named[args->scope->count] = args->named;
     args->scope->belongs[args->scope->count] = args->belongs;
-    // waiting is 0 or 1
+    // `waiting` is 0 or 1
     args->scope->waits[args->scope->count] = (unsigned char)args->waits;
     args->scope->used += args->size;
     args->scope->count += 1u;
@@ -1272,8 +1274,8 @@ EMBED_INLINE unsigned int branch_digits(const DocumentBranchCtx *args)
     return value;
 }
 
-// the scope written at the place `place` among the states of `one` read into `scope`, as far as each name's text
-// is within it, its place saved; empty where `place` is CLI_DOC_NONE or past the states
+// the scope written at the place `place` among the states of `one`, read into `scope`. The call reads as far as the
+// text of each name is within it, and saves its place. It is empty where `place` is CLI_DOC_NONE or past the states
 EMBED_INLINE void branch_scope_read(const DocumentBranchCtx *args)
 {
     unsigned int place = args->place;
@@ -1311,9 +1313,10 @@ EMBED_INLINE void branch_scope_read(const DocumentBranchCtx *args)
     args->scope->moved = 0;
 }
 
-// the scope the line `finding` colored last ends in, written into `out` where its place among the text's states is to
-// be found as it is put in, written again only where it moved since the one before it was: its bytes, CLI_DOC_NONE for
-// a scope with no depth, pairs or names or one too large to write, and CLI_DOC_SCOPE_SAME for the one before it
+// the scope that the line `finding` colored last ends in, written into `out`. The call finds its place among the states
+// of the text as it goes in. It writes it again only where it moved since the one before it. The return is its bytes.
+// It is CLI_DOC_NONE for a scope with no depth, pairs or names, or one too large to write, and CLI_DOC_SCOPE_SAME for
+// the one before it
 EMBED_INLINE unsigned int branch_scope_find(const DocumentBranchCtx *args)
 {
     CliBranchScope *const scope = &args->finding_out->scope;
@@ -1333,17 +1336,8 @@ EMBED_INLINE unsigned int branch_scope_find(const DocumentBranchCtx *args)
     return (size != 0ULL) ? (unsigned int)size : CLI_DOC_NONE;
 }
 
-// one line's leaves walked through the scope of `finding`: a region its runs open deepens it and its function's
-// parameters waiting
-// for it open in it, one they close lets go the names that belong to it, a local is declared in the region it is
-// in and a parameter in the one the next region opens, a statement's end or a directive lets go the parameters still
-// waiting, at once and at the line's end; each bare name a use of the last declaration of it in the scope takes that
-// declaration's name, but one reached through the operator before it, blanks between; and a pair it opens deepens the
-// scope's pairs and one it closes lets one go, each run that opens or closes one named by the depth it is at, the
-// first of its names' `names` on, as `cli_document_names_write` writes them. The leaves with each run's name so
-// taken, in the work's capacity for them, the leaves as they came where the cells cannot meet that capacity
-// the scope moved by a run whose roles are `roles`: a region it opens entered, the names that wait for it entering
-// with it, or a region it closes left
+// the scope moved by a run whose roles are `roles`. The scope enters a region that the run opens, with the names that
+// wait for it, or leaves a region that the run closes
 EMBED_INLINE void branch_scope_region(const DocumentBranchCtx *args)
 {
     CliBranchScope *const scope = args->scope;
@@ -1364,9 +1358,9 @@ EMBED_INLINE void branch_scope_region(const DocumentBranchCtx *args)
     }
 }
 
-// a run named `named` whose roles are `roles`, its `size` bytes at `text`: a parameter put in the scope of the region
-// it opens, a local in the scope it is in, and where `renames`, any other name read through the scope: the name
-// the run takes, `named` where the scope gives it none
+// a run named `named` whose roles are `roles`, with its `size` bytes at `text`. The call puts a parameter in the scope
+// of the region that it opens, and a local in the scope that it is in. Where `renames`, it reads any other name
+// through the scope. The return is the name that the run takes, `named` where the scope gives it none
 EMBED_INLINE unsigned int branch_scope_named(const DocumentBranchCtx *args)
 {
     CliBranchScope *const scope = args->scope;
@@ -1391,9 +1385,9 @@ EMBED_INLINE unsigned int branch_scope_named(const DocumentBranchCtx *args)
     return (declared != CLI_DOC_NONE) ? declared : args->named;
 }
 
-// the depth of the pairs moved by a run named `name` whose roles are `roles`: the name a pair takes after the `names`
-// the language gives, by its rank and its depth, where `renames` and the language ranks it, else CLI_DOC_NONE. A pair
-// that closes is at the depth of the one it closes
+// the depth of the pairs, moved by a run named `name` whose roles are `roles`. The return is the name that a pair takes
+// after the `names` that the language gives, by its rank and its depth. That is where `renames`, and the language ranks
+// it. Else it is CLI_DOC_NONE. A pair that closes is at the depth of the one that it closes
 EMBED_INLINE unsigned int branch_pair_named(const DocumentBranchCtx *args)
 {
     CliBranchScope *const scope = args->scope;
@@ -1412,6 +1406,20 @@ EMBED_INLINE unsigned int branch_pair_named(const DocumentBranchCtx *args)
     return paired;
 }
 
+// the leaves of one line, walked through the scope of `finding`:
+//
+// - a region that its runs open deepens the scope, and the parameters of its function that wait for it open in it. A
+//   region that they close lets go the names that belong to it.
+// - the walk declares a local in the region that it is in, and a parameter in the one that the next region opens.
+// - the end of a statement or a directive lets go the parameters that still wait, at once and at the end of the line.
+// - each bare name, a use of the last declaration of it in the scope, takes the name of that declaration. One that the
+//   walk reaches through the operator before it, with blanks between, does not.
+// - a pair that it opens deepens the pairs of the scope, and one that it closes lets one go. Each run that opens or
+//   closes one takes its name by the depth that it is at, from the name at `names` on, as `cli_document_names_write`
+//   writes them.
+//
+// The return is the leaves, with the name of each run taken in that way, in the capacity of the work for them. It is
+// the leaves as they came where the cells cannot meet that capacity
 EMBED_INLINE CliLeaves branch_uses_by_name(const DocumentBranchCtx *args)
 {
     CliLeaves named = *args->leaves;
@@ -1466,9 +1474,10 @@ EMBED_INLINE CliLeaves branch_uses_by_name(const DocumentBranchCtx *args)
     return named;
 }
 
-// one line's leaves, colored with no lock taken: its runs named through the scope, its regions read, and the state the
-// colorer leaves it in and the scope it ends in written after what the bundle found on the lines before it, a record of
-// its own; nothing where the cells refused the capacity for one before it or refuse it
+// the leaves of one line, colored with no lock taken. The call names its runs through the scope, and reads its regions.
+// It writes the state that the colorer leaves it in, and the scope that it ends in, as a record of its own. That goes
+// after what the bundle found on the lines before it. It writes nothing where the cells refused the capacity for one
+// before it, or refuse it
 static void branch_find(const CliLeavesEachCfg *args)
 {
     const CliLeaves *leaves = args->leaves;
@@ -1487,7 +1496,7 @@ static void branch_find(const CliLeavesEachCfg *args)
         EMBED_CALL(branch_scope_find, DocumentBranchCtx, .finding_out = finding, .out = &scope);
     const unsigned int scope_bytes =
         ((scope_size != CLI_DOC_NONE) && (scope_size != CLI_DOC_SCOPE_SAME)) ? scope_size : 0u;
-    // the colorer's state, no longer than the capacity it is written in, which an unsigned int counts
+    // the state of the colorer, no longer than the capacity that it goes in, which an unsigned int counts
     const unsigned int ended =
         (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = leaves->ended, .cap = CLI_POOL_BYTES});
     const unsigned long long ended_words = (ended + 3ULL) / 4ULL;
