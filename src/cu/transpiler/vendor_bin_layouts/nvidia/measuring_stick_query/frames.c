@@ -17,10 +17,11 @@ static void msq_failed(MsqPool *pool, const char *why)
     atomic_store(&pool->failed, 1);
 }
 
-// One piece set aside, read alone. A probe encoding the vendor stopped at in the accumulated run is illegal by that
-// stop and is read no more. One set aside unread is read alone, its reading the line at its start, or illegal where
-// the vendor reports so. A frame is read whole (msq_frame_read). A tail's registers that address memory are read off
-// what the vendor prints of it alone. 1, or 0 where the vendor could not be run or the system gave no memory
+// One piece set aside, read alone. A probe encoding that the vendor stopped at in the accumulated run is illegal by
+// that stop, and the call reads it no more. The call reads alone one set aside unread, and its reading is the line at
+// its start, or illegal where the vendor reports that. The call reads a frame whole (msq_frame_read). It reads the
+// registers of a tail that address memory from what the vendor prints of the tail alone. The return is 1, or 0 where
+// the vendor could not run or the system gave no memory
 static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piece)
 {
     if (piece->type == MSQ_PIECE_FRAME)
@@ -60,8 +61,8 @@ static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piec
     return 1;
 }
 
-// a reader thread's work: the pieces set aside taken one after another until none is left, each read under the
-// thread's own ident and stream
+// the work of a reader thread: the pieces set aside, taken one after another until none remains. The thread reads each
+// under its own ident and stream
 void *msq_pool_worker(void *argument)
 {
     MsqPool *const pool = (MsqPool *)argument;
@@ -108,8 +109,9 @@ unsigned int msq_processors(void)
 #endif
 }
 
-// The frame `frame` read whole by the vendor, read again with each instruction it stops at put to a NOP, until it reads
-// clean or stops at no instruction it names. 1, or 0 where a reading could not be run or the system gave no memory
+// The frame `frame`, read whole by the vendor, and read again with each instruction that it stops at put to a NOP. The
+// call does so until it reads clean, or stops at no instruction that it names. The return is 1, or 0 where a reading
+// could not run or the system gave no memory
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = read, .bytes = sizeof(*read), .val = 0);
@@ -164,8 +166,8 @@ void msq_frame_free(MsqFrame *read)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = read, .bytes = sizeof(*read), .val = 0);
 }
 
-// 1 where the instruction `body` is a control transfer or a wait (s_control) other than the EXIT a kernel ends in, by
-// its first word short of its modifiers
+// 1 where the instruction `body` is a control transfer or a wait (s_control) other than the EXIT that a kernel ends in.
+// The call tells by its first word, short of its modifiers
 int msq_control_read(const char *body)
 {
     size_t start = 0u;
@@ -191,9 +193,9 @@ int msq_control_read(const char *body)
     return 0;
 }
 
-// one instruction of `question` the cross read clear, its text `body` and its sixteen bytes at `encoding`, added to
-// the probes and instructions read clear the teacher reads: `<stem> <operation> <low> <high>`, the operation the
-// instruction's first word short of its modifiers
+// one instruction of `question` that the cross read clear, with its text `body` and its sixteen bytes at `encoding`.
+// The call adds it to the probes and instructions read clear that the teacher reads: `<stem> <operation> <low>
+// <high>`. The operation is the first word of the instruction, short of its modifiers
 void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const char *body,
                         const unsigned char *encoding)
 {
@@ -223,17 +225,17 @@ void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, cons
     msq_added(&verdicts->read, &verdicts->read_size, &verdicts->read_room, clear, (size_t)written);
 }
 
-// the count of registers that clears a refusal of a register past the count, `reached` the highest register it reaches:
-// one past it, or 0 where that is past MSQ_ALLOTTED_MAX
+// the count of registers that clears a refusal of a register past the count, with `reached` the highest register that
+// it reaches. It is one past it, or 0 where that is past MSQ_ALLOTTED_MAX
 unsigned int msq_clearing(unsigned long long reached)
 {
     // a count at max MSQ_ALLOTTED_MAX fits an unsigned int
     return (reached < MSQ_ALLOTTED_MAX) ? (unsigned int)(reached + 1ULL) : 0u;
 }
 
-// One refusal of `question`: the encoding at `encoding`, NULL where there is none to block, added to the gated list,
-// the refusal and `why` to the report and to what is reported, and to the refusals the teacher reads with `clearing`,
-// the count of registers that clears it, 0 where none does
+// One refusal of `question`. The call adds the encoding at `encoding` to the gated list, NULL where there is none to
+// block. It adds the refusal and `why` to the report, and to what it reports. It adds them to the refusals that the
+// teacher reads with `clearing`, the count of registers that clears it, 0 where none does
 void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const unsigned char *encoding,
                        const char *why, unsigned int clearing)
 {
