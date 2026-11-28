@@ -3,19 +3,20 @@
 // interface_sass_probe_take.c: every instruction of a listing whose form the machine file lacks, taken into it with its
 // fields.
 //
-// The forms are taken into a machine of their own, and their fields found by the probe's own reading: each form's 128
-// bits turned over one at a time and decoded, the runs of bits that change one printed operand recorded as that
-// operand's (sass_machine_fields). Each is then put into the machine file with those runs and the file written again. A
-// form the machine file already contains is left as it is, its fields and its encoding untouched.
+// The program takes the forms into a machine of their own, and finds their fields by the own reading of the probe. It
+// turns over the 128 bits of each form one at a time, and decodes them. It records the runs of bits that change one
+// printed operand as those of that operand (sass_machine_fields). Then it puts each into the machine file with those
+// runs, and writes the file again. A form that the machine file already holds stays as it is, with its fields and its
+// encoding untouched.
 //
 //     interface_sass_probe_take <listing> <machine file> <architecture> <folder>
 //     interface_sass_probe_take --fields <machine file> <architecture> <folder>
 //
-// The second form gives every form the machine file contains its fields again by the probe's reading, prints each form
-// whose fields that changes, and writes the file.
+// The second form gives every form that the machine file holds its fields again, by the reading of the probe. It
+// prints each form whose fields that changes, and writes the file.
 //
-// The listing is what cuobjdump -sass or nvdisasm prints. The architecture is named as the disassembler names it,
-// SM86; the folder contains the encodings the disassembler is given.
+// The listing is what `cuobjdump -sass` or nvdisasm prints. The architecture has the name that the disassembler uses,
+// SM86. The folder holds the encodings that the disassembler gets.
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -81,8 +82,8 @@ static void take_runs_print(const SassForm *form)
     }
 }
 
-// every form of the machine file at `path` given its fields again by the probe's reading, and the file written: the
-// forms whose fields the reading changed counted and printed
+// every form of the machine file at `path`, given its fields again by the reading of the probe, and the file written.
+// The call counts and prints the forms whose fields the reading changed
 static int take_fields(const char *path, const char *architecture, const char *folder)
 {
     static SassMachine s_was;
