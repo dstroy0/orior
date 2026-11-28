@@ -6,17 +6,22 @@
 #ifndef SCHEMA_FORMS_H
 #define SCHEMA_FORMS_H
 
-// The type of a form. The lane's structure is what the word web names as the kernel a lane is written into: the
-// declarations, the notes, the lane's and the kernel's opening and close, the launch's and the shared memory's, the
-// states and the loads, and the unit. Each names no operation and has no tree, and a part's ruleset writes it `nop`:
-// the kernel the system accepted is the lane's frame there (Open 6.3). An operation is a form
-// with a relation of its own, the ladder's, the frame's, the host's questions' or a walk of its own, and a part's
-// ruleset gives it as the part answered it, or leaves it open
+// The type of a form. The structure of the lane is what the word web names as the kernel that the lane goes into:
+//
+// - the declarations and the notes
+// - the opening and close of the lane and of the kernel, and those of the launch and of the shared memory
+// - the states and the loads, and the unit
+//
+// Each names no operation and has no tree, and the ruleset of a part writes it `nop`. There, the kernel that the system
+// accepted is the frame of the lane (Open 6.3).
+//
+// An operation is a form with a relation of its own. That is the relation of the ladder, of the frame, of the questions
+// of the host, or of a walk of its own. The ruleset of a part gives it as the part answered it, or leaves it open
 #define SCHEMA_FORM_OPERATION 0u
 #define SCHEMA_FORM_STRUCTURE 1u
 
-// One form a line, protected from the formatter: it splits a form's name inside its words, and a search for the name
-// then misses it
+// One form to a line, kept from the formatter. The formatter splits the name of a form inside its words, and then a
+// search for the name misses it
 // clang-format off
 #define OPCODES(form_) \
     form_(PROGRAM_NOTE, "program_note", 6u, SCHEMA_FORM_STRUCTURE)                               \
