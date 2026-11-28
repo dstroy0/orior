@@ -487,12 +487,10 @@ includes/parsers/who.h	2
 includes/platform/platform.h	25
 includes/platform/platform_internal.h	3
 includes/platform/platform_pool.c	8
-includes/platform/posix/linux/linux_clipboard.c	44
 includes/platform/posix/linux/linux_picker.c	19
 includes/platform/posix/linux/linux_processes.c	5
-includes/platform/posix/linux/linux_watch.c	24
 includes/platform/posix/linux/tls_libssl.c	2
-includes/platform/posix/linux/x11_window.c	32
+includes/platform/posix/linux/x11_window.c	3
 includes/platform/posix/platform_posix.c	2
 includes/platform/posix/posix_connect.c	2
 includes/platform/posix/posix_files.c	3

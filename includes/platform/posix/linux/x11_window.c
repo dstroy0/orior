@@ -10,8 +10,8 @@
 
 #include "../../../../ui/cli/src/command_line/cli_internal.h"
 
-// the tree names a structure Atom in its engine's headers, which the CLI's headers include; X's Atom is renamed
-// X11Atom here, in X's own headers and in this file alike
+// the tree names a structure Atom in the headers of its engine, which the headers of the CLI include. This file
+// renames the Atom of X to X11Atom, in the headers of X and in this file alike
 #define Atom X11Atom // NOSONAR
 #include "../../../../ui/gui/src/xsettings.h"
 
@@ -47,20 +47,21 @@ struct GuiSystem
     Atom settings;
     GuiSystem *owner;
     GuiSystem *owned;
-    // where the client's top left is on the root, for the pointers' surfaces: read from the server as the window is
-    // mapped or moved, and kept from each pointer event's root and client places, with no request to the server
+    // where the top left of the client is on the root, for the surfaces of the pointers. The window reads it from the
+    // server when the server maps or moves the window. It keeps it from the root and client places of each pointer
+    // event, with no request to the server
     int root_x;
     int root_y;
-    // whether the window reads the mouse's raw input, the X input extension's number for its events, whether the
-    // window has the focus, and whether the pointer is locked in the window's middle
+    // whether the window reads the raw input of the mouse, and the number of the X input extension for its events.
+    // Also whether the window has the focus, and whether the window locks the pointer in its middle
     int raw;
     int input_opcode;
     int focused;
     int locked;
 };
-// the rows one notch of the wheel scrolls; the Motif hints that take the decorations off, their flags word and the
-// decorations word; and the window manager's move and resize directions, as the specification numbers them, and its
-// request to move
+// the rows that one notch of the wheel scrolls, and the Motif hints that take the decorations off, with their flags
+// word and decorations word. Last, the move and resize directions of the window manager, as the specification
+// numbers them, and its request to move
 #define GUI_WHEEL_ROWS 3
 #define GUI_MOTIF_HINTS_DECORATIONS 2UL
 #define GUI_MOVERESIZE_MOVE 8L
@@ -161,8 +162,8 @@ EMBED_INLINE void system_append(const SystemX11Ctx *args)
     XFlush(args->system->display);
 }
 
-// the window manager asked to move or resize the window from the pointer at x, y of the root, `direction` as the
-// specification numbers the borders, or the move
+// the call asks the window manager to move or resize the window from the pointer at x, y of the root. `direction` is
+// a border as the specification numbers the borders, or the move
 EMBED_INLINE void system_moveresize(const SystemX11Ctx *args)
 {
     XEvent event;
@@ -189,8 +190,8 @@ EMBED_INLINE unsigned int system_mods(const SystemX11Ctx *args)
            ((args->state & Mod1Mask) ? GUI_MOD_ALT : 0u);
 }
 
-// a key press passed to the window: a key with a name of the page's editor's, the modifier keys down written before
-// it, and a character typed as text where the key maps to one and the control key is not down
+// a key press given to the window. A key that has a name in the editor of the page goes as that key, after
+// the modifier keys down. A typed character goes as text where the key maps to one and the control key is not down
 EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
 {
     static const struct
@@ -276,8 +277,8 @@ EMBED_INLINE long system_direction(const SystemX11Ctx *args)
     return (args->hit < 13u) ? s_directions[args->hit] : -1L;
 }
 
-// a request of the settings' window's refused as that window goes: nothing is to be done about it. Its signature is
-// the one XSetErrorHandler declares
+// the refusal of a request on the window of the settings as that window goes. The call does nothing about it. Its
+// signature is the one that XSetErrorHandler declares
 static int system_settings_reject(Display *display, XErrorEvent *error) // NOSONAR
 {
     (void)display;
@@ -314,7 +315,7 @@ int gui_system_motion_reduce(const GuiSystemPositionCfg *args)
     return read && !enabled;
 }
 
-// the window holding the desktop's settings found and its changes watched, where the desktop runs one
+// the window that holds the settings of the desktop, found, and its changes watched, where the desktop runs one
 EMBED_INLINE void system_settings_watch(const SystemX11Ctx *args)
 {
     char name[32];
@@ -332,7 +333,8 @@ EMBED_INLINE void system_settings_watch(const SystemX11Ctx *args)
     }
 }
 
-// where the client's top left is on the root, asked of the server: one request, made as the window is mapped or moved
+// where the top left of the client is on the root, asked of the server. It is one request, made when the server maps
+// or moves the window
 EMBED_INLINE void system_root_read(const SystemX11Ctx *args)
 {
     Window child = 0;
@@ -341,9 +343,9 @@ EMBED_INLINE void system_root_read(const SystemX11Ctx *args)
                                 &args->system->root_y, &child);
 }
 
-// One raw motion of the mouse read from the X input extension, while the window reads raw input and has the focus: its
-// motion passed on as a relative input in the mouse's own counts. The first two of the event's values are the motion
-// across and down, each where its bit is set in the event's mask
+// One raw motion of the mouse, read from the X input extension while the window reads raw input and has the focus.
+// The call gives its motion on as a relative input in the counts of the mouse. The first two values of the event are
+// the motion across and down, each where the mask of the event sets its bit
 EMBED_INLINE void system_raw_read(const SystemX11Ctx *args)
 {
     XGenericEventCookie *const cookie = &args->event_x_event_pointer->xcookie;
@@ -443,8 +445,8 @@ static void system_event(const SystemX11Ctx *args)
     case MotionNotify:
         args->system->root_x = args->event_x_event_pointer->xmotion.x_root - args->event_x_event_pointer->xmotion.x;
         args->system->root_y = args->event_x_event_pointer->xmotion.y_root - args->event_x_event_pointer->xmotion.y;
-        // A locked pointer is put back in the window's middle at each move. The move is no input: the mouse's motion
-        // comes as raw input alone
+        // The window puts a locked pointer back in its middle at each move. The move is no input: the motion of the
+        // mouse comes as raw input alone
         if (args->system->locked)
         {
             // a window's sides are far inside an int
@@ -520,7 +522,7 @@ static void system_event(const SystemX11Ctx *args)
         }
         else if (args->event_x_event_pointer->xbutton.button == Button3)
         {
-            // the right button's press, and a browser on X11 opens a menu as it is pressed
+            // the press of the right button, and a browser on X11 opens a menu when the user presses it
             const unsigned int mods =
                 EMBED_CALL(system_mods, SystemX11Ctx, .state = args->event_x_event_pointer->xbutton.state);
             EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
@@ -650,9 +652,9 @@ EMBED_INLINE void system_window_init(const SystemX11Ctx *args)
     min.min_width = (int)CLI_POSITION_MIN_WIDTH;
     min.min_height = (int)CLI_POSITION_MIN_HEIGHT;
     XSetWMNormalHints(args->system->display, args->system->window, &min);
-    // The window draws its own pointer over all of its pixels: the cursor defined on it is one of no pixels, made of a
-    // one-pixel map that is clear. The window retains its reference to the cursor once it is defined on it, so the
-    // cursor and the map are freed at once
+    // The window draws its own pointer over all of its pixels. The cursor on it has no pixels, and a clear one-pixel
+    // map makes it. The window keeps its reference to the cursor after it defines the cursor on it. Thus the call
+    // frees the cursor and the map at once
     static const char s_clear = 0;
     const Pixmap clear = XCreateBitmapFromData(args->system->display, args->system->window, &s_clear, 1u, 1u);
     XColor black = {0};
@@ -990,11 +992,11 @@ int gui_system_scale(const GuiSystemPositionCfg *args)
                       .screen = args->system_read->screen);
 }
 
-// A pointer's own surface on X11: an override-redirect window of 32-bit color with alpha over every window, its input
-// shape empty so a press goes to the window under it. Its picture is the window's background, a pixmap the server
-// keeps and repaints the window from, so a picture crosses the connection only when it changes and a move is one
-// request. The surfaces share one connection of their own. Recorded: the window, its colormap, the pixmap, the context
-// that writes the pixmap, the picture's size, whether it shows, and whether it failed to open
+// The own surface of a pointer on X11: an override-redirect window of 32-bit color with alpha over every window. Its
+// input shape is empty, and thus a press goes to the window under it. Its picture is the background of the window,
+// a pixmap that the server keeps and repaints the window from. Thus a picture crosses the connection only when it
+// changes, and a move is one request. The surfaces share one connection of their own. The record holds the window,
+// its colormap, the pixmap and its context, the picture size, and whether it shows or failed to open
 typedef struct
 {
     Window window;
@@ -1007,8 +1009,8 @@ typedef struct
     int refused;
 } SystemPointer;
 static SystemPointer s_pointers[GUI_SYSTEM_POINTERS];
-// the surfaces' connection, the visual of 32-bit color with alpha they are made in, and whether the connection or the
-// visual was refused
+// the connection of the surfaces, and the visual of 32-bit color with alpha that they use. Also whether the server
+// refused the connection or the visual
 static Display *s_pointer_display;
 static XVisualInfo s_pointer_visual;
 static int s_pointer_refused;
@@ -1042,9 +1044,9 @@ static void system_pointer_release(SystemPointer *pointer)
     pointer->refused = refused;
 }
 
-// The surface `pointer` opened on the surfaces' connection, the connection opened first where it is not: its window,
-// with no input shape, its pixmap and the context that writes it. A part the server refuses lets every part go, and
-// the surface is not opened again
+// The surface `pointer` opened on the connection of the surfaces. The call first opens the connection where it is not
+// open. The surface has its window, with no input shape, its pixmap and the context that writes it. A part that the
+// server refuses lets every part go, and the call does not open the surface again
 static void system_pointer_open(SystemPointer *pointer)
 {
     if ((s_pointer_display == NULL) && !s_pointer_refused)
