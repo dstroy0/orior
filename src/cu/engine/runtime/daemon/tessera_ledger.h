@@ -28,10 +28,10 @@ extern "C"
         TESSERA_EVENT_IDLE = 6
     } TesseraEventType;
 
-    // A job as it requests. `declared` is the bytes the job states it will take; `located` is the bytes its process
-    // already allocated on the device as it requests (its CUDA context, and whatever it retained from an earlier
-    // job), measured by the daemon. The job's whole declaration is the two together, and the device's measured use
-    // already counts the located bytes.
+    // A job as it requests. `declared` is the bytes that the job says it will take. `located` is the bytes that its
+    // process already allocated on the device as it requests, measured by the daemon. That is its CUDA context, and
+    // whatever it kept from an earlier job. The whole declaration of the job is the two together, and the measured use
+    // of the device already counts the `located` bytes.
     typedef struct
     {
         EngineSignum signum;
@@ -99,7 +99,7 @@ extern "C"
         unsigned long long idle_microseconds;
     } TesseraLedger;
 
-// the max events one call is answered with: an admit starts at max this many jobs in one call
+// the max events that the answer to one call holds. An admit starts at max this many jobs in one call
 #define TESSERA_CALL_EVENTS 16u
 
     // the ledger's decisions, each one call: the host daemon's ledger and the device's tessera (tessera_device.h) make
@@ -118,9 +118,14 @@ extern "C"
         TESSERA_CALL_NEXT = 9
     } TesseraCallType;
 
-    // one call and what it reads: the time; the job it names; the device's capacity and use (DEVICE); the bytes a job
-    // was measured using (MEASURE); 1 where a job finished (RELEASE); the events an admit may make, at max
-    // TESSERA_CALL_EVENTS (ADMIT); the idle time (IDLE); the job requested (SUBMIT); the peak tracked (REMEMBER)
+    // one call and what it reads:
+    //
+    // - the time, and the job that it names
+    // - the capacity and use of the device (DEVICE)
+    // - the bytes that the daemon measured a job to use (MEASURE)
+    // - 1 where a job finished (RELEASE)
+    // - the events that an admit can make, at max TESSERA_CALL_EVENTS (ADMIT)
+    // - the idle time (IDLE), the job requested (SUBMIT), and the peak tracked (REMEMBER)
     typedef struct
     {
         TesseraCallType type;
@@ -136,9 +141,12 @@ extern "C"
         TesseraHistory history;
     } TesseraCall;
 
-    // a call's answer: what the ledger function returned (for ADMIT the jobs it started); 1 where the ledger had no
-    // room for the max the call could add, and nothing changed; the identity a submit gave; the headroom after the
-    // call; the deadline due first (NEXT); and the events the call made
+    // the answer of a call:
+    //
+    // - what the ledger function returned (for ADMIT, the jobs that it started)
+    // - 1 where the ledger had no room for the max that the call could add, and nothing changed
+    // - the identity that a submit gave, and the headroom after the call
+    // - the deadline due first (NEXT), and the events that the call made
     typedef struct
     {
         unsigned long long result;
