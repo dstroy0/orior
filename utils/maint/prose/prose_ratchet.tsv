@@ -492,7 +492,6 @@ src/cu/transpiler/lstar/protocol/order/scheduler.c	1
 src/cu/transpiler/lstar/protocol/overseer/overseer_internal.h	2
 src/cu/transpiler/lstar/protocol/table/pcie.krs	5
 src/cu/transpiler/lstar/protocol/table/sm_86.kdm	1
-src/cu/transpiler/lstar/protocol/table/sm_86.khw	2
 src/cu/transpiler/lstar/protocol/table/vhdl.krs	1
 src/cu/transpiler/lstar/protocol/table_text.c	1
 src/cu/transpiler/vendor_bin_layouts/container_layout.c	1
