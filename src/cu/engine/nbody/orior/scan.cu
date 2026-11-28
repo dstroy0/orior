@@ -10,27 +10,28 @@
  * @brief The steering scan on a CUDA device, one alignment per thread over the whole object.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION EVERY SCAN ARM ANSWERS, MAPPED OVER THE DEVICE. Fixed at one needle offset, count
- * the alignments still located whose corpus byte equals the needle byte. The vector arms widen one
- * compare; this one gives one alignment to each thread and adds a one where that alignment agrees and
- * is. The reduction is a single atomic increment per agreeing thread, what the exact
- * device arm does and needs no tuning at this size.
+ * THE SAME QUESTION THAT EVERY SCAN ARM ANSWERS, MAPPED OVER THE DEVICE. At one fixed needle
+ * offset, count the truthy alignments whose corpus byte equals the needle byte. The vector arms
+ * widen one compare. This one gives one alignment to each thread, and adds a one where that
+ * alignment agrees and is truthy. The reduction is a single atomic increment for each thread that
+ * agrees. The exact device arm does that, and it needs no tune at this size.
  *
- * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
- * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract OriorSteerEngine carries, the same one the exact arms carry in no_rounding.
+ * WHAT THIS ARM MUST NOT DO. It returns the count of the portable arm, or it has a defect. The
+ * value is an integer count of alignments, and the two arms agree exactly or one is wrong. That
+ * is the contract that OriorSteerEngine carries, the same one that the exact arms carry in
+ * no_rounding.
  *
  * @note NOT SHARED SOURCE WITH THE HOST ARMS. A device function carries __global__ or __device__ on
  *       every declaration. The kernel cannot be the portable loop compiled twice, and the two can
- *       drift. The GPU build grades every count this arm returns against the portable host arm on
- *       the same data, what catches a drift.
- * @note THE WHOLE OBJECT CROSSES THE BUS PER CALL. The corpus and the survivor vector are copied to
- *       the device. This arm pays a transfer a host arm does not. It wins only where the object is
- *       large enough to amortize that. It is graded and timed and not placed in
- *       orior_steer_best_engine.
- * @note A device error falls back to a host count instead of returning a sentinel into a table of
- *       counts, matching arm.cu. A driver comparing arms would otherwise read the sentinel as a
- *       disagreement and blame the scan for what was an allocation failure.
+ *       drift. The GPU build grades every count that this arm returns against the portable host
+ *       arm on the same data, which catches a drift.
+ * @note THE WHOLE OBJECT CROSSES THE BUS ON EACH CALL. The call copies the corpus and the survivor
+ *       vector to the device. This arm pays a transfer that a host arm does not. It wins only where
+ *       the object is large enough to amortize that. The suite grades it and times it, and it is
+ *       not in orior_steer_best_engine.
+ * @note A device error falls back to a host count, and does not return a sentinel into a table of
+ *       counts, as arm.cu does. A driver that compares arms would else read the sentinel as a
+ *       disagreement, and blame the scan for what was an allocation failure.
  */
 
 #include "../../../../../includes/platform/platform.h"
@@ -39,18 +40,17 @@
 
 #include <cuda_runtime.h>
 
-/** @brief Threads per block. 256 suits every device this is built for and needs no tuning here. */
+/** @brief Threads for each block. 256 suits every device that this builds for, with no tune. */
 #define ORIOR_STEER_GPU_BLOCK 256u
 
-/**
- * @brief One thread per alignment: add one where it is and its corpus byte is the wanted one.
+/* * @brief One thread for each alignment: add one where it is truthy and its corpus byte is the needle byte.
  *
  * @param[in]     corpus     Bytes under examination [BORROWS].
  * @param[in]     alignments How many alignments the object has.
- * @param[in]     alive      One flag per alignment, non-zero where still located [BORROWS].
- * @param[in]     wanted     The needle byte being tested.
- * @param[in]     offset     Needle offset the probe sits at.
- * @param[in,out] located   Where the count is accumulated [BORROWS].
+ * @param[in]     alive      One flag for each alignment, not zero where it is truthy [BORROWS].
+ * @param[in]     wanted     The needle byte under test.
+ * @param[in]     offset     The needle offset that the probe sits at.
+ * @param[in,out] located   Where the call sums the count [BORROWS].
  */
 __global__ static void scan_kernel(const unsigned char *corpus, size_t alignments, const unsigned char *alive,
                                    unsigned char wanted, size_t offset, unsigned int *located)
@@ -107,11 +107,11 @@ extern "C" int orior_steer_cuda_describe(char *text, size_t capacity)
 }
 
 /**
- * @brief Counts on the host, without touching the scan counters, for the device fallback.
+ * @brief Counts on the host, with no touch of the scan counters, for the device fallback.
  *
- * @note orior_steer_truthy_after_cuda has already counted the call. The fallback must not reach
+ * @note orior_steer_truthy_after_cuda already counted the call. The fallback must not reach
  *       orior_steer_truthy_after_portable, which would count it a second time. The loop is the same
- *       one the portable arm runs.
+ *       one that the portable arm runs.
  */
 static size_t scan_host_fallback(const unsigned char *corpus, size_t alignments, const unsigned char *alive,
                                  unsigned char wanted, size_t offset)
@@ -134,8 +134,9 @@ static size_t scan_host_fallback(const unsigned char *corpus, size_t alignments,
 extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t alignments, const uint8_t *alive,
                                                 uint8_t wanted, size_t offset)
 {
-    /* Counted before the argument check. A caller passing nothing still records that this arm was
-     * the one requested. The claim the counters carry is which arm RAN and not what it returned. */
+    /* Counted before the argument check. A caller that passes nothing still records that this arm
+     * was the one requested. The claim that the counters carry is which arm RAN, and not what it
+     * returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
