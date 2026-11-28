@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// document.h: the texts open in the page's editors, stored on this side as the page stores them, for the page's slow
-// work on a large text to run here and hand back only its answer. Each text is a list of lines of UTF-16 units, as the
-// page's own strings store them, split as the page splits a file it reads: at each "\n", a "\r" before it taken off.
-// The page writes each change it makes to a text here as it makes it, in the edits its document writes, and a text
-// stored here goes once the page lets it go.
+// document.h: the texts open in the editors of the window, each a list of lines of UTF-16 units. A text splits at each
+// "\n", with a "\r" before it taken off. A view writes each change that it makes to a text into the store as it makes
+// it, as the edits of its document (view.c). A text stored here goes once its holder lets it go.
 //
-// Find runs here, every search of the page's find bar. Text sought as it is, with case, or without case where it is
-// ASCII, the sift reads off the text's lines joined, each ended by "\n", which no line contains and nothing sought
-// contains, in one pass a block of units at a time; a pattern, text sought without case outside ASCII, and whole words
-// beside a character outside ASCII, the regular expressions the colorer reads match a line at a time (document.c,
-// document_store.c, diff.c)
+// Find runs here, for every search of the find bar of a view. For text sought as it is, with case, or without case
+// where it is ASCII, the sift reads the lines of the text joined. It reads in one pass, a block of units at a time, and
+// each line ends with "\n", which no line or query holds. For a pattern, and for text sought without case outside
+// ASCII, the call matches a line at a time. So it does for whole words beside a character outside ASCII. It uses the
+// regular expressions that the colorer reads.
+//
+// The calls are in document.c, document_store.c and diff.c
 #ifndef DOCUMENT_H
 #define DOCUMENT_H
 #include "../command_line/callback_cfg.h"
@@ -47,10 +47,10 @@ typedef struct
     unsigned long long col;
 } CliPosition;
 
-// One change between an older text and a newer, passed to a caller with its `context`: the newer text's lines from
-// `now_from` to before `now_to`, located in place of the older's from `then_from` to before `then_to`, lines counted
-// from 0; a change that takes lines out alone has `now_to` at `now_from`, one that puts lines in alone has `then_to`
-// at `then_from`
+// One change between an older text and a newer, passed to a caller with its `context`. The lines of the newer text from
+// `now_from` to before `now_to` are in place of those of the older from `then_from` to before `then_to`, lines counted
+// from 0. A change that only takes lines out has `now_to` at `now_from`. One that only puts lines in has `then_to` at
+// `then_from`.
 typedef struct
 {
     void *context;
@@ -60,7 +60,8 @@ typedef struct
     unsigned int then_to;
 } CliEachHunkCfg;
 
-// One edit of a change, as the page's document writes it: the span it removes and what it writes, `length` bytes
+// One edit of a change, as the document of a view writes it: the span that it removes, and what it writes, `length`
+// bytes
 typedef struct
 {
     CliPosition from;
@@ -69,15 +70,19 @@ typedef struct
     unsigned long long length;
 } CliEdit;
 
-// How many lines a text contains and how many units in all, for the page to compare with its own
+// How many lines a text holds, and how many units in all
 typedef struct
 {
     unsigned long long lines;
     unsigned long long units;
 } CliShape;
 
-// What find seeks and how, as the page's find bar sets it: the query, a pattern or not, with case or not, and whole
-// words or not
+// What find seeks and how, as the find bar of a view sets it:
+//
+// - `query`: the query
+// - `regex`: a pattern or not
+// - `match_case`: with case or not
+// - `word_text`: whole words or not
 typedef struct
 {
     const char *query;
@@ -86,16 +91,25 @@ typedef struct
     int word_text;
 } CliDocNeedle;
 
-// a line's state where it is not colored, and the place of its runs where it saves none
+// the state of a line where the walk did not color it, and the place of its runs where it saves none
 #define CLI_DOC_UNCOLORED 0xffffffffu
 #define CLI_DOC_NO_RUNS 0xffffffffu
 
-// A text's lines of UTF-16 units: each where it starts in the units and how many it contains, in storage the holder
-// gives; and for a text
-// that is colored, the state each line was colored from and the state it ends in, CLI_DOC_UNCOLORED for a line not
-// colored, the regions its grammar's roles open and close on it as it was colored (document_internal.h), and the place
-// among the text's saved runs of the runs the walk found on it, CLI_DOC_NO_RUNS where it saves none, NULL for a text
-// that is not; and whether a line was read ending in a carriage return and a newline
+// The lines of a text, of UTF-16 units, in storage that the holder gives:
+//
+// - `unit`, `units_max` and `used`: the units
+// - `start` and `length`: where each line starts in the units, and how many it holds
+// - `lines_max`, `lines` and `full`: the lines
+// - `crlf`: whether the read found the lines ending in a carriage return and a newline
+//
+// For a text that the walk colors, and NULL for a text that it does not:
+//
+// - `begun` and `ended`: the state that the walk colored each line from, and the state that it ends in,
+//   CLI_DOC_UNCOLORED for a line not colored
+// - `regions`: the regions that the roles of its grammar open and close on it, as the walk colored it
+//   (document_internal.h)
+// - `runs`: the place of the runs that the walk found on it, among the saved runs of the text, CLI_DOC_NO_RUNS where
+//   it saves none
 typedef struct
 {
     unsigned short *unit;
@@ -113,54 +127,61 @@ typedef struct
     unsigned int *runs;
 } CliLines;
 
-// a text's lines, `size` bytes of UTF-8, split as the page splits a file it reads, into `lines`; its shape; and the
-// matches find gives for lines, each `[line, from col, to col]`, lines searched until `max` are found, each line
-// searched whole, written as a JSON array: 1, or 0 with why given where a pattern does not read or the cells cannot
-// meet the search (document.c)
+// the lines of a text, `size` bytes of UTF-8, split at each "\n", into `lines` (document.c)
 void cli_document_lines_get(const CliDocumentTextSizeCfg *args);
+// the shape of the lines
 CliShape cli_document_shape_get(const CliDocumentLinesOutCfg *args);
-// the character at `at` of `count` UTF-16 units, a surrogate pair read as one character and an unpaired surrogate as
-// U+FFFD, as from_utf16_lossy reads them, the units it takes into `consumed`; the same units written as a JSON string;
-// and the same written as UTF-8
+// the character at `at` of `count` UTF-16 units, with the units that it takes into `consumed`. The call reads a
+// surrogate pair as one character, and an unpaired surrogate as U+FFFD, as from_utf16_lossy reads them
 unsigned int cli_document_unit_character(const CliDocumentUnitsCfg *args);
+// the same units, written as a JSON string
 void cli_document_units_write(const CliDocumentUnitsCountCfg *args);
+// the same units, written as UTF-8
 void cli_document_units_utf8(const CliDocumentUnitsCountCfg *args);
+// the matches that find gives for lines, each `[line, from col, to col]`, written as a JSON array. The call searches
+// lines until it finds `max`, and searches each line whole. The return is 1, or 0 with the reason where a pattern does
+// not read or the cells cannot meet the search
 int cli_document_find_in(const CliDocumentLinesOutCfg *args);
 // the same matches each passed to `each` with its line, from col and to col, once the search is whole
 typedef void (*CliFound3)(const CliFound3Cfg *args);
 int cli_document_find_each(const CliDocumentLinesCfg *args);
 
-// `size` bytes of `text` stored under `key` in place of what was stored there, its shape into `shape`: 1, or 0 where no
-// more texts are stored; the text under `key` let go; whether a text is stored under `key`, its shape into `shape`; the
-// changes `changes` writes, `count` of them, the edits of each, `edits[at]` of them, none overlapping, each placed
-// against the text as it was before any, written from the last to the first as the page writes them: 1 with the
-// shape, or 0 with why written where no text is stored or an edit does not fit it, the text let go; whether the text
-// knows the last commit's file, stored beside it or none; and the matches find gives for the text under `key`
-// (document_store.c)
+// `size` bytes of `text`, stored under `key` in place of what the store held there, with its shape into `shape`. The
+// return is 1, or 0 where the store holds no more texts (document_store.c)
 int cli_document_store(const CliDocumentTextCfg *args);
+// the text under `key`, let go
 void cli_document_release(const CliDocumentCfg *args);
-// whether the text stored under `key` was read with its lines ending in a carriage return and a newline
+// whether the read of the text stored under `key` found its lines ending in a carriage return and a newline
 int cli_document_crlf(const CliDocumentCfg *args);
+// whether the store holds a text under `key`, with its shape into `shape`
 int cli_document_shape(const CliDocumentTextCfg *args);
+// the changes that `changes` writes, `count` of them, with the edits of each, `edits[at]` of them. No two of them
+// overlap. Each goes against the text as it was before any. The call writes them from the last to the first, as a view
+// writes them. The return is 1 with the shape. It is 0 with the reason written where the store holds no text or an edit
+// does not fit it, and then the text goes
 int cli_document_edit(const CliDocumentErrMsgCfg *args);
-// the units of the line `line` of the text read whole stored under `key` from its unit `from` on, copied into `dst`,
-// `capacity` of them at the max, the line's count into `count`: 1, or 0 with `count` 0 where no such text or line is
-// stored
+// the units of the line `line` of the text read whole under `key`, from its unit `from` on, copied into `dst`. That is
+// `capacity` of them at the max, with the count of the line into `count`. The return is 1, or 0 with `count` 0 where
+// the store holds no such text or line
 unsigned long long cli_document_line_units(const CliDocumentLineUnitsCfg *args);
+// whether the text knows the file of the last commit, stored beside it, or that there is none
 int cli_document_has_head(const CliDocumentCfg *args);
-// the changes of the text read whole stored under `key` against its file as the last commit has it, each passed to
-// `each` with `context` in order: where `head_given`, `head`, `head_size` bytes, is stored beside the text as that
-// file first, NULL for a file the last commit does not contain; 1, or 0 where no such text is stored, the last commit's
-// file is not known or is none, or the texts are too far apart (document_store.c, diff.c); and the units of the line
-// `line` of that file copied into `dst`, `capacity` at max, the line's count into `count`: 1, or 0 with `count` 0
-// where no such text, file or line is stored
+// the changes of the text read whole under `key` against its file as the last commit has it (document_store.c, diff.c).
+// The call passes each to `each` with `context`, in order. Where `head_given`, the call first stores `head`,
+// `head_size` bytes, beside the text as that file, NULL for a file that the last commit does not hold. The return is 1,
+// or 0 where the store holds no such text or does not know the file of the last commit. The same is true where that
+// file is none, or the texts are too far apart
 int cli_document_changes(const CliDocumentOutKeyHeadInputCfg *args);
+// the units of the line `line` of that file, copied into `dst`, `capacity` at max, with the count of the line into
+// `count`. The return is 1, or 0 with `count` 0 where the store holds no such text, file or line
 unsigned long long cli_document_head_line_units(const CliDocumentLineUnitsCfg *args);
-// the changes between the lines of `then` and the lines of `now`, each passed to `each` with `context` in order, the
-// lines the two share at their start and end set aside first and Myers' shortest edit run on what is left, each line
-// read as its hash and checked against the other's where the hashes agree: 1, or 0 where the edit takes more than
-// CLI_DIFF_MAX_EDITS rounds, the texts too far apart, or the cells cannot meet the edit's capacity (diff.c)
+// the changes between the lines of `then` and the lines of `now`, each passed to `each` with `context` in order
+// (diff.c). The call first sets aside the lines that the two share at their start and end. Then it runs the shortest
+// edit of Myers on the rest. It reads each line as its hash, and checks it against the other where the hashes agree.
+// The return is 1, or 0 where the edit takes more than CLI_DIFF_MAX_EDITS rounds or the texts are too far apart. The
+// same is true where the cells cannot meet the capacity of the edit
 int cli_diff_line_changes(const CliDocumentOutThenCfg *args);
+// the matches that find gives for the text under `key` (document_store.c)
 int cli_document_find(const CliDocumentOutNeedleCfg *args);
 
 // the max lines above a run of lines not colored that are colored with it from root, where the line above it ends in
