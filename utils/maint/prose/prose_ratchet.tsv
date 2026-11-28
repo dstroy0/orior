@@ -576,7 +576,7 @@ src/cu/transpiler/lstar/protocol/khw_learn/frame.c	19
 src/cu/transpiler/lstar/protocol/khw_learn/frame_relation.h	7
 src/cu/transpiler/lstar/protocol/khw_learn/frame_round.c	20
 src/cu/transpiler/lstar/protocol/khw_learn/khw_learn.c	2
-src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h	29
+src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h	1
 src/cu/transpiler/lstar/protocol/khw_learn/queries.c	25
 src/cu/transpiler/lstar/protocol/khw_learn/relation.c	17
 src/cu/transpiler/lstar/protocol/khw_learn/relation_fields.c	8

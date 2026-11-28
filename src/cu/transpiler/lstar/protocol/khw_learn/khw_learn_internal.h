@@ -27,19 +27,20 @@
 
 #define KHW_INSTRUCTION 16u
 
-// the bits a turn reaches: past the operation key, which names the operation and is never turned, and below the
-// scheduler's own word, which is set once for a run (P9)
+// the bits that a turn reaches. They are past the operation key, which names the operation and which no turn
+// changes. They are below the own word of the scheduler, which the program sets once for a run (P9)
 #define KHW_TURN_FIRST 12u
 
 #define KHW_TURN_LAST 104u
 #define KHW_TURNS (KHW_TURN_LAST - KHW_TURN_FIRST + 1u)
 
-// the settings a run is probed with in a stage of the register pass, and the stages
+// the settings that the call probes a run with in a stage of the register pass, and the stages
 #define KHW_SETTINGS 2u
 #define KHW_STAGES 2u
 
-// the two registers the kernel leaves a case's words in, found by querying: a run set to one of these numbers reads
-// that register, and the two words differ: an operand field answers two different words, a modifier one
+// the two registers that the kernel leaves the words of a case in, which a query found. A run set to one of these
+// numbers reads that register, and the two words differ. An operand field answers two different words, and a
+// modifier answers one
 #define KHW_FIRST_REGISTER 0u
 
 #define KHW_SECOND_REGISTER 7u
@@ -47,19 +48,20 @@
 // a fixed register the part's .ksc does not name
 #define KHW_FIXED_NONE 0xffffffffu
 
-// the launches the kernel's own question is timed over, as a task's cost is read (P11, Step 10)
+// the launches that the program times the own question of the kernel over, as it reads the cost of a task (P11,
+// Step 10)
 #define KHW_LAUNCHES 100u
 
-// how many times over a form is written in a costs question, one copy a place after the probe place: the many links of
-// one query, which raise a form's cost above a launch's own (P6, Q5)
+// how many times a costs question writes a form, one copy to a place after the probe place. These are the many links
+// of one query, which raise the cost of a form above the own cost of a launch (P6, Q5)
 #define KHW_COST_COPIES 2048u
 
-// the max words after `--` the channel is opened on and their end: a carrier, the airlock's pop and its cross, each of
-// up to eight words, and the `--pop` and `--cross` between them (run_channel.h)
+// the max words after `--` that the program opens the channel on, and their end. They are a carrier and the pop and
+// cross of the airlock, each of up to eight words, with `--pop` and `--cross` between them (run_channel.h)
 #define KHW_CARRIER_WORDS 27u
 
-// one candidate of the relation read: a relation of the ladder, the case's two words read in the order the host put
-// them or swapped, and the answer read plain or signed
+// one candidate of the relation read: a relation of the ladder and the two words of the case. They read in the order
+// that the host put them, or swapped. The answer reads plain or signed
 typedef struct
 {
     unsigned int anchor;
@@ -71,8 +73,8 @@ extern unsigned int s_registers;
 extern unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned int s_kernel_places;
-// the kernel's places before the one the least opening begins at, dropped from every question's code and put as the
-// frame round's candidates like the retained ones, since the part ran each of them
+// the places of the kernel before the place where the least opening starts. The program drops them from the code of
+// every question, and puts them as candidates of the frame round as it puts the kept ones. The part ran each of them
 extern unsigned char s_opening_text[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned int s_opening_places;
 // the probe place among the retained places where the kernel listing names it, the part's answer in its .ksc, and
@@ -112,11 +114,11 @@ unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned 
 void khw_store_guarded(int on);
 int khw_store_is_guarded(void);
 void khw_union_written(void);
-// the relation `question` answers, judged against the register relations where `guarded` is 0 and against the
-// predicate relations where it is 1, the question having been put with the store guarded by P0
+// the relation that `question` answers. The call judges it against the register relations where `guarded` is 0, and
+// against the predicate relations where it is 1. Then the program put the question with P0 as the guard of the store
 int khw_relation_of(const RunQuestion *question, KhwAnswered *form, int guarded);
-// 1 where `question`, put plain, answered the second word on every case: the probe place left the register the kernel
-// stores alone, as a form that writes a predicate does
+// 1 where `question`, put plain, answered the second word on every case. The probe place did not change the register
+// that the kernel stores, as a form that writes a predicate does
 int khw_second_word_located(const RunQuestion *question);
 int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAnswered *form);
 int khw_first_round(KhwAnswered *kernel, unsigned int *place, unsigned long long *nanoseconds);
@@ -133,7 +135,7 @@ unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count);
 void khw_plan_passed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
-// the turning cases `form` is turned over: one, or for a predicate form each of khw_predicate_words
+// the turn cases that the program turns `form` over: one, or for a predicate form each of khw_predicate_words
 unsigned int khw_turning_cases(const KhwAnswered *form);
 unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count);
 void khw_fields_queried(KhwAnswered *form);
@@ -148,8 +150,9 @@ void khw_fields_written(const char *path);
 void khw_enumerate(unsigned int place, const char *forms);
 unsigned int khw_fixed_register(const char *name);
 int khw_named_already(unsigned long long low, unsigned long long high);
-// the narrowest field of the instruction word, as the part's .ksc gives them, that contains the bits `first` to `last`:
-// 1 with its name, into `name` of `room` bytes, its first bit and its width; 0 where the .ksc gives none that does
+// the narrowest field of the instruction word, as the .ksc of the part gives them, that holds the bits `first` to
+// `last`. The return is 1 with its name, into `name` of `room` bytes, its first bit and its width. It is 0 where the
+// .ksc gives none that does
 int khw_field_covering(unsigned int first, unsigned int last, char *name, size_t room, unsigned int *field_first,
                        unsigned int *field_bits);
 int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
@@ -157,10 +160,11 @@ int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
 // `bits`, which have room for `room`: their count
 #define KHW_FIELDS 32u
 unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned int room);
-// The runs of `form` gathered from `turned`, one entry a bit up to KHW_TURN_LAST, 1 where the bit's turn changed the
-// answer: the adjacent turned bits, cut where the fields the part names end, `fields` of them with their first bits
-// and widths. Two adjacent turned bits are one run where one field contains both, the narrowest where fields nest, or
-// none contains either. Each run contains no place and a register's type. The count of runs
+// The runs of `form`, gathered from `turned`, one entry for each bit up to KHW_TURN_LAST. An entry is 1 where the turn
+// of the bit changed the answer. The runs are the adjacent turned bits, cut where the fields that the part names end:
+// `fields` of them, with their first bits and widths. Two adjacent turned bits are one run where one field holds both,
+// the narrowest where fields nest, or where no field holds either. Each run has no place, and the type of a register.
+// The return is the count of runs
 unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const unsigned int *field_first,
                                const unsigned int *field_bits, KhwAnswered *form);
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],
@@ -170,11 +174,14 @@ void khw_frame_stalled(unsigned long long *low, unsigned long long *high);
 int khw_frame_of(const RunQuestion *question, KhwAnswered *form);
 unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover);
 
-// What one form carries through a stage of a pass: the form, its turning case `word` and the answer `expected` of it,
-// where its questions begin in the round being written, and the answer the part gave its turning case `base`. A
-// ladder form's questions carry one case, read at 0; a frame form's carry FRAME_READ_AT + 1 cases of its word pair,
-// read at FRAME_READ_AT, the thread whose lane and block differ from each other and from 0. A predicate form is turned
-// over each of its turning cases (khw_predicate_words), `turning` the one this stage carries
+// What one form carries through a stage of a pass. It has the form, its turn case `word` and the answer `expected` of
+// it. It has where its questions start in the round that the call now writes, and `base`, the answer of the part to
+// its turn case.
+//
+// The questions of a ladder form carry one case, read at 0. The questions of a frame form carry FRAME_READ_AT + 1 cases
+// of its word pair, read at FRAME_READ_AT. That is the thread whose lane and block differ from each other and from 0.
+// The program turns a predicate form over each of its turn cases (khw_predicate_words), and `turning` is the one that
+// this stage carries
 typedef struct
 {
     KhwAnswered *form;
