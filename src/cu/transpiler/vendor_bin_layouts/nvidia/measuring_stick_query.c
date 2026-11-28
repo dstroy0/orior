@@ -1,56 +1,71 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// measuring_stick_query.c: the query's questions read against the vendor's own disassembler, the object the carrier
-// popped out under --diff-output-against-vendor. A question whose probe instruction the vendor calls illegal, reads as
-// a control transfer our gate's operation key could not, reads as naming a register at or past the count its kernel
-// allots, reads as writing a register the code after the probe addresses memory through, or reads as a memory access of
-// its own, is one the gate passed that must be blocked before a series reaches the part. Our gate judges by operation
-// key and by the fields a form has learned: it cannot know a whole encoding illegal while the operation it probes is
-// still unlearned, nor where a register sits in a form whose fields are not yet queried. The vendor's reader prints
-// both. A register past the count faults the part at once, an out-of-range register warp exception, and a run of them
-// takes the display and the machine down with it. A probe that overwrites an address the kernel stores through, or that
-// reads or writes memory through registers the question set no address in, faults it with an illegal address. Nothing
-// here runs on the part.
+// measuring_stick_query.c: the questions of the query, read against the own disassembler of the vendor. The input is
+// the object that the carrier popped out under --diff-output-against-vendor. The gate passed some questions that it
+// must block before a series reaches the part. Such a question has a probe instruction that the vendor reads as one of
+// these:
+//   - an illegal instruction;
+//   - a control transfer that the operation key of our gate could not see;
+//   - an instruction that names a register at or past the count that its kernel allots;
+//   - an instruction that writes a register that the code after the probe addresses memory through;
+//   - an access to memory of its own.
+//
+// Our gate judges by operation key and by the fields that a form learned. It cannot know that a whole encoding is
+// illegal while it did not learn the operation that the encoding probes. It also cannot know where a register sits in a
+// form whose fields it did not query. The reader of the vendor prints both.
+//
+// A register past the count faults the part at once, with an out-of-range register warp exception. A run of them takes
+// the display and the machine down. A probe that overwrites an address that the kernel stores through faults the part
+// with an illegal address. So does a probe that reads or writes memory through registers that hold no address from the
+// question. Nothing here runs on the part.
 //
 //     orior_measuring_stick_query <question list> <nvdisasm> <architecture> <report> <gated> [<refusals> [<read>]]
 //
-// Every name but the disassembler's is a blob of the run, the .qry QRY names (qry_member.h): the list, a line
-// a question, `<code> <registers> <cases> <answers> <probe> [<launches>]` (run_channel.h), each question's code, and
-// the container the carrier popped for it as <answers stem>.cubin. Every container is the kernel the system accepted
-// with the question's code in it. The code of each, as the part would be passed it, is read out of the container's code
-// section.
+// Every name but that of the disassembler is a blob of the run, in the .qry that QRY names (qry_member.h). The blobs are
+// the list, the code of each question, and the container that the carrier popped for it as `<answers stem>.cubin`. The
+// list has one question to a line as `<code> <registers> <cases> <answers> <probe> [<launches>]` (run_channel.h). Every
+// container is the kernel that the system accepted, with the code of the question in it. The program reads the code of
+// each, as the part would get it, out of the code section of the container.
 //
-// The vendor reads a raw run of encodings (nvdisasm --binary <architecture>) only from a file's path: each run is
-// passed to the run's writer as a stream of the .qry (qry_streamed), and the vendor is pointed at that stream. The
-// writer is the only thing that writes a file, and everything the vendor prints of a run is a blob of the run.
+// The vendor reads a raw run of encodings (nvdisasm --binary <architecture>) only from the path of a file. Thus the
+// program passes each run to the writer of the run as a stream of the .qry (qry_streamed). It points the vendor at that
+// stream. The writer is the only thing that writes a file, and everything that the vendor prints of a run is a blob of
+// the run.
 //
-// The probe instructions are read each distinct encoding once, in as many runs as the host has processors, each run
-// read by a reader thread of its own and the frames and tails read beside them. The vendor stops at the first
-// instruction it calls illegal and names its address: that probe is put to a NOP and the run read again, a long run as
-// two, the part to the stop and the part past it, until every run reads clean, and a clean run gives every legal
-// probe's operation at once. A stop that names no address splits the run in two, down to the one probe it stops at
-// (frames.c, msq_range_read). Each probe the vendor reads whole has every register it names checked against the
-// question's <registers>, RZ aside, a register read as a pair (.64, .WIDE) reaching its second word and one of .128 its
-// fourth. The code past each probe is read to its first EXIT with no guard, every distinct one together as one raw run,
-// for the registers its memory operands read an address from; a probe that writes one of them is blocked, as is a probe
-// with a memory operand of its own.
+// The program reads each distinct encoding of a probe instruction once. It reads them in as many runs as the host has
+// processors, each on its own reader thread, with the frames and tails. The vendor stops at the first instruction that
+// it calls illegal and names its address. The program then puts that probe to a NOP and reads the run again. A long run
+// reads in two parts, to the stop and past it. This continues until every run
+// reads clean, and a clean run gives the operation of every legal probe at once.
 //
-// Every question's frame is read whole too: its code with its probe put to a NOP, or its whole code where it contains
-// no probe, each distinct frame once. Each instruction of it the vendor calls illegal is put to a NOP and the frame
-// read again; each such instruction, and each the vendor reads naming a register at or past the question's <registers>,
-// is blocked. The gate blocks a whole code where any instruction of it is blocked (cubin_safe.c). A frame the vendor
-// stops in at no instruction it names blocks its questions by no encoding.
+// A stop that names no address splits the run in two, down to the one probe that it stops at (frames.c,
+// msq_range_read). For each probe that the vendor reads whole, the program checks every register that it names against
+// the `<registers>` of the question, with RZ aside. A register read as a pair (.64, .WIDE) reaches its second word, and
+// one of .128 its fourth. The program reads the code past each probe to its first EXIT with no guard, every distinct one
+// together as one raw run. It finds the registers that its memory operands read an address from. The gate blocks a
+// probe that writes one of them, and a probe with a memory operand of its own.
 //
-// The report, passed as <report>, lists every question blocked; <gated> is the feedback the carrier reads (--gated): a
-// line
-// `<low> <high>` an encoding blocked, for the carrier to block every code that contains it from the part. <refusals>,
-// where it is given, is the feedback the teacher reads before the round is carried (run_channel.h): a line a refusal,
-// `<answers stem> <registers> <why>`, the count of registers that clears it where it is a register past the count its
-// kernel allots and that count is at max MSQ_ALLOTTED_MAX, 0 where no count clears it. The vendor names no
-// operation and nothing it reports enters a form: the gated list is only the exact words not to query, and a count that
-// clears a refusal changes how a question is put and not what it requires. Exit 1 where any
-// question is blocked, 2 where a blob, a tool or the run was not reached, or a frame was read at no stop it
-// named: the round is then not carried
+// The program also reads each distinct frame of a question once and whole. That is its code with its probe put to a
+// NOP, or its whole code where it holds no probe. It puts each instruction of it that the vendor calls
+// illegal to a NOP, and reads the frame again. The gate blocks each such instruction, and each that the vendor reads
+// with a register at or past the `<registers>` of the question. The gate blocks a whole code where it blocks any
+// instruction of it (cubin_safe.c). A frame that the vendor stops in at no instruction that it names blocks its
+// questions by no encoding.
+//
+// The report, passed as `<report>`, lists every blocked question. `<gated>` is the feedback that the carrier reads
+// (--gated), with a line `<low> <high>` for each blocked encoding. The carrier blocks every code that holds it from the
+// part.
+//
+// `<refusals>`, where the caller gives it, is the feedback that the teacher reads before the carry of the round
+// (run_channel.h). It has a line `<answers stem> <registers> <why>` for each refusal. `<registers>` is the count of
+// registers that clears a refusal for a register past the count that its kernel allots, at max MSQ_ALLOTTED_MAX. It is
+// 0 where no count clears it.
+//
+// The vendor names no operation, and nothing that it reports enters a form. The gated list is only the exact words not
+// to query. A count that clears a refusal changes how the program puts a question, and not what the question requires.
+//
+// The exit is 1 where the gate blocks any question. It is 2 where the program did not reach a blob, a tool or the run.
+// It is also 2 where it read a frame at no stop that the vendor named. In each case the round does not carry
 #include "../../../../../includes/parsers/line_read.h"
 #include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine_note.h"
@@ -107,8 +122,8 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    // a question with a probe is read by its probe instruction, among every other's. One with none, the kernel's own,
-    // is read whole, once a code
+    // the program reads a question with a probe by its probe instruction, among those of every other question. It reads
+    // one with no probe, the own question of the kernel, whole, once for each code
     size_t lines = 0u;
     for (unsigned long long at = 0ULL; at < list_size; at += 1ULL)
     {
@@ -171,8 +186,8 @@ int program_main(int count, char **words)
         }
         question_count += 1u;
     }
-    // the distinct probe encodings, whole codes, codes before and past a probe, and frames, each read once: a slotted
-    // question's frame is the code before its probe, a NOP, and the code past it, found by the two
+    // the distinct probe encodings, whole codes, codes before and past a probe, and frames, each read once. The frame of a
+    // slotted question is the code before its probe, a NOP, and the code past it, as the two searches find them
     MsqDistinct place_words;
     MsqDistinct whole_codes;
     MsqDistinct tails;
@@ -214,11 +229,11 @@ int program_main(int count, char **words)
             question->whole_index = msq_distinct_index(&whole_codes, &question->code);
         }
     }
-    // The readings of the distinct probe encodings, and every frame read whole: a question with no probe by its whole
-    // code, a slotted one by the code before its probe, a NOP and the code past it, the code past a probe being the
-    // same in every question of one kernel. The encodings, the frames and the tails are read together as one
-    // accumulated run at one start of the vendor (msq_accumulated_read), and a piece it stops at is set aside and read
-    // alone
+    // The reads of the distinct probe encodings, and every frame read whole. A question with no probe has its whole code
+    // as its frame. A slotted one has the code before its probe, a NOP and the code past it. The code past a probe is the
+    // same in every question of one kernel. The program reads the encodings, the frames and the tails together as one
+    // accumulated run at one start of the vendor (msq_accumulated_read). It sets aside a piece that the vendor stops at,
+    // and reads it alone
     MsqReading *const readings = (MsqReading *)platform_cell_cleared(place_words.count + 1u, sizeof(MsqReading),
                                                                      platform_place_g_program_owner, 0);
     MsqFrame *const whole_frames =
@@ -255,7 +270,8 @@ int program_main(int count, char **words)
         framed[whole_codes.count + piece].size = (unsigned long long)joined_size;
     }
     // every piece in one accumulated run, read at one start: the distinct probe encodings, then the frames, then the
-    // distinct tails; a piece the vendor stops at set aside, and the run read again without it until it reads clean
+    // distinct tails. The program sets aside a piece that the vendor stops at, and reads the run again without it until
+    // it reads clean
     const size_t piece_count = place_words.count + frame_count + tails.count;
     MsqPiece *const run_pieces =
         (MsqPiece *)platform_cell_cleared(piece_count + 1u, sizeof(MsqPiece), platform_place_g_program_owner, 0);
@@ -278,8 +294,8 @@ int program_main(int count, char **words)
         run_pieces[placed] = (MsqPiece){MSQ_PIECE_TAIL, tail, tails.items[tail], 0ULL, MSQ_PIECE_READ};
         placed += 1u;
     }
-    // a piece containing an instruction the vendor's own instruction set reads as no class is one its disassembler
-    // stops at: set aside before the run, to be read alone, so that the run is read clean at one start
+    // the disassembler of the vendor stops at a piece with an instruction that its own instruction set reads as no
+    // class. The program sets that piece aside before the run and reads it alone. Thus the run reads clean at one start
     for (size_t piece = 0u; whole && msq_tables_read() && (piece < piece_count); piece += 1u)
     {
         run_pieces[piece].state = msq_vendor_reads(&run_pieces[piece].bytes) ? MSQ_PIECE_READ : MSQ_PIECE_UNREAD;
@@ -367,11 +383,12 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    // the questions blocked, each with why, the gated list and the report passed to the run. A question is blocked
-    // by its probe where the vendor reads it as below, and by its frame where the vendor calls an instruction of it
-    // illegal or reads one naming a register at or past the count its kernel allots: each such instruction's encoding
-    // is blocked, and the gate blocks every code that contains it. A frame the vendor stopped in at no instruction it
-    // named blocks its questions by no encoding, and the round they came in is not carried
+    // the blocked questions, each with the reason, the gated list and the report passed to the run. The gate blocks a
+    // question by its probe where the vendor reads the probe as below. It blocks it by its frame where the vendor calls
+    // an instruction of it illegal. It also blocks it where the vendor reads an instruction with a register at or past
+    // the count that its kernel allots. The gate blocks the encoding of each such instruction, and every code that holds
+    // it. A frame that the vendor stopped in at no instruction that it named blocks its questions by no encoding, and its
+    // round does not carry
     MsqVerdicts verdicts;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &verdicts, .bytes = sizeof(verdicts), .val = 0);
     size_t gated_count = 0u;
@@ -429,9 +446,10 @@ int program_main(int count, char **words)
             }
             else if (in_code && !question->placed && !msq_control_read(read_line->body))
             {
-                // an instruction of a whole question read clear: legal, within the registers its kernel allots and no
-                // control transfer but the EXIT a kernel ends in; reported to the teacher with its encoding, for the
-                // conference the gate calls where it blocks the instruction's key unknown (overseer.h)
+                // an instruction of a whole question read clear. It is legal and within the registers that its kernel
+                // allots, and no control transfer but the EXIT at the end of a kernel. The program reports it to the
+                // teacher with its encoding. The gate calls a conference on it where it blocks the unknown key of the
+                // instruction (overseer.h)
                 msq_clear_reported(&verdicts, question, read_line->body, question->code.bytes + read_line->offset);
             }
         }
@@ -511,9 +529,10 @@ int program_main(int count, char **words)
         }
         if ((why[0] == '\0') && (type == MSQ_READ))
         {
-            // the probe read clear: a legal instruction that is no control transfer, names no register past the count,
-            // overwrites no register the code addresses memory through and reaches no memory; reported to the teacher
-            // with its encoding, whose conference admits it where the gate blocks its key unknown (overseer.h)
+            // the probe read clear: a legal instruction that is no control transfer and names no register past the
+            // count. It overwrites no register that the code addresses memory through, and reaches no memory. The program
+            // reports it to the teacher with its encoding. Its conference admits it where the gate blocks its unknown key
+            // (overseer.h)
             msq_clear_reported(&verdicts, question, body, question->word);
         }
         if (why[0] == '\0')
@@ -550,12 +569,13 @@ int program_main(int count, char **words)
     }
     qry_member_append(gated_name, verdicts.gated, verdicts.gated_size, QRY_ORDINARY);
     qry_member_append(report_name, whole_report, whole_report_size, QRY_ORDINARY);
-    // the refusals the teacher reads, passed even where there are none, so that it knows this round was read
+    // the refusals that the teacher reads, passed even where there are none. Thus the teacher knows that the program read
+    // this round
     if (gated_list_name != NULL)
     {
         qry_member_append(gated_list_name, verdicts.listed, verdicts.listed_size, QRY_ORDINARY);
     }
-    // the probes read clear, passed even where there are none, so that the teacher knows the round was read
+    // the probes read clear, passed even where there are none. Thus the teacher knows that the program read the round
     if (read_name != NULL)
     {
         qry_member_append(read_name, verdicts.read, verdicts.read_size, QRY_ORDINARY);
@@ -629,7 +649,7 @@ int program_main(int count, char **words)
     msq_distinct_free(&tails);
     msq_distinct_free(&prefixes);
     msq_distinct_free(&pieces);
-    // a frame the vendor named no stop in is no question it read: the round is not carried
+    // a frame that the vendor named no stop in is no question that it read, and the round does not carry
     if (unread != 0u)
     {
         {
