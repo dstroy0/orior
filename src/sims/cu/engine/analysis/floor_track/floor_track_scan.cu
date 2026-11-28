@@ -4,10 +4,11 @@
 #include "floor_track_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// the positions of one plane word whose value lies in [low, high], from the top bit down by ands and ors alone: a
-// value stays equal to a bound while its bits agree, and leaves above the low bound or below the high one at the
-// first bit where it differs the right way. Only the wanted positions are read for: the word stops once every one
-// of them left the range or left both bounds, and the others' bits are left for the caller's mask to clear.
+// the positions of one plane word whose value lies in `[low, high]`, from the top bit down by ands and ors alone. A
+// value stays equal to a bound while its bits agree. It leaves above the low bound, or below the high one, at the
+// first bit where it differs the right way. The call reads only for the wanted positions. The word stops after every
+// one of them left the range or left both bounds. The call leaves the bits of the others for the mask of the caller to
+// clear.
 static __device__ unsigned int track_range(const unsigned int *planes, unsigned long long word, unsigned int low,
                                            unsigned int high, unsigned int wanted, unsigned int *taken)
 {
@@ -38,15 +39,16 @@ static __device__ unsigned int track_range(const unsigned int *planes, unsigned 
         {
             high_equal &= ~plane;
         }
-        // a position is out once it has fallen below the low bound or risen above the high one
+        // a position is out after it falls below the low bound or rises above the high one
         const unsigned int out = ~(above | low_equal) | ~(below | high_equal);
         open = wanted & ~out & (low_equal | high_equal);
     }
     return (above | low_equal) & (below | high_equal);
 }
 
-// one query, one block, one word a thread: the positions p where every patch cell c lies inside floor 2 and its
-// value at p + c is inside c's range. The center goes first, and a word stops once its candidates are gone.
+// one query, one block, one word for each thread. The kernel finds the positions p where every patch cell c lies inside
+// floor 2. Its value at `p + c` must also be inside the range of c. The center goes first, and a word stops after no
+// candidate remains.
 __global__ void track_query_kernel(const unsigned int *planes, const TrackQuery *queries, unsigned int *candidates,
                                    unsigned int *reads)
 {
@@ -73,8 +75,9 @@ __global__ void track_query_kernel(const unsigned int *planes, const TrackQuery 
         candidate &= inside;
         if (candidate != 0u)
         {
-            // position p reads p + c: the word's first position moved by c, split into a word and a bit, floored;
-            // the first position is below 2^12, and a source word is taken unsigned only once it is found inside
+            // position p reads `p + c`: the first position of the word moved by c, split into a word and a bit,
+            // floored. The first position is below `2^12`, and the call takes a source word as unsigned only after
+            // it finds it inside
             const long long first = (long long)(word * TRACK_WORD_BITS) + ((long long)step[0] * side * side) +
                                     ((long long)step[1] * side) + (long long)step[2];
             const long long source = (first >= 0LL) ? (first / 32LL) : -(((-first) + 31LL) / 32LL);
@@ -179,9 +182,10 @@ int track_gated(unsigned long long from, unsigned long long position)
     return (dz >= -1LL) && (dz <= 1LL) && (dy >= -1LL) && (dy <= 1LL) && (dx >= -1LL) && (dx <= 1LL);
 }
 
-// a body's step is clear when, in both frames, no other body reaches the samples its 27 cells read, and those cells
-// sit where every lifting formula along y and x is the interior one. The z pass acts on each column alone. A
-// shift along y and x carries it whole, edges and all. A clear step of whole cells translates floor 2 exactly.
+// the step of a body is clear when, in both frames, no other body reaches the samples that its 27 cells read. Those
+// cells must also sit where every lift formula along y and x is the interior one. The z pass acts on each column
+// alone. A shift along y and x carries it whole, edges and all. A clear step of whole cells translates floor 2
+// exactly.
 int track_clear(const SimScene *scene, unsigned int index, unsigned long long frame, unsigned long long stride,
                 unsigned long long from, unsigned long long truth)
 {

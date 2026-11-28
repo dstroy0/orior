@@ -652,7 +652,6 @@ src/sims/cu/engine/analysis/art/periodic_energy.h	1
 src/sims/cu/engine/analysis/floor_match/floor_match_floors.cu	2
 src/sims/cu/engine/analysis/floor_track/floor_track_floors.cu	1
 src/sims/cu/engine/analysis/floor_track/floor_track_main.cu	3
-src/sims/cu/engine/analysis/floor_track/floor_track_scan.cu	11
 src/sims/cu/engine/analysis/knf_identity/knf_identity_internal.h	1
 src/sims/cu/engine/analysis/knf_identity/knf_identity_sections.cu	1
 src/sims/cu/engine/analysis/noise_floor/noise_floor_fit.cu	8
