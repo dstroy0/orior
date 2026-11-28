@@ -10,16 +10,17 @@
 #define NOMINMAX
 #include <windows.h>
 
-// the buffer the system writes changes into, in 32-bit words: 64 KB, the max a folder shared over a network takes;
-// where a record's name starts, after its offset to the next, its action and its name's length; and what is watched
+// the buffer that the system writes changes into, in 32-bit words: 64 KB, the max that a folder shared over a network
+// takes. Then where the name of a record starts, after its offset to the next, its action and the length of its name.
+// Last, the changes that the watch asks for
 #define CLI_WATCH_BUFFER (16u * 1024u)
 #define CLI_WATCH_NAME_AT 12u
 #define CLI_WATCH_FILTER                                                                                               \
     (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE |                            \
      FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-// The watch: the tree's folder, the events of the system's answer and of the stop, who is notified, the thread, whether
-// it has ended, the query in flight and the buffer
+// The watch: the folder of the tree, the events of the answer of the system and of the stop, and whom the watch tells.
+// It also holds the thread, whether it ended, the query in flight and the buffer
 typedef struct
 {
     HANDLE folder;
@@ -102,8 +103,8 @@ static int cli_watch_query(void)
                                  NULL, &s_watch.overlapped, NULL) != 0;
 }
 
-// Each answer of the system reported and the system queried again, until the stop is set. The first query is in
-// flight before the thread starts: a change made the moment the watch is started is in its answer
+// Each answer of the system reported and the system queried again, until the stop goes up. The first query is in
+// flight before the thread starts. Thus the answer holds a change made at the moment that the watch starts
 static void cli_watch_read(void *context)
 {
     (void)context;

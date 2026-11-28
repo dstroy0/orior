@@ -56,8 +56,8 @@ embed_u64 mmgr_carcer_hw_clock_ns(void)
     return (embed_u64)embed_clock_ns();
 }
 
-// The places that threads hold. A thread takes one on its first call and gives it back as it ends, and so the places in
-// use stay within the live threads. MMgr selects the region of the temporary tier that a take goes to by the place
+// The places that threads hold. A thread takes one on its first call and gives it back as it ends. Thus the places
+// in use stay within the live threads. MMgr selects the region of the temporary tier that a take goes to by the place
 #define PLATFORM_PLACES_MAX 256u
 // the places given so far: a thread with no free place to take gets the count as its place
 static embed_atomic_u32 s_places_given = EMBED_ATOMIC_INIT(0u);
@@ -156,7 +156,7 @@ static void platform_mover_entered(void *context)
     platform_thread_place_released();
 }
 
-// the sorts that the mover has started, which the readers of the telemetry take
+// the sorts that the mover started, which the readers of the telemetry take
 static embed_atomic_u32 s_mover_sorts = EMBED_ATOMIC_INIT(0u);
 
 // the mover at the level of work across a move, since a reader waits on the copy, and back at idle after it
@@ -230,7 +230,7 @@ static int platform_line_written(void *context, const char *bytes, size_t size)
 }
 
 // The movable option of MMgr given its storage and the mover's thread. A refusal is a mover thread that did not start,
-// and the pool then works with no mover. The pool calls this as it opens and after each emptying
+// and the pool then works with no mover. The pool calls this when it opens and after each time that it empties
 static void platform_pool_movable_ready(void)
 {
     const unsigned int processors = platform_processors();
@@ -247,7 +247,8 @@ static void platform_pool_movable_ready(void)
                                 .thread_moving = platform_mover_moving});
 }
 
-// the mover's run on the option that the pool gave it already, which the pool starts again after a refused emptying
+// the run of the mover on the option that the pool gave it already. The pool starts it again after it refuses to
+// empty
 static void platform_mover_resumed(void *context)
 {
     mmgr_movable_run(context);
@@ -257,7 +258,7 @@ int platform_pool_emptied(unsigned long long bytes)
 {
     // The pool ends the mover first, and so the mover reads no cellblock as the pool empties. The gap reader runs the
     // trims owed, and the test for an idle pool comes after it. Nothing takes a cell between the test and the
-    // emptying. A request past the pool, or a cell still out, is a refusal, and the mover then starts again
+    // moment that the pool empties. A request past the pool, or a cell still out, is a refusal, and the mover then starts again
     SeriesCellularum *const record = &platform_site_platform_pool_ctx;
     const int ran = s_mover_run != NULL;
     platform_mover_ended();
@@ -307,7 +308,7 @@ static void platform_idle_pages_released(unsigned long long from, unsigned long 
 
 // One idle span of the cellblock, its touched pages given back. A take touches the gap between the tiers only up to
 // the furthest persistent end and down to the furthest temporary top. The rest of the gap holds pages that no take
-// touched, which no working set holds, and so the walk gives the two touched ends of the gap back alone. Each span
+// touched, and no working set holds them. Thus the walk gives back only the two touched ends of the gap. Each span
 // after the gap goes back whole
 static void platform_idle_each(void *context, void *at, size_t bytes)
 {
@@ -559,7 +560,7 @@ void platform_cell_released(void *cell, unsigned int place)
 }
 
 // A cell grown in place where it is the newest of its tier, which leaves no hole behind it. A persistent cell keeps its
-// address. A temporary cell grows down, and MMgr moves its bytes down with it (mmgr_buf_grow), and so the bytes are in
+// address. A temporary cell grows down, and MMgr moves its bytes down with it (mmgr_buf_grow). Thus the bytes are in
 // place after the growth either way. Else a new cell takes the bytes, and the old cell goes back
 void *platform_cell_grown(void *cell, unsigned long long held, unsigned long long bytes, unsigned int place,
                           int ephemeral)

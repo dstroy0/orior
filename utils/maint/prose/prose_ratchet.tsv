@@ -459,7 +459,6 @@ includes/file_defs/krep/krep_records/file.c	4
 includes/file_defs/krep/krep_records/viewed.c	2
 includes/file_defs/krf/krf.c	1
 includes/file_defs/krf/krf.h	4
-includes/file_defs/krs/krs_write/frame_forms.tsv	8
 includes/file_defs/krs/krs_write/head.h	2
 includes/file_defs/krs/krs_write/krs_write_internal.h	4
 includes/file_defs/krs/krs_write/words.c	4
@@ -486,7 +485,7 @@ includes/parsers/who.c	5
 includes/parsers/who.h	2
 includes/platform/platform.h	2
 includes/platform/platform_internal.h	3
-includes/platform/platform_pool.c	8
+includes/platform/platform_pool.c	1
 includes/platform/posix/linux/linux_picker.c	1
 includes/platform/posix/linux/linux_processes.c	5
 includes/platform/posix/linux/tls_libssl.c	2
@@ -499,15 +498,13 @@ includes/platform/posix/posix_query.c	3
 includes/platform/posix/posix_registry.c	1
 includes/platform/windows/platform_windows.c	2
 includes/platform/windows/tls_windows.c	4
-includes/platform/windows/windows_clipboard.c	9
 includes/platform/windows/windows_connect.c	4
 includes/platform/windows/windows_container.c	2
 includes/platform/windows/windows_files.c	1
-includes/platform/windows/windows_interface.c	11
+includes/platform/windows/windows_interface.c	1
 includes/platform/windows/windows_picker.c	4
 includes/platform/windows/windows_system.c	1
 includes/platform/windows/windows_transfer.c	2
-includes/platform/windows/windows_watch.c	7
 includes/platform/windows/windows_window.c	11
 includes/utf8/utf8.c	3
 includes/utf8/utf8.h	1

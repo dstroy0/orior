@@ -9,8 +9,8 @@
 #define NOMINMAX
 #include <windows.h>
 
-// the bytes each instance of the pipe buffers one way, and how long a process joining waits while every instance is
-// taken, in milliseconds
+// the bytes that each instance of the pipe buffers one way. Then how long a process that joins waits while other
+// processes hold every instance, in milliseconds
 #define CLI_IPC_PIPE_CAPACITY 65536u
 #define CLI_IPC_BUSY_WAIT 5000ULL
 
@@ -37,8 +37,8 @@ EMBED_INLINE HANDLE ipc_instance(const WindowsInterfaceCtx *args)
                             PIPE_UNLIMITED_INSTANCES, CLI_IPC_PIPE_CAPACITY, CLI_IPC_PIPE_CAPACITY, 0u, NULL);
 }
 
-// one overlapped operation on `handle`, begun by `type` (0 a read, 1 a write, 2 a join waited for) and waited for: the
-// bytes it moved into `moved`: 1, or 0 where it failed
+// one overlapped operation on `handle` of the kind `type`: 0 a read, 1 a write, 2 a wait for a join. The call starts
+// it, waits for it, and puts the bytes that it moved into `moved`. The return is 1, or 0 where it failed
 static int ipc_overlap(const WindowsInterfaceCtx *args)
 {
     void *bytes = args->bytes;
@@ -89,7 +89,8 @@ static int ipc_overlap(const WindowsInterfaceCtx *args)
         const HANDLE either[2] = {work.hEvent, args->shut};
         if (WaitForMultipleObjects(2u, either, FALSE, INFINITE) != WAIT_OBJECT_0)
         {
-            // the end was shut while the work waited: the work is cancelled and seen through before its capacity goes
+            // the end shut while the work waited: the call cancels the work and waits for the cancel before its
+            // capacity goes
             (void)CancelIoEx(args->handle, &work);
             (void)GetOverlappedResult(args->handle, &work, moved, TRUE);
             CloseHandle(work.hEvent);
@@ -101,7 +102,8 @@ static int ipc_overlap(const WindowsInterfaceCtx *args)
     return waited != FALSE;
 }
 
-// an end opened on `handle`, with the event it is shut by: 1, or 0 where Windows gave no event, the handle closed
+// an end opened on `handle`, with the event that shuts it. The return is 1, or 0 where Windows gave no event, and
+// then the call closes the handle
 EMBED_INLINE int ipc_end_open(const WindowsInterfaceCtx *args)
 {
     HANDLE handle = args->handle;
@@ -152,13 +154,13 @@ int cli_ipc_accept(const CliIpcListenerCtx *args)
 {
     int *has_peer = args->has_peer;
     unsigned int *peer = args->peer;
-    // the waiting instance's handle was a pointer's width when it was stored
+    // the handle of the instance that waits had the width of a pointer when the call stored it
     const HANDLE joined = (HANDLE)(embed_word)args->listener->waiting;
     DWORD moved = 0u;
     const int joining = EMBED_CALL(ipc_overlap, WindowsInterfaceCtx, .handle = joined, .shut = NULL, .type = 2,
                                    .bytes = NULL, .size = 0u, .moved = &moved);
     const DWORD error = GetLastError();
-    // the next instance waits for the process after, whether this one was joined or not
+    // the next instance waits for the process after, whether a process joined this one or not
     args->listener->waiting = (unsigned long long)(embed_word)EMBED_CALL(ipc_instance, WindowsInterfaceCtx,
                                                                          .listener = args->listener, .first = 0);
     if (!joining)

@@ -1,12 +1,17 @@
-# The frame forms, each the schema's form a frame relation's form is written as (The frame forms asked, Open 6.4):
-# the relation as the vendor's writer passes it back, the form of the schema's ruleset it is written as, and the place
-# of the relation's tuple each of that form's parameters takes, in the parameters' order. A relation two rows map,
-# exit, is written as the row whose places are as many as the form's text holds: return where the text holds no
-# guard, exit_if where it does. The ladder's predicate relations are written the same way, the schema's test words,
-# a form that reads the words signed under its relation with `.signed` after it; the answer's place is the
-# predicate the test writes, `where`, and the words' places are `left` and `right`. A relation's mirror row writes the
-# test of the other order from its form, its words' places changed over: `a <= b` is `b >= a`, and `a < b` is `b > a`.
-# A test two rows write is one line, from the first of its rows a form is answered for.
+# The frame forms (The frame forms asked, Open 6.4). Each row gives the form of the schema that writes a frame
+# relation. It holds the relation as the writer of the vendor passes it back, and the form of the ruleset of the
+# schema. It also holds the place in the tuple of the relation that each parameter of that form takes, in the order
+# of the parameters.
+#
+# Two rows map the relation exit. The writer uses the row whose places are as many as the text of the form holds.
+# That is return where the text holds no guard, and exit_if where it does. The writer writes the predicate relations
+# of the ladder the same way, with the test words of the schema. A form that reads the words as signed has `.signed`
+# after its relation. The place of the answer is the predicate that the test writes, `where`, and the places of the
+# words are `left` and `right`.
+#
+# The mirror row of a relation writes the test of the other order from its form, with the places of its words changed
+# over. Thus `a <= b` is `b >= a`, and `a < b` is `b > a`. A test that two rows write is one line, from the first of
+# its rows that a form answers.
 relation	form	places
 ladder.same	test_word_eq	2 0 1
 ladder.apart	test_word_ne	2 0 1
