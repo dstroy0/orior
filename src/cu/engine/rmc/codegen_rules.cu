@@ -55,8 +55,8 @@ int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRule
 #if (defined(__CUDACC__))
 
 // the build in one thread (asm_printer_core_ruleset_build), because the number of each word depends on every word
-// before it. The build stays in device memory as it ended, with pointers of the device. Its arrays for each form are
-// far larger than the parameters of a kernel, thus the call does not pass it by value
+// before it. The build stays in device memory as it ended, with pointers of the device. Its arrays for each form far
+// pass the room for the parameters of a kernel. Thus the call does not pass it by value
 __global__ void codegen_rules_build(AsmPrinterCoreBuild *build)
 {
     if (codegen_device_thread() != 0ULL)
