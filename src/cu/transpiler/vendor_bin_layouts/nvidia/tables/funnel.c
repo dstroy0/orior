@@ -120,8 +120,8 @@ static int tables_length_read(const unsigned char *bytes, size_t size, size_t *a
     }
 }
 
-// one LZ4 block `bytes`, `size` long, unpacked onto the end of `text`, its matches reaching back into all of the
-// text: the count unpacked, or 0 where the block is malformed or there was no memory
+// one LZ4 block `bytes`, `size` long, unpacked onto the end of `text`, with its matches that reach back into all of
+// the text. The return is the count unpacked, or 0 where the block has a bad form or there was no memory
 static size_t tables_block_unpacked(const unsigned char *bytes, size_t size, TablesText *text)
 {
     const size_t before = text->length;
@@ -159,7 +159,8 @@ static size_t tables_block_unpacked(const unsigned char *bytes, size_t size, Tab
         {
             return 0u;
         }
-        // a match reaching past the text's end repeats what it copies: one byte at a time where it overlaps
+        // a match that reaches past the end of the text repeats what it copies, one byte at a time where it
+        // overlaps
         for (size_t copied = 0u; copied < match; copied += 1u)
         {
             const unsigned char byte = text->bytes[text->length - offset];
