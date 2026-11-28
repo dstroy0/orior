@@ -31,14 +31,14 @@ static unsigned int s_exits[WRITINGS_EXITS];
 char s_kernel[128];
 unsigned long long s_pattern_size;
 
-// the two words of each case a form is put with
+// the two words of each case that the program puts a form with
 unsigned int s_case[WRITINGS_CASES][2];
 
 unsigned int s_cases;
 WritingsRelation s_relation[WRITINGS_RELATIONS];
 unsigned int s_relations;
 
-// `path` read whole into `bytes`, sized for `room`: the bytes read, 0 where it was not read
+// `path` read whole into `bytes`, sized for `room`. The return is the bytes read, 0 where the read failed
 unsigned long long writings_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     PlatformFile *const file = platform_file_open(path, "rb");
@@ -58,9 +58,9 @@ static int writings_anchor_fits(unsigned int anchor)
     return (s_ladder_measured[anchor] == 0) && (s_anchor_words[anchor] == 2u);
 }
 
-// The relations a form is read against: every ladder relation whose answer follows from two words, then every
-// precept that carries a word from one or two, NOT and MOV reading the first word alone. NOP, ERR and the branches
-// carry no word
+// The relations that the program reads a form against: every ladder relation whose answer follows from two words.
+// Then every precept that carries a word from one or two, with NOT and MOV that read the first word alone. NOP, ERR
+// and the branches carry no word
 void writings_relations(void)
 {
     s_relations = 0u;
@@ -96,10 +96,14 @@ unsigned int writings_expected(const WritingsRelation *relation, const unsigned 
     return answered;
 }
 
-// The cases a form is put with, every relation read on every one: the ladder's own two-word cases, the words a width
-// turns on put against the counts a shift turns on, and words drawn as chain_build draws its sweep to fill a launch.
-// The ladder's cases are small words, and a form that agrees with a relation on small words alone, as a dot product
-// of bytes agrees with a product, is distinguished by the drawn ones
+// The cases that the program puts a form with, with every relation read on every one:
+//
+// - the own two-word cases of the ladder
+// - the words that a width turns on, put against the counts that a shift turns on
+// - words drawn as chain_build draws its sweep, to fill a launch
+//
+// The cases of the ladder are small words. A form can agree with a relation on small words alone, as a dot product of
+// bytes agrees with a product. The drawn words tell such a form apart
 void writings_cases(void)
 {
     static const unsigned int s_edge_words[] = {0u, 1u, 0x7fffffffu, 0x80000000u, 0xffffffffu};
@@ -216,8 +220,9 @@ static void writings_swap(const char *operand, const char *put, char *out, size_
     }
 }
 
-// 1 where `form` is put to the part: it writes its first operand, a register, it neither transfers control nor waits,
-// and every operand is a register, a predicate or a number, which reach no memory and no state of the part's own
+// 1 where the program puts `form` to the part. It writes its first operand, a register, and it neither transfers
+// control nor waits. Every operand is a register, a predicate or a number, which reach no memory and no own state of
+// the part
 int writings_form_fits(const SassForm *form)
 {
     if ((form->operands < 2u) || (form->type[0] != SASS_OPERAND_REGISTER) ||
@@ -240,8 +245,8 @@ int writings_form_fits(const SassForm *form)
     return sources != 0u;
 }
 
-// the operand of `form` that is a number whose field is eight bits wide, a truth table of three inputs, or the operand
-// count where none is
+// the operand of `form` that is a number whose field is eight bits wide, a truth table of three inputs. It is the
+// operand count where none is
 unsigned int writings_table(const SassForm *form)
 {
     for (unsigned int operand = 1u; operand < form->operands; operand += 1u)
@@ -295,9 +300,10 @@ unsigned int writings_in_order(unsigned int sources)
     return assignment;
 }
 
-// `form`'s own instruction written to `out` with its result moved to WRITINGS_RESULT and each register source given
-// WRITINGS_LEFT, WRITINGS_RIGHT or RZ by `assignment` (writings_digit). The operand `table` is written as `value`;
-// every other predicate and number retains the value the form was seen with. 1, or 0 where `out` will not fit it
+// the own instruction of `form`, written to `out`, with its result moved to WRITINGS_RESULT. Each register source gets
+// WRITINGS_LEFT, WRITINGS_RIGHT or RZ by `assignment` (writings_digit). The call writes the operand `table` as `value`.
+// Every other predicate and number keeps the value that the probe saw the form with. The return is 1, or 0 where `out`
+// cannot hold it
 int writings_instruction(const SassForm *form, unsigned int table, unsigned int value, unsigned int assignment,
                          char *out, size_t room)
 {

@@ -638,7 +638,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_unp
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_run.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_withheld.py	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings.c	6
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings/cases.c	13
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings/chains.c	7
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings/descent.c	8
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings/write.c	10
