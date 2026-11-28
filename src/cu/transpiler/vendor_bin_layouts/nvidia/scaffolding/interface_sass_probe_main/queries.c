@@ -7,8 +7,9 @@
 #include "memoria_operor/memoria_operor.h"
 #include "probe_main_internal.h"
 
-// the kernel `name` written again from its own listing, then both cubins run and their answers compared: 1 where the
-// two answer the same. A written kernel cubin_safe blocks from the part is run on nothing, and adds one to `same`
+// the kernel `name`, written again from its own listing. The call then runs both cubins and compares their answers.
+// The return is 1 where the two answer the same. A written kernel that cubin_safe blocks from the part runs on
+// nothing, and adds one to `same`
 int sass_cubin_same(SassProbe *probe, const SassMachine *machine, const char *name, unsigned int *same)
 {
     if (!sass_cubin_round(machine, probe->folder, name))
@@ -74,14 +75,14 @@ int sass_cubin_same(SassProbe *probe, const SassMachine *machine, const char *na
     return 1;
 }
 
-// A lane of the interface's own written into the resident's cubin, and the resident checked for having survived it.
-// What goes in is the kernel's own text, which assembles and requires nothing of the launch: under test here is the
-// cubin writer instead of the lane. 1 where every instruction of the resident is still in the cubin afterwards
+// An own lane of the interface, written into the cubin of the resident, and a check that the resident survived it.
+// What goes in is the own text of the kernel, which assembles and needs nothing of the launch. The test here is of the
+// cubin writer, not of the lane. The return is 1 where every instruction of the resident is still in the cubin after
 int sass_lane_written(SassProbe *probe)
 {
-    // A lane is a function the resident calls, and a function ends where it was called from. Putting a kernel's
-    // body here in place of this would be writing something that EXITs where the part expects a RET, which the
-    // cubin writer refuses and should
+    // A lane is a function that the resident calls, and a function ends where the call came from. A kernel body here
+    // in place of this would be code that EXITs where the part expects a RET. The cubin writer refuses that, as it
+    // must
     static const char s_lane[] = "\tIMAD.MOV.U32 R16, RZ, RZ, R4;\n"
                                  "\tIMAD.MOV.U32 R17, RZ, RZ, R5;\n"
                                  "\tRET.ABS.NODEC R20 0x0;\n";
@@ -107,9 +108,9 @@ int sass_lane_written(SassProbe *probe)
         }
         return 0;
     }
-    // every instruction the resident's cubin contained, looked for in the one the lane went into. cycle_program is the
-    // bulk of both and none of it may have moved; the empty cycle_lane it was built with is two instructions, and
-    // those are the ones expected to be gone
+    // every instruction that the cubin of the resident held, looked for in the cubin that the lane went into. The
+    // function cycle_program is the bulk of both, and none of it can move. The empty cycle_lane that the build gave it
+    // is two instructions, and those are the only ones that can go
     unsigned int same_count = 0u;
     for (unsigned int number = 0u; number < s_before.count; number += 1u)
     {
@@ -139,10 +140,11 @@ int sass_lane_written(SassProbe *probe)
     return (s_before.count - same_count) <= 2u;
 }
 
-// every kernel interface_ptx_probe passed the toolchain's compiler, counted on the compile channel from what it
-// printed: a line "cubin <number> <name>" is a kernel the compiler emitted, and a line "errored: nvJitLink did not
-// assemble" is one it refused. The kernel and the resident are compiled before every question and print no line of
-// their own when they are emitted: both are counted with the first question's line
+// every kernel that interface_ptx_probe passed to the compiler of the toolchain, counted on the compile channel from
+// what it printed. A line "cubin <number> <name>" is a kernel that the compiler emitted. A line "errored: nvJitLink did
+// not assemble" is one that it refused. The compiler compiles the kernel and the resident before every question. They
+// print no line of their own when the compiler emits them, and the call counts both with the line of the first
+// question
 static void sass_compiles_count(const char *output)
 {
     const char *const emitted = "\ncubin 0 ";
@@ -220,8 +222,9 @@ static int sass_questions_read(SassProbe *probe, const char *output)
     return probe->questions != 0u;
 }
 
-// The loop query alone, against the machine file at `path` and the cubins already in the probe's folder: the part is
-// queried how it loops without the machine being learned again. The system's classification is written beside them
+// The loop query alone, against the machine file at `path` and the cubins already in the folder of the probe. The
+// call asks the part how it loops, and does not learn the machine again. It writes the classification of the system
+// beside them
 int sass_loop_main(SassProbe *probe, const char *path)
 {
     if (!sass_machine_read(&s_sass_machine, path))
@@ -272,18 +275,20 @@ int sass_questions_compile(SassProbe *probe)
     return 1;
 }
 
-// The queries alone, against the machine file at `path`: every question compiled, each kernel written again by our
-// assembler and run beside the toolchain's, the interface's own questions run in code no toolchain wrote, and the
-// codings weighed, with the machine taken from the tree and not learned again. The system's classification is
-// written into the probe's folder. Exit 0 where every kernel and every question answered as it specifies, 1 where one
-// did not, 2 where the machine file was not read or nothing compiled
+// The queries alone, against the machine file at `path`. The call compiles every question. Our assembler writes each
+// kernel again, and the call runs it beside the kernel of the toolchain. The own questions of the interface run in
+// code that no toolchain wrote, and the call weighs the codings. The machine comes from the tree, and the call does
+// not learn it again. It writes the classification of the system into the folder of the probe.
+//
+// Exit 0 where every kernel and every question answered as it specifies, and 1 where one did not. Exit 2 where the
+// machine file did not read, or nothing compiled
 int sass_queries_main(SassProbe *probe, const char *path)
 {
     if (!sass_machine_read(&s_sass_machine, path) || !sass_questions_compile(probe))
     {
         return 2;
     }
-    // a kernel blocked from the part is no check: nothing was queried of it
+    // a kernel that the gate blocked from the part is no check, because the call queried nothing of it
     unsigned int checks = 0u;
     unsigned int failed = 0u;
     unsigned int same_count = 0u;
