@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cubin_safe_check.c: cubin_safe checked against one case a rule, each made from the machine file's own forms, and the
-// assembler's constants written against them, then every cubin named read on the host and its verdict printed.
-// Nothing here touches a device.
+// cubin_safe_check.c: cubin_safe, checked against one case for each rule, each made from the own forms of the machine
+// file. The check writes the constants of the assembler against them. Then the program reads every named cubin on
+// the host, and prints its verdict. Nothing here touches a device.
 //
 //     cubin_safe_check <machine file> [<cubin>...]
 //
-// One line a case and a cubin, and a last line with the checks. Exit 0 where every case gives its rule's verdict, 1
-// where one does not, 2 where the machine file did not read. A cubin's verdict is reported and is no check: a cubin
-// blocked from the part is the gate doing its work.
+// One line for each case and cubin, and a last line with the checks. Exit 0 where every case gives the verdict of its
+// rule, 1 where one does not, and 2 where the machine file did not read. The program reports the verdict of a cubin,
+// and it is no check. A cubin blocked from the part is the gate at its work.
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "../cubin_safe.h"
@@ -44,7 +44,7 @@ static unsigned long long check_safe_high(unsigned long long high)
     return high;
 }
 
-// `high`, already containing the safe word, with its stall set to `stall`
+// `high`, which already holds the safe word, with its stall set to `stall`
 static unsigned long long check_stalled(unsigned long long high, unsigned int stall)
 {
     high &= ~(0xfULL << (SASS_STALL_FIRST - 64u));
@@ -58,7 +58,7 @@ static void check_instruction(unsigned int place, unsigned long long low, unsign
     check_put(&s_code[(16u * place) + 8u], high);
 }
 
-// a case checked against cubin_safe for a kernel of `registers` registers, 0 where none is declared (rule 6)
+// a case checked against cubin_safe for a kernel of `registers` registers, 0 where the kernel declares none (rule 6)
 static void check_verdict_allot(const char *name, unsigned int instructions, unsigned int registers,
                                 unsigned int wanted)
 {
@@ -139,8 +139,8 @@ static int check_key_known(unsigned long long key)
     return 0;
 }
 
-// an encoding of `form` with one operation bit past the key turned that no form matches, through `low`: 1, or 0 where
-// every such turn is matched by some form
+// an encoding of `form` with one operation bit past the key turned, which no form matches, through `low`. The return is
+// 1, or 0 where some form matches every such turn
 static int check_ungated(const SassForm *form, unsigned long long *low)
 {
     char text[256];
@@ -174,7 +174,7 @@ static void check_cases(void)
         }
         return;
     }
-    // the machine file saw EXIT under a guard; every case's EXIT is given PT, which every thread takes
+    // the machine file saw EXIT under a guard. The EXIT of every case gets PT, which every thread takes
     const unsigned long long exit_low = check_unguarded(exit->low);
     const unsigned long long exit_high = check_safe_high(exit->high);
     check_instruction(0u, exit_low, exit_high);
@@ -199,14 +199,14 @@ static void check_cases(void)
     check_verdict("an IADD3 with no EXIT after it", 1u, CUBIN_SAFE_EXIT);
     check_instruction(1u, exit_low, exit_high);
     check_verdict("an IADD3 then an EXIT", 2u, CUBIN_SAFE);
-    // a stall short of a result's soonest read gives a wrong answer and never a kernel that does not return, and the
+    // a stall short of the soonest read of a result gives a wrong answer, and never a kernel that does not return. The
     // run channel queries below it
     check_instruction(0u, straight->low, check_stalled(check_safe_high(straight->high), 1u));
     check_verdict("an IADD3 stalled one cycle, then an EXIT", 2u, CUBIN_SAFE);
     // a fixed result's barrier is never released
     check_instruction(0u, straight->low, check_safe_high(straight->high) & ~(7ULL << (SASS_WRITE_BARRIER_FIRST - 64u)));
     check_verdict("an IADD3 setting write barrier 0", 2u, CUBIN_SAFE_BARRIER);
-    // the self branch past the last exit is never reached and is not read
+    // no thread reaches the self branch past the last exit, and the gate does not read it
     check_instruction(0u, exit_low, exit_high);
     check_instruction(1u, branch->low, branch->high);
     check_verdict("an EXIT then the self branch", 2u, CUBIN_SAFE);
@@ -318,9 +318,9 @@ static void check_launches(void)
     check_fault("a launch timed out is no fault", 0, CUBIN_SAFE_STATUS_LAUNCH_TIMEOUT, CUBIN_SAFE);
 }
 
-// rule 6 against a real form of the machine: a register operand set past what a small kernel allots is blocked from the
-// part. The whole fixed register field (16, 24, 32 in the low word, 64 in the high) is read however much of it the
-// operand's run covered, and one instruction is enough, the verdict coming before any EXIT is sought
+// rule 6 against a real form of the machine. The gate blocks from the part a register operand set past what a small
+// kernel allots. It reads the whole fixed register field (16, 24, 32 in the low word, 64 in the high), however much of
+// it the run of the operand covered. One instruction is enough, as the verdict comes before the search for an EXIT
 static void check_registers(void)
 {
     static const unsigned int fields[4] = {16u, 24u, 32u, 64u};
@@ -399,9 +399,10 @@ static void check_constant(const char *text, int wanted, unsigned long long word
     }
 }
 
-// A constant's offset is written whole, base and place summed, in its field, whatever bits of it the form's run saw
-// change: the parameter form's run is the bits the parameter's place moved, 42 to 44. An offset the field cannot hold,
-// part of a word or past the bank, is refused and not cut
+// The assembler writes the offset of a constant whole, base plus place, in its field. It does so whatever bits of it
+// the run of the form saw change. The run of the parameter form is the bits that the place of the parameter moved, 42
+// to 44. The assembler refuses an offset that the field cannot hold, part of a word or past the bank, and does not cut
+// it
 static void check_constants(void)
 {
     check_constant("MOV R1, c[0x0][0x160+0x10]", 1, 0x5cULL);
