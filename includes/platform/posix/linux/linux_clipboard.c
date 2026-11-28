@@ -26,8 +26,8 @@
 #include <unistd.h>
 
 #define CLI_X11_NAMED 8u
-// One connection to the X server: its socket, the window it reads the clipboard into or owns it with, the max bytes
-// one request takes, and the atoms it interned
+// One connection to the X server: its socket, and the window that it reads the clipboard into or owns the clipboard
+// with. It also holds the max bytes that one request takes, and the atoms that it interned
 typedef struct
 {
     int socket;
@@ -35,7 +35,7 @@ typedef struct
     unsigned long long request_max;
     unsigned int atom[CLI_X11_NAMED];
 } CliX11;
-// the file URI a path is written in on the clipboard, and the characters of a path a URI saves as they are
+// the file URI that the clipboard writes a path in, and the characters of a path that a URI keeps as they are
 #define CLI_CLIPBOARD_FILE_SCHEME "file://"
 
 typedef struct
@@ -121,8 +121,8 @@ EMBED_INLINE void clipboard_uri_write(const PosixClipboardCtx *args)
     }
 }
 
-// each file of a list of URIs, `size` bytes of `list`, one to a line, its comments passed over, passed to `each` as a
-// path, its host taken off and its escapes read: how many
+// each file of a list of URIs, `size` bytes of `list`, one to a line. The call skips the comments of the list. It
+// gives each file to `each` as a path, with its host taken off and its escapes read. The return is how many
 static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
 {
     unsigned long long size = args->size;
@@ -175,9 +175,9 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
     return count;
 }
 
-// the core protocol's atoms this file names by number, the types of what the server sends, the events it reports and
-// the mask that asks for property changes, a window's class that takes input alone, and the value-mask bit that sets a
-// window's event mask
+// the atoms of the core protocol that this file names by number, and the types of what the server sends. Then the
+// events that it reports, and the mask that asks for property changes. Last, the class of a window that takes input
+// alone, and the value-mask bit that sets the event mask of a window
 #define CLI_X11_ATOM_ATOM 4u
 #define CLI_X11_ATOM_STRING 31u
 #define CLI_X11_ERROR 0u
@@ -201,9 +201,9 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
 #define CLI_X11_CONVERT 24u
 #define CLI_X11_SEND_EVENT 25u
 
-// the milliseconds an answer the clipboard's owner sends is waited for; the bytes of a property read at once; the max
-// bytes a content is sent in at once, below one request's capacity; and the max bytes of the reader's Xauthority file
-// read
+// the milliseconds that the call waits for an answer from the owner of the clipboard, and the bytes of a property that
+// one read takes. Then the max bytes of one send of a content, below the capacity of one request. Last, the max
+// bytes that the call reads of the Xauthority file of the reader
 #define CLI_X11_WAIT 2000
 #define CLI_X11_PIECE (64u << 10u)
 #define CLI_X11_SENT_MAX (256u << 10u)
@@ -247,7 +247,7 @@ EMBED_INLINE unsigned int x11_get32(const PosixClipboardCtx *args)
     return x11_get16(args) | (EMBED_CALL(x11_get16, PosixClipboardCtx, .at_read = args->at_read + 2) << 16u);
 }
 
-// `size` bytes written whole to the server: 1, or 0 where the connection is gone
+// `size` bytes written whole to the server: 1, or 0 where the connection no longer exists
 EMBED_INLINE int x11_send(const PosixClipboardCtx *args)
 {
     unsigned long long size = args->size;
@@ -270,8 +270,8 @@ EMBED_INLINE int x11_send(const PosixClipboardCtx *args)
     return 1;
 }
 
-// `size` bytes read whole from the server, each piece waited for `wait` milliseconds at max, -1 for as long as it
-// takes: 1, or 0 where none came in time or the connection is gone
+// `size` bytes read whole from the server. The call waits `wait` milliseconds at max for each piece, or as long as it
+// takes for -1. The return is 1, or 0 where no piece came in time or the connection no longer exists
 EMBED_INLINE int x11_receive(const PosixClipboardCtx *args)
 {
     unsigned long long size = args->size;
@@ -318,8 +318,9 @@ EMBED_INLINE int x11_pass(const PosixClipboardCtx *args)
     return 1;
 }
 
-// the next thing the server sends, 32 bytes, read into `packet`; a reply's more bytes read into `extra`, sized for
-// `capacity`, their count into `size`, the rest passed over: 1, or 0 where nothing came within `wait` milliseconds
+// the next thing that the server sends, 32 bytes, read into `packet`. The further bytes of a reply go into `extra`,
+// which has room for `capacity`, and their count into `size`. The call skips the rest. The return is 1, or 0 where
+// nothing came within `wait` milliseconds
 EMBED_INLINE int x11_packet(const PosixClipboardCtx *args)
 {
     unsigned long long *size = args->size_pointer;
@@ -343,8 +344,8 @@ EMBED_INLINE int x11_packet(const PosixClipboardCtx *args)
                       .capacity_bytes = sizeof(passed));
 }
 
-// the reply to the last request sent read into `packet` and `extra`, events before it passed over: 1, or 0 where an
-// error came in its place or nothing came in time
+// the reply to the last request, read into `packet` and `extra`. The call skips the events before it. The return is
+// 1, or 0 where an error came in its place or nothing came in time
 EMBED_INLINE int x11_reply(const PosixClipboardCtx *args)
 {
     for (;;)
@@ -396,8 +397,9 @@ EMBED_INLINE int x11_display(const PosixClipboardCtx *args)
     return 1;
 }
 
-// a connection made to the display: this machine's socket for it where `host` is empty or `unix`, the abstract one on
-// Linux where the file is not there, else the host's port 6000 and on: the socket, or -1
+// a connection made to the display. Where `host` is empty or `unix`, it is the socket of this machine for the display.
+// On Linux it is the abstract socket where the file is not there. Else it is port 6000 and on of the host. The return
+// is the socket, or -1
 EMBED_INLINE int x11_socket(const PosixClipboardCtx *args)
 {
     const int local =
@@ -459,8 +461,8 @@ EMBED_INLINE int x11_socket(const PosixClipboardCtx *args)
     return made;
 }
 
-// a field of the Xauthority file at `at`, its length first, two bytes max first: its bytes and their count, the
-// place after it into `at`, or NULL where the file ends inside it
+// a field of the Xauthority file at `at`, with its length first in two bytes, the high byte first. The return is its
+// bytes and their count, with the place after it in `at`, or NULL where the file ends inside it
 EMBED_INLINE const unsigned char *x11_authority_field(const PosixClipboardCtx *args)
 {
     unsigned long long *at = args->at_u64s;
@@ -552,8 +554,9 @@ EMBED_INLINE int x11_cookie(const PosixClipboardCtx *args)
     return 0;
 }
 
-// the server's answer to the connection's setup read: the window's id made from the ids it gives, the root window and
-// the max bytes one request takes: 1, or 0 where it refused the connection
+// the answer of the server to the setup of the connection, read. The call makes the id of the window from the ids
+// that the server gives. It reads the root window and the max bytes that one request takes. The return is 1, or 0
+// where the server refused the connection
 EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
 {
     unsigned int *root = args->root;
@@ -596,8 +599,9 @@ EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
                                           .storage = capacity, .capacity_bytes = sizeof(capacity));
 }
 
-// a connection made to the display, set up, a window of its own made that hears its own property changes, and the
-// atoms this file names interned: 1, or 0 where the display could not be reached or refused it
+// a connection made to the display and set up. The call makes a window of its own that hears its own property
+// changes, and interns the atoms that this file names. The return is 1, or 0 where the call could not reach the
+// display or the display refused it
 static int x11_connect(const PosixClipboardCtx *args)
 {
     char host[256];
@@ -691,7 +695,7 @@ EMBED_INLINE void x11_close(const PosixClipboardCtx *args)
     args->x11_out->socket = -1;
 }
 
-// `owner` made the owner of the clipboard, None where it is 0: 1, or 0 where the connection is gone
+// `owner` made the owner of the clipboard, None where it is 0: 1, or 0 where the connection no longer exists
 EMBED_INLINE int x11_owner_set(const PosixClipboardCtx *args)
 {
     unsigned char request[16];
@@ -704,8 +708,8 @@ EMBED_INLINE int x11_owner_set(const PosixClipboardCtx *args)
     return EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request));
 }
 
-// `size` bytes of `bytes` put as the property `property` of `window`, of `property_type` in units of `format` bits,
-// replacing what it had: 1, or 0 where the connection is gone
+// `size` bytes of `bytes` put as the property `property` of `window`, of `property_type` in units of `format` bits.
+// They replace what the property had. The return is 1, or 0 where the connection no longer exists
 EMBED_INLINE int x11_property_append(const PosixClipboardCtx *args)
 {
     unsigned char request[24];
@@ -742,8 +746,8 @@ EMBED_INLINE int x11_property_delete(const PosixClipboardCtx *args)
     return EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11, .bytes = request, .size = sizeof(request));
 }
 
-// the next event of `type` for this connection's window, `property` where it is a property's change, waited for, every
-// other event passed over: 1, or 0 where none came in time
+// the next event of `type` for the window of this connection, of `property` where it is a property change. The call
+// waits for it and skips every other event. The return is 1, or 0 where none came in time
 EMBED_INLINE int x11_event(const PosixClipboardCtx *args)
 {
     for (;;)
@@ -769,8 +773,8 @@ EMBED_INLINE int x11_event(const PosixClipboardCtx *args)
     }
 }
 
-// the property this connection reads the clipboard into read whole and appended to `out`, then deleted: its type into
-// `type` and its bytes into `size`: 1, or 0 where it could not be read
+// the property that this connection reads the clipboard into, read whole and added to `out`, then deleted. Its type
+// goes into `type` and its bytes into `size`. The return is 1, or 0 where the call could not read it
 EMBED_INLINE int x11_property_alloc(const PosixClipboardCtx *args)
 {
     unsigned int *type = args->type_pointer;
@@ -814,8 +818,8 @@ EMBED_INLINE int x11_property_alloc(const PosixClipboardCtx *args)
                       .property = args->x11->atom[CLI_X11_PROPERTY]);
 }
 
-// the clipboard's content as `target` read into `out`, a content sent in pieces read piece by piece as INCR sends it:
-// 1, or 0 where its owner has none as `target` or does not answer in time
+// the content of the clipboard as `target`, read into `out`. The call reads a content that comes in pieces piece by
+// piece, as INCR sends it. The return is 1, or 0 where its owner has none as `target` or does not answer in time
 static int x11_convert(const PosixClipboardCtx *args)
 {
     unsigned char request[24];
@@ -847,8 +851,8 @@ static int x11_convert(const PosixClipboardCtx *args)
     {
         return 1;
     }
-    // the INCR property's own bytes, the content's size, taken back off; its deletion asked for the first piece, and
-    // each piece is read as it is put, the content's end a piece of none
+    // the call takes back off the own bytes of the INCR property, which are the size of the content. Its deletion
+    // asks for the first piece. The call reads each piece as the owner puts it, and a piece of none ends the content
     args->out->at = before;
     for (size = 1ULL; size > 0ULL;)
     {
@@ -863,11 +867,11 @@ static int x11_convert(const PosixClipboardCtx *args)
     return 1;
 }
 
-// What the clipboard serves while this window owns it: the connection it owns the clipboard through, whether its
-// thread runs, starts or failed to start, and whether the window took the clipboard back since the server last told
-// it of a clear; the text, the list of file URIs and GNOME's copied files, each a cell of its own, NULL for none, and
-// their bytes; a content sent in pieces: to whom, as what, of what type, how far, and whether it goes on; and the
-// thread
+// What the clipboard serves while this window owns it. First the connection that owns the clipboard, and whether its
+// thread runs, starts or failed to start. Then whether the window took the clipboard back after the last clear that
+// the server told it of. Then the text, the list of file URIs and the copied files of GNOME, each a cell of its own
+// or NULL, and their bytes. Then a content sent in pieces: to whom, as what, of what type, how far, and whether it
+// continues. Last, the thread
 typedef struct
 {
     CliX11 x11;
@@ -942,7 +946,7 @@ EMBED_INLINE unsigned int owner_content_get(const PosixClipboardCtx *args)
     return owner_content_held(place) ? place : 3u;
 }
 
-// the program that asked told what it was given: the property it was put in, or none where it was refused
+// the call tells the program that asked what it got: the property that holds it, or none where the call refused it
 EMBED_INLINE void owner_notify(const PosixClipboardCtx *args)
 {
     unsigned char event[44];
@@ -964,14 +968,15 @@ EMBED_INLINE void owner_notify(const PosixClipboardCtx *args)
     (void)EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = &s_owner.x11, .bytes = event, .size = sizeof(event));
 }
 
-// a program's request for the clipboard answered: the targets it holds, or its content as the target asked, put on the
-// requestor's property whole or, past one request's capacity, written in pieces as INCR sends them; under the lock
+// the call answers the request of a program for the clipboard: the targets that it holds, or its content as the
+// target asks. The call puts the answer whole on the property of the requestor. Past the capacity of one request, it
+// writes the answer in pieces as INCR sends them. The call runs under the lock
 EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
 {
     const CliX11 *const x11 = &s_owner.x11;
     const unsigned int requestor = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 12);
     const unsigned int target = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 20);
-    // an old program names no property, and is given its content in the property its target names
+    // an old program names no property, and gets its content in the property that its target names
     const unsigned int property = (EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 24) != 0u)
                                       ? EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = args->request + 24)
                                       : target;
@@ -1027,7 +1032,7 @@ EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
         EMBED_CALL(owner_notify, PosixClipboardCtx, .request = args->request, .property = property);
         return;
     }
-    // the requestor's property changes heard, each deletion asking for the next piece
+    // the window hears the property changes of the requestor, and each deletion asks for the next piece
     unsigned char receive[16];
     receive[0] = (unsigned char)CLI_X11_CHANGE_WINDOW;
     receive[1] = 0u;
@@ -1036,7 +1041,7 @@ EMBED_INLINE void owner_request(const PosixClipboardCtx *args)
     EMBED_CALL(x11_put32, PosixClipboardCtx, .at = receive + 8, .value = CLI_X11_EVENT_MASK);
     EMBED_CALL(x11_put32, PosixClipboardCtx, .at = receive + 12, .value = CLI_X11_PROPERTY_CHANGES);
     unsigned char size[4];
-    // a content's size is put as INCR's lower bound, cut to what 32 bits count
+    // the call puts the size of a content as the lower bound of INCR, cut to what 32 bits count
     EMBED_CALL(x11_put32, PosixClipboardCtx, .at = size,
                .value = (s_owner.size[place] < 0xffffffffULL) ? (unsigned int)s_owner.size[place] : 0xffffffffu);
     (void)EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = x11, .bytes = receive, .size = sizeof(receive));
@@ -1091,7 +1096,7 @@ EMBED_INLINE void owner_piece_send(const PosixClipboardCtx *args)
     s_owner.sending = piece > 0ULL;
 }
 
-// the clipboard owned and served until another program takes it or it is emptied
+// the clipboard owned and served until another program takes it or the clipboard empties
 static void owner_run(void *context)
 {
     (void)context;
@@ -1129,8 +1134,8 @@ static void owner_run(void *context)
     EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = x11);
 }
 
-// `size` bytes of `bytes` written into a movable cell of their own as the content at `place`: 1, or 0 where no cell
-// could be taken; under the lock
+// `size` bytes of `bytes` written into a movable cell of their own as the content at `place`. The return is 1, or 0
+// where the pool has no cell. The call runs under the lock
 EMBED_INLINE int owner_content_append(const PosixClipboardCtx *args)
 {
     const char *bytes = args->bytes_text;
@@ -1149,8 +1154,8 @@ EMBED_INLINE int owner_content_append(const PosixClipboardCtx *args)
     return 1;
 }
 
-// the clipboard owned with the contents put since the last were let go, its thread started where it does not run:
-// 1, or 0 where the display could not be reached; under the lock
+// the clipboard owned with the contents put after the last release, and its thread started where it does not run.
+// The return is 1, or 0 where the call could not reach the display. The call runs under the lock
 static int owner_own(void)
 {
     if (s_owner.owning)
@@ -1179,7 +1184,7 @@ int cli_clipboard_text_read(const CliCtx *args)
     const int own = s_owner.owning && owner_content_held(CLI_X11_OWNER_TEXT);
     if (own && (s_owner.content[CLI_X11_OWNER_TEXT] == NULL))
     {
-        // the text that units_put made lies in the system's pages, and is put on the line from there
+        // the text that units_put made lies in the pages of the system, and the call puts it on the line from there
         mmgr_line_put_n(args->text_verba_linea_pointer, g_cli_clipboard_units_text, s_owner.size[CLI_X11_OWNER_TEXT]);
     }
     else if (own)
@@ -1221,7 +1226,7 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
 
 int cli_clipboard_files_append(const CliCountCtx *args)
 {
-    // a path's byte is written as at max 3 in a URI, and each path adds its scheme and a line's end
+    // a URI writes each byte of a path as 3 bytes at max, and each path adds its scheme and a line end
     const unsigned long long uri_capacity = (unsigned long long)args->count * ((3ULL * CLI_PATH_MAX_LEN) + 16ULL);
     const unsigned long long text_capacity = (unsigned long long)args->count * (CLI_PATH_MAX_LEN + 1ULL);
     char *const uris_cell = g_platform_guard->temporary_buf_alloc(uri_capacity + 1ULL, g_cli_platform_owner);
@@ -1256,8 +1261,8 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     return owner;
 }
 
-// the files GNOME's copied-files target holds, `size` bytes of `list`, its first line `cut` or `copy`, passed to
-// `each`, 1 in `cut` where they were cut: how many
+// the files that the copied-files target of GNOME holds, `size` bytes of `list`, with `cut` or `copy` as its first
+// line. The call gives each file to `each`, with 1 in `cut` where the user cut them. The return is how many
 EMBED_INLINE unsigned int clipboard_copied_read(const PosixClipboardCtx *args)
 {
     unsigned long long size = args->size;
@@ -1326,7 +1331,7 @@ void cli_clipboard_clear(void)
     const int own = s_owner.owning;
     if (own)
     {
-        // the server tells the owner its clipboard is cleared, which ends its thread
+        // the server tells the owner that its clipboard is clear, and that ends its thread
         s_owner.reowned = 0;
         (void)EMBED_CALL(x11_owner_set, PosixClipboardCtx, .x11 = &s_owner.x11, .owner = 0u);
     }
