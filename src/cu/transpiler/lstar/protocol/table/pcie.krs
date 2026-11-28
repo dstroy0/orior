@@ -1,14 +1,15 @@
 krs 1
-# PCI Express configuration space, the bus that enumerates itself. The parts on it are doing work constantly. The root
-# learns where they are mostly by listening: it reads a slot and a working part answers with its own identifier,
-# and the line reads all ones where no part answered. A part that sits silent can still be probed, by writing a word
-# and reading what comes back, but a part doing work does not need it. The one write the common run makes is a found
-# part's own base register, sized once. The format is the comment at the head of ptx.krs: a line's first word names
-# its type, {p} is parameter p's argument, \t is a tab, \n a line's end and \\ a backslash, and a line that begins
-# with # is a comment.
+# PCI Express configuration space, the bus that enumerates itself. The parts on it work all the time, and the root
+# learns where they are mostly as a listener. It reads a slot: a part at work answers with its own identifier, and the
+# line reads all ones where no part answered. The root can still probe a silent part: it writes a word and reads what
+# comes back. A part at work does not need that. The one write that the common run makes is to the own base register
+# of a found part, sized once.
+#
+# The format is the comment at the head of ptx.krs. The first word of a line names its type, and {p} is the argument
+# of parameter p. `\t` is a tab, `\n` the end of a line and `\\` a backslash. A line that starts with # is a comment.
 ruleset pcie
-# the root reads and writes config space through its own window (ECAM, or the address and data ports); no part's
-# vendor driver is reached and nothing of a vendor's toolchain is asked
+# the root reads and writes config space through its own window (ECAM, or the address and data ports). It reaches no
+# vendor driver of a part, and asks nothing of the toolchain of a vendor
 toolchain config
 header pcie_open
 
@@ -30,18 +31,19 @@ fixed primary_at = 18
 fixed secondary_at = 19
 fixed subordinate_at = 1a
 
-# the opening of a run: nothing is put, the root listens
+# the opening of a run: the root puts nothing, and listens
 form pcie_open =
 
-# listen, the common run: read a slot's identity at offset 00. A part doing work answers with its own vendor and
-# device word; a slot that reads ffffffff had no part answer; a part still starting answers 0001ffff and is read again
+# listen, the common run: read the identity of a slot at offset 00. A part at work answers with its own vendor and
+# device word. A slot that reads ffffffff had no part that answered. A part that is still at its start answers
+# 0001ffff, and the root reads it again
 form listen bus device function = read bus {bus} device {device} function {function} offset 00
 form answered identity = a part is here where the identity {identity} read at offset 00 is not ffffffff
 form initialising identity = a part is here but still starting where {identity} reads 0001ffff
 form silent identity = no part answered where {identity} reads ffffffff
 
 # probe, the fallback for a silent slot: write a word to it and read what comes back. A part that is there answers the
-# write where it did not answer a read; a part doing work never needs this
+# write where it did not answer a read. A part at work never needs this
 form probe_write bus device function = write a5a5a5a5 to bus {bus} device {device} function {function} offset 00
 form probed present read = a part is here, found by probe, where {read} is a word the part decided and not ffffffff
 
@@ -51,16 +53,19 @@ form multifunction header = more than one function where bit 7 of {header} is se
 form endpoint header = an endpoint where the low seven bits of {header} are 0
 form bridge header = a bridge where the low seven bits of {header} are 1
 
-# a found part's base register sizes itself: all ones are written to it, and the word it gives back holds the high
-# bits it owns and forces the low bits it decodes to zero. The region is two to the power of the lowest set bit
+# the base register of a found part sizes itself. The root writes all ones to it, and the word that it gives back
+# holds the high bits that it owns. It forces the low bits that it decodes to zero. The region is two to the power of
+# the lowest set bit
 form size_write base = write ffffffff to base register {base}
 form size_read mask = the region the base register decodes is two to the power of the lowest set bit of {mask}
 
-# a bridge forwards a run of buses: it sits on bus {primary}, opens bus {secondary}, and its subordinate is written all
-# ones first so the run descends, then set to the highest bus found under it once that run is read
+# a bridge forwards a run of buses: it sits on bus {primary}, and opens bus {secondary}. The root first writes all
+# ones to its subordinate, so that the run descends. After the root reads that run, it sets the subordinate to the
+# highest bus found under it
 form bridge_open primary secondary = the bridge on bus {primary} opens bus {secondary} and forwards every bus found below it
 form bridge_close subordinate = the bridge forwards down to bus {subordinate} once its run is read
 
-# a part answers memory once bit 1 of its command register at offset 04 is set, and drives the bus once bit 2 is set
+# a part answers memory after the root sets bit 1 of its command register at offset 04. It drives the bus after the
+# root sets bit 2
 form enable_memory = set bit 1 of the command register at offset 04
 form enable_master = set bit 2 of the command register at offset 04

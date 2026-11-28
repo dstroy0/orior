@@ -598,7 +598,7 @@ src/cu/transpiler/lstar/protocol/query/query_put.c	6
 src/cu/transpiler/lstar/protocol/query/query_walk.c	9
 src/cu/transpiler/lstar/protocol/table/c.krs	5
 src/cu/transpiler/lstar/protocol/table/cu.krs	3
-src/cu/transpiler/lstar/protocol/table/pcie.krs	29
+src/cu/transpiler/lstar/protocol/table/pcie.krs	5
 src/cu/transpiler/lstar/protocol/table/ptx.krs	9
 src/cu/transpiler/lstar/protocol/table/sass.ksc	4
 src/cu/transpiler/lstar/protocol/table/sm_86.kdm	9
