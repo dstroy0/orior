@@ -301,13 +301,14 @@ void cli_utf8_append(const CliLineLetterCtx *args);
 // with the authorization of the system. The return is 1, or 0 with the reason
 int cli_raised_platform(const CliErrMsgFromCtx *args);
 
-// the max words of one command a program is run with, and the max bytes they take
+// the max words of one command that a program runs with
 #define CLI_WORDS_MAX 512u
 
+// the max bytes that the words of one command take
 #define CLI_WORDS_TEXT (1u << 16u)
 
-// The words of one command a program is run with, NULL after the last, and the bytes they take; 1 in `full` where a
-// word did not fit
+// The words of one command that a program runs with, NULL after the last, and the bytes that they take. `full` is 1
+// where a word did not fit
 typedef struct
 {
     const char *word_text[CLI_WORDS_MAX + 1u];
@@ -320,8 +321,9 @@ typedef struct
 // `word` put after the words so far (words.c)
 void cli_words_append(const CliWordsWordsCtx *args);
 
-// A wake threads wait on: a generation word cli_wake_all moves on, a wait sleeping on the word's address until it
-// moves or the wait's time is up. A wait is free to return early, so a waiter tests what it waits for in a loop
+// A wake that threads wait on: a generation word that cli_wake_all moves on. A wait sleeps on the address of the word
+// until it moves, or the time of the wait ends. A wait can return early, thus a waiter tests what it waits for in a
+// loop
 typedef struct
 {
     embed_atomic_word generation;
@@ -340,7 +342,7 @@ typedef struct
 #define CLI_GATE_HELD ((embed_atomic_word_value)1u)
 #define CLI_GATE_SLEEPER ((embed_atomic_word_value)2u)
 
-// the gate shut by this thread, once the holder before it has opened it
+// the gate shut by this thread, after the holder before it opened it
 EMBED_INLINE void cli_gate_shut(CliGate *gate)
 {
     EmbedTurnstileBackoff backoff;
@@ -376,8 +378,8 @@ EMBED_INLINE embed_u16 cli_ticket_epoch(void)
     return (embed_u16)(embed_clock_ns() >> 30u);
 }
 
-// whether the slot of the ticket `next` carries that ticket with its push landed and no pop yet, its stamp with the
-// flag bits clear into `stamp_out`: what a consumer tests before it pops the next ticket in order
+// whether the slot of the ticket `next` carries that ticket, with its push landed and no pop yet. Its stamp, with the
+// flag bits clear, goes into `stamp_out`. A consumer tests this before it pops the next ticket in order
 EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, embed_word *stamp_out)
 {
     const embed_u64 current =
@@ -388,9 +390,9 @@ EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, 
            ((current & EMBED_TICKET_PUSHED_BIT) != 0u) && ((current & EMBED_TICKET_POPPED_BIT) == 0u);
 }
 
-// Whether the slot of the ticket `next` is ready for its grant: a zero word on the ring's first lap, else the
-// released word of the ticket one lap before. A producer that grants only then retains every live ticket within one
-// lap of the ring, which the ring's proofs need and the consumer's pop in ticket order relies on
+// Whether the slot of the ticket `next` is ready for its grant. That is a zero word on the first lap of the ring, else
+// the released word of the ticket one lap before. A producer that grants only then keeps every live ticket within one
+// lap of the ring. The proofs of the ring need that, and the pop of the consumer in ticket order relies on it
 EMBED_INLINE int cli_ticket_room(const EmbedTicketRing *ring, embed_u32 next)
 {
     const embed_u64 current =
@@ -403,45 +405,55 @@ EMBED_INLINE int cli_ticket_room(const EmbedTicketRing *ring, embed_u32 next)
             (EMBED_CALL(embed_ticket_of_stamp, EmbedTicketOfStampCfg, current) == next - lap));
 }
 
-// The priority a thread or a program starts at (PLATFORM_PRIORITY_WORK and the rest, platform.h), so that what must
-// not wait does not, and what runs as the host's guest gives the processor back the moment the host wants it. The
-// window's own threads, which answer it, run at the process's level and are not set here. Work is that level, and the
-// default: language servers, git, formatters. Run is above it: a run's writer and the channels that hand to it. A
-// guest is below it: builds, tests, checkers, clones, installs and scans. Idle runs only in time nothing else wants:
-// caches warmed ahead. A run's process is the platform's program, and its settings the platform's settings
+// The priority that a thread or a program starts at (PLATFORM_PRIORITY_WORK and the rest, platform.h). Thus what must
+// not wait does not wait. What runs as the guest of the host gives the processor back when the host wants it. The own
+// threads of the window, which answer it, run at the level of the process, and this does not set them.
+//
+// Work is that level, and the default: language servers, git, formatters. Run is above it: the writer of a run, and
+// the channels that hand to it. A guest is below it: builds, tests, checkers, clones, installs and scans. Idle runs
+// only in time that nothing else wants: caches warmed ahead. The process of a run is the program of the platform, and
+// its settings are the settings of the platform
 
-// a process started with `words`, the program first and NULL after the last, in `folder`, its environment this
-// process's with `settings` after, `count` of them, its standard input nothing: where `detached`, with no console of
-// its own and a job of its own on Windows, a process group of its own elsewhere. 1, or 0 with why given. These calls
-// go to the platform's programs (programs.c)
+// a process started with `words`, the program first and NULL after the last, in `folder`. Its environment is that of
+// this process with `settings` after, `count` of them, and its standard input is nothing. Where `detached`, it has no
+// console of its own and a job of its own on Windows, and a process group of its own elsewhere. The return is 1, or 0
+// with the reason. These calls go to the programs of the platform (programs.c)
 int cli_spawn(const CliWordsErrMsgCtx *args);
 // a process started as cli_spawn starts one, at `priority`, one of PLATFORM_PRIORITY_WORK and the rest; cli_spawn
 // starts one at work
 int cli_spawn_as(const CliWordsErrMsgCtx *args);
-// a process started as cli_spawn starts one, its standard input a pipe this process feeds through `in`, at work or at
-// `priority`; `size` bytes written whole to that pipe: 1, or 0 where the process stopped reading; and the pipe closed,
-// which the process reads as its input's end
+// a process started as cli_spawn starts one, with its standard input a pipe that this process feeds through `in`, at
+// work
 int cli_spawn_feed(const CliWordsErrMsgCtx *args);
+// the same, at `priority`
 int cli_spawn_piped_as(const CliWordsErrMsgCtx *args);
+// `size` bytes written whole to that pipe. The return is 1, or 0 where the process stopped its read
 int cli_spawn_write(const CliPipeHandleCtx *args);
-// a process started as cli_spawn starts one, in a pseudo-terminal `cols` wide and `rows` tall of its own, a terminal's
-// shell: its output and errors read from `out` and the keys typed written to `in`, the pseudo-console in `group` on
-// Windows: 1, or 0 with why given; the pseudo-terminal given a new size, which the shell and the programs in it are
-// told of: 1, or 0 where it could not be; the shell hung up on, as a terminal closed ends it; and the pseudo-terminal
-// let go, after which a reader of `out` meets its end, before cli_spawn_close lets the rest go (programs.c)
+// a process started as cli_spawn starts one, in a pseudo-terminal of its own `cols` wide and `rows` tall: the shell of
+// a terminal (programs.c). The call reads its output and errors from `out`, and writes the keys typed to `in`. On
+// Windows, the pseudo-console goes in `group`. The return is 1, or 0 with the reason
 int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args);
+// the pseudo-terminal given a new size, which the shell and the programs in it learn of. The return is 1, or 0 where it
+// could not be
 int cli_spawn_terminal_resize(const CliColsCtx *args);
+// the shell hung up on, as a closed terminal ends it
 void cli_spawn_terminal_hung_up(const CliColsCtx *args);
+// the pseudo-terminal let go. After it, a reader of `out` meets its end, before cli_spawn_close lets the rest go
 void cli_spawn_terminal_close(const CliSpawnedCtx *args);
-// a process started as cli_spawn starts one, sharing this process's console, its input, output and errors this
-// process's, and waited on: its exit code into `code`, -1 where a signal ended it, 1, or 0 with why it did not start
-// given
+// a process started as cli_spawn starts one, which shares the console of this process: its input, output and errors
+// are those of this process. The call waits on it, and puts its exit code into `code`, -1 where a signal ended it. The
+// return is 1, or 0 with the reason that it did not start
 int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args);
+// the input pipe of a started process closed, which the process reads as the end of its input
 void cli_spawn_input_close(const CliSpawnedCtx *args);
 
-// What a program run gave: what it wrote to its output and to its errors, each a cell the size of what came and
-// ended by a 0, given back with the run, 0 in `whole` where a cell could not be taken and what came is not all stored,
-// its exit code, -1 where a signal ended it, and 1 in `stopped` where it ran past its time and was ended
+// What a program run gave:
+//
+// - `out` and `err`: what it wrote to its output and to its errors. Each is a cell with the size of what came, ended by
+//   a 0, and given back with the run
+// - `whole`: 0 where the call could not take a cell, and the store does not hold all that came
+// - `code`: its exit code, -1 where a signal ended it
+// - `stopped`: 1 where it ran past its time, and the call ended it
 typedef struct
 {
     char *out;
@@ -453,11 +465,13 @@ typedef struct
     int stopped;
 } CliRunResult;
 
-// what one program run gave taken from those retained, waiting while each is in use, and given back; and a program run
-// as cli_spawn starts one, detached, its errors read on a thread of their own while its output is read, and waited on:
-// what it gave into `run_result`, 1, or 0 with why it did not start given (ran.c)
+// the result of one program run, taken from those kept, with a wait while each is in use (ran.c)
 CliRunResult *cli_run_result_alloc(void);
+// the result of a program run, given back
 void cli_run_result_free(const CliWordsCtx *args);
+// a program run as cli_spawn starts one, detached, with its errors read on a thread of their own while the call reads
+// its output. The call waits on it, and puts what it gave into `run_result`. The return is 1, or 0 with the reason that
+// it did not start
 int cli_on_run(const CliWordsCtx *args);
 // a program run as cli_on_run runs one, `length` bytes of `input` written to its standard input on a thread of their
 // own
@@ -476,44 +490,49 @@ typedef struct
     unsigned long long size;
 } CliFilePiece;
 
-// the file at `path` written as `count` pieces in turn, any file there replaced whole or not at all: 1, or 0 where it
-// could not be; and the file at `path` written with what `put` puts into the file writer's line, passed `context`, the
-// same way: 1, or 0 where `put` returned 0 or the file could not be written (file_writing.c)
+// the file at `path`, written as `count` pieces in turn. The write replaces any file there whole, or not at all. The
+// return is 1, or 0 where the write failed (file_writing.c)
 int cli_file_pieces_write(const CliPathCountCtx *args);
+// the file at `path`, written in the same way with what `put` puts into the line of the file writer, passed `context`.
+// The return is 1, or 0 where `put` returned 0 or the write failed
 int cli_file_put_write(const CliPathPutCtx *args);
 
-// the bytes a file is written in: one view of the Windows cache manager, VACB_MAPPING_GRANULARITY in ntifs.h, written
-// at an offset that is a whole number of them, each a whole number of 4 KiB pages
+// the bytes that a write of a file goes in: one view of the Windows cache manager, VACB_MAPPING_GRANULARITY in ntifs.h.
+// The write goes at an offset that is a whole number of them, each a whole number of 4 KiB pages
 #define CLI_STAGE_BYTES (256u << 10u)
 
 _Static_assert((CLI_STAGE_BYTES % 4096u) == 0u, "CLI_STAGE_BYTES is a whole number of 4 KiB pages");
 _Static_assert(((256u << 10u) % CLI_STAGE_BYTES) == 0u, "CLI_STAGE_BYTES divides the cache manager's 256 KiB view");
 
-// A file being written whole, and sealed where it is of a type ksg seals (ksg_writing.h): written beside its place
-// under a name of this process's own, made durable and put in its place, and a write that fails leaves the file it
-// would have replaced as it was
+// A file that the call writes whole, and seals where it is of a type that ksg seals (ksg_writing.h). The call writes it
+// beside its place under an own name of this process, makes it durable, and puts it in its place. A write that fails
+// leaves the file that it would replace as it was
 typedef KsgWriting CliFileWriting;
 
 _Static_assert(CLI_PATH_MAX_LEN <= KSG_PATH_MAX_LEN, "a path of the command line's fits a sealed writer's");
 
-// the file `path` begun beside its place, with its seal where it is sealed: 1, or 0 where it could not be made; `size`
-// bytes at `bytes` written after what the file begun contains, the shape of a line's write-through: 1, or 0 where they
-// were not; and the file begun on the disk and put in place of `path` where `whole` is 1, or taken away where it is 0:
-// 1, or 0 where it was not put in place (file_writing.c)
+// the file `path` begun beside its place, with its seal where it has one. The return is 1, or 0 where the call could
+// not make it (file_writing.c)
 int cli_file_begin(const CliPathFileCtx *args);
+// `size` bytes at `bytes`, written after what the file begun holds, in the shape of the write-through of a line. The
+// return is 1, or 0 where they did not go
 int cli_file_write_chunk(void *context, const char *bytes, size_t size);
+// the file begun, on the disk, and put in place of `path` where `whole` is 1, or taken away where it is 0. The return
+// is 1, or 0 where the call did not put it in place
 int cli_file_end(const CliFileCtx *args);
 
-// a line over `stage`, which is sized for CLI_STAGE_BYTES + 1, handing each whole stage to the file begun; and the
-// line's last bytes passed to it, the file put in place where every byte went and taken away where one did not: 1, or 0
-// where it was not put in place (file_writing.c)
+// a line over `stage`, which has room for `CLI_STAGE_BYTES + 1`, and hands each whole stage to the file begun
+// (file_writing.c)
 VerbaLinea cli_file_line(const CliFileStageCtx *args);
+// the last bytes of the line, passed to the file. The call puts the file in place where every byte went, and takes it
+// away where one did not. The return is 1, or 0 where it did not put it in place
 int cli_file_line_end(const CliLineCtx *args);
 
-// the file or folder at `from` moved to `to`, a file there replaced: what the move came to; and `size` bytes of
-// `bytes` written at the end of the file at `path`, which is made anew, empty, first where `fresh` is 1 and must be
-// there already where it is 0: 1, or 0 where they could not be (system_calls.c, through the platform's calls)
+// the file or folder at `from`, moved to `to`, with a file there replaced. The return is what the move came to
+// (system_calls.c, through the calls of the platform)
 int cli_move(const CliErrMsgFromCtx *args);
+// `size` bytes of `bytes`, written at the end of the file at `path`. Where `fresh` is 1, the call first makes the file
+// again, empty. Where it is 0, the file must be there already. The return is 1, or 0 where the write failed
 int cli_file_append(const CliPathBytesCtx *args);
 
 // A file of this process's own that the system deletes as it is let go or the process ends, so that a crash leaves
