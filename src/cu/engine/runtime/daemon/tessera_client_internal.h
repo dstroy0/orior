@@ -37,7 +37,7 @@
 
 #define TESSERA_ARGUMENT_CAPACITY 128u
 
-// how often a bounded wait on Windows looks for an answer waiting in the pipe
+// how often a wait with a bound on Windows looks for an answer that waits in the pipe
 #define TESSERA_CLIENT_LOOK_MILLISECONDS 20u
 
 struct TesseraClient
@@ -54,7 +54,7 @@ struct TesseraClient
     unsigned long long declared;
     unsigned long long sweep_microseconds;
 #if !defined(_WIN32)
-    // where no pid is measured from outside (WSL), a thread reports this process's own bytes every sweep
+    // where no one measures a pid from outside (WSL), a thread reports the own bytes of this process at every sweep
     pthread_mutex_t sending;
     pthread_mutex_t watch;
     pthread_cond_t woken;
@@ -79,11 +79,11 @@ int tessera_send(TesseraClient *client, const TesseraFrame *frame);
 
 int tessera_receive(TesseraClient *client, TesseraFrame *frame);
 
-// the client's clock in microseconds, from no set start, never falling
+// the clock of the client in microseconds, from no set start, that never falls
 unsigned long long tessera_client_now(void);
 
-// 1 once a frame can be read, 0 where the clock reaches `deadline` first, and -1 where the connection failed; a
-// deadline of 0 is none, and answers 1 at once for tessera_receive to wait on
+// 1 when a frame is ready for a read, 0 where the clock reaches `deadline` first, and -1 where the connection failed.
+// A deadline of 0 is none, and answers 1 at once for tessera_receive to wait on
 int tessera_readable(TesseraClient *client, unsigned long long deadline);
 
 void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int type);
