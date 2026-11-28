@@ -4,8 +4,9 @@
 #ifndef MACHINE_IR_TYPES_H
 #define MACHINE_IR_TYPES_H
 
-// The register lane's forms and banks, the structures the core decides in, the arguments it names, the forms it
-// writes into a lane's sink, and what it reads of the program's step table (codegen_core.h)
+// The forms and banks of the register lane, the structures that the core decides in, and the arguments that it names.
+// Then the forms that it writes into the sink of a lane, and what it reads of the step table of the program
+// (codegen_core.h)
 
 #include "target.h"
 
@@ -67,23 +68,23 @@ CODEGEN_CORE unsigned int codegen_operand_count(unsigned int form)
 // the max limb products a lane unrolls a product into; a wider product is a loop over the left's limbs
 #define CODEGEN_PRODUCT_MAX 1024u
 
-// the state an errored lane goes to, which sends it on to its error's states, and the state the lane's opening begins
-// in; state 0 is the language's own, where the lane waits to begin
+// the state that a lane in error goes to, which sends it on to the states of its error. Then the state where the
+// opening of the lane starts. State 0 belongs to the language, where the lane waits to start
 #define SCHEDULE_STATE_DISPATCH 1u
 #define SCHEDULE_STATE_FIRST 2u
 
-// the max arguments a form a step decides takes. The program's note and its resident take more, every one of them the
-// target's or the launch's layout, and are written from those (codegen_unit)
+// the max arguments of a form that a step decides. The note of the program and its resident take more, all from the
+// layout of the target or of the launch. The program writes them from those (codegen_unit)
 #define MACHINE_INSTR_OPERANDS 4u
 
 // the resident's parameters (program_unit)
 #define PROGRAM_UNIT_PARAMETERS 25u
 
-// a loop no state has begun, in the schedule
+// a loop that no state started, in the schedule
 #define CODEGEN_UNBEGUN 0xFFFFFFFFu
 
-// what an argument is: a register of a bank by its number (the bank immediate a word's value), a register the lane
-// uses throughout, a count or an offset in decimal, or a small signed number in decimal
+// what an argument is. It is a register of a bank by its number, or a register that the lane uses throughout. The bank
+// immediate is the value of a word. Else it is a count or an offset in decimal, or a small signed number in decimal
 enum MachineOperandType
 {
     OPERAND_REGISTER = 1,
@@ -92,8 +93,8 @@ enum MachineOperandType
     OPERAND_SIGNED = 4
 };
 
-// an argument: its type, the bank or the fixed register it names, and its number, or its value for a number (a signed
-// number's two's complement)
+// an argument: its type, the bank or the fixed register that it names, and its number. For a number, it is its value,
+// the two's complement of a signed number
 struct MachineOperand
 {
     unsigned int type;
@@ -101,9 +102,9 @@ struct MachineOperand
     unsigned int number;
 };
 
-// a form decided: its place in the schema, how many arguments it takes, its arguments, and where the scratch its
-// construct takes begins in each of the temporaries, the 64-bit temporaries and the predicates, where the ruleset gives
-// it as a construct. The program's note contains its step count alone and its resident none
+// a form decided: its place in the schema, how many arguments it takes, and its arguments. Where the ruleset gives it
+// as a construct, it also has where the scratch of its construct starts. That is in the temporaries, the 64-bit
+// temporaries and the predicates. The note of the program holds its step count alone, and its resident holds none
 struct MachineInstr
 {
     unsigned int form;
@@ -112,8 +113,8 @@ struct MachineInstr
     unsigned int scratch[3];
 };
 
-// a run of registers: element i is `first` with i added to its number below `count`, and the zero register from there
-// to `width`; a register read past its limbs reads 0
+// a run of registers. Below `count`, element i is `first` with i added to its number, and from there to `width` it is
+// the zero register. A register read past its limbs reads 0
 struct MachineOperandRange
 {
     MachineOperand first;
@@ -121,11 +122,15 @@ struct MachineOperandRange
     unsigned int width;
 };
 
-// what every step reads and none decides: the step table and the program's sizes; each record word's first put, and 1
-// past its last (0 for a word no put writes); each atom word's first reader (the step count for a word none reads),
-// where each member's words begin among the atoms' words; and for each form four words, the scratch its construct takes
-// in the temporaries, the 64-bit temporaries and the predicates, and 1 where it takes scratch of a bank the lane gives
-// none of (ruleset_scratch, ruleset_reader.h)
+// what every step reads and none decides:
+//
+// - the step table and the sizes of the program
+// - the first put of each record word, and 1 past its last (0 for a word that no put writes)
+// - the first reader of each atom word (the step count for a word that none reads)
+// - where the words of each member start among the words of the atoms
+// - four words for each form: the scratch that its construct takes in the temporaries, the 64-bit temporaries and the
+//   predicates. The fourth is 1 where it takes scratch of a bank that the lane gives none of (ruleset_scratch,
+//   ruleset_reader.h)
 struct IrProgram
 {
     const DeviceRecordStep *steps;
@@ -141,10 +146,16 @@ struct IrProgram
     const unsigned int *scratch;
 };
 
-// a lane being decided: the program; the step being decided; the temporaries, 64-bit temporaries and predicates taken
-// and the max taken; the next loop's number; 1 where the step can leave the lane errored, where it reads the tables,
-// and where a form breaks the lane; one past the atom word the step last read; and the sink the forms go to, the forms
-// it contains, and how many were decided, which a sink too small for them does not stop
+// a lane that the core now decides:
+//
+// - the program, and the step that the core now decides
+// - the temporaries, 64-bit temporaries and predicates taken, and the max taken
+// - the number of the next loop
+// - three flags, each 1 where its case holds: the step can leave the lane in error, it reads the tables, and a form
+//   breaks the lane
+// - one past the atom word that the step read last
+// - the sink that the forms go to, the forms that it holds, and how many the core decided. A sink too small for them
+//   does not stop the count
 struct MachineFunction
 {
     const IrProgram *program;
@@ -165,8 +176,8 @@ struct MachineFunction
     unsigned long long count;
 };
 
-// a carry chain through a register's limbs: the form a register of one limb takes, then the first, the middle and the
-// last of a longer one, each setting or reading the carry as the ruleset writes it
+// a carry chain through the limbs of a register. It has the form that a register of one limb takes, then the first,
+// the middle and the last of a longer one. Each sets or reads the carry as the ruleset writes it
 struct CarryChain
 {
     unsigned int alone;
@@ -184,13 +195,17 @@ struct IrStep
     unsigned int right_place;
 };
 
-// the lane's body being split into states, a clock each: each form's cost by its place in the schema, how much a state
-// may chain and how many memory writes it may make; the state being written, the cost it chained and the writes it
-// made, 1 where it contains a form, 1 where its last form ends it and 1 where its last form left the lane; 1 from the
-// first error's label on, where each state is an error's; the states, the max cost one state chains, and the forms
-// that alone cost more than a state contains; each error's label, by the
-// error it names (-1 the opening's), and its first state, as many as `dispatch_max`; and each loop's first state, by
-// the loop's number, as many as `loop_count`
+// the body of the lane, which the core now splits into states, one clock for each:
+//
+// - the cost of each form by its place in the schema, how much a state can chain, and how many memory writes it can
+//   make
+// - the state that the core now writes, the cost that it chained and the writes that it made
+// - 1 where it holds a form, 1 where its last form ends it, and 1 where its last form left the lane
+// - 1 from the label of the first error on, where each state belongs to an error
+// - the states, the max cost that one state chains, and the forms that alone cost more than a state holds
+// - the label of each error, by the error that it names (-1 for the opening), and its first state, as many as
+//   `dispatch_max`
+// - the first state of each loop, by the number of the loop, as many as `loop_count`
 struct Schedule
 {
     const unsigned int *cost;
