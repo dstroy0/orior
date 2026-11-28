@@ -460,7 +460,7 @@ src/cu/engine/analysis/key_schedule/key_schedule.h	2
 src/cu/engine/analysis/key_schedule/key_schedule_core.h	16
 src/cu/engine/analysis/keymath/keymath_core_affine.h	19
 src/cu/engine/analysis/keymath/keymath_core_encode.h	8
-src/cu/engine/analysis/noise_detector/noise_detector.h	55
+src/cu/engine/analysis/noise_detector/noise_detector.h	1
 src/cu/engine/analysis/noise_detector/noise_detector_clips.cu	2
 src/cu/engine/analysis/noise_detector/noise_detector_crosstalk.cu	3
 src/cu/engine/analysis/noise_detector/noise_detector_flicker.cu	1
