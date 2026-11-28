@@ -99,12 +99,23 @@
 #include <string>
 #include <vector>
 
+// the bytes of the text of a check at max
+#define SCALED_CHECK_BYTES 128u
+
+// The program: its steps, `count` of them, and its fields' bits and offsets, `field_count` of them. The first build
+// takes no cell and counts them. The second fills the cells of the persistent tier taken at those counts. `full` is 1
+// where the second build passed a count of the first
 typedef struct
 {
-    std::vector<EngineRecordStep> steps;
-    std::vector<unsigned int> field_bits;
-    std::vector<unsigned int> field_offset;
+    EngineRecordStep *steps;
+    unsigned int count;
+    unsigned int room;
+    unsigned int *field_bits;
+    unsigned int *field_offset;
+    unsigned int field_count;
+    unsigned int field_room;
     unsigned int shared_bits;
+    int full;
 } ScaledProgram;
 
 // a value: the register that stores its mantissa, and the binary exponent that the program stores for it
@@ -114,14 +125,17 @@ typedef struct
     long long exponent;
 } ScaledReal;
 
-// a program, the outputs it lists with their names and exponents, its shared record, and what the device made of it
+// a program, the outputs it lists with their names and exponents, its shared record, and what the device made of it.
+// The outputs, `output_count` of them, are in cells of the persistent tier that the second build fills, as the steps
 typedef struct
 {
     const char *name;
     ScaledProgram program;
-    std::vector<unsigned int> outputs;
-    std::vector<std::string> names;
-    std::vector<long long> exponents;
+    unsigned int *outputs;
+    const char **names;
+    long long *exponents;
+    unsigned int output_count;
+    unsigned int output_room;
     std::vector<unsigned int> shared;
     EngineRecordKey key;
     EngineRecordLayout layout;
@@ -148,9 +162,17 @@ typedef struct
 static unsigned int scaled_step(ScaledProgram *program, EngineRecordOperation operation, unsigned int left,
                                 unsigned int right, unsigned int member)
 {
-    EngineRecordStep step = {operation, left, right, member};
-    program->steps.push_back(step);
-    return (unsigned int)program->steps.size() - 1u;
+    if (program->steps != NULL)
+    {
+        if (program->count >= program->room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->steps[program->count] = EngineRecordStep{operation, left, right, member};
+    }
+    program->count += 1u;
+    return program->count - 1u;
 }
 
 static unsigned int scaled_constant(ScaledProgram *program, unsigned long long value)
@@ -159,13 +181,13 @@ static unsigned int scaled_constant(ScaledProgram *program, unsigned long long v
                        (unsigned int)(value >> 32u), 0u);
 }
 
+static unsigned int scaled_member_field(ScaledProgram *program, unsigned int bits, unsigned int offset);
+
 // a field of the shared record, `bits` wide and signed, at the next bit of the record. The code writes the step that
 // reads it where it reads it, and the register is live only from there to its reader
 static unsigned int scaled_field(ScaledProgram *program, unsigned int bits)
 {
-    const unsigned int field = (unsigned int)program->field_bits.size();
-    program->field_bits.push_back(bits);
-    program->field_offset.push_back(program->shared_bits);
+    const unsigned int field = scaled_member_field(program, bits, program->shared_bits);
     program->shared_bits += bits;
     return field;
 }
@@ -178,10 +200,18 @@ static unsigned int scaled_read(ScaledProgram *program, unsigned int field)
 // a field of member 1's record, `bits` wide at `offset`, an output of the stage before
 static unsigned int scaled_member_field(ScaledProgram *program, unsigned int bits, unsigned int offset)
 {
-    const unsigned int field = (unsigned int)program->field_bits.size();
-    program->field_bits.push_back(bits);
-    program->field_offset.push_back(offset);
-    return field;
+    if (program->field_bits != NULL)
+    {
+        if (program->field_count >= program->field_room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->field_bits[program->field_count] = bits;
+        program->field_offset[program->field_count] = offset;
+    }
+    program->field_count += 1u;
+    return program->field_count - 1u;
 }
 
 static unsigned int scaled_read_before(ScaledProgram *program, unsigned int field)
@@ -201,11 +231,100 @@ static unsigned int scaled_output_field(ScaledProgram *program, const ScaledStag
     return scaled_member_field(program, place->out_bits, place->out_offset);
 }
 
-static void scaled_output(ScaledStage *stage, const std::string &name, unsigned int step, long long exponent)
+static void scaled_output(ScaledStage *stage, const char *name, unsigned int step, long long exponent)
 {
-    stage->outputs.push_back(step);
-    stage->names.push_back(name);
-    stage->exponents.push_back(exponent);
+    if (stage->outputs != NULL)
+    {
+        if (stage->output_count >= stage->output_room)
+        {
+            stage->program.full = 1;
+            return;
+        }
+        stage->outputs[stage->output_count] = step;
+        stage->names[stage->output_count] = name;
+        stage->exponents[stage->output_count] = exponent;
+    }
+    stage->output_count += 1u;
+}
+
+// a cell of `count` elements of `size` bytes, cleared, on the temporary tier where `ephemeral` is 1. NULL where the
+// pool cannot meet it
+static void *scaled_cleared(unsigned long long count, unsigned long long size, int ephemeral)
+{
+    return platform_cell_cleared((count != 0ull) ? count : 1ull, size, platform_place_g_program_owner, ephemeral);
+}
+
+// a cell given back, where there is one
+static void scaled_released(void *cell)
+{
+    if (cell != NULL)
+    {
+        platform_cell_released(cell, platform_place_g_program_owner);
+    }
+}
+
+// a check whose text is `front`, the stage's name and `back`, in a line of a fixed bound
+static void scaled_check(SimResults *job, int passed, const char *front, const char *name, const char *back)
+{
+    char text[SCALED_CHECK_BYTES];
+    VerbaLinea line = mmgr_line_over(text, sizeof(text));
+    mmgr_line_put(&line, front);
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, back);
+    sim_check(job, passed, text);
+}
+
+// the program of a stage and its outputs given back, and the stage at rest with no program
+static void scaled_program_released(ScaledStage *stage)
+{
+    ScaledProgram *const program = &stage->program;
+    scaled_released(program->steps);
+    scaled_released(program->field_bits);
+    scaled_released(program->field_offset);
+    scaled_released(stage->outputs);
+    scaled_released((void *)stage->names);
+    scaled_released(stage->exponents);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
+    stage->outputs = NULL;
+    stage->names = NULL;
+    stage->exponents = NULL;
+    stage->output_count = 0u;
+    stage->output_room = 0u;
+}
+
+// A stage's program built by `build`, twice. The first build counts the steps, the fields and the outputs. This call
+// takes the cells at those counts on the persistent tier, and the second build fills them. The result is 1 where the
+// second build fits the counts of the first. The cells live with the stage. The persistent tier holds them to its
+// release
+template <typename Build> static int scaled_built(ScaledStage *stage, Build build)
+{
+    ScaledProgram *const program = &stage->program;
+    scaled_program_released(stage);
+    build();
+    program->room = program->count;
+    program->field_room = program->field_count;
+    stage->output_room = stage->output_count;
+    program->steps = (EngineRecordStep *)scaled_cleared(program->room, sizeof(EngineRecordStep), 0);
+    program->field_bits = (unsigned int *)scaled_cleared(program->field_room, sizeof(unsigned int), 0);
+    program->field_offset = (unsigned int *)scaled_cleared(program->field_room, sizeof(unsigned int), 0);
+    stage->outputs = (unsigned int *)scaled_cleared(stage->output_room, sizeof(unsigned int), 0);
+    stage->names = (const char **)scaled_cleared(stage->output_room, sizeof(const char *), 0);
+    stage->exponents = (long long *)scaled_cleared(stage->output_room, sizeof(long long), 0);
+    const int taken = (program->steps != NULL) && (program->field_bits != NULL) && (program->field_offset != NULL) &&
+                      (stage->outputs != NULL) && (stage->names != NULL) && (stage->exponents != NULL);
+    program->count = 0u;
+    program->field_count = 0u;
+    program->shared_bits = 0u;
+    stage->output_count = 0u;
+    if (taken)
+    {
+        build();
+    }
+    else
+    {
+        program->full = 1;
+    }
+    return !program->full;
 }
 
 // the lane, below 2^bits, and the and with 2^bits - 1 gives its register that width and preserves its value
@@ -955,6 +1074,12 @@ static void scaled_pole_records(ScaledStage *stage, const ScaledWide &first, con
 static void scaled_open_stage(ScaledStage *stage, const char *name)
 {
     stage->name = name;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->program, .bytes = sizeof(stage->program), .val = 0);
+    stage->outputs = NULL;
+    stage->names = NULL;
+    stage->exponents = NULL;
+    stage->output_count = 0u;
+    stage->output_room = 0u;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->key, .bytes = sizeof(stage->key), .val = 0);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->layout, .bytes = sizeof(stage->layout), .val = 0);
     stage->record = NULL;
@@ -978,36 +1103,38 @@ static unsigned int scaled_members(const ScaledStage *stage)
 static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *error)
 {
     ScaledProgram *const program = &stage->program;
-    const unsigned int fields = (unsigned int)program->field_bits.size();
-    const KeymathRecordRequest encode = {program->steps.data(),
-                                         (unsigned int)program->steps.size(),
-                                         program->field_bits.data(),
+    const unsigned int fields = program->field_count;
+    // a program whose cells do not hold its steps, fields and outputs fails the imprint
+    const int built = (program->steps != NULL) && !program->full;
+    const KeymathRecordRequest encode = {program->steps,
+                                         program->count,
+                                         program->field_bits,
                                          fields,
                                          scaled_members(stage),
-                                         stage->outputs.data(),
-                                         (unsigned int)stage->outputs.size(),
+                                         stage->outputs,
+                                         stage->output_count,
                                          NULL,
                                          0u,
                                          &stage->key,
                                          error};
-    int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
-    if (!ok)
+    int ok = built && (keymath_record_encode(&encode) != KEYMATH_ERROR);
+    if (built && !ok)
     {
-        const EngineRecordStep *const first = program->steps.data();
-        const EngineRecordStep *const last = first + program->steps.size();
+        const EngineRecordStep *const first = program->steps;
+        const EngineRecordStep *const last = first + program->count;
         const EngineRecordStep *const at = (const EngineRecordStep *)error->evacaddr;
         const long long step = ((at >= first) && (at < last)) ? (long long)(at - first) : -1;
         fprintf(
             stderr,
-            "  exact_zeta_scaled: the %s imprint errors, site %u, at step %lld of %zu, operation %d left %u right %u\n",
-            stage->name, error->site, step, program->steps.size(), (step >= 0) ? (int)at->operation : -1,
+            "  exact_zeta_scaled: the %s imprint errors, site %u, at step %lld of %u, operation %d left %u right %u\n",
+            stage->name, error->site, step, program->count, (step >= 0) ? (int)at->operation : -1,
             (step >= 0) ? at->left : 0u, (step >= 0) ? at->right : 0u);
     }
-    sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
+    scaled_check(job, ok, "keymath imprints the ", stage->name, " program");
     stage->shared_limbs = (program->shared_bits + 31u) / 32u;
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {stage->shared_limbs, stage->before_limbs, stage->also_limbs};
-    const KeyScheduleRecordRequest position = {
-        &stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout, error};
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset, fields, in_limbs,
+                                               1,           &stage->layout,        error};
     const int positioned = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     if (ok && !positioned)
     {
@@ -1016,8 +1143,8 @@ static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *err
                                                                                        : "a step";
         const long long step =
             (end[0] == 'a') ? (long long)((const EngineRecordTerm *)error->evacaddr - stage->key.term) : -1;
-        fprintf(stderr, "  exact_zeta_scaled: the %s layout ends at %s, step %lld of %zu\n", stage->name, end, step,
-                program->steps.size());
+        fprintf(stderr, "  exact_zeta_scaled: the %s layout ends at %s, step %lld of %u\n", stage->name, end, step,
+                program->count);
         // the limbs live at each step, a register live from its step to its last reader and an output to the end
         const unsigned int steps = stage->key.steps;
         std::vector<unsigned int> last(steps, 0u);
@@ -1062,7 +1189,7 @@ static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *err
         fprintf(stderr, "\n");
     }
     ok = positioned;
-    sim_check(job, ok, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
+    scaled_check(job, ok, "the scheduler positions the ", stage->name, " program out");
     if (stage->shared.size() <= stage->shared_limbs + 1u)
     {
         stage->shared.resize(stage->shared_limbs);
@@ -1099,9 +1226,9 @@ static unsigned int scaled_sum_limbs(const ScaledStage *stage, unsigned int at)
 static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long lanes, unsigned long long checked,
                         EngineError *error)
 {
-    const std::string name(stage->name);
+    const char *const name = stage->name;
     int ok = (stage->record != NULL) || (cycle_record_load(&stage->layout, &stage->record, error) != CYCLE_ERROR);
-    sim_check(job, ok, ("the " + name + " program loads onto the device").c_str());
+    scaled_check(job, ok, "the ", name, " program loads onto the device");
     const unsigned int out_limbs = stage->layout.out_limbs;
     const std::vector<unsigned int> *const in[3] = {&stage->shared, stage->before, stage->also};
     const unsigned int in_limbs[3] = {stage->shared_limbs, stage->before_limbs, stage->also_limbs};
@@ -1131,11 +1258,11 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
         fprintf(stderr,
                 "  exact_zeta_scaled: the %s program over %llu lanes did not finish on the device: type %d, status %d, "
                 "site %u\n",
-                name.c_str(), lanes, (int)error->type, error->status, error->site);
+                name, lanes, (int)error->type, error->status, error->site);
         ran = cycle_record_run(&run) == (long)lanes;
     }
     ok = ok && ran;
-    sim_check(job, ok, ("every lane runs the " + name + " program on the device").c_str());
+    scaled_check(job, ok, "every lane runs the ", name, " program on the device");
     stage->records.assign((size_t)(ok ? lanes * out_limbs : 0ull), 0u);
     ok = ok && (cudaMemcpy(stage->records.data(), device_out, stage->records.size() * sizeof(unsigned int),
                            cudaMemcpyDeviceToHost) == cudaSuccess);
@@ -1152,7 +1279,7 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
     stage->same = ok && (cycle_record_run_host(&host) == (long)checked) &&
                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = stage->records.data(),
                               .bytes = host_out.size() * sizeof(unsigned int)) == 0);
-    sim_check(job, stage->same, ("the host's " + name + " records equal the device's word for word").c_str());
+    scaled_check(job, stage->same, "the host's ", name, " records equal the device's word for word");
     // each summed output over each run of `group` lanes, on the device, and the same sums over the host's copy
     stage->sums.assign(stage->summed.size(), std::vector<unsigned int>());
     stage->sum_limbs.assign(stage->summed.size(), 0u);
@@ -1186,8 +1313,8 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
     }
     if (!stage->summed.empty())
     {
-        sim_check(job, ok && stage->sums_same,
-                  ("the device's sums of the " + name + " records over each point equal the host's").c_str());
+        scaled_check(job, ok && stage->sums_same, "the device's sums of the ", name,
+                     " records over each point equal the host's");
     }
     for (unsigned int member = 0u; member < 3u; member += 1u)
     {
@@ -1206,6 +1333,7 @@ static void scaled_release(ScaledStage *stage)
     }
     key_schedule_record_release(&stage->layout);
     keymath_record_release(&stage->key);
+    scaled_program_released(stage);
 }
 
 // THE CONSTANTS, ON THE DEVICE
@@ -3143,7 +3271,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     int ok = 1;
     if (!em)
     {
-        scaled_curves_build(&curve_stage, b, (unsigned int)big_e + 16u, (unsigned int)big_e, first_bits, gamma_bits);
+        (void)scaled_built(&curve_stage, [&]() {
+            scaled_curves_build(&curve_stage, b, (unsigned int)big_e + 16u, (unsigned int)big_e, first_bits,
+                                gamma_bits);
+        });
         scaled_open_shared(&curve_stage);
         scaled_put(curve_stage.shared.data(), curve_stage.program.field_offset[0], curve_stage.program.field_bits[0],
                    one_limb, ((nu - 1ull) % 2ull) ? -1 : 1);
@@ -3167,7 +3298,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             widths.push_back(scaled_wide_width(numbers[at]));
         }
-        scaled_em_c_build(&em_c_stage, b, w + 16u, cell.precision, first_bits, widths);
+        (void)scaled_built(&em_c_stage,
+                           [&]() { scaled_em_c_build(&em_c_stage, b, w + 16u, cell.precision, first_bits, widths); });
         scaled_open_shared(&em_c_stage);
         scaled_put_wide(&em_c_stage, 0u, cell.first);
         scaled_put_wide(&em_c_stage, 1u, *cell.pi_low);
@@ -3186,7 +3318,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&log_stage, "log");
     if (ok)
     {
-        scaled_log_build(&log_stage, b, y, first_bits, c_bits, theta_bits[9], theta_bits[10]);
+        (void)scaled_built(&log_stage, [&]() {
+            scaled_log_build(&log_stage, b, y, first_bits, c_bits, theta_bits[9], theta_bits[10]);
+        });
         scaled_open_shared(&log_stage);
         scaled_put_wide(&log_stage, 0u, cell.first);
         for (unsigned int k = 0u; k < log_terms; k += 1u)
@@ -3201,7 +3335,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&theta_stage, "theta");
     if (ok)
     {
-        scaled_theta_build(&theta_stage, b, w, y, first_bits, theta_bits, &log_stage);
+        (void)scaled_built(&theta_stage,
+                           [&]() { scaled_theta_build(&theta_stage, b, w, y, first_bits, theta_bits, &log_stage); });
         theta_stage.before = &log_stage.records;
         theta_stage.before_limbs = log_stage.layout.out_limbs;
         scaled_open_shared(&theta_stage);
@@ -3220,7 +3355,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
                                                   scaled_wide_width(cell.tail[2]),
                                                   scaled_wide_width(cell.tail[3]),
                                                   scaled_wide_width(*cell.cos_bound)};
-        scaled_em_tail_build(&tail_stage, b, w, widths, k_widths, &em_c_stage, &theta_stage);
+        (void)scaled_built(&tail_stage, [&]() {
+            scaled_em_tail_build(&tail_stage, b, w, widths, k_widths, &em_c_stage, &theta_stage);
+        });
         tail_stage.before = &em_c_stage.records;
         tail_stage.before_limbs = em_c_stage.layout.out_limbs;
         tail_stage.also = &theta_stage.records;
@@ -3250,7 +3387,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&phase_stage, "phase");
     if (ok)
     {
-        scaled_phase_build(&phase_stage, b, w, heads, lane_bits, pole_widths, &theta_stage, em);
+        (void)scaled_built(&phase_stage, [&]() {
+            scaled_phase_build(&phase_stage, b, w, heads, lane_bits, pole_widths, &theta_stage, em);
+        });
         phase_stage.before = &theta_stage.records;
         phase_stage.before_limbs = theta_stage.layout.out_limbs;
         phase_stage.also = &theta_stage.records;
@@ -3261,7 +3400,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&cos_stage, "cos");
     if (ok)
     {
-        scaled_cos_build(&cos_stage, k_widths, w, &phase_stage);
+        (void)scaled_built(&cos_stage, [&]() { scaled_cos_build(&cos_stage, k_widths, w, &phase_stage); });
         cos_stage.before = &phase_stage.records;
         cos_stage.before_limbs = phase_stage.layout.out_limbs;
         scaled_open_shared(&cos_stage);
@@ -3281,7 +3420,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             continue;
         }
-        scaled_term_build(stage, side, w, pole_widths, &cos_stage);
+        (void)scaled_built(stage, [&]() { scaled_term_build(stage, side, w, pole_widths, &cos_stage); });
         stage->before = &cos_stage.records;
         stage->before_limbs = cos_stage.layout.out_limbs;
         ok = scaled_position(job, stage, error);
@@ -3324,7 +3463,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             continue;
         }
-        scaled_tolerance_build(stage, side, verdict_bits, remainder, least_to - common_shift, bound_to - common_shift);
+        (void)scaled_built(stage, [&]() {
+            scaled_tolerance_build(stage, side, verdict_bits, remainder, least_to - common_shift,
+                                   bound_to - common_shift);
+        });
         stage->before = &remainder->records;
         stage->before_limbs = remainder->layout.out_limbs;
         scaled_open_shared(stage);
@@ -3342,8 +3484,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         {
             continue;
         }
-        scaled_verdict_build(stage, side, sum_bits, 32u * sum_limbs, sum_exponent - lowest, common_shift,
-                             &tolerance_stages[side], &verdict_stages[0]);
+        (void)scaled_built(stage, [&]() {
+            scaled_verdict_build(stage, side, sum_bits, 32u * sum_limbs, sum_exponent - lowest, common_shift,
+                                 &tolerance_stages[side], &verdict_stages[0]);
+        });
         stage->before = &tolerance_stages[side].records;
         stage->before_limbs = tolerance_stages[side].layout.out_limbs;
         stage->also = (side == 1u) ? &verdict_stages[0].records : NULL;
@@ -3357,7 +3501,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     const unsigned long long steps_between = lanes - 1ull;
     if (ok)
     {
-        scaled_change_build(&change_stage, &verdict_stage);
+        (void)scaled_built(&change_stage, [&]() { scaled_change_build(&change_stage, &verdict_stage); });
         change_stage.before = &verdict_stage.records;
         change_stage.before_limbs = verdict_stage.layout.out_limbs;
         change_stage.also = &verdict_stage.records;
@@ -3378,7 +3522,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&clock_stage, "clock");
     if (ok && !em)
     {
-        scaled_clock_build(&clock_stage, b, w, first_bits, &theta_stage);
+        (void)scaled_built(&clock_stage, [&]() { scaled_clock_build(&clock_stage, b, w, first_bits, &theta_stage); });
         clock_stage.before = &theta_stage.records;
         clock_stage.before_limbs = theta_stage.layout.out_limbs;
         clock_stage.also = &theta_stage.records;
@@ -3393,8 +3537,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&turing_stage, "turing");
     if (ok && !em)
     {
-        scaled_turing_build(&turing_stage, scaled_bits_of(steps_between) + 1u, window_low, window_high, &change_stage,
-                            &clock_stage);
+        (void)scaled_built(&turing_stage, [&]() {
+            scaled_turing_build(&turing_stage, scaled_bits_of(steps_between) + 1u, window_low, window_high,
+                                &change_stage, &clock_stage);
+        });
         turing_stage.before = &clock_stage.records;
         turing_stage.before_limbs = clock_stage.layout.out_limbs;
         turing_stage.also = &clock_stage.records;
@@ -3497,8 +3643,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         row.push_back(*cell.pi_low);
         row.push_back(*cell.pi_high);
         row.push_back(*cell.two_high);
-        scaled_count_build(&count_stage, scaled_table({row}, std::vector<unsigned int>(row.size(), 0u)), b, w,
-                           cell.precision);
+        (void)scaled_built(&count_stage, [&]() {
+            scaled_count_build(&count_stage, scaled_table({row}, std::vector<unsigned int>(row.size(), 0u)), b, w,
+                               cell.precision);
+        });
         ok = scaled_run(job, &count_stage, 1ull, error);
     }
 
@@ -3671,7 +3819,7 @@ static int scaled_pi(SimResults *job, unsigned int precision, ScaledWide *low, S
     std::vector<ScaledWide> row;
     for (unsigned int at = 0u; ok && (at < 2u); at += 1u)
     {
-        scaled_machin_build(&arctan[at], ks[at], precision, counts[at]);
+        (void)scaled_built(&arctan[at], [&]() { scaled_machin_build(&arctan[at], ks[at], precision, counts[at]); });
         ok = scaled_run(job, &arctan[at], counts[at] + 1u, error);
         if (ok)
         {
@@ -3681,7 +3829,7 @@ static int scaled_pi(SimResults *job, unsigned int precision, ScaledWide *low, S
     }
     if (ok)
     {
-        scaled_pi_build(&pi, scaled_table({row}, {0u, 0u, 0u, 0u}), precision);
+        (void)scaled_built(&pi, [&]() { scaled_pi_build(&pi, scaled_table({row}, {0u, 0u, 0u, 0u}), precision); });
         ok = scaled_run(job, &pi, 1ull, error);
     }
     const long long lead = 0x243F6A8885A308D3ll;
@@ -3704,7 +3852,7 @@ static int scaled_lambda_row(SimResults *job, unsigned int terms, std::vector<Sc
 {
     ScaledStage stage;
     scaled_open_stage(&stage, "lambda");
-    scaled_lambda_build(&stage, terms);
+    (void)scaled_built(&stage, [&]() { scaled_lambda_build(&stage, terms); });
     const int ok = scaled_run(job, &stage, 1ull, error);
     row->clear();
     for (unsigned int k = 0u; ok && (k <= terms); k += 1u)
@@ -3741,7 +3889,7 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
     scaled_open_stage(&binomials, "em_binomials");
     scaled_open_stage(&sum, "bernoulli");
     scaled_open_stage(&divide, "bernoulli_divide");
-    scaled_factorial_build(&factorials, top);
+    (void)scaled_built(&factorials, [&]() { scaled_factorial_build(&factorials, top); });
     int ok = scaled_run(job, &factorials, top + 1u, error);
     if (ok)
     {
@@ -3749,7 +3897,7 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
         binomials.before_limbs = factorials.layout.out_limbs;
         binomials.also = &factorials.records;
         binomials.also_limbs = factorials.layout.out_limbs;
-        scaled_binomial_build(&binomials, &factorials, top);
+        (void)scaled_built(&binomials, [&]() { scaled_binomial_build(&binomials, &factorials, top); });
         binomials.shared = factorials.records;
         for (unsigned int a = 0u; a <= top; a += 1u)
         {
@@ -3767,7 +3915,7 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
     if (ok)
     {
         rows.push_back(std::vector<ScaledWide>(1u, scaled_wide_out(&factorials, top, 0u)));
-        scaled_euler_build(&sum, &binomials, value_bits);
+        (void)scaled_built(&sum, [&]() { scaled_euler_build(&sum, &binomials, value_bits); });
         sum.shared = binomials.records;
     }
     ScaledTable table;
@@ -3793,7 +3941,7 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
             ok = scaled_fixed(job, pair, pair_bits, "each I_m's sum fits its table");
             if (ok && (divide.layout.steps == 0u))
             {
-                scaled_divide_build(&divide, pair);
+                (void)scaled_built(&divide, [&]() { scaled_divide_build(&divide, pair); });
             }
             divide.shared = pair.words;
             ok = ok && scaled_run(job, &divide, 1ull, error);
@@ -3858,7 +4006,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         ok = scaled_pi(job, precision, &pi_low, &pi_high, error);
         if (ok)
         {
-            scaled_factorial_build(&factorials, factorial_top);
+            (void)scaled_built(&factorials, [&]() { scaled_factorial_build(&factorials, factorial_top); });
             ok = scaled_run(job, &factorials, factorial_top + 1u, error);
         }
         if (ok)
@@ -3867,7 +4015,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             binomials.before_limbs = factorials.layout.out_limbs;
             binomials.also = &factorials.records;
             binomials.also_limbs = factorials.layout.out_limbs;
-            scaled_binomial_build(&binomials, &factorials, factorial_top);
+            (void)scaled_built(&binomials, [&]() { scaled_binomial_build(&binomials, &factorials, factorial_top); });
             binomials.shared = factorials.records;
             for (unsigned int a = 0u; a <= factorial_top; a += 1u)
             {
@@ -3886,7 +4034,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         ScaledTable e_table;
         if (ok)
         {
-            scaled_euler_build(&euler, &binomials, value_bits);
+            (void)scaled_built(&euler, [&]() { scaled_euler_build(&euler, &binomials, value_bits); });
             euler.shared = binomials.records;
             euler.before = &e_table.words;
             euler.before_limbs = (value_bits + 31u) / 32u;
@@ -3916,7 +4064,8 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         ScaledTable lambda_table;
         if (ok && (lambda_top > 0u))
         {
-            scaled_lambda_term_build(&lambda_term, value_bits, lambda_bits, lambda_top);
+            (void)scaled_built(&lambda_term,
+                               [&]() { scaled_lambda_term_build(&lambda_term, value_bits, lambda_bits, lambda_top); });
             lambda_term.shared = e_only.words;
             lambda_term.before = &lambda_table.words;
             lambda_term.before_limbs = (lambda_bits + 31u) / 32u;
@@ -3941,7 +4090,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                 ok = scaled_fixed(job, pair, pair_bits, "each lambda's sum fits its table");
                 if (ok && (divide.layout.steps == 0u))
                 {
-                    scaled_divide_build(&divide, pair);
+                    (void)scaled_built(&divide, [&]() { scaled_divide_build(&divide, pair); });
                 }
                 divide.shared = pair.words;
                 ok = ok && scaled_run(job, &divide, 1ull, error);
@@ -3979,7 +4128,8 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                  scaled_fixed(job, constants, d_constant_bits, "each row's constants fit their table");
             if (ok && (d_stage.layout.steps == 0u))
             {
-                scaled_d_build(&d_stage, constants, d_bits, 3u * top / 4u + 1u);
+                (void)scaled_built(&d_stage,
+                                   [&]() { scaled_d_build(&d_stage, constants, d_bits, 3u * top / 4u + 1u); });
                 d_stage.before = &d_row_table.words;
                 d_stage.before_limbs = d_row_table.limbs;
                 d_stage.also = &d_row_table.words;
@@ -4002,13 +4152,16 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         // pi^e for e from -2K to 2 jmax, then pi^e sin(pi / 8) and pi^e cos(pi / 8) for e from 0
         if (ok)
         {
-            scaled_pi_power_build(&powers, scaled_table({{pi_low, pi_high}}, {0u, 0u}), precision, 2u * top, 2u * jmax);
+            (void)scaled_built(&powers, [&]() {
+                scaled_pi_power_build(&powers, scaled_table({{pi_low, pi_high}}, {0u, 0u}), precision, 2u * top,
+                                      2u * jmax);
+            });
             ok = scaled_run(job, &powers, 2u * top + 2u * jmax + 1u, error);
         }
         ScaledTable eighth_table;
         if (ok)
         {
-            scaled_eighth_build(&eighth, precision);
+            (void)scaled_built(&eighth, [&]() { scaled_eighth_build(&eighth, precision); });
             ok = scaled_run(job, &eighth, 4ull, error);
             int roots_valid = ok;
             std::vector<ScaledWide> ends;
@@ -4026,8 +4179,10 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         {
             pi_eighths.before = &eighth_table.words;
             pi_eighths.before_limbs = eighth_table.limbs;
-            scaled_pi_eighth_build(&pi_eighths, &powers, eighth_table, precision, scaled_bits_of(eighths) + 1u,
-                                   2u * jmax);
+            (void)scaled_built(&pi_eighths, [&]() {
+                scaled_pi_eighth_build(&pi_eighths, &powers, eighth_table, precision, scaled_bits_of(eighths) + 1u,
+                                       2u * jmax);
+            });
             pi_eighths.shared = powers.records;
             for (unsigned int lane = 0u; lane < eighths; lane += 1u)
             {
@@ -4049,7 +4204,9 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             phi.before_limbs = factorials.layout.out_limbs;
             phi.also = &pi_eighths.records;
             phi.also_limbs = pi_eighths.layout.out_limbs;
-            scaled_phi_build(&phi, scaled_table(rows, {0u, 0u}), &factorials, &pi_eighths, jmax, precision);
+            (void)scaled_built(&phi, [&]() {
+                scaled_phi_build(&phi, scaled_table(rows, {0u, 0u}), &factorials, &pi_eighths, jmax, precision);
+            });
             for (unsigned int j = 0u; j < row; j += 1u)
             {
                 for (unsigned int m = 0u; m < row; m += 1u)
@@ -4088,8 +4245,10 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             gamma.before_limbs = binomials.layout.out_limbs;
             gamma.also = &phi_table.words;
             gamma.also_limbs = phi_table.limbs;
-            scaled_gamma_build(&gamma, scaled_table(rows, {0u, 0u, 0u}), &binomials, phi_table, top, count, precision,
-                               big_e);
+            (void)scaled_built(&gamma, [&]() {
+                scaled_gamma_build(&gamma, scaled_table(rows, {0u, 0u, 0u}), &binomials, phi_table, top, count,
+                                   precision, big_e);
+            });
             for (unsigned int n = 0u; n <= top; n += 1u)
             {
                 for (unsigned int i = 0u; i < count; i += 1u)
@@ -4121,7 +4280,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                     rows.push_back({lows[n][i], highs[n][i]});
                 }
             }
-            scaled_spread_build(&spread, scaled_table(rows, {0u, 0u}), count);
+            (void)scaled_built(&spread, [&]() { scaled_spread_build(&spread, scaled_table(rows, {0u, 0u}), count); });
             ok = scaled_run(job, &spread, (unsigned long long)(top + 1u) * count, error);
         }
         // the last eight of each curve contain 0 between their ends, or the count doubles
@@ -4214,10 +4373,12 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
         const ScaledTable constants = scaled_table({bare}, std::vector<unsigned int>(bare.size(), 0u));
         two.before = &constants.words;
         two.before_limbs = constants.limbs;
-        scaled_ln_build(
-            &two, k->precision,
-            scaled_table({{scaled_wide_small(1), scaled_wide_small(3), scaled_wide_small(0)}}, {0u, 0u, 0u}), constants,
-            k->log_terms, k->precision);
+        (void)scaled_built(&two, [&]() {
+            scaled_ln_build(
+                &two, k->precision,
+                scaled_table({{scaled_wide_small(1), scaled_wide_small(3), scaled_wide_small(0)}}, {0u, 0u, 0u}),
+                constants, k->log_terms, k->precision);
+        });
         ok = scaled_run(job, &two, 1ull, error);
     }
     if (ok)
@@ -4231,7 +4392,7 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
     const unsigned int cos_top = k->w / 4u + 8u;
     if (ok)
     {
-        scaled_cosine_build(&cosine, pi, k->w, k->precision, cos_top);
+        (void)scaled_built(&cosine, [&]() { scaled_cosine_build(&cosine, pi, k->w, k->precision, cos_top); });
         ok = scaled_run(job, &cosine, 1ull, error);
     }
     unsigned int terms = 0u;
@@ -4248,7 +4409,7 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
         {
             k->k_low.push_back(scaled_wide_out(&cosine, 0ull, 4u * j));
         }
-        scaled_theta_constants_build(&theta, pi, k->w, k->precision);
+        (void)scaled_built(&theta, [&]() { scaled_theta_constants_build(&theta, pi, k->w, k->precision); });
         ok = scaled_run(job, &theta, 1ull, error);
     }
     for (unsigned int at = 0u; ok && (at < 7u); at += 1u)
@@ -4326,8 +4487,10 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     unsigned long long count = nu + 1ull;
     if (ok && em)
     {
-        scaled_em_n_build(&em_n, scaled_table({{k.pi_low, k.pi_high, nu_wide}}, {0u, 0u, SCALED_NU_BITS + 1u}),
-                          precision, w, SCALED_EM_TERMS);
+        (void)scaled_built(&em_n, [&]() {
+            scaled_em_n_build(&em_n, scaled_table({{k.pi_low, k.pi_high, nu_wide}}, {0u, 0u, SCALED_NU_BITS + 1u}),
+                              precision, w, SCALED_EM_TERMS);
+        });
         ok = scaled_run(job, &em_n, 1ull, error);
         const int rooted = ok && (scaled_wide_word(scaled_wide_out(&em_n, 0ull, 2u)) == 1);
         sim_check(job, rooted, "Euler-Maclaurin's N and its root satisfy their definitions");
@@ -4337,7 +4500,7 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
         ok = ok && fits;
     }
     // each pole n to `count`: a, c and m for ln n, and n^(-1/2) below and above
-    scaled_poles_build(&poles, w, count);
+    (void)scaled_built(&poles, [&]() { scaled_poles_build(&poles, w, count); });
     ok = ok && scaled_run(job, &poles, count, error);
     int roots_valid = ok;
     std::vector<std::vector<ScaledWide>> rows;
@@ -4353,16 +4516,20 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     {
         logs.before = &k.logs.words;
         logs.before_limbs = k.logs.limbs;
-        scaled_ln_build(&logs, precision, scaled_table(rows, {0u, 0u, 0u}), k.logs, k.log_terms, w);
+        (void)scaled_built(&logs, [&]() {
+            scaled_ln_build(&logs, precision, scaled_table(rows, {0u, 0u, 0u}), k.logs, k.log_terms, w);
+        });
         ok = scaled_run(job, &logs, count, error);
     }
     if (ok)
     {
-        scaled_rate_build(&lattice,
-                          scaled_table({{scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu, 1u), nu_wide,
-                                         scaled_wide_small((long long)rate)}},
-                                       {0u, 0u, SCALED_NU_BITS + 1u, 64u}),
-                          precision);
+        (void)scaled_built(&lattice, [&]() {
+            scaled_rate_build(&lattice,
+                              scaled_table({{scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu, 1u),
+                                             nu_wide, scaled_wide_small((long long)rate)}},
+                                           {0u, 0u, SCALED_NU_BITS + 1u, 64u}),
+                              precision);
+        });
         ok = scaled_run(job, &lattice, 1ull, error);
     }
     const unsigned int b = ok ? (unsigned int)scaled_wide_word(scaled_wide_out(&lattice, 0ull, 0u)) : 0u;
@@ -4370,7 +4537,8 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     ok = ok && (b >= 4u) && (b <= 40u);
     if (ok)
     {
-        scaled_setup_build(&setup, scaled_table({{nu_wide}}, {SCALED_NU_BITS + 1u}), b);
+        (void)scaled_built(&setup,
+                           [&]() { scaled_setup_build(&setup, scaled_table({{nu_wide}}, {SCALED_NU_BITS + 1u}), b); });
         ok = scaled_run(job, &setup, 1ull, error);
         const int rooted = ok && (scaled_wide_word(scaled_wide_out(&setup, 0ull, 5u)) == 1);
         sim_check(job, rooted, "the cell's roots satisfy their definitions");
@@ -4387,20 +4555,25 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
         const ScaledTable constants = scaled_table({small_row}, std::vector<unsigned int>(small_row.size(), 0u));
         small_log.before = &constants.words;
         small_log.before_limbs = constants.limbs;
-        scaled_ln_build(
-            &small_log, precision,
-            scaled_table({{scaled_wide_out(&setup, 0ull, 2u), scaled_wide_out(&setup, 0ull, 3u), scaled_wide_small(0)}},
-                         {0u, 0u, 0u}),
-            constants, small_terms, w);
+        (void)scaled_built(&small_log, [&]() {
+            scaled_ln_build(&small_log, precision,
+                            scaled_table({{scaled_wide_out(&setup, 0ull, 2u), scaled_wide_out(&setup, 0ull, 3u),
+                                           scaled_wide_small(0)}},
+                                         {0u, 0u, 0u}),
+                            constants, small_terms, w);
+        });
         ok = scaled_run(job, &small_log, 1ull, error);
     }
     if (ok)
     {
-        scaled_half_build(&half,
-                          scaled_table({{scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu - 1ull, 1u),
-                                         scaled_wide_out(&small_log, 0ull, 0u), scaled_wide_out(&small_log, 0ull, 1u)}},
-                                       {0u, 0u, 0u, 0u}),
-                          precision, w);
+        (void)scaled_built(&half, [&]() {
+            scaled_half_build(
+                &half,
+                scaled_table({{scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu - 1ull, 1u),
+                               scaled_wide_out(&small_log, 0ull, 0u), scaled_wide_out(&small_log, 0ull, 1u)}},
+                             {0u, 0u, 0u, 0u}),
+                precision, w);
+        });
         ok = scaled_run(job, &half, 1ull, error);
     }
     cell->nu = nu;
@@ -4461,8 +4634,10 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
         record.push_back(nu_wide);
         std::vector<unsigned int> floors(record.size(), 0u);
         floors.back() = SCALED_NU_BITS + 1u;
-        scaled_bound_build(&bound, scaled_table({record}, floors), (unsigned int)k.spreads.size() - 1u, w, precision,
-                           k.big_e, SCALED_GABCKE_D);
+        (void)scaled_built(&bound, [&]() {
+            scaled_bound_build(&bound, scaled_table({record}, floors), (unsigned int)k.spreads.size() - 1u, w,
+                               precision, k.big_e, SCALED_GABCKE_D);
+        });
         ok = scaled_run(job, &bound, 1ull, error);
         const int bounded = ok && (scaled_wide_word(scaled_wide_out(&bound, 0ull, 3u)) == 1);
         sim_check(job, bounded, "the verdict's roots satisfy their definitions");
@@ -4489,6 +4664,10 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     scaled_release(&bound);
     return ok;
 }
+
+// The pool of the program, in banks of MMgr. It holds the steps and fields of each stage's program on the persistent
+// tier. It also holds the temporary cells of the record compiler, past 64 MB for a cell. Each cell is at max 2^31 bytes
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 32u;
 
 int program_main(int count, char **arguments)
 {
