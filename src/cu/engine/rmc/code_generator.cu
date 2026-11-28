@@ -34,29 +34,36 @@ static const RulesetName s_regclass_names[REGCLASS_COUNT] = {REGCLASSES(REGCLASS
 
 static const RulesetName s_physreg_names[PHYSREG_COUNT] = {PHYSREGS(PHYSREG_WRITTEN)};
 
-// The record program as a register lane, in any language whose ruleset writes the lane's forms: each step
-// unrolled at its widths into straight-line text over registers the lane uses itself. The
-// file is a bank by place and its signs another, as key_schedule positioned them out; the record's words are a bank,
-// arranged by each put and each stored once the last put that positions it out has run; the atoms' words are a bank,
-// each loaded at its first reader. What a compiler would loop over a register's limbs is written out here limb by limb
-// from the program's own widths. The code generator writes no text of its own: every line is a form of the language's
-// ruleset, and every register a written form of its banks and fixed registers. The code generator decides what a step
-// does and the ruleset how the language writes it. What each step does, and the lane's opening, close and split into
-// states, is decided in codegen_core.h, which the device compiles as well. Here the forms it decides are written in the
-// ruleset and arranged into the text in its order. The steps that loop on their values are loops of the same forms,
-// each body over registers of fixed widths so no limb is named by a value the lane computes: the gcd, the golden
-// ladder, a division by more than one limb, and a product too wide to unroll. A loop is a label and a branch back to it
-// on a predicate, which a language that clocks the lane splits into states that go back. The lane calls nothing and
-// takes no shared memory. Every step is the interpreter's arithmetic limb for limb, branch-free where the interpreter
-// branches on a sign or a borrow, and CYCLE_RECORD_CHECK=1 checks the two against each other. After the lane comes the
-// program resident that runs its launch's lanes (program_unit), the kernel the record machine launches or a circuit's
-// top. The text is the whole program, and nothing hand-written is linked with it.
+// The record program as a register lane, in any language whose ruleset writes the forms of the lane. The code
+// generator unrolls each step at its widths into straight-line text over registers that the lane uses itself.
+//
+// The file is a bank by place, and its signs are another, as key_schedule arranged them. The words of the record are a
+// bank. Each put arranges them, and the lane stores each word after the last put that arranges it. The words of the
+// atoms are a bank, and the lane loads each at its first reader. Where a compiler would loop over the limbs of a
+// register, the code generator writes each limb out from the own widths of the program.
+//
+// The code generator writes no text of its own. Every line is a form of the ruleset of the language, and every register
+// is a written form of its banks and fixed registers. The code generator decides what a step does, and the ruleset
+// decides how the language writes it. The file codegen_core.h, which the device also compiles, decides what each step
+// does. It also decides the opening, the close and the split into states of the lane. Here the call writes the forms
+// that it decides in the ruleset, and arranges them into the text in their order.
+//
+// The steps that loop on their values are loops of the same forms. Each body is over registers of fixed widths, so that
+// no value that the lane computes names a limb. These steps are the gcd, the golden ladder, a division by more than one
+// limb, and a product too wide to unroll. A loop is a label and a branch back to it on a predicate. A language that
+// clocks the lane splits it into states that go back.
+//
+// The lane calls nothing and takes no shared memory. Every step is the arithmetic of the interpreter, limb for limb. It
+// has no branch where the interpreter branches on a sign or a borrow, and CYCLE_RECORD_CHECK=1 checks the two against
+// each other. After the lane comes the resident program that runs the lanes of its launch (program_unit). That is the
+// kernel that the record machine launches, or the top of a circuit. The text is the whole program, and no hand-written
+// code links with it.
 
-// Where each bank begins in the register file, and how many registers one of its own takes. A language whose
-// registers are virtual gives every bank a namespace of its own and leaves this zero; a language with one register
-// file has every bank in that file, and a bank numbered from 0 like every other collides with them. The banks are
-// positioned end to end from the counts the lane declares, and a bank whose registers are 64 bits takes two of the
-// file's for each of its own.
+// Where each bank starts in the register file, and how many registers one of its own takes. A language whose
+// registers are virtual gives every bank a namespace of its own, and leaves this zero. A language with one register
+// file has every bank in that file. There, a bank with numbers from 0, as every other bank has, collides with them.
+// The call puts the banks end to end from the counts that the lane declares. A bank whose registers are 64 bits takes
+// two registers of the file for each of its own.
 struct RegisterFile
 {
     unsigned int at[REGCLASS_COUNT];
@@ -93,7 +100,7 @@ static void code_generator_argument(const Ruleset *rules, const RegisterFile *fi
         mmgr_line_put(text, rules->fixed[argument.which]);
         return;
     }
-    // a signed number is stored as its two's complement word
+    // the program stores a signed number as its two's complement word
     if ((argument.type == OPERAND_SIGNED) && (argument.number >= 0x80000000u))
     {
         mmgr_line_ch(text, '-');
@@ -103,19 +110,21 @@ static void code_generator_argument(const Ruleset *rules, const RegisterFile *fi
     mmgr_line_decimal(text, argument.number, 1u);
 }
 
-// how many registers of the file one register of a bank takes: two for a bank of 64-bit registers, which the file
-// is valid as a pair, and one for the rest. The bank of immediates is a word's value written into a form and none of
-// the file: it is never moved
+// how many registers of the file one register of a bank takes. It is two for a bank of 64-bit registers, which is
+// valid in the file only as a pair, and one for the rest. The bank of immediates is the value of a word written into a
+// form, and has no register of the file. The program never moves it
 static unsigned int code_generator_takes(unsigned int bank)
 {
     return ((bank == REGCLASS_WIDE) || (bank == REGCLASS_MEMBER)) ? 2u : 1u;
 }
 
-// The banks positioned into one register file, from the counts the lane declared: each bank begins where the one before
-// it ended, in the order the declarations come. A language whose banks are namespaces of their own leaves every bank at
-// 0, which writes each register by its own number. The predicates are a file of their own on every
-// language that has them, and are not positioned with the rest. 0 where the banks run past what the file contains, the
-// lane then written by nobody: every register from there on would be one the language has already pinned
+// The banks put into one register file, from the counts that the lane declared. Each bank starts where the one before
+// it ended, in the order of the declarations. A language whose banks are namespaces of their own leaves every bank at
+// 0, which writes each register by its own number. The predicates are a file of their own on every language that has
+// them, and the call does not put them with the rest.
+//
+// The return is 0 where the banks run past what the file holds. Then nothing writes the lane, because every register
+// from there on would be one that the language already pinned
 static int code_generator_file(const CodeGenerator *generator, const MachineInstr *items, unsigned long long count,
                                RegisterFile *file)
 {
@@ -129,7 +138,8 @@ static int code_generator_file(const CodeGenerator *generator, const MachineInst
     {
         return 1;
     }
-    // each bank's count is the argument of the form that declares it, in the order the lane's declarations are written
+    // the count of each bank is the argument of the form that declares it, in the order that the lane writes its
+    // declarations
     const unsigned int declares[] = {OPCODE_DECLARE_FILE,   OPCODE_DECLARE_SIGNS,       OPCODE_DECLARE_OUT,
                                      OPCODE_DECLARE_ATOMS,  OPCODE_DECLARE_TEMPORARIES, OPCODE_DECLARE_WIDES,
                                      OPCODE_DECLARE_MEMBERS};
@@ -302,9 +312,9 @@ static int code_generator_decided(MachineFunction *lane, PlatformArray *items, c
     return 1;
 }
 
-// the 32-bit words every lane uses throughout: %zero, %thread, %threads, %word_base, %word_stride and %sign_base, and
-// the seven 64-bit %launch, %lane_number, %record, %index, %body, %bodies and %tables; each member's atom address adds
-// two more
+// the 32-bit words that every lane uses throughout. The six of 32 bits are %zero, %thread, %threads, %word_base,
+// %word_stride and %sign_base. The seven of 64 bits are %launch, %lane_number, %record, %index, %body, %bodies and
+// %tables. The atom address of each member adds two more
 #define CODEGEN_RESERVED_WORDS 20u
 
 // a cell of `count` words, each `value`, on the temporary tier; NULL where the pool cannot meet it
@@ -319,10 +329,15 @@ static unsigned int *code_generator_words(unsigned long long count, unsigned int
     return words;
 }
 
-// the max 32-bit words the lane uses live at once, reckoned from the lifetimes its text gives ptxas: each value's
-// limbs and sign from its step to its last reader, each record word from its first put to its last, each atom word from
-// its first reader to its last, each step's own temporaries at that step (`step_words`), and the words every lane uses
-// throughout. 0 where the pool cannot meet the reckoning
+// the max 32-bit words that the lane uses live at once, from the lifetimes that its text gives ptxas. The count has:
+//
+// - the limbs and sign of each value, from its step to its last reader
+// - each record word, from its first put to its last
+// - each atom word, from its first reader to its last
+// - the own temporaries of each step, at that step (`step_words`)
+// - the words that every lane uses throughout
+//
+// The return is 0 where the pool cannot meet that count
 static unsigned int code_generator_live_max(const IrProgram *program, const unsigned int *step_words,
                                             const unsigned int *atom_last, unsigned int atoms)
 {
@@ -490,8 +505,8 @@ CodeGenerator &code_generator(const char *file)
     return *generator;
 }
 
-// the memory writes the ruleset's text makes in one state, its line write_ports, SCHEDULE_UNBOUNDED where it gives
-// none or is not read
+// the memory writes that the text of the ruleset makes in one state, its line write_ports. SCHEDULE_UNBOUNDED stands
+// for it where the ruleset gives none, or where the call cannot read it
 static unsigned int code_generator_write_ports(const Ruleset *rules)
 {
     if ((rules == NULL) || (rules->write_ports[0] == '\0'))
@@ -600,13 +615,16 @@ static int code_generator_scheduled_body(const CodeGenerator *generator, Machine
     return ok;
 }
 
-// A program's lane and its resident as the core decides them, into `items` in the text's order: the note, the header's
-// place, occupied by an item of the form ASM_PRINTER_ALL_ONES, the lane's opening and declarations, the body's opening,
-// the body and the end; the places a thread uses in shared memory (the file's where the language positions it out
-// there, else 0), and the max words it uses live at once. The core decides the steps first, then the lane's own forms
-// in the order the lane writes them. 0 where the ruleset is not read, a step is one the lane does not support, a
-// form breaks the lane, or the pool cannot meet a list. With a schedule model, the body is split into states and
-// `report` informed how
+// The lane of a program and its resident as the core decides them, into `items` in the order of the text. The items are
+// the note, the place of the header, and the opening and declarations of the lane. Then come the opening of the body,
+// the body and the end. An item of the form ASM_PRINTER_ALL_ONES holds the place of the header. Through `places` come
+// the places that a thread uses in shared memory: those of the file where the language puts it there, else 0. Through
+// `live` comes the max words that it uses live at once.
+//
+// The core decides the steps first, then the own forms of the lane in the order that the lane writes them. The return
+// is 0 where the call cannot read the ruleset, or where a step is one that the lane does not support. It is also 0
+// where a form breaks the lane, or the pool cannot meet a list. With a schedule model, the call splits the body into
+// states, and tells `report` how
 int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
                           unsigned int *places, unsigned int *live, PlatformArray *items)
 {

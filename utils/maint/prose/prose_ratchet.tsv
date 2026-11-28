@@ -509,7 +509,6 @@ src/cu/engine/rmc/asm_printer_core_program.h	6
 src/cu/engine/rmc/asm_printer_core_words.h	12
 src/cu/engine/rmc/asm_printer_internal.h	1
 src/cu/engine/rmc/asm_printer_layout.cu	5
-src/cu/engine/rmc/code_generator.cu	29
 src/cu/engine/rmc/code_generator.h	19
 src/cu/engine/rmc/codegen_core.h	9
 src/cu/engine/rmc/codegen_device.h	1
