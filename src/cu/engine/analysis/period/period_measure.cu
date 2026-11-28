@@ -75,10 +75,10 @@ __device__ static unsigned int period_line_random(const PeriodShuffle &shuffle, 
     return hash;
 }
 
-// The null for one axis: each line along that axis is permuted alone. The axis loses its own
-// coherence while every other axis retains its structure and each line retains its values. A global
-// shuffle instead destroys every axis at once, which drops the agreement level and reads a period
-// on an axis that carries none whenever another axis is structured (A12).
+// The null for one axis: the call permutes each line along that axis alone. The axis loses its own
+// coherence, while every other axis keeps its structure and each line keeps its values. A global
+// shuffle would break every axis at once. That drops the agreement level, and reads a period on an
+// axis that carries none, whenever another axis has a structure (A12).
 __global__ void period_line_shuffle_kernel(unsigned short *shuffled, PeriodShuffle shuffle, PeriodLattice lattice,
                                            unsigned int axis, unsigned long long lines)
 {
