@@ -5,19 +5,24 @@
 
 // What the part answered of a query, read as P1 reads it (P11, the query).
 //
-// A form f is put on a case k beside the answer of the host, h(k): `f(k) = h(k) ?`. The part gives one of four
-// answers. Alike, where f(k) = h(k). Apart, where it gives another word. Refused, where it ends the run: an illegal
-// instruction, an illegal address or a launch out of resources. Nothing, where no answer comes back. Alike is truthy
-// and the other three are falsy.
+// The program puts a form f on a case k, beside the answer of the host, h(k): `f(k) = h(k) ?`. The part gives one of
+// four answers:
 //
-// The host's answer to a case is a bracket at the result's width, [down, up] (Collapse 1). An integer case is a
-// bracket of one word, down = up; a floating case a bracket of two ends, and the part is alike where it answers
-// either end. A case on which the host traps or leaves the result undefined carries no bracket: the part's answer
-// there is retained by whoever queried, and it gates nothing.
+// - Alike, where `f(k) = h(k)`.
+// - Apart, where it gives another word.
+// - Refused, where it ends the run: an illegal instruction, an illegal address, or a launch out of resources.
+// - Nothing, where no answer comes back.
 //
-// Gray is the uncertainty: no answer of the part decides the case. It is read where the host gives no bracket, and
-// where no answer of the part came to be read at all, a query the gate blocked from the part or that nothing carried.
-// Gray is never 0 and never 1 (P1, P10).
+// Alike is truthy, and the other three are falsy.
+//
+// The answer of the host to a case is a bracket at the width of the result, `[down, up]` (Collapse 1). An integer case
+// is a bracket of one word, `down = up`. A floating case is a bracket of two ends, and the part is alike where it
+// answers either end. A case on which the host traps, or leaves the result undefined, carries no bracket. The asker
+// keeps the answer of the part there, and it gates nothing.
+//
+// Gray is the uncertainty: no answer of the part decides the case. The reader reads it where the host gives no bracket.
+// It also reads it where no answer of the part came to read at all. That is a query that the gate blocked, or that
+// nothing carried. Gray is never 0 and never 1 (P1, P10).
 
 #include "../teacher/run_channel.h"
 
@@ -40,8 +45,8 @@ typedef struct
     unsigned long long up;
 } AnswerBracket;
 
-// What a query over many cases reads: the read of the whole, the count of cases alike, the reading a query
-// alike on every case carries (P10), and the place of the first case apart, `cases` where none is
+// What a query over many cases reads: the read of the whole, and the count of cases alike. Then the reading that a
+// query alike on every case carries (P10), and the place of the first case apart, `cases` where none is
 typedef struct
 {
     AnswerRead read;
@@ -49,17 +54,22 @@ typedef struct
     unsigned int first_apart;
 } AnswerTally;
 
-// One case read: the host's bracket `host`, and the part's word `answered` where the run's outcome `outcome`
-// (RunOutcome) is RUN_ANSWERED
+// One case read: the bracket `host` of the host, and the word `answered` of the part where RUN_ANSWERED is the
+// outcome `outcome` (RunOutcome) of the run
 AnswerRead answer_read(const AnswerBracket *host, unsigned int outcome, unsigned long long answered);
 
 // 1 where `read` is truthy: alike, 0 for every other reading
 int answer_truthy(AnswerRead read);
 
-// A query over `cases` cases read: the host's bracket of each in `host`, the run's outcome `outcome`, and the part's
-// word on each in `answered`. Refused or nothing where the run came to that, apart where a bracketed case is apart,
-// alike where every bracketed case is alike and one is bracketed, and gray where no case is bracketed or no answer of
-// the part came to be read. Each case's read into `reads` where it is not NULL
+// A query over `cases` cases, read. It has the bracket of the host for each in `host`, the outcome `outcome` of the
+// run, and the word of the part on each in `answered`. The read is:
+//
+// - refused or nothing, where the run came to that
+// - apart, where a bracketed case is apart
+// - alike, where every bracketed case is alike and one has a bracket
+// - gray, where no case has a bracket, or no answer of the part came to read
+//
+// The read of each case goes into `reads` where `reads` is not NULL
 AnswerTally answer_tally_read(const AnswerBracket *host, unsigned int cases, unsigned int outcome,
                               const unsigned long long *answered, AnswerRead *reads);
 

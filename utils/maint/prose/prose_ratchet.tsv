@@ -566,7 +566,6 @@ src/cu/transpiler/lstar/protocol/overseer/accounts.c	6
 src/cu/transpiler/lstar/protocol/overseer/overseer_internal.h	2
 src/cu/transpiler/lstar/protocol/overseer/ruling.c	5
 src/cu/transpiler/lstar/protocol/qry_crystal.c	8
-src/cu/transpiler/lstar/protocol/query/answer_read.h	14
 src/cu/transpiler/lstar/protocol/query/bus_enum.h	7
 src/cu/transpiler/lstar/protocol/query/bus_enum_walk.c	3
 src/cu/transpiler/lstar/protocol/query/bus_enum_walk.h	3
