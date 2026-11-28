@@ -495,7 +495,6 @@ src/cu/engine/nbody/orior/scan_neon.c	15
 src/cu/engine/nbody/orior/scan_sve.c	13
 src/cu/engine/render/orior_raster.c	13
 src/cu/engine/render/orior_raster_internal.h	4
-src/cu/engine/render/orior_raster_output.c	19
 src/cu/engine/render/raster.cu	2
 src/cu/engine/render/raster_cuda_internal.h	14
 src/cu/engine/render/raster_entry.cu	3

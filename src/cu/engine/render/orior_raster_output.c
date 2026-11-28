@@ -82,9 +82,9 @@ size_t orior_volume_cell_for(const OriorVolumeConfig *config, size_t alignment)
         return 0u;
     }
 
-    // Out of range folds back into the block. Every layout below is a bijection on [0, cells), and
-    // an alignment count above the block size has to land somewhere; wrapping preserves the map total
-    // and is stated and not left to an out of bounds write.
+    // Out of range folds back into the block. Every layout below is a bijection on `[0, cells)`,
+    // and an alignment count above the block size must land at some place. A wrap keeps the map
+    // total, and this comment states it, so that an out of bounds write does not decide it.
     const size_t at = alignment % cells;
     const size_t sheet = width * height;
 
@@ -112,9 +112,9 @@ size_t orior_volume_cell_for(const OriorVolumeConfig *config, size_t alignment)
         return (slab * sheet) + (row * width) + column;
     }
     case ORIOR_VOLUME_MORTON: {
-        // Errored and not remapped where the extents are not powers of two, because the
-        // interleave is a bijection only then and a silent fallback would make two
-        // configurations render identically while reporting different layouts.
+        // An error, and no new map, where the extents are not powers of two. The interleave is
+        // a bijection only then. A silent fallback would make two configurations render the
+        // same, while they report different layouts.
         if ((volume_is_power_of_two(width) == 0) || (volume_is_power_of_two(height) == 0) ||
             (volume_is_power_of_two(depth) == 0))
         {
@@ -141,9 +141,9 @@ size_t orior_volume_cell_for(const OriorVolumeConfig *config, size_t alignment)
         const size_t row = within / width;
         const size_t column = (within + slab) % width;
 
-        // A shear by the depth index. Adding the slab to the column is a bijection on each row
-        // because it is addition modulo the width, and a feature at a fixed corpus offset
-        // therefore advances one column per slab and winds through the block.
+        // A shear by the depth index. An add of the slab to the column is a bijection on each row,
+        // because it is an addition modulo the width. Thus a feature at a fixed corpus offset
+        // advances one column for each slab, and winds through the block.
         return (slab * sheet) + (row * width) + column;
     }
     default: {
@@ -156,10 +156,10 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
                              const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes,
                              size_t probe_count, const void *census_in)
 {
-    // RESERVED, NOT READ, AND NOT DELETED. The census below is built from `corpus`. A caller
-    // supplied one is discarded here. The parameter stays because a tunable with no reader is an
-    // integration point and not dead weight, and the header states so at the declaration. It is not
-    // the rarity source.
+    // RESERVED, NOT READ, AND NOT DELETED. The call builds the census below from `corpus`, and
+    // discards one that a caller supplied. The parameter stays, because a tunable with no reader is
+    // an integration point and not dead weight. The header states that at the declaration. It is
+    // not the rarity source.
     (void)census_in;
 
     if ((voxels == NULL) || (config == NULL) || (corpus == NULL) || (needle == NULL) || (config->width == 0u) ||
@@ -185,10 +185,10 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
         voxels[cell] = (uint8_t)ORIOR_RASTER_EMPTY;
     }
 
-    // The channel, the gain and the reduce rule are the raster's and are read through a raster
-    // configuration built here. Re-implementing them for three dimensions would be a second copy of
-    // a decision that has one place, and the two copies would answer differently the first time a
-    // channel is added to one of them.
+    // The channel, the gain and the reduce rule belong to the raster, and the call reads them
+    // through a raster configuration that it builds here. A second build of them for three
+    // dimensions would be a second copy of a decision that has one place. The two copies would
+    // answer differently the first time that a change adds a channel to one of them.
     const OriorRasterConfig flat = {config->width,   config->height, ORIOR_LAYOUT_ROWS,
                                     config->channel, config->reduce, config->gain};
 
@@ -201,8 +201,8 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
         const size_t cell = orior_volume_cell_for(config, at);
         if (cell >= cells)
         {
-            // The layout errored on this configuration. Erroring on every alignment identically
-            // makes the error visible as an empty volume and not as a partial one.
+            // The layout gave an error on this configuration. The same error on every alignment
+            // shows the error as an empty volume, and not as a partial one.
             platform_cell_released(filled, (unsigned int)platform_place_g_engine_owner);
             return 0;
         }
@@ -256,9 +256,9 @@ int orior_volume_write_raw(const char *path, const uint8_t *voxels, const OriorV
         return 0;
     }
 
-    // The sidecar, because Netpbm has no volume container and inventing one would make this tree
-    // the only reader of its own output. A generated file states it is generated and names what made
-    // it, and somebody meeting the .raw alone can work out what to do with it.
+    // The sidecar, because Netpbm has no volume container, and a new one would make this tree the
+    // only reader of its own output. A generated file states that a program made it, and names that
+    // program. A person who finds the .raw alone can then find out what to do with it.
     char sidecar[512];
     VerbaLinea formed_line_1 = mmgr_line_over(sidecar, sizeof(sidecar));
     mmgr_line_put(&formed_line_1, path);
@@ -315,8 +315,9 @@ int orior_volume_write_raw(const char *path, const uint8_t *voxels, const OriorV
 #if !defined(ORIOR_RASTER_HAVE_CUDA) || !ORIOR_RASTER_HAVE_CUDA
 
 /* BOTH ARMS DEFINED. A build without the device renderer still carries these symbols. A driver
- * written against both arms links and runs against either. The available test returning zero is what
- * a caller checks before calling the other, and the other errors instead of pretending. */
+ * written against both arms links and runs against either. A caller checks that the available
+ * test returns zero before it calls the other. The other then gives an error, and does not
+ * pretend. */
 
 int orior_raster_device_available(void)
 {
