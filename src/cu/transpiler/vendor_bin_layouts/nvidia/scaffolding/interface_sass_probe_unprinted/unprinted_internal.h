@@ -27,8 +27,8 @@
 
 #define UNPRINTED_EXITS 256u
 
-// a run's limit: one load and one launch, far under a second, and a turned encoding that leaves the part waiting
-// is ended here and read as not run
+// the limit of a run: one load and one launch, far under a second. The call ends a turned encoding here that leaves
+// the part in a wait, and reads it as not run
 #define UNPRINTED_LIMIT 10000000ULL
 
 // the widest field turned through every value, and the max bits a question fixes beside it
@@ -36,19 +36,19 @@
 
 #define UNPRINTED_FIXED 2u
 
-// the words a run answers: the kernel stores R7 as the first and zero as the other three, and a question may store
-// over those three
+// the words that a run answers. The kernel stores R7 as the first and zero as the other three, and a question can
+// store over those three
 #define UNPRINTED_COPIES 4u
 
-// the registers a thread of every cubin written declares, the max a cubin declares. A kernel refuses a register
-// number past the count it declares as an illegal instruction, and the pattern declares 10: a register field is probed
-// under a count that covers every number
+// the registers that a thread of every written cubin declares, the max that a cubin declares. A kernel refuses a
+// register number past the count that it declares as an illegal instruction, and the pattern declares 10. Thus the
+// call probes a register field under a count that covers every number
 #define UNPRINTED_REGISTERS 255u
 
 // the bits of the high word that are the operation's, 64 to 104, and not the scheduler's
 #define UNPRINTED_OPERATION_HIGH 0x1ffffffffffULL
 
-// bits a question fixes at one value while the field is turned
+// bits that a question fixes at one value while the call turns the field
 typedef struct
 {
     unsigned int first;
@@ -56,8 +56,8 @@ typedef struct
     unsigned long long value;
 } UnprintedFixed;
 
-// one question: the lines put in place of the kernel's IADD3, the one among them whose bits are turned, the field
-// turned, the bits fixed beside it, and the word the printed text specifies the part answers
+// one question: the lines put in place of the IADD3 of the kernel, and the one among them whose bits the call turns.
+// Then the field turned, the bits fixed beside it, and the word that, as the printed text tells, the part answers
 typedef struct
 {
     const char *lines;
@@ -68,8 +68,8 @@ typedef struct
     unsigned int answer;
 } UnprintedQuestion;
 
-// P1 is set true and P2 false before every question that reads a predicate, so that a field naming one reads a value
-// known on each side
+// the code sets P1 true and P2 false before every question that reads a predicate. Thus a field that names one reads a
+// value known on each side
 #define UNPRINTED_PREDICATES "ISETP.NE.U32.AND P1, PT, R0, RZ, PT\nISETP.NE.U32.AND P2, PT, RZ, RZ, PT\n"
 
 // the load of the case's first word and the store of R0 into the answer's third word, each through the descriptor
@@ -93,8 +93,8 @@ typedef struct
     "ISETP.NE.U32.AND P3, PT, R0, RZ, PT\nISETP.NE.U32.AND P4, PT, R0, RZ, PT\nISETP.NE.U32.AND P5, PT, R0, RZ, PT\n"  \
     "ISETP.NE.U32.AND P6, PT, R0, RZ, PT\n"
 
-// The questions of the machine file's open item. The case is 0xb and 0x7, and R2 contains the case's address, R4 the
-// answer's, UR4 the memory descriptor the kernel loaded from c[0x0][0x118].
+// The questions of the open item of the machine file. The case is 0xb and 0x7. R2 holds the address of the case, R4
+// that of the answer, and UR4 the memory descriptor that the kernel loaded from `c[0x0][0x118]`.
 static const UnprintedQuestion s_questions[] = {
     // IMAD's carry-in predicate, which IMAD reads as IMAD.X and prints nowhere else
     {UNPRINTED_PREDICATES "IMAD.IADD R7, R0, 0x1, R7",
@@ -124,8 +124,8 @@ static const UnprintedQuestion s_questions[] = {
      4u,
      {{0u, 0u, 0ULL}},
      0x00000000u},
-    // the load's predicate at 64 to 67, its number inverted at 64 to 66 and bit 67 negating it, probed with every
-    // predicate false and then with every predicate true
+    // the predicate of the load at 64 to 67, with its number inverted at 64 to 66, and bit 67 that negates it. The call
+    // probes it with every predicate false, and then with every predicate true
     {UNPRINTED_FALSE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ULL}}, 0x0000000bu},
     {UNPRINTED_TRUE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ULL}}, 0x0000000bu},
     // the load's predicate printed, each assembled into the field at 64 and run as written: P1 is true and P2 false
@@ -139,13 +139,14 @@ static const UnprintedQuestion s_questions[] = {
     {UNPRINTED_LOAD, UNPRINTED_LOAD, 32u, 6u, {{101u, 1u, 1ULL}}, 0x0000000bu},
     // the two bits past the load's descriptor register
     {UNPRINTED_LOAD, UNPRINTED_LOAD, 38u, 2u, {{0u, 0u, 0ULL}}, 0x0000000bu},
-    // NVIDIA's 64-bit atomic add, which the resident runs, at every value of bits 64 to 71, where its compare and swap
-    // encodes the second register it reads and its descriptor register sits: R0 and R1 added to the answer's third and
-    // fourth words, the word it found stored as the second, and the third read back
+    // the 64-bit atomic add of NVIDIA, which the resident runs, at every value of bits 64 to 71. There its compare and
+    // swap encodes the second register that it reads, and its descriptor register sits. R0 and R1 go added to the third
+    // and fourth words of the answer. The word that it found goes stored as the second, and the call reads the third
+    // back
     {UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ, UNPRINTED_ATOMIC, 64u, 8u, {{0u, 0u, 0ULL}}, 0x0000000bu},
-    // the same with 64 to 71 fixed at 100, R100 and R101 given known words first: 0 and 0, 4 and 0, 0 and 1. Where the
-    // pair were read into the address, 4 would move the add to the fourth word and 1 in the high word past every
-    // word the question allocates
+    // the same with 64 to 71 fixed at 100, and R100 and R101 set to known words first: 0 and 0, 4 and 0, 0 and 1. Where
+    // the address read the pair, 4 would move the add to the fourth word. A 1 in the high word would move it past every
+    // word that the question allocates
     {"IMAD.MOV.U32 R100, RZ, RZ, 0x0\nIMAD.MOV.U32 R101, RZ, RZ, 0x0\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
      UNPRINTED_ATOMIC,
      64u,
