@@ -17,7 +17,7 @@
 #ifndef BENCH_DEPTH_SCORE_H
 #define BENCH_DEPTH_SCORE_H
 
-#include <cmath>
+#include <math.h>
 
 /** @brief Bits in the word whose Hamming distance the code reads. */
 #define BENCH_DEPTH_WORD_BITS 32.0
@@ -40,8 +40,8 @@ static inline double bench_depth_score_at_width(double total, double counted, do
         return 0.0;
     }
     const double mean = total / counted;
-    const double deviation = std::sqrt(bits) / 2.0;
-    const double standard_error = deviation / std::sqrt(counted);
+    const double deviation = sqrt(bits) / 2.0;
+    const double standard_error = deviation / sqrt(counted);
     return (mean - (bits / 2.0)) / standard_error;
 }
 
@@ -62,7 +62,7 @@ static inline double bench_depth_ceiling(double counted, double bits)
     {
         return 0.0;
     }
-    return (bits / 2.0) / ((std::sqrt(bits) / 2.0) / std::sqrt(counted));
+    return (bits / 2.0) / ((sqrt(bits) / 2.0) / sqrt(counted));
 }
 
 /**
@@ -101,7 +101,7 @@ static inline double bench_depth_bit_score(double differed, double counted)
         return 0.0;
     }
     const double rate = differed / counted;
-    const double standard_error = 0.5 / std::sqrt(counted);
+    const double standard_error = 0.5 / sqrt(counted);
     return (rate - 0.5) / standard_error;
 }
 

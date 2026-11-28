@@ -18,8 +18,8 @@
 #define BENCH_NATURE_SCORE_H
 
 #include "memoria_operor/memoria_operor.h"
-#include <cmath>
-#include <cstdint>
+#include <math.h>
+#include <stdint.h>
 
 /**
  * @brief Collision entropy shortfall of a 256-bin distribution, in bits below flat.
@@ -48,7 +48,7 @@ static inline double bench_nature_shortfall(const uint64_t *counts, uint64_t tot
     {
         return 8.0;
     }
-    return 8.0 + std::log2((double)(collisions / possible));
+    return 8.0 + log2((double)(collisions / possible));
 }
 
 /**
@@ -92,7 +92,7 @@ static inline double bench_nature_baseline(const uint64_t *marginal, uint64_t to
     {
         collisions += spread[bin] * spread[bin];
     }
-    return (collisions > 0.0) ? (8.0 + std::log2(collisions)) : 8.0;
+    return (collisions > 0.0) ? (8.0 + log2(collisions)) : 8.0;
 }
 
 #endif

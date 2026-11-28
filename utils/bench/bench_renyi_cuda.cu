@@ -25,7 +25,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstdio>
+#include <stdio.h>
 
 namespace
 {
@@ -369,7 +369,7 @@ __global__ void count_nonces(RenyiCudaJob job, int source, uint64_t first, uint6
 /** @brief Reports a CUDA failure once, with the call that produced it. */
 int complain(const char *what, cudaError_t status)
 {
-    std::fprintf(stderr, "  [!] %s: %s\n", what, cudaGetErrorString(status));
+    fprintf(stderr, "  [!] %s: %s\n", what, cudaGetErrorString(status));
     return 0;
 }
 
@@ -391,8 +391,8 @@ extern "C" int renyi_cuda_available(char *text, size_t text_size)
 
     if (text != nullptr)
     {
-        std::snprintf(text, text_size, "%s, compute %d.%d, %.1f GB", properties.name, properties.major,
-                      properties.minor, (double)properties.totalGlobalMem / (1024.0 * 1024.0 * 1024.0));
+        snprintf(text, text_size, "%s, compute %d.%d, %.1f GB", properties.name, properties.major, properties.minor,
+                 (double)properties.totalGlobalMem / (1024.0 * 1024.0 * 1024.0));
     }
     return 1;
 }

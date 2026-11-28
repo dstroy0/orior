@@ -19,7 +19,7 @@
 #ifndef BENCH_SEED_H
 #define BENCH_SEED_H
 
-#include <cstdlib>
+#include <stdlib.h>
 
 /**
  * @brief Returns the seed for the draw, from the environment where the variable exists.
@@ -31,13 +31,13 @@
  */
 static inline unsigned bench_seed(unsigned when_unset)
 {
-    const char *const requested = std::getenv("BENCH_SEED");
+    const char *const requested = getenv("BENCH_SEED");
     if (requested == nullptr)
     {
         return when_unset;
     }
 
-    const unsigned long parsed = std::strtoul(requested, nullptr, 10);
+    const unsigned long parsed = strtoul(requested, nullptr, 10);
     // strtoul returns zero for text that is not a number. A bench with a seed from a typo would
     // look like a run, and not a mistake. Fall back to the seed in the source.
     return (parsed == 0ul) ? when_unset : (unsigned)parsed;

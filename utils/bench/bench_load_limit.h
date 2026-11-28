@@ -21,16 +21,28 @@
 #ifndef BENCH_LOAD_LIMIT_H
 #define BENCH_LOAD_LIMIT_H
 
-#include <cstdint>
-#include <cstdlib>
-#include <thread>
+#include <stdint.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
+
+/** @brief The processors the system runs threads on, as the system counts them, 0 where it does not say. */
+static inline unsigned bench_processors(void)
+{
+#ifdef _WIN32
+    return (unsigned)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+#else
+    const long online = sysconf(_SC_NPROCESSORS_ONLN);
+    return (online > 0l) ? (unsigned)online : 0u;
+#endif
+}
 
 /**
  * @brief Drops this process below normal priority so interactive work preempts it.
@@ -94,17 +106,17 @@ static inline unsigned bench_worker_count(unsigned requested)
         return requested;
     }
 
-    const char *const asked = std::getenv("BENCH_THREADS");
+    const char *const asked = getenv("BENCH_THREADS");
     if (asked != nullptr)
     {
-        const unsigned long parsed = std::strtoul(asked, nullptr, 10);
+        const unsigned long parsed = strtoul(asked, nullptr, 10);
         if (parsed > 0ul)
         {
             return (unsigned)parsed;
         }
     }
 
-    const unsigned present = std::thread::hardware_concurrency();
+    const unsigned present = bench_processors();
     if (present <= 2u)
     {
         return 1u;
