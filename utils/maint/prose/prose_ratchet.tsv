@@ -747,7 +747,6 @@ ui/cli/src/editor/defs.c	3
 ui/cli/src/editor/defs.h	4
 ui/cli/src/editor/document.c	13
 ui/cli/src/editor/document.h	67
-ui/cli/src/editor/document_branch.c	43
 ui/cli/src/editor/document_internal.h	45
 ui/cli/src/editor/document_store.c	34
 ui/cli/src/editor/editorconfig.c	11

@@ -2143,9 +2143,9 @@ void cli_document_telemetry_off(void)
 }
 
 // one step of the walk of `one`. The call colors the run of lines to color nearest its origin. Where the walk colored
-// or claimed every line, it colors again the first line that does not start in the end state of the line above. It
-// writes that into `out` as `{"key", "seq", "colors"}`, and sets `*passed` where it holds the runs of a line that the
-// page holds. The return is 1 where it colored a line, else 0.
+// or claimed every line, it colors again the first line whose start state differs from the end state above. It writes
+// that into `out` as `{"key", "seq", "colors"}`, and sets `*passed` where it holds the runs of a line that the page
+// holds. The return is 1 where it colored a line, else 0.
 //
 // The call counts the lines of a paged text again first, and walks it across the lines that the page holds alone. This
 // runs under the lock, which it gives back as it colors. Its caller saves the text across it
@@ -2213,12 +2213,14 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
 // the mark of a fold that shows on its first line the line it closes on, after what it hides
 #define CLI_DOC_FOLD_DISPLAYED 0x80000000u
 
-// the fold of the region opened on the line `opened` that the line `line` closes, the `close`th region it closes, the
-// line's regions `regions`, the last line above it that holds a leaf `filled`: the last line it hides, plus 1, marked
-// CLI_DOC_FOLD_DISPLAYED where it shows the line it closes on, or 0 where it hides no line. A mark of no characters
-// closes a region on the line it ends with a leaf before it, else on the last line above that holds one; a bracket
-// closes it on the line before its own where a leaf is before it or another leaf on its line closes nothing, and on its
-// own, displayed, where its line holds closes alone
+// the fold of the region opened on the line `opened` that the line `line` closes, the `close`th region that it closes.
+// `regions` is the regions of the line, and `filled` the last line above it that holds a leaf. The return is the last
+// line that it hides, plus 1, marked CLI_DOC_FOLD_DISPLAYED where it shows the line that it closes on. It is 0 where it
+// hides no line.
+//
+// A mark of no characters closes a region on the line that it ends, with a leaf before it. Else it closes it on the
+// last line above that holds one. A bracket closes it on the line before its own, where a leaf is before it, or another
+// leaf on its line closes nothing. It closes it on its own line, shown, where its line holds closes alone
 EMBED_INLINE unsigned int branch_fold_get(const DocumentBranchCtx *args)
 {
     const int mark = (args->regions & CLI_DOC_REGION_MARK) != 0u;
@@ -2250,12 +2252,11 @@ EMBED_INLINE unsigned int branch_fold_get(const DocumentBranchCtx *args)
     return (last + 1u) | (displayed ? CLI_DOC_FOLD_DISPLAYED : 0u);
 }
 
-// The regions open above a line as its folds are found: the line each opens on, the innermost last, in the capacity the
-// walk saves for them, how many, and whether the cells refused it
-// the folds of `one` found, each passed to `each` with its first line, the last line it hides and whether it shows the
-// line it closes on after what it hides: each fold the widest of the regions that open on its first line, in the order
-// of their first lines; a paged text's those of the lines the page mirrors alone, and none where the cells cannot meet
-// the capacity they are found in. Under the texts' lock
+// the folds of `one` found, each passed to `each` with its first line and the last line that it hides. Then whether it
+// shows the line that it closes on after what it hides. Each fold is the widest of the regions that open on its first
+// line, in the order of their first lines. For a paged text, they are those of the lines that the page mirrors alone.
+// There are none where the cells cannot meet the capacity that the call finds them in. This runs under the lock of the
+// texts
 static void branch_folds_each(const DocumentBranchCtx *args)
 {
     const CliStoredLines *const lines = &args->one_read->lines;
@@ -2418,9 +2419,9 @@ unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
     return answer;
 }
 
-// the roles of the run that holds the unit `col` of the line `line` of the text under `key`, as the text saved them
-// for the run's name: 0 where no text is stored under the key, the line saves no runs, the col is before its first
-// run or the names' roles are not read yet
+// the roles of the run that holds the unit `col` of the line `line` of the text under `key`. They are as the text saved
+// them for the name of the run. The return is 0 where no text is under the key, the line saves no runs, or `col` is
+// before its first run. The same is true where the call did not read the roles of the names yet
 static unsigned int run_roles_locked(const CliDocumentKeyLineCfg *args)
 {
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
@@ -2463,8 +2464,9 @@ unsigned int cli_document_run_roles(const CliDocumentKeyLineCfg *args)
     return answer;
 }
 
-// whether the folds of `one` go on: its regions moved since they last went, every line of it colored, the walk's step
-// over it having colored none and no coloring under way claiming any, and the page holding lines of it
+// whether the folds of `one` go on. That is where its regions moved since they last went, and the walk colored every
+// line of it. The step of the walk over it colored none, no coloring under way claims any, and the page holds lines
+// of it
 EMBED_INLINE int branch_folds_ready(const DocumentBranchCtx *args)
 {
     return args->one_read->regions_moved && !args->one_read->refused &&
@@ -2472,14 +2474,16 @@ EMBED_INLINE int branch_folds_ready(const DocumentBranchCtx *args)
            !branch_claims_any(args);
 }
 
-// the walk taken by `walker` step by step until no text it may walk has a line to color: each step on a text no
-// walker walks and the walk did not find colored whole since it last moved, whoever `colored` names told once a step
-// colored a line that is read; on a walker's own thread where `own` is 1, marked as walking no more as it ends
+// the walk taken by `walker` step by step, until no text that it can walk has a line to color. Each step is on a text
+// that no walker walks, and that the walk did not find colored whole since it last moved. The call tells whoever
+// `colored` names, once a step colored a line that a reader reads. This runs on the own thread of a walker where `own`
+// is 1, and the call marks it as one that walks no more as it ends
 static void branch_walk(const DocumentBranchCtx *args)
 {
     for (;;)
     {
-        // each step under the texts' lock, which the step gives back while a bundle's lines are colored
+        // each step runs under the lock of the texts, which the step gives back while the call colors the lines of a
+        // bundle
         cli_document_lock_take();
         CliStoredText *one = cli_document_texts();
         while ((one != NULL) && (one->walked || one->resting))
@@ -2496,7 +2500,7 @@ static void branch_walk(const DocumentBranchCtx *args)
         one->walked = 1;
         EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
         int stepped = EMBED_CALL(branch_step, DocumentBranchCtx, .one = one, .transferred = &transferred);
-        // a text the step colored none of is colored whole: its folds move on where its regions moved
+        // the walk colored all of a text that the step colored none of. Its folds move on where its regions moved
         if (!stepped && EMBED_CALL(branch_folds_ready, DocumentBranchCtx, .one_read = one))
         {
             one->regions_moved = 0;
@@ -2528,7 +2532,8 @@ void cli_document_wake(const CliDocumentCtx *args)
         return;
     }
     args->one->resting = 0;
-    // the walkers walking and the first free, the texts a walker walks now, and those that wait for one
+    // the walkers that walk, and the first free one. Then the texts that a walker walks now, and those that wait for
+    // one
     unsigned int walking = 0u;
     unsigned int free_at = CLI_DOC_WALKERS;
     for (unsigned int at = 0u; at < CLI_DOC_WALKERS; at += 1u)
@@ -2591,7 +2596,7 @@ void cli_document_colors_to(const CliDocumentColoredCfg *args)
 int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
 {
     int named = args->named;
-    // the names the grammar's tokens take counted before the texts' lock is taken
+    // the call counts the names that the tokens of the grammar take before it takes the lock of the texts
     const unsigned int names =
         (args->grammar[0] != '\0')
             ? EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->grammar,
@@ -2606,8 +2611,8 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->names = names;
         (void)EMBED_ATOMIC_ADD_32(&one->colors_serial, 1u);
-        // the states' cells go back and the index is emptied, the cells of their identities and of the index
-        // staying for the states to come
+        // the cells of the states go back, and the call empties the index. The cells of their identities and of the
+        // index stay for the states to come
         EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = one);
         one->refused = 0;
         one->named = named;
@@ -2645,9 +2650,9 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
     return one != NULL;
 }
 
-// the lines the view mirrors moved to those from `from` to before `to`: a paged text's lines the view lets go let
-// their runs go with them, and a line the view comes to mirror that saves no runs that exist is colored again, the
-// walk coming to it
+// the lines that the view mirrors, moved to those from `from` to before `to`. The lines of a paged text that the view
+// lets go let their runs go with them. The walk colors again a line that the view comes to mirror and that saves no
+// runs that exist, as it comes to it
 EMBED_INLINE void branch_cache_moved(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one;
@@ -2757,9 +2762,9 @@ EMBED_INLINE unsigned long long branch_lines_following(const DocumentBranchCtx *
     return end + 1ULL;
 }
 
-// the `capacity` lines `number` names walked, those that follow one another together, each cut at `columns` where it
-// is not 0, the lines the frame mirrors widened to them where `mirrored`: the words their runs take, counted off the
-// records
+// the `capacity` lines that `number` names, walked, with those that follow one another together. The call cuts each at
+// `columns` where that is not 0, and widens the lines that the frame mirrors to them where `mirrored`. The return is
+// the words that their runs take, counted from the records
 EMBED_INLINE unsigned long long branch_runs_walked(const DocumentBranchCtx *args)
 {
     CliStoredText *const one = args->one;
@@ -2825,7 +2830,7 @@ static int runs_walk_locked(const CliDocumentRunsCfg *args)
 
 int cli_document_runs_walk(const CliDocumentRunsCfg *args)
 {
-    // the walk colors a bundle with the lock given back, so it starts and ends under the lock
+    // the walk colors a bundle with the lock given back, thus it starts and ends under the lock
     cli_document_lock_take();
     const int walked = runs_walk_locked(args);
     cli_document_lock_give();
@@ -2874,8 +2879,8 @@ EMBED_INLINE unsigned int branch_record_runs(const DocumentBranchCtx *args)
     return runs;
 }
 
-// the line asked of the text `one_read`, its lines' count where it is past them: a line of a text is among the lines
-// it counts, which an unsigned int counts
+// the line asked of the text `one_read`, or the count of its lines where it is past them. A line of a text is among
+// the lines that it counts, which an unsigned int counts
 EMBED_INLINE unsigned int branch_line_asked(const DocumentBranchCtx *args)
 {
     const unsigned int lines = args->one_read->lines.lines;
@@ -2938,8 +2943,8 @@ int cli_document_line_run(const CliDocumentLineRunCfg *args)
     return 1;
 }
 
-// the bars of the line a record saves positioned on the map: a run with a name a bar, the empty name a gap, and the gap
-// that opens the line `tab` cells a unit
+// the bars of the line that a record saves, arranged on the map. A run with a name gets a bar, and the empty name a
+// gap. The gap that opens the line is `tab` cells for each unit
 EMBED_INLINE void branch_map_line(const DocumentBranchCtx *args)
 {
     const unsigned int *const record = args->record;
@@ -3092,9 +3097,9 @@ static int branch_word_same(const CliDocumentWords *words, unsigned int one, uns
                                     .bytes = words->length[one]}) == 0);
 }
 
-// Each word put once: the words ordered by their hash, the sort stable so that the first of a hash comes first. A
-// word that an earlier word of its hash repeats takes the length 0, and the words then close up over those in the
-// order they came. `order` and `room` hold the words' count of places
+// Each word put once. The call orders the words by their hash, with a stable sort, so that the first of a hash comes
+// first. A word that an earlier word of its hash repeats takes the length 0. Then the words close up over those, in
+// the order that they came. `order` and `room` hold the count of places of the words
 static void branch_words_once(CliDocumentWords *words, BranchWordPlace *order, BranchWordPlace *room)
 {
     for (unsigned int at = 0u; at < words->count; at += 1u)
@@ -3143,8 +3148,8 @@ static void branch_words_once(CliDocumentWords *words, BranchWordPlace *order, B
     words->count = kept;
 }
 
-// the units of the run `run` of a record where it is a word to give, 0 where it is not: its name's roles name
-// something, it has two units or more and the cursor is neither in it nor at its end
+// the units of the run `run` of a record where it is a word to give, 0 where it is not. That is where the roles of its
+// name name something, and it has two units or more. The cursor must be neither in it nor at its end
 EMBED_INLINE unsigned int branch_word_units(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one_read;
@@ -3166,8 +3171,8 @@ EMBED_INLINE unsigned int branch_word_units(const DocumentBranchCtx *args)
     return (((roles & CLI_ROLE_WORD) != 0u) && ((after - from) >= 2u) && !typed) ? (after - from) : 0u;
 }
 
-// the words of the text's lines from `from` to before `to` counted into `max_pointer`, and their units into
-// `units_pointer`, the word typed at the cursor left out; a paged text gives none
+// the words of the lines of the text from `from` to before `to`, counted into `max_pointer`, with their units into
+// `units_pointer`. The call leaves out the word typed at the cursor. A paged text gives none
 EMBED_INLINE void branch_words_count(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one_read;
@@ -3198,8 +3203,9 @@ EMBED_INLINE void branch_words_count(const DocumentBranchCtx *args)
     g_platform_guard->persistent_buf_release(work.cell, g_cli_editor_owner);
 }
 
-// the words of the text's lines from `from` to before `to` put in `words`, each its units' bytes, three a unit at the
-// max, a word as often as the lines give it; the word typed at the cursor left out
+// the words of the lines of the text from `from` to before `to`, put in `words`. Each goes as the bytes of its units,
+// three for each unit at the max. A word goes in as often as the lines give it. The call leaves out the word typed at
+// the cursor
 EMBED_INLINE void branch_words_fill(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one_read;
@@ -3455,9 +3461,10 @@ int cli_document_file_put(const CliDocumentOutCfg *args)
 }
 
 // the lines asked of a stored text, `first_u64` to `last_u64` cut to the text, into `first_pointer` and `end_pointer`,
-// the last of them; the colorer's own state the first is entered in, the scope after its mark left out, into
-// `entered`; and the lines written into `out`, a newline between each two, or where the text is paged its key into
-// `text_out`, CLI_NAME_MAX_LEN bytes, for its lines to be read through the pages with the lock given back
+// the last of them. The own state of the colorer that the walk enters the first in goes into `entered`, with the scope
+// after its mark left out. The call writes the lines into `out`, with a newline between each two. For a paged text, it
+// writes its key into `text_out`, CLI_NAME_MAX_LEN bytes. Then a reader reads its lines through the pages with the lock
+// given back
 EMBED_INLINE void branch_lines_stored(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one_read;
@@ -3475,7 +3482,7 @@ EMBED_INLINE void branch_lines_stored(const DocumentBranchCtx *args)
                             .bytes = sizeof(word_7)});
 
     const unsigned int begun = (lines->lines != 0u) ? word_7 : CLI_DOC_UNCOLORED;
-    // the state the first line is entered in, read off the states' cell
+    // the state that the walk enters the first line in, read from the cell of the states
     char state[CLI_DOC_STATE];
     const unsigned long long state_length =
         (begun != CLI_DOC_UNCOLORED)
@@ -3518,8 +3525,8 @@ EMBED_INLINE void branch_lines_paged(const DocumentBranchCtx *args)
     g_platform_guard->persistent_buf_release(starts, g_cli_editor_owner);
 }
 
-// the lines from `first` to `last` of the text under `key` put after `text`, and the state the first is entered in
-// written into `state`: 1, or 0 where no text is stored under `key`
+// the lines from `first` to `last` of the text under `key`, put after `text`, with the state that the walk enters the
+// first in written into `state`. The return is 1, or 0 where no text is under `key`
 static int lines_put_locked(const CliDocumentKeyCfg *args, VerbaLinea *text)
 {
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
@@ -3570,7 +3577,7 @@ static char *lines_alloc_locked(const CliDocumentKeyCfg *args)
     {
         platform_text_ended(&written);
     }
-    // the lines' cell is passed to the caller, who gives it back
+    // the call passes the cell of the lines to the caller, who gives it back
     *size = reserved ? platform_text_size(&written) : 0ULL;
     return reserved ? written.cell : NULL;
 }
