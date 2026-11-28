@@ -3,8 +3,8 @@
 #ifndef PTX_TARGET_H
 #define PTX_TARGET_H
 
-// The lane as PTX, a language of the register lane (code_generator.h): its ruleset is ptx.krs, nvJitLink assembles it,
-// and its header is queried from NVRTC
+// The lane as PTX, a language of the register lane (code_generator.h). Its ruleset is ptx.krs, nvJitLink assembles it,
+// and the code queries its header from NVRTC
 
 #include "../../../../engine/rmc/code_generator.h"
 
