@@ -80,8 +80,8 @@ static CubinRunStatus cubin_run_room(const CubinRunDriver *driver, CubinRunAddre
 // driver gives an error, or CUBIN_SAFE_LAUNCH_BOUND passes on the host clock. Its block latency in nanoseconds goes
 // into `nanoseconds`.
 //
-// The return is 0, or the status that the driver gave. It is CUDA_ERROR_LAUNCH_TIMEOUT where the launch
-// broke the rule, by the own timeout of the driver or by the bound
+// The return is 0, or the status that the driver gave. It is CUDA_ERROR_LAUNCH_TIMEOUT where the launch broke the
+// rule, by the own timeout of the driver or by the bound
 static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *function, void **arguments,
                                         const CubinRunShape *shape, unsigned long long *nanoseconds)
 {
