@@ -14,11 +14,11 @@
  * @brief The host rasterizer and the P5 writer. Integer arithmetic throughout.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * WHY THIS IS FAST, AND IT IS THE SAME REASON THE SEARCH IS. A pixel costs what the alignment under
- * it costs, and a steered probe set rejects max alignments on the first read. The renderer gets the
- * same saving: driving reads per alignment toward one drives the cost of a frame toward one read
- * per alignment. Nothing here is optimized separately from the search, and there is no second code
- * path to maintain in agreement with it.
+ * WHY THIS IS FAST, AND IT IS THE SAME REASON THE SEARCH IS. A pixel costs what the alignment under it
+ * costs, and a steered probe set rejects most alignments on the first read. The renderer gets the same
+ * gain. To bring the reads for each alignment toward one brings the cost of a frame toward one read for
+ * each alignment. Nothing here has a tune apart from the search, and there is no second code path to
+ * keep in agreement with it.
  */
 
 #include "orior_raster.h"
@@ -29,7 +29,7 @@
 /** @brief Death level step in the gray ramp, chosen so four probes stay far apart in 8 bits. */
 #define ORIOR_RASTER_STEP 40u
 
-/** @brief Brightest value a death level may reach, leaving ORIOR_RASTER_MATCH above it. */
+/** @brief The brightest value that a death level can reach, which leaves ORIOR_RASTER_MATCH above it. */
 #define ORIOR_RASTER_CEILING 250u
 
 /**
