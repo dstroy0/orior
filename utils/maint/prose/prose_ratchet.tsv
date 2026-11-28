@@ -471,7 +471,6 @@ src/cu/engine/nbody/orior/orior_internal.h	3
 src/cu/engine/nbody/orior/orior_steer.c	3
 src/cu/engine/nbody/orior/scan.c	3
 src/cu/engine/render/raster.cu	2
-src/cu/engine/render/raster_entry.cu	3
 src/cu/engine/rmc/asm_printer_internal.h	1
 src/cu/engine/rmc/codegen_device.h	1
 src/cu/engine/rmc/instruction_selection.h	2

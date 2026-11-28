@@ -93,8 +93,8 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
                                    size_t corpus_len, const uint8_t *needle, size_t needle_len,
                                    const OriorRasterProbe *probes, size_t probe_count, const void *census)
 {
-    // RESERVED. Built from the corpus below exactly as the host arm does. The two
-    // agree on rarity, and a caller supplied census is discarded on both.
+    // RESERVED. The code builds it from the corpus below, exactly as the host arm does. The two
+    // agree on rarity, and both discard a census that a caller gives.
     (void)census;
 
     if ((voxels == NULL) || (config == NULL) || (corpus == NULL) || (needle == NULL) || (config->width == 0u) ||
@@ -191,8 +191,8 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
     const size_t cells = config->width * config->height;
     const size_t alignments = (corpus_len - needle_len) + 1u;
 
-    /* The census is built on the host and uploaded. It is one pass over the corpus either way, and
-     * building it here would add a second reduction to grade against the host's. */
+    /* The host builds the census and uploads it. It is one pass over the corpus either way, and a
+     * build here would add a second reduction to grade against that of the host. */
     unsigned long long occurrences[256];
     for (size_t symbol = 0u; symbol < 256u; symbol += 1u)
     {
