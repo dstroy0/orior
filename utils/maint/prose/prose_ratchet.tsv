@@ -527,7 +527,7 @@ ui/cli/src/code/diff_view.h	8
 ui/cli/src/code/diff_view_internal.h	6
 ui/cli/src/code/diff_view_open.c	24
 ui/cli/src/code/git.c	2
-ui/cli/src/code/git.h	94
+ui/cli/src/code/git.h	63
 ui/cli/src/code/git_branches.c	2
 ui/cli/src/code/git_changes.c	44
 ui/cli/src/code/git_clone.c	6

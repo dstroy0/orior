@@ -1,14 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// git.h: what git reports about the tree: the branch it is on, the files that differ from the last commit and how, the
-// commits that touched a file, every branch's commits arranged as a graph and the files each changed, the commit that
-// last changed each line of a file, and a file's text as one of those commits left it or as the last did. In a tree
-// git cannot read, each of these comes back empty. What git is requested to do, for the Commit window and the Git menu:
-// commit chosen files, push, pull where nothing would merge, put a file back as the last commit left it, act on
-// branches, put changes aside in a stash and bring them back, and apply a commit of another branch, each giving git's
-// own words where it refuses. Here too is the clone of a repository into a folder of its own, for File, Clone
-// Repository and `imp file clone` (git.c, git_run.c, git_commit.c, git_branches.c, git_lists.c, git_graph.c,
-// git_lines.c, git_clone.c)
+// git.h: what git reports about the tree. That is the branch that it is on, the files that differ from the last commit
+// and how, and the commits that touched a file. It is also the commits of every branch as a graph with the files that
+// each changed, the commit that last changed each line of a file, and the text of a file as one of those commits left
+// it. In a tree that git cannot read, each of these comes back empty.
+//
+// Here too is what the Commit window and the Git menu tell git to do. That is to commit chosen files, push, pull where
+// nothing would merge, and put a file back as the last commit left it. It is also to act on branches, put changes
+// aside in a stash and bring them back, and apply a commit of another branch. Each gives the own words of git where it
+// refuses. The clone of a repository into a folder of its own is here too, for File, Clone Repository and
+// `imp file clone`.
+//
+// The calls are in git.c, git_branches.c, git_changes.c, git_clone.c, git_commit.c, git_commit_output.c and
+// git_graph.c. The rest are in git_head.c, git_lines.c, git_lists.c, git_log.c, git_repositories.c, git_run.c and
+// git_written.c
 #ifndef GIT_H
 #define GIT_H
 #include "../command_line/callback_cfg.h"
@@ -37,7 +42,7 @@ typedef struct CliGitRootAheadCfg CliGitRootAheadCfg;
 typedef struct CliGitOutCfg CliGitOutCfg;
 typedef struct CliGitRootPathKeyCfg CliGitRootPathKeyCfg;
 typedef struct CliGitRootErrMsgPathCfg CliGitRootErrMsgPathCfg;
-// the tree `root`, the file at `path` and the view `key` the file is stored under
+// the tree `root`, the file at `path`, and the view `key` that stores the file
 struct CliGitRootPathKeyCfg
 {
     const char *root;
@@ -59,17 +64,22 @@ typedef struct CliGitRootFoundStashesCfg CliGitRootFoundStashesCfg;
 typedef struct CliGitOutFoundStashesCfg CliGitOutFoundStashesCfg;
 typedef struct CliGitTextAtCfg CliGitTextAtCfg;
 
-// the repository File, Clone Repository offers first
+// the repository that File, Clone Repository offers first
 #define CLI_GIT_ORIOR "https://github.com/dstroy0/orior.git"
 
-// the max bytes of the texts of one list read from git
+// the max bytes of the texts of one list that the call reads from git
 #define CLI_GIT_TEXT (1u << 22u)
 
-// The texts of a list: each one ended by a 0 at its place, the place 0 containing the empty text. As the list is read
-// they are written into `bytes`, a work cell of the temporary tier of `capacity`, 1 in `full` where one did not fit and
-// was left empty. A list that is between the window's frames, 1 in `located`, ends its read by moving them into
-// `cell`, a movable cell of MMgr's sized to `used`, the work cell given back; a list read for one call retains them in
-// the work cell until it is released
+// The texts of a list, each ended by a 0 at its place. The place 0 holds the empty text.
+//
+// - `bytes` and `capacity`: as the call reads the list, it writes the texts into a work cell of the temporary tier, of
+//   `capacity` bytes
+// - `full`: 1 where a text did not fit, and the call left it empty
+// - `located`: 1 for a list that lives between the frames of the window. Its read ends with the texts moved into
+//   `cell`, and the work cell given back.
+// - `cell` and `used`: a movable cell of MMgr, sized to `used`
+//
+// A list that the call reads for one call keeps its texts in the work cell until its release
 typedef struct
 {
     char *bytes;
@@ -80,18 +90,20 @@ typedef struct
     int located;
 } CliGitText;
 
-// the texts begun empty, for a list containing none before, or one released; `length` bytes of `from` stored: their
-// place; a located list's texts moved into a movable cell sized to them as its read ends, nothing for another list;
-// the text at a place: where the texts are in the work cell, where they are, else copied into `dst`, `capacity`
-// bytes with its end, the empty text where the list has none or `dst` is NULL; and the texts' cells released, the list
-// containing none
+// the texts begun empty, for a list that held none before, or one released (git_run.c)
 void cli_git_text_begin(const CliGitTextCfg *args);
+// `length` bytes of `from`, stored. The return is their place
 unsigned int cli_git_text_append(const CliGitTextCfg *args);
+// the texts of a located list, moved into a movable cell sized to them as its read ends. For another list the call does
+// nothing
 void cli_git_text_end(const CliGitTextCfg *args);
+// the text at a place. Where the texts are in the work cell, the return points there. Else the call copies the text
+// into `dst`, `capacity` bytes with its end. The return is the empty text where the list has none or `dst` is NULL
 const char *cli_git_text_get(const CliGitTextAtCfg *args);
+// the cells of the texts released, and the list then holds none
 void cli_git_text_release(const CliGitTextCfg *args);
 
-// the max repositories, changed files, branches, stashes and commits a list contains
+// the max repositories, changed files, branches, stashes and commits that a list holds
 #define CLI_GIT_REPOSITORIES 256u
 
 #define CLI_GIT_CHANGED 65536u
@@ -102,8 +114,11 @@ void cli_git_text_release(const CliGitTextCfg *args);
 
 #define CLI_GIT_COMMITS 200u
 
-// A repository of the tree: its folder's path in the tree, empty for the one the tree itself is in, its name, and the
-// branch it is on
+// A repository of the tree:
+//
+// - `path`: the path of its folder in the tree, empty for the one that the tree itself is in
+// - `name`: its name
+// - `branch` and `has_branch`: the branch that it is on, and whether it is on one
 typedef struct
 {
     unsigned int path;
@@ -119,8 +134,12 @@ typedef struct
     CliGitText text;
 } CliRepositories;
 
-// A file that differs from the last commit: its path from the tree's top, the place of its name in that path, and its
-// state, one character: M changed, A added, D gone, R renamed, U not yet tracked, C in conflict
+// A file that differs from the last commit:
+//
+// - `path`: its path from the top of the tree
+// - `name`: the place of its name in that path
+// - `state`: one character. M for changed, A for added, D for gone, R for renamed, U for not yet tracked, and C for in
+//   conflict.
 typedef struct
 {
     unsigned int path;
@@ -135,7 +154,7 @@ typedef struct
     CliGitText text;
 } CliChangedList;
 
-// One commit that touched a file: its id, when it was made in seconds since 1970, and its subject
+// One commit that touched a file: its id, its time in seconds since 1970, and its subject
 typedef struct
 {
     unsigned int id;
@@ -150,8 +169,12 @@ typedef struct
     CliGitText text;
 } CliCommits;
 
-// A branch, local or remote: its short name, whether the tree is on it, the branch it follows, and when its last
-// commit was made and its subject
+// A branch, local or remote (`remote`):
+//
+// - `name`: its short name
+// - `current`: whether the tree is on it
+// - `upstream`: the branch that it follows
+// - `when` and `subject`: the time of its last commit, and its subject
 typedef struct
 {
     unsigned int name;
@@ -169,8 +192,11 @@ typedef struct
     CliGitText text;
 } CliBranches;
 
-// A stash, changes put aside: its name, `stash@{0}` the newest, when it was made in seconds since 1970, and git's line
-// for it, the branch it was made on and its message
+// A stash, changes put aside:
+//
+// - `name`: its name, with `stash@{0}` the newest
+// - `when`: its time in seconds since 1970
+// - `subject`: the line of git for it, the branch that it came from, and its message
 typedef struct
 {
     unsigned int name;
@@ -185,7 +211,7 @@ typedef struct
     CliGitText text;
 } CliStashes;
 
-// A file the next commit takes in part: its path and the text the commit takes for it, `length` bytes
+// A file that the next commit takes in part: its path, and the text that the commit takes for it, `length` bytes
 typedef struct
 {
     const char *path;
@@ -193,18 +219,33 @@ typedef struct
     unsigned long long length;
 } CliGitPart;
 
-// The changes as the window reads them (git_changes.c): every file under the tree that differs from the last commit of
-// the repository containing it, as rows in the order git lists them, the list located until the next read, and under a
-// file whose changes are open, a row each change and a row each line of it. A row is of one of three types: a file,
-// a change or a line. Every row carries the file's path from the tree's top and the file's place among the files. A
-// file's row carries its name, the last part of that path, the bytes of the folder before it, its state character as
-// cli_git_change reads it, whether the next commit takes it, whether it takes it in part, some lines left out,
-// whether its changes can open under it, and whether they are open. A change's row carries the change's place among
-// the file's changes, the newer text's first line of it and the line after its last, counted from 0, whether some of
-// its lines are taken and whether some and not all are. A line's row carries its change's place, its first units copied
-// out of the document store, CLI_CHANGED_ROW_UNITS at max, and how many, whether it is taken out of the older
-// text, else put in by the newer, and whether the commit takes it. The path is copied out of the list's texts into the
-// row, and the name points into that copy
+// The changes as the window reads them (git_changes.c). That is every file under the tree that differs from the last
+// commit of the repository that holds it. They are rows, in the order that git lists them. The list stays located until
+// the next read. Under a file whose changes are open, there is a row for each change and a row for each line of it.
+//
+// `type` is one of three: a file, a change or a line. Every row carries the path of the file from the top of the tree
+// (`path`), and the place of the file among the files (`file`). The call copies the path out of the texts of the list
+// into the row, and `name` points into that copy.
+//
+// The row of a file:
+//
+// - `name` and `folder_length`: its name, the last part of that path, and the bytes of the folder before it
+// - `state`: its state character, as cli_git_change reads it
+// - `taken` and `part`: whether the next commit takes it, and whether it takes it in part, with some lines left out
+// - `opens` and `open`: whether its changes can open under it, and whether they are open
+//
+// The row of a change:
+//
+// - `hunk`: the place of the change among the changes of the file
+// - `from` and `to`: the first line of it in the newer text and the line after its last, counted from 0
+// - `taken` and `part`: whether the commit takes some of its lines, and whether it takes some and not all
+//
+// The row of a line:
+//
+// - `hunk`: the place of its change
+// - `units` and `count`: its first units, copied out of the document store, CLI_CHANGED_ROW_UNITS at max, and how many
+// - `gone`: whether the older text takes it out, else the newer puts it in
+// - `taken`: whether the commit takes it
 #define CLI_CHANGES_ROW_FILE 0u
 #define CLI_CHANGES_ROW_HUNK 1u
 #define CLI_CHANGES_ROW_LINE 2u
@@ -229,10 +270,17 @@ typedef struct
     int gone;
 } CliChangedRow;
 typedef struct CliGitChangesCfg CliGitChangesCfg;
-// the max bytes of the commit's message with its end, and of git's refusal with its end; the head's actions: the
-// message's box, which takes the keys, Commit, Commit and Push, the tree read again, the files taken rolled back, the
-// branch pulled and pushed, and every file taken or left out; and the milliseconds a roll back's second press has to
-// come in
+// the max bytes of the message of the commit with its end, and of the refusal of git with its end. Then the actions of
+// the head:
+//
+// - CLI_CHANGES_FIELD: the box of the message, which takes the keys
+// - CLI_CHANGES_COMMIT and CLI_CHANGES_COMMIT_PUSH: Commit, and Commit and Push
+// - CLI_CHANGES_READ: the tree read again
+// - CLI_CHANGES_ROLLBACK: the files taken, rolled back
+// - CLI_CHANGES_PULL and CLI_CHANGES_PUSH: the branch pulled and pushed
+// - CLI_CHANGES_ALL: every file taken or left out
+//
+// Last, the milliseconds in which the second press of a roll back must come
 #define CLI_CHANGES_MESSAGE_MAX 4096u
 #define CLI_CHANGES_REFUSAL_MAX 4096u
 #define CLI_CHANGES_FIELD 1u
@@ -244,14 +292,16 @@ typedef struct CliGitChangesCfg CliGitChangesCfg;
 #define CLI_CHANGES_PUSH 7u
 #define CLI_CHANGES_ALL 8u
 #define CLI_CHANGES_ROLLBACK_MS 4000ULL
-// the changes begun: `woken` wakes the view's thread as the watch marks the changes stale; the changes marked stale
-// from any thread; and while the pane is `on`, the changes read again where the watch marked them stale since they
-// were last read: 1 where they were
+// the changes begun. `woken` wakes the thread of the view as the watch marks the changes stale
 void cli_changes_begin(const CliGitChangesCfg *args);
+// the changes marked stale, from any thread
 void cli_changes_stale(const CliGitChangesCfg *args);
+// while the pane is `on`, the changes read again where the watch marked them stale since their last read. The return is
+// 1 where it did
 int cli_changes_step(const CliGitChangesCfg *args);
-// the changes read anew of the tree at `root`, every repository of it, each file taken by the next commit unless it was
-// left out before, with how far the branch is from the remote it follows; none where `root` is NULL
+// the changes of the tree at `root` read again, for every repository of it, with how far the branch is from the remote
+// that it follows. The next commit takes each file, unless the reader left it out before. The call reads none where
+// `root` is NULL
 void cli_changes_read(const CliGitChangesCfg *args);
 // how many rows the changes have, the files with the rows open under them; how many files differ from the last commit;
 // the row `at` into `row`: 1, or 0 past the last; the row `at` toggled: a file's left
