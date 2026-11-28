@@ -89,9 +89,15 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 #define CLI_SERVERS_LANGUAGES 64u
 #define CLI_SERVERS_CHECKERS 64u
 
-// how long a request is waited on, and a search of the whole tree, in milliseconds; how many files the check has open
-// at once; how long it waits for a file's diagnostics and for any after them; how often an ended server is started
-// again, at max that many times within that many milliseconds; and the max bytes of a file the check reads
+// the times and counts of the servers:
+//
+// - CLI_SERVERS_REQUEST_TIMEOUT_MS and CLI_SERVERS_SEARCHING: how long the call waits on a request, and on a search of
+//   the whole tree, in milliseconds
+// - CLI_SERVERS_CHECKING: how many files the check has open at once
+// - CLI_SERVERS_PATIENCE and CLI_SERVERS_QUIET: how long it waits for the diagnostics of a file, and for any after them
+// - CLI_SERVERS_RESTARTS and CLI_SERVERS_RESTARTS_WITHIN: how often a server that ended starts again, at max that many
+//   times within that many milliseconds
+// - CLI_SERVERS_LARGEST: the max bytes of a file that the check reads
 #define CLI_SERVERS_REQUEST_TIMEOUT_MS 5000ULL
 #define CLI_SERVERS_SEARCHING 60000ULL
 #define CLI_SERVERS_CHECKING 6u
@@ -101,33 +107,42 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 #define CLI_SERVERS_RESTARTS_WITHIN 60000ULL
 #define CLI_SERVERS_LARGEST (2ULL << 20u)
 
-// the name the findings of the files impero reads itself are stored by, beside the checkers'
+// the name that stores the findings of the files that impero reads itself, beside those of the checkers
 #define CLI_SERVERS_OWN "orior"
 
-// the max bytes of a text written from one server's answer or one file's findings, and of what a check of the whole
-// tree finds; and the max nodes a tree contains
+// the max bytes of a text written from the answer of one server or the findings of one file (CLI_SERVERS_ANSWER). Then
+// the max bytes of what a check of the whole tree finds (CLI_SERVERS_FINDINGS), and the max nodes that a tree holds
+// (CLI_SERVERS_NODES)
 #define CLI_SERVERS_ANSWER (8ULL << 20u)
 #define CLI_SERVERS_FINDINGS (32ULL << 20u)
 #define CLI_SERVERS_NODES (1u << 18u)
 
-// the max bytes of a request's params about a file: its path as a URI, a place and a new name
+// the max bytes of the params of a request about a file: its path as a URI, a place and a new name
 #define CLI_SERVERS_PARAMS (CLI_PATH_MAX_LEN * 4u)
 
-// A server's answer read: its lock, and the tree it reads to, taken to the text it reads, given back as the next is
-// read and as the lock is
+// A read of the answer of a server. `json` is the tree that it reads to, taken for the text that it reads. It goes back
+// as the next read starts, and as the lock goes back
 typedef struct
 {
     CliJson json;
 } CliServersReadState;
 
-// a reading's lock taken; and its tree given back with the lock (servers_shapes.c)
+// the lock of a reading taken, and its tree given back with the lock (servers_shapes.c)
 void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args);
 
-// A toolchain's server: its toolchain and its name, its program, the words it starts with, the languages it serves, the
-// protocol's name for each extension's language, the line that installs it, the file that marks a project, the
-// notification that has it check its projects, the options it starts with in a tree whose own code is disabled and in
-// one whose code runs, as JSON, empty for none, and whether a file the editor has open is given it as the tree's slice
-// for the lines in view in place of the file's whole text
+// The server of a toolchain:
+//
+// - `tool` and `name`: its toolchain and its name
+// - `program` and `arg`: its program, and the words that it starts with
+// - `language`: the languages that it serves
+// - `id_extension` and `id_name`: the name in the protocol of the language of each extension
+// - `setup`: the line that installs it
+// - `projects`: the file that marks a project
+// - `checks`: the notification that makes it check its projects
+// - `blocked_args` and `trusted`: the options that it starts with, as JSON, empty for none. The first is for a tree
+//   whose own code is off, the second for one whose code runs
+// - `slices`: whether the editor gives it an open file as the slice of the tree for the lines in view. That is in place
+//   of the whole text of the file
 typedef struct
 {
     char tool[CLI_NAME_MAX_LEN];
@@ -148,17 +163,24 @@ typedef struct
     int slices;
 } CliServerSpec;
 
-// the asks a server given the tree's slices remembers the times of; and the quiet it is let go after, in
-// milliseconds: the least, what each ask of the last minute adds, the max, and the minute
+// the asks whose times a server that gets the slices of the tree keeps (CLI_SERVERS_REQUESTS). Then the quiet before
+// its release, in milliseconds: the least, what each ask of the last minute adds, the max, and the minute
 #define CLI_SERVERS_REQUESTS 128u
 #define CLI_SERVERS_QUIET_MIN 2000ULL
 #define CLI_SERVERS_QUIET_EACH 500ULL
 #define CLI_SERVERS_QUIET_MAX 60000ULL
 #define CLI_SERVERS_REQUESTS_WITHIN 60000ULL
 
-// A server running: whether its place is taken, the server, and its spec; and for a server given the tree's slices,
-// the asks waiting on it, the times of its last asks in a ring and how many it was asked, and when it was last asked
-// or answered
+// A server that runs:
+//
+// - `used`: whether its place is in use
+// - `lsp` and `spec`: the server, and its spec
+//
+// For a server that gets the slices of the tree:
+//
+// - `waits`: the asks that wait on it
+// - `requested` and `pending_requests`: the times of its last asks in a ring, and how many asks it got
+// - `quiet_from`: when it last got an ask or gave an answer
 typedef struct
 {
     int used;
@@ -170,8 +192,15 @@ typedef struct
     unsigned long long quiet_from;
 } CliServerRunning;
 
-// The servers, under their lock: the tree they serve, those running, the toolchains that failed and why, how often
-// each ended, the checkers named, the tree they check, and where what is reported goes
+// The servers, under their lock:
+//
+// - `root`: the tree that they serve
+// - `running`: those that run
+// - `failed_tool` and `failed_msg`: the toolchains that failed, and why
+// - `restart_tool` and `restarts`: how often each ended
+// - `checker`: the checkers named
+// - `checked_root`: the tree that they check
+// - `sink` and `has_sink`: where what they report goes
 typedef struct
 {
     char root[CLI_PATH_MAX_LEN];
@@ -191,17 +220,22 @@ typedef struct
 
 extern CliServersState g_cli_servers;
 
-// One file waiting for the tree's check, besides its path: the server it goes to, referenced for it, and the protocol's
-// name for its language
+// One file that waits for the check of the tree, apart from its path. `server` is the server that it goes to,
+// referenced for it. `id` is the name of its language in the protocol
 typedef struct
 {
     CliLsp *server;
     char id[CLI_NAME_MAX_LEN];
 } CliServersWaiting;
 
-// A file waiting for the tree's check, the head of one movable cell: its server, referenced for it, the check's
-// generation it was queued in, its place among the tree's files or CLI_SERVERS_NO_FILE, and its path's bytes; the
-// path with its 0 then its language's name with its 0 follow the head in the cell
+// A file that waits for the check of the tree, the head of one movable cell:
+//
+// - `server`: its server, referenced for it
+// - `generation`: the generation of the check that it went into the queue in
+// - `file`: its place among the files of the tree, or CLI_SERVERS_NO_FILE
+// - `size`: the bytes of its path
+//
+// The path with its 0, then the name of its language with its 0, follow the head in the cell
 typedef struct
 {
     CliLsp *server;
@@ -211,31 +245,33 @@ typedef struct
 } CliServersQueued;
 #define CLI_SERVERS_NO_FILE 0xffffffffu
 
-// the tree's files the check lists at max; and the slots of its two ticket rings, as two's powers: the files
-// waiting, and the files a change puts first
+// the max files of the tree that the check lists. Then the slots of its two ticket rings, as powers of two: the files
+// that wait, and the files that a change puts first
 #define CLI_SERVERS_FILES_MAX (1u << 16u)
 #define CLI_SERVERS_CHECK_RING_SHIFT 16u
 #define CLI_SERVERS_CHECK_FIRST_SHIFT 6u
-// the bytes the two rings' slots take, the waiting ring's first, the check's part of the rings block
+// the bytes that the slots of the two rings take, those of the ring that waits first. They are the part of the check in
+// the rings block
 #define CLI_SERVERS_CHECK_RING_BYTES                                                                                   \
     (((1ULL << CLI_SERVERS_CHECK_RING_SHIFT) + (1ULL << CLI_SERVERS_CHECK_FIRST_SHIFT)) * sizeof(EmbedTicketRingSlot))
-// the problems' reports on their way to the view's thread at once, a two's power, and the bytes their ring's slots
-// take, the problems' part of the rings block
+// the reports of the problems on their way to the thread of the view at once, a power of two. Then the bytes that the
+// slots of their ring take: the part of the problems in the rings block
 #define CLI_PROBLEMS_RING_SHIFT 5u
 #define CLI_PROBLEMS_RING_SLOTS (1u << CLI_PROBLEMS_RING_SHIFT)
 #define CLI_PROBLEMS_RING_BYTES ((unsigned long long)CLI_PROBLEMS_RING_SLOTS * sizeof(EmbedTicketRingSlot))
-// the hover answers on their way to the view's thread at once, a two's power, and the bytes their ring's slots take,
-// the hover answers' part of the rings block
+// the hover answers on their way to the thread of the view at once, a power of two. Then the bytes that the slots of
+// their ring take: the part of the hover answers in the rings block
 #define CLI_PANELS_HOVER_RING_SHIFT 2u
 #define CLI_PANELS_HOVER_RING_SLOTS (1u << CLI_PANELS_HOVER_RING_SHIFT)
 #define CLI_PANELS_HOVER_RING_BYTES ((unsigned long long)CLI_PANELS_HOVER_RING_SLOTS * sizeof(EmbedTicketRingSlot))
-// the jobs ring's slots as a two's power, the jobs in flight at max, and the bytes they take, the jobs' part of
-// the rings block
+// the slots of the jobs ring as a power of two, also the max jobs in flight. Then the bytes that they take: the
+// part of the jobs in the rings block
 #define CLI_SERVERS_JOBS_RING_SHIFT 8u
 #define CLI_SERVERS_JOBS_RING_BYTES ((1ULL << CLI_SERVERS_JOBS_RING_SHIFT) * sizeof(EmbedTicketRingSlot))
 
-// A ring of files waiting for the check: the ticket ring, its turnstiles, the next ticket a queuing thread takes and
-// the next a checker takes; a checker takes a ticket and waits for its push, so the checkers pop in ticket order
+// A ring of files that wait for the check: the ticket ring and its turnstiles. Then the next ticket that a thread which
+// queues takes (`ticket`), and the next that a checker takes (`taken`). A checker takes a ticket and waits for its
+// push, thus the checkers pop in ticket order
 typedef struct
 {
     EmbedTurnstiles turnstiles;
