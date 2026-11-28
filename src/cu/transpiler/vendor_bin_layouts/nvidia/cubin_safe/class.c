@@ -16,7 +16,7 @@ int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long
     {
         return 0;
     }
-    // the class is named for its operation, the mnemonic in lower case before the first underscore: `bra_`,
+    // the class takes its name from its operation, the mnemonic in lower case before the first underscore: `bra_`,
     // `exit_`, `iadd3_noimm__RRR_RRR`
     char operation[TABLES_NAME];
     unsigned int length = 0u;
