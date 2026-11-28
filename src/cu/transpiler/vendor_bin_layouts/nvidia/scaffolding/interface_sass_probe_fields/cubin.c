@@ -17,13 +17,13 @@ static unsigned int s_exits[FIELDS_EXITS];
 char s_kernel[128];
 unsigned long long s_pattern_size;
 
-// each operation key, the low word's bits the sweep puts every value of: whether the machine file contains a form under
-// it, and whether any form it contains there transfers control or waits
+// each operation key, the bits of the low word that the sweep puts every value of. It holds whether the machine file
+// has a form under it, and whether any form that it has there transfers control or waits
 static unsigned char s_key_known[SASS_OPERATION_MASK + 1u];
 
 static unsigned char s_key_control[SASS_OPERATION_MASK + 1u];
 
-// `path` read whole into `bytes`, which has room for `room`: the bytes read, 0 where it was not read
+// `path` read whole into `bytes`, which has room for `room`. The return is the bytes read, 0 where the read failed
 unsigned long long fields_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     PlatformFile *const file = platform_file_open(path, "rb");
@@ -102,8 +102,8 @@ int fields_splice(const char *kernel_text, const char *lines, char *text, size_t
     return (int)formed_line_1.at < (int)room;
 }
 
-// the instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s: its number, or `count`
-// where none is or more than one is. The scheduler's bits, 105 and above, are left out of the match
+// the instruction of `code`, `count` of them, whose operation bits are those of `low` and `high`. The return is its
+// number, or `count` where none is or more than one is. The match leaves out the scheduler bits, 105 and above
 unsigned int fields_find(const unsigned char *code, unsigned int count, unsigned long long low, unsigned long long high)
 {
     const unsigned long long mask = (1ULL << (FIELDS_OPERATION_BITS - 64u)) - 1ULL;
@@ -162,9 +162,9 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
     return 1;
 }
 
-// the key table filled from the machine file's forms: a key is known where any form sits under it, and control where
-// any form under it transfers control or waits. The sweep put every key to the disassembler from each of several
-// carriers, and the file contains every operation a key named there. The counts go to the standard output
+// the key table, filled from the forms of the machine file. A key counts as known where any form sits under it, and
+// control where any form under it transfers control or waits. The sweep put every key to the disassembler from each of
+// several carriers, and the file holds every operation that a key named there. The counts go to the standard output
 void fields_keys(void)
 {
     unsigned int known = 0u;
@@ -174,8 +174,8 @@ void fields_keys(void)
         const unsigned long long key = s_machine.form[at].low & SASS_OPERATION_MASK;
         known += (s_key_known[key] == 0u) ? 1u : 0u;
         s_key_known[key] = 1u;
-        // a turned bit that writes a control transfer or a wait is run as it is and not refused: its key is blocked
-        // from the part
+        // the probe skips a turned bit that writes a control transfer or a wait, and does not refuse it. Its key
+        // stays off the part
         if (sass_operation_control_or_wait(s_machine.form[at].operation) && (s_key_control[key] == 0u))
         {
             s_key_control[key] = 1u;
@@ -195,10 +195,13 @@ void fields_keys(void)
 }
 
 // 1 where the instruction at `place` in s_code, turned at `bit`, is safe to run on the part. The operation key names
-// the operation, and the turned encoding is run only where the machine file contains forms under its key and no control
-// transfer or wait among them: such an instruction falls through whatever its other bits contain, and cannot loop or
-// stall the part. A turn past the key leaves the key, and the instruction's own operation, as they were. `name` takes
-// the operation the turned encoding reads back as, or the key where no form reads it back. A `bit` of 128 turns nothing
+// the operation. The probe runs the turned encoding only where the machine file has forms under its key, and no control
+// transfer or wait among them. Such an instruction falls through whatever its other bits hold, and cannot loop or stall
+// the part.
+//
+// A turn past the key leaves the key, and the own operation of the instruction, as they were. `name` takes the
+// operation that the turned encoding reads back as, or the key where no form reads it back. A `bit` of 128 turns
+// nothing
 int fields_flip_safe(unsigned int place, unsigned int bit, char *name, size_t room)
 {
     unsigned long long low = fields_word_read(&s_code[16u * place]);
@@ -233,8 +236,8 @@ int fields_flip_safe(unsigned int place, unsigned int bit, char *name, size_t ro
     return (s_key_known[key] != 0u) && (s_key_control[key] == 0u);
 }
 
-// the first instruction of the file at `path` that is a form to probe, into `instruction`: 1, or 0 where the file
-// contains none. The kernel's own IADD3 and blank lines are passed over, as the write pass passes them
+// the first instruction of the file at `path` that is a form to probe, into `instruction`. The return is 1, or 0 where
+// the file holds none. The call passes over the own IADD3 of the kernel and blank lines, as the write pass does
 int fields_first(const char *path, char *instruction, size_t room)
 {
     PlatformFile *const file = platform_file_open(path, "rb");
