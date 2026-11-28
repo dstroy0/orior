@@ -682,7 +682,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fie
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fields/fields_internal.h	12
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/operands.c	14
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/probe_machine_internal.h	2
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/widened.c	34
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/widened.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_main.c	26
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_main/forms.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_main/probe_main_internal.h	1
