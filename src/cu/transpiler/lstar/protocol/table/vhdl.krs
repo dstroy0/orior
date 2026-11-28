@@ -191,9 +191,9 @@ form state_loop back where next =             if {where} then\n                s
 
 # the program resident around the lane, as the resident kernel is on NVIDIA: the entity cycle_program_unit. It takes
 # the launch, and runs its lanes on cycle_lane_unit one at a time. It starts from the next lane of the hot word, and
-# goes to the count of the launch. It holds each to the owner and command of the program block, and writes where the program is as it
-# leaves. It and the lane unit are the whole circuit that a part builds from. The bench only loads it, starts it and
-# reads it back.
+# goes to the count of the launch. It holds each to the owner and command of the program block, and writes where the
+# program is as it leaves. It and the lane unit are the whole circuit that a part builds from. The bench only loads
+# it, starts it and reads it back.
 #
 # The offsets are bytes, of the launch, its hot words and its block. The commands and states are those of the engine
 # (engine_config.h), as the code generator gives them
