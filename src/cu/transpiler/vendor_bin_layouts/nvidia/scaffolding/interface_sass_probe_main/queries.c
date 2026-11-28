@@ -110,7 +110,7 @@ int sass_lane_written(SassProbe *probe)
     }
     // every instruction that the cubin of the resident held, looked for in the cubin that the lane went into. The
     // function cycle_program is the bulk of both, and none of it can move. The empty cycle_lane that the build gave it
-    // is two instructions, and those are the only ones that can go
+    // is two instructions, and the check expects the new cubin to lack those two
     unsigned int same_count = 0u;
     for (unsigned int number = 0u; number < s_before.count; number += 1u)
     {
