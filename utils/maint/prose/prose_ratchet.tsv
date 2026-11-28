@@ -470,7 +470,6 @@ src/cu/engine/rmc/asm_printer_internal.h	1
 src/cu/engine/rmc/codegen_device.h	1
 src/cu/engine/rmc/instruction_selection.h	2
 src/cu/engine/rmc/precepts.h	1
-src/cu/engine/runtime/daemon/service/tessera@.service	3
 src/cu/engine/runtime/daemon/tessera_daemon_main.c	1
 src/cu/engine/runtime/daemon/tessera_ledger_core_heap.h	1
 src/cu/engine/runtime/daemon/tessera_run_posix.c	14
