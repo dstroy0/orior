@@ -23,7 +23,7 @@ static int ksg_named(const char *path, const char *suffix, char *out)
     return 1;
 }
 
-// each leaf written after those before it in the seal being written
+// each leaf written after those before it in the seal that the call writes
 static int ksg_writing_leaf(void *context, const unsigned char *leaf, unsigned long long line)
 {
     (void)line;

@@ -66,7 +66,7 @@ typedef DWORD(WINAPI *PlatformPagesDiscard)(PVOID at, SIZE_T bytes);
 void platform_pages_discarded(void *at, unsigned long long bytes)
 {
     // The discard of the system takes the pages out of the working set at once, where the system has it. Else the
-    // pages are marked unneeded, and the system takes them as it trims. The search runs once, on the first call
+    // call marks the pages as not needed, and the system takes them as it trims. The search runs once, on the first call
     static PlatformPagesDiscard s_discard;
     static int s_sought;
     if (!s_sought)
@@ -357,8 +357,9 @@ int platform_file_read(const char *path, void *out, unsigned long long capacity,
     return ok;
 }
 
-// `count` bytes of `data` written to the file at the UTF-8 `path`, made new in place of any file there where `fresh`
-// is 1, and after the end of the file there where `fresh` is 0: 1 where every byte went
+// `count` bytes of `data` written to the file at the UTF-8 `path`. Where `fresh` is 1, the call makes the file new in
+// place of any file there. Where `fresh` is 0, it writes after the end of the file there. The return is 1 where every
+// byte went
 static int platform_file_put(const char *path, const void *data, unsigned long long count, int fresh)
 {
     wchar_t wide[PLATFORM_WIDE_PATH];

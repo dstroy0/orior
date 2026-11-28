@@ -7,7 +7,7 @@
 
 #include "../coverage/coverage.h"
 
-// the steps a quadratic curve is cut into
+// the steps that the outline cuts a quadratic curve into
 #define FONT_CURVE_STEPS 8u
 
 typedef struct
@@ -159,8 +159,8 @@ EMBED_INLINE unsigned long long outline_flags_read(const FontOutlineCtx *args)
     return cursor;
 }
 
-// the x's of a simple glyph's points read from `at`, then the y's: a short one a byte, its sign by the flag, else a
-// word, or the one before where the flag gives the same
+// the x's of the points of a simple glyph read from `at`, then the y's. A short one is a byte, with its sign from the
+// flag. Else it is a word, or the one before where the flag gives the same
 EMBED_INLINE void outline_coords_read(const FontOutlineCtx *args)
 {
     const Font *font = args->font;

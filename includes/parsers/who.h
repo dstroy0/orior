@@ -27,8 +27,8 @@ extern "C"
         unsigned long long time;
     } Who;
 
-    // the who of the code at line `line` of the source `file`, as __FILE__ and __LINE__ give them, in this program,
-    // now on the run's one clock; a number the table gives none is 0
+    // the who of the code at line `line` of the source `file`, as __FILE__ and __LINE__ give them, in this program. The
+    // time is now on the one clock of the run. A number that the table does not give is 0
     Who who_here(const char *file, unsigned int line);
 
 // the who of the code this is in
@@ -47,9 +47,9 @@ extern "C"
     // the code `code` read back into `who`: 1, or 0 where it is not WHO_CODE_CHARACTERS hex digits
     int who_read(const char *code, Who *who);
 
-    // `who` named into `text`, which has room for `room`: the source's path from the top of the tree and the line, the
-    // program's source, and the time on the run's clock in nanoseconds, `-` for a number the table does not give: 1,
-    // or 0 where it does not fit
+    // `who` named into `text`, which has room for `room`. The name holds the path of the source from the top of the tree,
+    // and the line. Then it holds the source of the program, and the time on the clock of the run in nanoseconds. A `-` stands for a
+    // number that the table does not give. The return is 1, or 0 where it does not fit
     int who_named(Who who, char *text, size_t room);
 
 #ifdef __cplusplus

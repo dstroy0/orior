@@ -102,8 +102,8 @@ typedef struct
     float advance[GUI_ASCII_COUNT];
 } GuiAsciiTable;
 
-// A place of a cache's order: the key of an entry or a cell, the face first and 0 for a part the key has not, and the
-// place of the entry or the cell
+// A place of the order of a cache. It holds the key of an entry or a cell, with the face first and 0 for a part that
+// the key does not have. Then the place of the entry or the cell
 typedef struct
 {
     unsigned int key[4];
@@ -114,8 +114,8 @@ typedef struct
 #define GUI_GLYPH_RUN 256u
 #define GUI_GLYPH_NONE 0xffffffffu
 
-// The keys of a cache: an order of them sorted, `ordered` of them, a run of the newest, `run_count` of them, and the
-// room that the sort of a full run writes, each in the block's tables part
+// The keys of a cache: a sorted order of them, `ordered` of them, and a run of the newest, `run_count` of them. Then
+// the room that the sort of a full run writes. Each is in the tables part of the block
 typedef struct
 {
     GuiGlyphPlace *order;

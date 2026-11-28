@@ -97,8 +97,8 @@ int cli_region_free(const CliTransferCfg *args)
     return 1;
 }
 
-// the section `section`, this process's, viewed to be read as a region of `length` bytes, the handle closed where it
-// is none
+// the section `section` of this process, viewed for reads as a region of `length` bytes. The call closes the handle
+// where the view is none
 EMBED_INLINE int transfer_map(const WindowsTransferCtx *args)
 {
     HANDLE section = args->section;
@@ -111,7 +111,7 @@ EMBED_INLINE int transfer_map(const WindowsTransferCtx *args)
         mmgr_line_put(args->err_msg, " bytes is past the max a region supports");
         return 0;
     }
-    // a view longer than the section is refused by the system
+    // the system refuses a view longer than the section
     const unsigned char *const view =
         (const unsigned char *)MapViewOfFile(section, FILE_MAP_READ, 0u, 0u, (SIZE_T)((length > 0ULL) ? length : 1ULL));
     if (view == NULL)

@@ -23,9 +23,9 @@ struct CliTls
     void *ssl;
 };
 #endif
-// the values of libssl's calls impero passes it: load the library's error strings and ciphers, a host's name as the
-// SSL_ctrl that sets the name it is reached by, the option that reads an end with no close as an end, and what
-// SSL_get_error returns
+// the values that impero passes to the calls of libssl. First the load of the error strings and ciphers of the
+// library. Then the name of a host as the SSL_ctrl that sets the server name. Last, the option that reads an end with
+// no close as an end, and what SSL_get_error returns
 #define CLI_SSL_NOW 2
 
 #define CLI_SSL_SET_HOST_NAME 55

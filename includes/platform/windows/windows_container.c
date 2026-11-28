@@ -16,8 +16,8 @@
 #include <shellapi.h>
 #include <tlhelp32.h>
 
-// the job this process heads, open as long as the process is: its closing as the process ends is what ends every
-// member; NULL where none was made
+// the job that this process heads, open as long as the process lives. When the process ends, the job closes, and that
+// ends every member. It is NULL where the process made no job
 static HANDLE s_job;
 
 int cli_container_init(void)

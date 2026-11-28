@@ -20,9 +20,9 @@ typedef struct GuiControlsCfg GuiControlsCfg;
 #define GUI_CONTROL_NONE 3u
 #define GUI_CONTROL_GLYPH 14
 
-// The controls drawn at `time_ms`: the three controls in the frame's controls rectangle, each its glyph under its
-// bead, nothing positioned under the beads, the beads' atlas arranged at the controls' rest places and each control's
-// frames baked the first time it is drawn
+// The controls drawn at `time_ms`: the three controls in the controls rectangle of the frame, each its glyph under
+// its bead. Nothing goes under the beads. The atlas of the beads sits at the rest places of the controls. The call
+// bakes the frames of a control the first time that it draws the control
 void gui_controls_draw(const GuiControlsRasterCfg *args);
 // the control the pointer at x, y is on, GUI_CONTROL_NONE off them all; and the rectangle of the control `which`
 unsigned int gui_controls_hit(const GuiControlsCfg *args);

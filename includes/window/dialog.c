@@ -442,8 +442,8 @@ EMBED_INLINE void dialog_close_draw(const DialogCtx *args)
 }
 
 // The button `at`: a box with rounded corners and a line one pixel wide about it. The preferred button is on the
-// displayed tab's ground. The line is the signal on the button with the keys while the dialog holds the focus, the hover
-// color under the pointer, else the widget's line. The label is in the middle
+// ground of the displayed tab. While the dialog holds the focus, the line is the signal on the button with the keys.
+// Under the pointer it is the hover color, else the line of the widget. The label is in the middle
 EMBED_INLINE void dialog_button_draw(const DialogCtx *args)
 {
     const GuiDialog *const dialog = args->dialog_read;
@@ -488,8 +488,8 @@ void gui_dialog_draw(const GuiDialogDrawCfg *args)
     const GuiUnder clear = {args->ground, 0u, NULL, 0u, palette->deep};
     EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = raster,
                .background_fill = table, .rect = clip, .radius = 0u, .inner = palette->glass);
-    // The sheet is in from the sides in the editor's ground at the editor's opacity. The head band at its top
-    // is in the tabs row's surface, its top corners round with the sheet's
+    // The sheet is in from the sides in the ground of the editor, at the opacity of the editor. The head band at its top
+    // is in the surface of the tabs row. Its top corners round with those of the sheet.
     // a rounding in pixels is not negative
     const unsigned int pane_radius =
         (unsigned int)EMBED_CALL(dialog_pixels, DialogCtx, .pixels = GUI_WORK_RADIUS, .scale = scale);
