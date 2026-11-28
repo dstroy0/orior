@@ -512,7 +512,7 @@ src/cu/engine/rmc/asm_printer_layout.cu	5
 src/cu/engine/rmc/code_generator.cu	29
 src/cu/engine/rmc/code_generator.h	19
 src/cu/engine/rmc/codegen_core.h	9
-src/cu/engine/rmc/codegen_device.h	35
+src/cu/engine/rmc/codegen_device.h	1
 src/cu/engine/rmc/codegen_lowering.cu	18
 src/cu/engine/rmc/codegen_output.cu	13
 src/cu/engine/rmc/codegen_rules.cu	3
