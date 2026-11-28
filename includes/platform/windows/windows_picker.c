@@ -12,8 +12,8 @@
 #include <shobjidl.h>
 
 #if (defined(_WIN32))
-// A pick on its thread: what is picked, the path chosen and its capacity, and whether one was chosen and the thread is
-// done
+// A pick on its thread: what the user picks, the chosen path and its capacity, and whether the user chose one and the
+// thread ended
 typedef struct
 {
     unsigned int type;
@@ -33,7 +33,7 @@ typedef struct
     CliPick *pick;
 #endif
 } WindowsPickerCtx;
-// the dialog displayed and what was chosen written into the pick's path as UTF-8
+// the dialog displayed, and the choice of the user written into the path of the pick as UTF-8
 EMBED_INLINE void picker_show(const WindowsPickerCtx *args)
 {
     const int saving = args->pick->type == CLI_PICK_SAVE;

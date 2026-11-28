@@ -17,8 +17,8 @@ typedef struct GuiFramebufferCfg GuiFramebufferCfg;
 #define GUI_FRAMEBUFFER_RASTERS 3u
 #define GUI_FRAMEBUFFER_BACKGROUND 2u
 
-// The framebuffers' ring and its pages, the ground's ring and its pages, the pixel bytes each raster has capacity for,
-// and the rasters positioned over the rings' segments
+// The ring of the framebuffers and its pages, and the ring of the ground and its pages. Then the pixel bytes that each
+// raster has capacity for, and the rasters over the segments of the rings
 typedef struct
 {
     mmgr_ring *frames;
@@ -31,17 +31,18 @@ typedef struct
 
 // the bytes a window `width` by `height` draws in one raster: the pitch of the width by the height, a word a pixel
 unsigned long long gui_framebuffer_bytes(const GuiFramebufferCfg *args);
-// the rasters made for a window `width` by `height` over the `frames` ring of two segments and the `background` ring
-// of one, each segment `capacity` bytes, the first framebuffer the one drawn: 1, or 0 where there is no size, no ring
-// or the window passes the capacity, nothing retained; and the rasters let go, the rings their caller's to give back. One
-// at a time: the rings are the caller's
+// the rasters made for a window `width` by `height`, over the `frames` ring of two segments and the `background` ring
+// of one. Each segment has `capacity` bytes, and the first framebuffer is the one to draw. The return is 1, or 0 with
+// nothing kept where there is no size or no ring or the window passes the capacity. The second call lets the rasters
+// go, and the caller gives back the rings. One at a time: the rings belong to the caller
 int gui_framebuffer_init(const GuiFramebufferRingsCfg *args);
 void gui_framebuffer_free(const GuiFramebufferRingsCfg *args);
-// whether the rasters have capacity for a window `width` by `height`; and the rasters sized to it, their pixels where
-// they are: 1, or 0 with nothing changed where they have no capacity
+// whether the rasters have capacity for a window `width` by `height`. Then the rasters sized to it, with their pixels
+// where they are: 1, or 0 with nothing changed where they have no capacity
 int gui_framebuffer_fits(const GuiFramebufferCfg *args);
 int gui_framebuffer_fit(const GuiFramebufferRingsCfg *args);
-// the framebuffer just drawn passed over to be displayed, the one displayed before freed, and the raster to draw next
+// the framebuffer just drawn, given over for the display. The one that the display showed before goes free, and the
+// call gives the raster to draw next
 GuiRaster *gui_framebuffer_flip(const GuiFramebufferRingsCfg *args);
 struct GuiFramebufferRingsCfg
 {

@@ -35,7 +35,8 @@ GuiRect gui_top_menu_tool_rect(const GuiTopMenuCfg *args)
     const int side = args->frame->top_menu_tools.height;
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TOP_MENU_TOOL_GAP,
                                .scale = args->frame->scale);
-    // the tools' row the button is positioned in: the one passed in, else the frame's; a tool's place is one of four
+    // the row of the tools that holds the button: the one passed in, else the row of the frame. The place of a tool is
+    // one of four
     const GuiRect tools = (args->tools != NULL) ? *args->tools : args->frame->top_menu_tools;
     const int at = tools.x + ((int)args->which * (side + gap));
     const GuiRect button = {at, tools.y, side, side};
@@ -94,8 +95,8 @@ EMBED_INLINE void top_menu_icon_draw(const TopMenuCtx *args)
                .y = args->button.y + ((args->button.height - (int)icon) / 2), .color = args->color, .clip = args->clip);
 }
 
-// The tools' beads arranged, one a tool at its rest place on the top menu's row, where the row is with no claim,
-// lit by the window's lights. A tool's frames bake the first time it is drawn
+// The beads of the tools arranged, one for each tool at its rest place on the top menu row, where the row has no
+// claim. The lights of the window light them. The frames of a tool bake the first time that the call draws it
 EMBED_INLINE void top_menu_beads_positioned(const TopMenuCtx *args)
 {
     const GuiTopMenuRasterCfg *const drawn = args->drawn;
@@ -129,8 +130,8 @@ EMBED_INLINE void top_menu_beads_positioned(const TopMenuCtx *args)
                      .pixels = (GuiColor *)(void *)span);
 }
 
-// the bar's tools drawn: each its icon on the glass, the pointed one in the bright color, the notifications tool
-// with a dot at its top right corner while notices wait, and each tool's bead of water over its icon
+// the tools of the bar drawn: each its icon on the glass, and the pointed one in the bright color. The notifications
+// tool has a dot at its top right corner while notices wait. Each tool has its bead of water over its icon
 EMBED_INLINE void top_menu_tools_draw(const TopMenuCtx *args)
 {
     const GuiTopMenuRasterCfg *const drawn = args->drawn;

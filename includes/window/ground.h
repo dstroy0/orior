@@ -12,7 +12,7 @@ typedef struct GuiBackgroundRasterCfg GuiBackgroundRasterCfg;
 typedef struct GuiBackgroundCfg GuiBackgroundCfg;
 typedef struct GuiBackgroundClockCfg GuiBackgroundClockCfg;
 
-// How a dot is shaded by its order: ink from the least ordered to the max, and radius in page pixels
+// How the order of a dot shades it: ink from the least ordered to the max, and radius in page pixels
 #define GUI_BACKGROUND_DIM 0.85
 #define GUI_BACKGROUND_FAINTEST (0.426 * GUI_BACKGROUND_DIM)
 #define GUI_BACKGROUND_BRIGHTEST 0.42
@@ -38,14 +38,14 @@ typedef struct
     unsigned int frames;
 } GuiBackground;
 
-// Takes a lattice instance and starts the clock. Returns 0 when every instance is taken.
+// Takes a lattice instance and starts the clock. Returns 0 when no instance is free.
 int gui_background_init(const GuiBackgroundCfg *args);
 // Lets go of the raster, which the caller owns, and of the lattice instance.
 void gui_background_free(const GuiBackgroundCfg *args);
 // Stops the clock when `paused` is 1, and restarts it where it stopped when 0.
 void gui_background_pause(const GuiBackgroundCfg *args);
 // Lays the lattice over a `width` by `height` window at `scale` and draws into `raster`, which the caller owns. Returns
-// 0 when the lattice could not be positioned; the raster then holds the deep color alone.
+// 0 when the call could not position the lattice. The raster then holds the deep color alone.
 int gui_background_layout(const GuiBackgroundRasterCfg *args);
 // Draws the deep color and every dot at the clock's time.
 void gui_background_draw(const GuiBackgroundRasterCfg *args);
@@ -53,7 +53,7 @@ void gui_background_draw(const GuiBackgroundRasterCfg *args);
 int gui_background_tick(const GuiBackgroundRasterCfg *args);
 // The next draw's deadline, or 0 for none while paused or not positioned.
 unsigned long long gui_background_next_deadline_ms(const GuiBackgroundClockCfg *args);
-// Milliseconds the clock has run.
+// Milliseconds that the clock ran.
 unsigned long long gui_background_elapsed_ms(const GuiBackgroundClockCfg *args);
 struct GuiBackgroundCfg
 {

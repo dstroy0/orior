@@ -25,10 +25,11 @@ typedef struct GuiDialogDrawCfg GuiDialogDrawCfg;
 #define GUI_DIALOG_TITLE 128u
 #define GUI_DIALOG_BODY 1024u
 #define GUI_DIALOG_LABEL 32u
-// The sizes in unscaled pixels: the mat, the band of glass between the window's border and the sheet; the pad, the
-// sheet's inset to its text and buttons; the head band's height, a body line's height, a button's height, the
-// padding each side of a label, a button's least width and the space between two buttons. Then the close mark's
-// width and its cross's side, a button's rounding, the window's rounding, the text's size and the least width
+// The sizes in unscaled pixels, where the mat is the band of glass between the border of the window and the sheet. The
+// pad is the inset of the sheet to its text and buttons. Then the height of the head band, of a body line and of a
+// button. Then the padding each side of a label, the least width of a button and the space between two buttons.
+// Last, the width of the close mark and the side of its cross, and the rounding of a button and of the window. Then
+// the text size and the least width
 #define GUI_DIALOG_MAT 6
 #define GUI_DIALOG_PAD 12
 #define GUI_DIALOG_HEAD 36
@@ -44,8 +45,8 @@ typedef struct GuiDialogDrawCfg GuiDialogDrawCfg;
 #define GUI_DIALOG_SIZE 13u
 #define GUI_DIALOG_MIN_WIDTH 420
 
-// What an input does to the dialog: nothing, a change that needs a new frame, a button's answer in `button`, or the
-// dialog closed with no answer
+// What an input does to the dialog: nothing, or a change that needs a new frame. Else the answer of a button in
+// `button`, or the dialog closed with no answer
 #define GUI_DIALOG_NOTHING 0u
 #define GUI_DIALOG_DRAWN 1u
 #define GUI_DIALOG_ANSWERED 2u
@@ -83,7 +84,7 @@ typedef struct
 // a dialog not displayed
 void gui_dialog_init(const GuiDialogCfg *args);
 // The dialog displayed with `title`, the lines of `body` and the `count` labels of `labels`, `preferred` the button Enter
-// presses. Where `error` is set, the dialog tells of an error and its focus border is in the error color. It
+// presses. Where `error` is 1, the dialog tells of an error and its focus border is in the error color. It
 // returns 1, or 0 where the count is 0 or more than GUI_DIALOG_BUTTONS_MAX, and then nothing changes
 int gui_dialog_ask(const GuiDialogAskCfg *args);
 // the client's size at `scale` that shows the title, every line and every button
@@ -95,8 +96,8 @@ GuiRect gui_dialog_head_rect(const GuiDialogReadCfg *args);
 GuiRect gui_dialog_close_rect(const GuiDialogReadCfg *args);
 GuiRect gui_dialog_body_rect(const GuiDialogReadCfg *args);
 GuiRect gui_dialog_button_rect(const GuiDialogReadCfg *args);
-// A key named `name`: Enter answers the button with the keys, Escape closes, Tab and Right move the keys to the next
-// button, Shift+Tab and Left to the one before
+// A key named `name`. Enter answers the button with the keys, and Escape closes. Tab and Right move the keys to the
+// next button, and Shift+Tab and Left to the one before
 void gui_dialog_key(const GuiDialogKeyCfg *args);
 // The pointer at x, y: moved, pressed down or let up. A release on the button or the close mark that the press went
 // down on answers it

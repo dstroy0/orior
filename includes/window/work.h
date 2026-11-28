@@ -24,18 +24,22 @@ typedef struct GuiWorkTable GuiWorkTable;
 #define GUI_WORK_TAKEN 1u
 #define GUI_WORK_CLOSES 2u
 
-// The host's state: the table open, NULL for none, and how many rows are scrolled off the view's top
+// The state of the host: the open table, NULL for none, and how many rows the view scrolled off its top
 typedef struct
 {
     const GuiWorkTable *open;
     unsigned int scroll;
 } GuiWork;
 
-// A view's table: its name; the view drawn in `rect`; the control or row at x, y in `rect`, its index into
-// `index_out`: 1, or 0 where it is on none; the control or row `index` pressed, the wheel turned `rows` rows, a
-// turn of none bringing the view's first change into sight, the key `name` pressed and `length` bytes of `text` typed,
-// each one of the answers above; the menu at `index` built as the menus' own rows, 1 where it has any, NULL for none;
-// and the view closed, its data let go
+// The table of a view:
+// - its name;
+// - the view drawn in `rect`;
+// - the control or row at x, y in `rect`, with its index in `index_out`: 1, or 0 where the point is on none;
+// - the control or row `index` pressed;
+// - the wheel turned `rows` rows. A turn of none brings the first change of the view into sight;
+// - the key `name` pressed, and `length` bytes of `text` typed. Each of these four gives one of the answers above;
+// - the menu at `index`, built as the own rows of the menus: 1 where it has any, NULL for none;
+// - the view closed, with its data let go.
 struct GuiWorkTable
 {
     const char *name;
@@ -49,12 +53,22 @@ struct GuiWorkTable
     void (*close)(const GuiWorkCfg *args);
 };
 
-// the host begun with none open; `table` opened, another open before closed, and the wheel turned none for the view to
-// bring its first change into sight; the open view closed; whether one is open; the open view drawn in the frame's
-// editor rectangle; what the pixel at x, y is on, GUI_WORK_OUTSIDE off the editor and the map or with none open,
-// GUI_WORK_NOTHING on neither a control nor a row; the control or row `index` pressed; the wheel turned `rows` over the
-// editor or the map; the key `name`, Escape closing the view; `length` bytes of `text`; and the menu at `index`: each 1
-// where the open view took it, 0 with none open or where it passed it on
+// The calls of the host:
+// - the host begun with no table open;
+// - `table` opened, after the call closes the one open before. The wheel turns none, and the view brings its first
+//   change into sight;
+// - the open view closed;
+// - whether a view is open;
+// - the open view drawn in the editor rectangle of the frame;
+// - what the pixel at x, y is on. GUI_WORK_OUTSIDE is off the editor and the map, or with no view open.
+//   GUI_WORK_NOTHING is on neither a control nor a row;
+// - the control or row `index` pressed;
+// - the wheel turned `rows` over the editor or the map;
+// - the key `name`, where Escape closes the view;
+// - `length` bytes of `text`;
+// - the menu at `index`.
+//
+// The last five give 1 where the open view took the input, and 0 with no view open or where the view passed it on
 void gui_work_init(const GuiWorkCfg *args);
 void gui_work_open(const GuiWorkCfg *args);
 void gui_work_close(const GuiWorkCfg *args);
