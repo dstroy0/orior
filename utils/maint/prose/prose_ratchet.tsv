@@ -574,7 +574,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_que
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_read.c	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_unprinted.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_withheld.py	3
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings.c	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c	1

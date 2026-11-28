@@ -1,27 +1,29 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_sass_writings.c: a writing searched for on the part. Every form of the machine file that writes a register
-// from registers, predicates and numbers alone is put in place of the kernel's IADD3 with the case's first two words as
-// its sources, run on the part over every case at once, and read back against what each ladder relation and each
-// precept gives each case. A form that gives every case a relation's word is a writing of that relation in one
-// instruction, found by running it and by nothing else: no name, listing or compiler specifies which form adds. A
-// number whose field is eight bits wide is a truth table of three inputs, and a form containing one is put with each of
-// its 256 values (precept_value.h).
+// interface_sass_writings.c: a search on the part for a writing. The program takes every form of the machine file
+// that writes a register from registers, predicates and numbers alone. It puts each in place of the IADD3 of the
+// kernel, with the first two words of the case as its sources, and runs it on the part over every case at once. It
+// reads it back against what each ladder relation and each precept gives each case.
 //
-// Nothing is compiled and no disassembler is run. The cubins are written here and run by interface_sass_run, which
-// checks each against cubin_safe, loads it through the driver and runs it over the cases file this writes, a thread a
-// case.
+// A form that gives every case the word of a relation is a writing of that relation in one instruction. Only a run
+// finds it: no name, listing or compiler says which form adds. A number whose field is eight bits wide is a truth table
+// of three inputs. The program puts a form that holds one with each of its 256 values (precept_value.h).
 //
-//     interface_sass_writings <pattern cubin> <kernel text> <machine file> <folder>
-//     interface_sass_writings read <folder> <record>
-//     interface_sass_writings chains <pattern cubin> <kernel text> <machine file> <folder> <kdm>
-//     interface_sass_writings chains-read <folder> <record>
+// The program compiles nothing and runs no disassembler. It writes the cubins, and interface_sass_run runs them. That
+// program checks each against cubin_safe, and loads it through the driver. It runs it over the cases file that this one
+// writes, one thread for each case.
 //
-// The first writes <folder>/list.txt, the cubins it names, <folder>/cases.txt and <folder>/forms.txt, the
-// instruction each cubin contains a line. The second reads <folder>/answers.txt, which interface_sass_run writes,
-// against every relation and writes the record. The third writes every arrangement of the .kdm node by node, each node
-// the first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
-// the relation each is a row of.
+// - `interface_sass_writings <pattern cubin> <kernel text> <machine file> <folder>`
+// - `interface_sass_writings read <folder> <record>`
+// - `interface_sass_writings chains <pattern cubin> <kernel text> <machine file> <folder> <kdm>`
+// - `interface_sass_writings chains-read <folder> <record>`
+//
+// The first form writes `<folder>/list.txt`, the cubins that it names, `<folder>/cases.txt`, and `<folder>/forms.txt`,
+// with one line for the instruction that each cubin holds. The second reads `<folder>/answers.txt`, which
+// interface_sass_run writes, against every relation, and writes the record.
+//
+// The third writes every arrangement of the .kdm node by node into `<folder>/chains`. Each node is the first writing
+// found for its precept. The fourth reads the answers of the chains back against the relation that each is a row of.
 #include "../../../../engine/engine_note.h"
 #include "../../../../engine/rmc/precept_value.h"
 #include "cellularum_laboro/cellularum_laboro.h"
