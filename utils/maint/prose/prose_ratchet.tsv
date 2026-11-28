@@ -487,7 +487,6 @@ src/cu/engine/nbody/orior/orior_steer_count.c	1
 src/cu/engine/nbody/orior/scan.c	3
 src/cu/engine/nbody/orior/scan_avx2.c	12
 src/cu/engine/nbody/orior/scan_sve.c	13
-src/cu/engine/render/orior_raster.c	13
 src/cu/engine/render/orior_raster_internal.h	4
 src/cu/engine/render/raster.cu	2
 src/cu/engine/render/raster_cuda_internal.h	1

@@ -7,9 +7,9 @@
 /**
  * @brief Gray value for an alignment that died at `level`, or passed every probe.
  *
- * @param[in] level       Probe index that rejected the alignment, or `probe_count` where none did.
- * @param[in] probe_count How many probes were evaluated.
- * @param[in] matched     Non-zero where the full compare confirmed an occurrence.
+ * @param[in] level       The probe index that rejected the alignment, or `probe_count` where none did.
+ * @param[in] probe_count How many probes the call evaluated.
+ * @param[in] matched     Not zero where the full compare confirmed an occurrence.
  * @return                The pixel value.
  *
  * @note Exact integer arithmetic. The host and device ramps cannot drift apart by a rounding.
@@ -49,9 +49,9 @@ static size_t raster_death_level(const uint8_t *corpus, const uint8_t *needle, s
         }
     }
 
-    /* Survived every probe. The full compare decides an occurrence, and a survivor that
-     * fails it is a false positive the probe set could not refute cheaply. Both outcomes are worth
-     * seeing. They take different values. */
+    /* Survived every probe. The full compare decides an occurrence, and a survivor that fails it
+     * is a false positive that the probe set could not refute cheaply. Both outcomes are worth a
+     * look, and they take different values. */
     for (size_t step = 0u; step < needle_len; step += 1u)
     {
         if (corpus[at + step] != needle[step])
@@ -63,7 +63,7 @@ static size_t raster_death_level(const uint8_t *corpus, const uint8_t *needle, s
     return probe_count;
 }
 
-/** @brief Counts what the object under examination is made of. */
+/** @brief Counts what the object under examination holds. */
 void raster_census(OriorRasterCensus *census, const uint8_t *corpus, size_t corpus_len)
 {
     for (size_t symbol = 0u; symbol < 256u; symbol += 1u)
@@ -82,8 +82,8 @@ size_t orior_raster_cell(const OriorRasterConfig *config, size_t at, size_t alig
     const size_t cells = config->width * config->height;
 
     /* Corpus order maps onto a linear cell index by integer division first. Every layout below is
-     * then a permutation of that index, which retains each transform a bijection and retains the count
-     * of alignments reaching a cell independent of which layout was chosen. */
+     * then a permutation of that index. That keeps each transform a bijection, and keeps the count of
+     * alignments that reach a cell independent of the layout chosen. */
     const size_t linear = (at * cells) / alignments;
     const size_t row = linear / config->width;
     const size_t column = linear % config->width;
@@ -139,10 +139,10 @@ uint8_t orior_raster_sample(const OriorRasterConfig *config, const uint8_t *corp
         return (uint8_t)(1u + scaled);
     }
     case ORIOR_CHANNEL_PROVEN: {
-        /* A refuted alignment is proven to contain no occurrence. A survivor is undetermined: the
-         * probes could not refute it and only the full compare decides. Proven takes the higher
-         * value, a minimum reduction behaves as the conjunction this channel needs, a cell
-         * staying proven only while every alignment under it was refuted. */
+        /* A refuted alignment holds no occurrence, by proof. A survivor has no decision yet: the
+         * probes could not refute it, and only the full compare decides. Proven takes the higher
+         * value, so that a minimum reduction behaves as the conjunction that this channel needs. A
+         * cell stays proven only while the probes refuted every alignment under it. */
         int matched = 0;
         const size_t level = raster_death_level(corpus, needle, needle_len, probes, probe_count, at, &matched);
         return (level < probe_count) ? (uint8_t)ORIOR_RASTER_PROVEN : (uint8_t)ORIOR_RASTER_UNDETERMINED;
@@ -163,9 +163,9 @@ uint8_t orior_raster_sample(const OriorRasterConfig *config, const uint8_t *corp
 
 void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value, OriorRasterReduce reduce)
 {
-    // A cell's first arrival fills it and every later arrival meets the reduction. Zero is a value a cell contains and
-    // not the mark of an empty one: a zero byte under ORIOR_REDUCE_MIN stays, as the device's identity seed preserves
-    // it
+    // The first arrival in a cell fills it, and every later arrival meets the reduction. Zero is a
+    // value that a cell holds, and not the mark of an empty one. A zero byte under ORIOR_REDUCE_MIN
+    // stays, as the identity seed of the device keeps it
     if (filled[cell] == 0u)
     {
         filled[cell] = 1u;
@@ -275,9 +275,9 @@ const char *orior_raster_channel_name(OriorRasterChannel channel)
 int orior_raster_render(uint8_t *pixels, const OriorRasterConfig *config, const uint8_t *corpus, size_t corpus_len,
                         const uint8_t *needle, size_t needle_len, const OriorRasterProbe *probes, size_t probe_count)
 {
-    /* DEVICE FIRST WHERE THERE IS ONE. Both arms produce the same bytes. This is a performance
-     * choice and never a correctness one, and a machine carrying a device should use it without the
-     * caller requesting for it. */
+    /* DEVICE FIRST WHERE THERE IS ONE. Both arms make the same bytes. This is a performance choice
+     * and never a correctness one. A machine that carries a device must use it, with no request from
+     * the caller. */
     if (orior_raster_device_available() != 0)
     {
         if (orior_raster_device(pixels, config, corpus, corpus_len, needle, needle_len, probes, probe_count) != 0)
