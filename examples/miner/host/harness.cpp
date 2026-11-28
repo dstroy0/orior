@@ -19,13 +19,10 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <atomic>
-#include <chrono>
-#include <cstdio>
-#include <cstdlib>
-#include <string>
-#include <thread>
-#include <vector>
+#include "embed_atomic.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 namespace
 {
@@ -48,22 +45,33 @@ const PublishedHeader PUBLISHED_HEADERS[] = {
      0x9546a142u, "block 125552"},
 };
 
+/** @brief The bytes of a header, and the cores the harness starts at max. */
+#define HARNESS_HEADER_BYTES 80u
+#define HARNESS_THREADS_MAX 256u
+
+/** @brief The bytes of the path of the telemetry file and of its side file, each terminated. */
+#define HARNESS_PATH_BYTES 1024u
+
 /**
  * @brief Converts a hex string to bytes.
  *
- * @param[in]  hex   Characters to convert, an even count [BORROWS].
- * @param[out] bytes Receives the bytes [BORROWS].
+ * @param[in]  hex      Characters to convert, an even count [BORROWS].
+ * @param[out] bytes    Receives the bytes [BORROWS].
+ * @param[in]  capacity Bytes at bytes.
+ * @return              The bytes written.
  */
-void bytes_from_hex(const char *hex, std::vector<uint8_t> &bytes)
+size_t bytes_from_hex(const char *hex, uint8_t *bytes, size_t capacity)
 {
     const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = hex, .cap = PLATFORM_TEXT_TO_TERMINATOR);
-    bytes.clear();
-    for (size_t at = 0u; (at + 1u) < length; at += 2u)
+    size_t count = 0u;
+    for (size_t at = 0u; ((at + 1u) < length) && (count < capacity); at += 2u)
     {
         const char pair[3] = {hex[at], hex[at + 1u], '\0'};
         // strtoul returns at most 0xFF for two hex digits. The cast narrows that to one byte and loses nothing.
-        bytes.push_back((uint8_t)std::strtoul(pair, nullptr, 16));
+        bytes[count] = (uint8_t)strtoul(pair, nullptr, 16);
+        count += 1u;
     }
+    return count;
 }
 
 /**
@@ -104,10 +112,22 @@ struct SliceResult
 /** @brief Counters that every core adds to while it scans, and that the telemetry file reports. */
 struct Telemetry
 {
-    std::atomic<uint64_t> evaluated{0u}; /**< Nonces that the cores hashed. */
-    std::atomic<uint64_t> survivors{0u}; /**< Nonces that passed the anchor and reached the exact compare. */
-    std::atomic<uint64_t> winners{0u};   /**< Slices that found a nonce at or below the block target. */
+    embed_atomic_u64 evaluated; /**< Nonces that the cores hashed. */
+    embed_atomic_u64 survivors; /**< Nonces that passed the anchor and reached the exact compare. */
+    embed_atomic_u64 winners;   /**< Slices that found a nonce at or below the block target. */
 };
+
+/** @brief A counter read, with acquire ordering. */
+uint64_t counter_read(const embed_atomic_u64 *word)
+{
+    return EMBED_CALL(embed_atomic_u64_load, EmbedAtomicU64LoadCfg, .word = word);
+}
+
+/** @brief A counter added to. */
+void counter_added(embed_atomic_u64 *word, uint64_t value)
+{
+    (void)EMBED_CALL(embed_atomic_u64_fetch_add, EmbedAtomicU64FetchAddCfg, .word = word, .value = value);
+}
 
 /**
  * @brief Writes the counters to the telemetry file, one value per line.
@@ -119,50 +139,128 @@ struct Telemetry
  *       sees half a file. The rename on Windows fails where the target exists. Thus the function removes
  *       the target first, and a reader can find no file for that short time.
  */
-void write_telemetry(const std::string &path, const Telemetry &telemetry, double seconds)
+void write_telemetry(const char *path, const Telemetry &telemetry, double seconds)
 {
-    const std::string partial = path + ".part";
-    FILE *const file = std::fopen(partial.c_str(), "w");
+    char partial[HARNESS_PATH_BYTES + 8u];
+    VerbaLinea line = mmgr_line_over(partial, sizeof(partial));
+    mmgr_line_put(&line, path);
+    mmgr_line_put(&line, ".part");
+    (void)mmgr_line_finish(&line);
+    FILE *const file = fopen(partial, "w");
     if (file == nullptr)
     {
         return;
     }
-    std::fprintf(file, "evaluated %llu\nsurvivors %llu\nwinners %llu\nseconds %.3f\n",
-                 (unsigned long long)telemetry.evaluated.load(), (unsigned long long)telemetry.survivors.load(),
-                 (unsigned long long)telemetry.winners.load(), seconds);
-    std::fclose(file);
-    std::remove(path.c_str());
-    std::rename(partial.c_str(), path.c_str());
+    fprintf(file, "evaluated %llu\nsurvivors %llu\nwinners %llu\nseconds %.3f\n",
+            (unsigned long long)counter_read(&telemetry.evaluated),
+            (unsigned long long)counter_read(&telemetry.survivors),
+            (unsigned long long)counter_read(&telemetry.winners), seconds);
+    fclose(file);
+    remove(path);
+    rename(partial, path);
 }
+
+/** @brief What every core reads: the request, the range, the slice, the arm, and the counters. */
+struct HarnessRun
+{
+    Sha256ScanRequest request;
+    uint32_t range_start;
+    uint32_t slice;
+    void (*scan)(const Sha256ScanRequest *, Sha256ScanResult *);
+    Telemetry telemetry;
+    SliceResult results[HARNESS_THREADS_MAX];
+    embed_atomic_u64 finished;
+    const char *telemetry_path;
+    unsigned long long started_ns;
+};
+
+HarnessRun g_run;
+
+/** @brief Seconds since the scan started. */
+double elapsed()
+{
+    return (double)(platform_clock_ns() - g_run.started_ns) / 1.0e9;
+}
+
+/** @brief One core: its slice of the range, in chunks, until the first chunk with a winner. */
+void core_scan(void *context)
+{
+    const unsigned core = *(const unsigned *)context;
+    Sha256ScanRequest own = g_run.request;
+    const uint32_t slice_start = g_run.range_start + (core * g_run.slice);
+    uint32_t done = 0u;
+    // The chunks ascend, and each scan call reports its own lowest winner. Thus the first chunk
+    // with a winner holds the lowest winner of the slice, and the slice stops there.
+    while (done < g_run.slice)
+    {
+        own.nonce_start = slice_start + done;
+        own.nonce_count = ((g_run.slice - done) < CHUNK_NONCES) ? (g_run.slice - done) : CHUNK_NONCES;
+        Sha256ScanResult chunk;
+        g_run.scan(&own, &chunk);
+        counter_added(&g_run.telemetry.evaluated, chunk.nonces_evaluated);
+        counter_added(&g_run.telemetry.survivors, chunk.anchors_survived);
+        if (chunk.found != 0)
+        {
+            g_run.results[core].found = true;
+            g_run.results[core].winning_nonce = chunk.winning_nonce;
+            counter_added(&g_run.telemetry.winners, 1u);
+            break;
+        }
+        done += own.nonce_count;
+    }
+}
+
+/** @brief The writer of the telemetry file, twice a second until the cores end. */
+void telemetry_writer(void *context)
+{
+    (void)context;
+    while (counter_read(&g_run.finished) == 0u)
+    {
+        platform_paused(TELEMETRY_PERIOD_MS);
+        write_telemetry(g_run.telemetry_path, g_run.telemetry, elapsed());
+    }
+}
+
+/** @brief True where two terminated texts are equal. */
+bool text_same(const char *one, const char *other)
+{
+    return EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = one, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = other,
+                      .ci = EMBED_FALSE);
+}
+
+/** @brief The cores and the index each reads, and the writer of the telemetry file. */
+PlatformWorker g_cores[HARNESS_THREADS_MAX];
+unsigned g_core_index[HARNESS_THREADS_MAX];
+PlatformWorker g_writer;
 
 } // namespace
 
 int program_main(int argument_count, char **arguments)
 {
-    unsigned threads = std::thread::hardware_concurrency();
+    unsigned threads = platform_processors();
     uint32_t span = 1u << 26u;
     unsigned which = 0u;
-    std::string telemetry_path;
+    const char *telemetry_path = "";
     for (int index = 1; index < argument_count; index += 1)
     {
-        const std::string argument = arguments[index];
+        const char *const argument = arguments[index];
         const bool has_value = (index + 1) < argument_count;
-        if ((argument == "--threads") && has_value)
+        if (text_same(argument, "--threads") && has_value)
         {
             index += 1;
-            threads = (unsigned)std::strtoul(arguments[index], nullptr, 10);
+            threads = (unsigned)strtoul(arguments[index], nullptr, 10);
         }
-        else if ((argument == "--span") && has_value)
+        else if (text_same(argument, "--span") && has_value)
         {
             index += 1;
-            span = (uint32_t)std::strtoul(arguments[index], nullptr, 0);
+            span = (uint32_t)strtoul(arguments[index], nullptr, 0);
         }
-        else if ((argument == "--header") && has_value)
+        else if (text_same(argument, "--header") && has_value)
         {
             index += 1;
-            which = (unsigned)std::strtoul(arguments[index], nullptr, 10);
+            which = (unsigned)strtoul(arguments[index], nullptr, 10);
         }
-        else if ((argument == "--telemetry") && has_value)
+        else if (text_same(argument, "--telemetry") && has_value)
         {
             index += 1;
             telemetry_path = arguments[index];
@@ -183,6 +281,21 @@ int program_main(int argument_count, char **arguments)
     {
         threads = 1u;
     }
+    if (threads > HARNESS_THREADS_MAX)
+    {
+        threads = HARNESS_THREADS_MAX;
+    }
+    if (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = telemetry_path, .cap = PLATFORM_TEXT_TO_TERMINATOR) >=
+        HARNESS_PATH_BYTES)
+    {
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "--telemetry passes the bytes of its path");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        return 2;
+    }
     if (which >= (sizeof(PUBLISHED_HEADERS) / sizeof(PUBLISHED_HEADERS[0])))
     {
         {
@@ -195,17 +308,17 @@ int program_main(int argument_count, char **arguments)
     }
     const PublishedHeader &published = PUBLISHED_HEADERS[which];
 
-    std::vector<uint8_t> header;
-    bytes_from_hex(published.header_hex, header);
+    uint8_t header[HARNESS_HEADER_BYTES];
+    (void)bytes_from_hex(published.header_hex, header, sizeof(header));
 
-    Sha256ScanRequest request;
+    Sha256ScanRequest &request = g_run.request;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
-    sha256_header_midstate(&request.midstate, header.data());
-    request.merkle_root_tail = schedule_word(header.data() + 64u);
-    request.ntime = schedule_word(header.data() + 68u);
-    request.nbits = schedule_word(header.data() + 72u);
+    sha256_header_midstate(&request.midstate, header);
+    request.merkle_root_tail = schedule_word(header + 64u);
+    request.ntime = schedule_word(header + 68u);
+    request.nbits = schedule_word(header + 72u);
     // The target comes from nbits as the header stores it, little-endian, and not from the schedule word.
-    sha256_target_from_nbits(request.share_target, header_number(header.data() + 72u));
+    sha256_target_from_nbits(request.share_target, header_number(header + 72u));
 
     // A build without AVX2 compiles the eight-lane arm as a call to the reference arm. Thus the vector arm
     // needs AVX2 at compile time and on the processor. Build the core and the harness with the same flags.
@@ -214,13 +327,13 @@ int program_main(int argument_count, char **arguments)
 #else
     const bool vector_arm = false;
 #endif
-    void (*const scan)(const Sha256ScanRequest *, Sha256ScanResult *) =
-        vector_arm ? sha256_scan_avx2 : sha256_scan_scalar_early;
+    g_run.scan = vector_arm ? sha256_scan_avx2 : sha256_scan_scalar_early;
 
     // The range has the recorded nonce at its center. Unsigned arithmetic wraps mod 2^32, and the range wraps
     // with it.
-    const uint32_t range_start = published.recorded_nonce - (span / 2u);
-    const uint32_t slice = span / threads;
+    g_run.range_start = published.recorded_nonce - (span / 2u);
+    g_run.slice = span / threads;
+    g_run.telemetry_path = telemetry_path;
 
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -236,84 +349,46 @@ int program_main(int argument_count, char **arguments)
         mmgr_line_put(output_line, ", threads: ");
         mmgr_line_decimal(output_line, threads, 1u);
         mmgr_line_put(output_line, ", nonces: ");
-        mmgr_line_decimal(output_line, slice * threads, 1u);
+        mmgr_line_decimal(output_line, g_run.slice * threads, 1u);
         mmgr_line_put(output_line, " from 0x");
-        mmgr_line_hex(output_line, range_start, 8u);
+        mmgr_line_hex(output_line, g_run.range_start, 8u);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
 
-    std::vector<SliceResult> results(threads);
-    std::vector<std::thread> workers;
-    Telemetry telemetry;
-    std::atomic<bool> finished{false};
-    const auto started = std::chrono::steady_clock::now();
-    const auto elapsed = [&started]() {
-        return std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-    };
-
+    g_run.started_ns = platform_clock_ns();
+    unsigned started_cores = 0u;
     for (unsigned core = 0u; core < threads; core += 1u)
     {
-        workers.emplace_back([&, core]() {
-            Sha256ScanRequest own = request;
-            const uint32_t slice_start = range_start + (core * slice);
-            uint32_t done = 0u;
-            // The chunks ascend, and each scan call reports its own lowest winner. Thus the first chunk
-            // with a winner holds the lowest winner of the slice, and the slice stops there.
-            while (done < slice)
-            {
-                own.nonce_start = slice_start + done;
-                own.nonce_count = ((slice - done) < CHUNK_NONCES) ? (slice - done) : CHUNK_NONCES;
-                Sha256ScanResult chunk;
-                scan(&own, &chunk);
-                telemetry.evaluated += chunk.nonces_evaluated;
-                telemetry.survivors += chunk.anchors_survived;
-                if (chunk.found != 0)
-                {
-                    results[core].found = true;
-                    results[core].winning_nonce = chunk.winning_nonce;
-                    telemetry.winners += 1u;
-                    break;
-                }
-                done += own.nonce_count;
-            }
-        });
+        g_core_index[core] = core;
+        started_cores += (platform_worker_started(&g_cores[core], core_scan, &g_core_index[core]) != 0) ? 1u : 0u;
     }
 
-    std::thread writer;
-    if (!telemetry_path.empty())
+    const bool writing = telemetry_path[0] != '\0';
+    const bool writer_started = writing && (platform_worker_started(&g_writer, telemetry_writer, nullptr) != 0);
+    for (unsigned core = 0u; core < started_cores; core += 1u)
     {
-        writer = std::thread([&]() {
-            while (!finished.load())
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(TELEMETRY_PERIOD_MS));
-                write_telemetry(telemetry_path, telemetry, elapsed());
-            }
-        });
-    }
-    for (std::thread &worker : workers)
-    {
-        worker.join();
+        platform_worker_joined(&g_cores[core]);
     }
     const double seconds = elapsed();
-    finished.store(true);
-    if (writer.joinable())
+    EMBED_CALL(embed_atomic_u64_store, EmbedAtomicU64StoreCfg, .word = &g_run.finished, .value = 1u);
+    if (writer_started)
     {
-        writer.join();
-        write_telemetry(telemetry_path, telemetry, seconds);
+        platform_worker_joined(&g_writer);
+        write_telemetry(telemetry_path, g_run.telemetry, seconds);
     }
 
     // The lowest winner is the first in range order. The slices ascend from range_start, and each slice
     // reports its own lowest winner. Thus the first slice with a winner holds the lowest.
-    const uint64_t evaluated = telemetry.evaluated.load();
+    const uint64_t evaluated = counter_read(&g_run.telemetry.evaluated);
     bool found = false;
     uint32_t lowest = 0u;
-    for (const SliceResult &result : results)
+    for (unsigned core = 0u; core < threads; core += 1u)
     {
-        if ((!found) && result.found)
+        if ((!found) && g_run.results[core].found)
         {
             found = true;
-            lowest = result.winning_nonce;
+            lowest = g_run.results[core].winning_nonce;
         }
     }
 

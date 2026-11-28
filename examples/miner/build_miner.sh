@@ -4,9 +4,10 @@
 #
 # Builds the stratum client with the device arm compiled in, into build/miner. It builds and runs nothing else.
 #
-#     bash examples/miner/build_miner.sh [v1|v2]
+#     bash examples/miner/build_miner.sh [v1|v2|harness]
 #
-# v1 builds btc_miner.exe from the v1 sources, and v2 builds btc_miner2.exe from the v2 sources. The client is a
+# v1 builds btc_miner.exe from the v1 sources, and v2 builds btc_miner2.exe from the v2 sources. harness builds
+# harness.exe, the CPU harness on a real header, with no device arm. The client is a
 # program of the platform. It defines program_main, writes its text through the line of MMgr and searches its bytes
 # through MMgr. It links the platform and the line of MMgr (exact_types_platform_link) and ws2_32 for the stratum
 # socket.
@@ -28,6 +29,11 @@ v2)
     DEVICE="$HERE/device/v2"
     HOST_SOURCE="$HERE/host/v2/btc_miner.cpp"
     NAME=btc_miner2
+    ;;
+harness)
+    DEVICE="$HERE/device"
+    HOST_SOURCE="$HERE/host/harness.cpp"
+    NAME=harness
     ;;
 *)
     echo "  unknown version '$VERSION'. Use v1 or v2."
@@ -73,9 +79,12 @@ EXACT_TYPES_EXTRA=()
 exact_types_platform_link || exit 1
 BINARY="$OUT/$NAME$SUFFIX"
 rm -f "$BINARY"
+# the harness mines on the CPU alone, and so it links no device arm
+DEVICE_SOURCES=("$DEVICE/cuda_miner.cu")
+[ "$VERSION" = harness ] && DEVICE_SOURCES=()
 nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -O3 -arch=sm_86 -std=c++20 "${VECTOR_FLAGS[@]}" \
     "${EXACT_TYPES_FLAGS[@]}" -I "$HERE/core" -I "$DEVICE" -I "$HERE/format" -o "$BINARY" "$HOST_SOURCE" \
-    "$DEVICE/cuda_miner.cu" "${CORE_OBJECTS[@]}" "${PLATFORM_LINK[@]}" "${SOCKET[@]}"
+    "${DEVICE_SOURCES[@]}" "${CORE_OBJECTS[@]}" "${PLATFORM_LINK[@]}" "${SOCKET[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $NAME"; exit 1; }
 mkdir -p "$TOP/build/miner"
 cp "$BINARY" "$TOP/build/miner/$NAME$SUFFIX" || exit 1

@@ -14,11 +14,10 @@
  *       one. The anchor rule still only promises soundness. The gain comes from the hardware.
  */
 
-#include "cuda_miner.h"
 #include "../../../../includes/platform/platform.h"
+#include "cuda_miner.h"
 #include <device_launch_parameters.h>
-#include <cstdio>
-#include <vector>
+#include <stdio.h>
 
 /** @brief Rounds of the first block that no nonce can reach, hoisted onto the host. */
 #define SHARED_ROUNDS 3
@@ -1156,6 +1155,9 @@ static cudaStream_t survey_stream()
     return held;
 }
 
+// the counters a kernel writes at max, one a bit of a digest, that the host's table holds
+#define MINER_COUNTERS_MAX 256u
+
 /**
  * @brief Runs one kernel that accumulates, and folds its counters into a host array.
  *
@@ -1168,6 +1170,10 @@ static cudaStream_t survey_stream()
 template <typename Launch>
 static int accumulate_counters(unsigned counter_count, unsigned long long *destination, Launch launch)
 {
+    if (counter_count > MINER_COUNTERS_MAX)
+    {
+        return 0;
+    }
     unsigned long long *device_counters = nullptr;
     const cudaStream_t stream = survey_stream();
 
@@ -1208,8 +1214,8 @@ static int accumulate_counters(unsigned counter_count, unsigned long long *desti
         return 0;
     }
 
-    std::vector<unsigned long long> host_counters(counter_count, 0u);
-    if (cudaMemcpy(host_counters.data(), device_counters, counter_count * sizeof(unsigned long long),
+    unsigned long long host_counters[MINER_COUNTERS_MAX] = {0ull};
+    if (cudaMemcpy(host_counters, device_counters, counter_count * sizeof(unsigned long long),
                    cudaMemcpyDeviceToHost) != cudaSuccess)
     {
         cudaFree(device_counters);
@@ -1301,7 +1307,7 @@ int cuda_miner_device_report(char *text, size_t text_size)
 
     if ((cudaGetDeviceCount(&device_count) != cudaSuccess) || (device_count == 0))
     {
-        std::snprintf(text, text_size, "no CUDA device");
+        snprintf(text, text_size, "no CUDA device");
         return 0;
     }
 
@@ -1311,7 +1317,7 @@ int cuda_miner_device_report(char *text, size_t text_size)
     int clock_khz = 0;
     cudaDeviceGetAttribute(&clock_khz, cudaDevAttrClockRate, 0);
 
-    std::snprintf(text, text_size, "%s, compute %d.%d, %d SMs, %.2f GHz", properties.name, properties.major,
-                  properties.minor, properties.multiProcessorCount, clock_khz / 1.0e6);
+    snprintf(text, text_size, "%s, compute %d.%d, %d SMs, %.2f GHz", properties.name, properties.major,
+             properties.minor, properties.multiProcessorCount, clock_khz / 1.0e6);
     return properties.multiProcessorCount;
 }

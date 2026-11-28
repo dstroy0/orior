@@ -11,6 +11,10 @@
  * @note An independent double hash checks every share against the share target before the client
  *       sends it. The client never submits a share that it cannot verify. Thus a defect here costs
  *       shares, and the pool gets no garbage.
+ * @note The threads hold no lock. The network thread is the one writer of the work: it writes a new
+ *       record beside the published one, publishes it, and drains the turnstiles of the workers before
+ *       it writes that record again. A worker reads the work inside a pass. The shares go from the
+ *       workers to the network thread through a ticket ring. The counters are atomic words.
  */
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -23,19 +27,17 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#include "cuda_miner.h"
 #include "../../../includes/platform/platform.h"
+#include "cuda_miner.h"
+#include "embed_atomic.h"
+#include "embed_ticket_ring.h"
+#include "embed_turnstile.h"
 #include "json_value.h"
 #include "sha256_core.h"
 
-#include <atomic>
-#include <chrono>
-#include <cstdint>
-#include <cstdio>
-#include <mutex>
-#include <string>
-#include <thread>
-#include <vector>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -45,6 +47,33 @@ namespace
 /** @brief Where to mine. Overridable on the command line. */
 const char *const DEFAULT_POOL_HOSTNAME = "solo.ckpool.org";
 const char *const DEFAULT_POOL_PORT = "3333";
+
+/** @brief The bytes of an identity, a job's id and a short hex field, each terminated. */
+#define MINER_IDENTITY_BYTES 256u
+#define MINER_JOB_ID_BYTES 128u
+#define MINER_WORD_HEX_BYTES 16u
+
+/** @brief The bytes of a hash as hex, terminated, and of a coinbase part as hex, terminated. */
+#define MINER_HASH_HEX_BYTES 65u
+#define MINER_COINBASE_HEX_BYTES 8192u
+
+/** @brief The entries of a merkle branch at max, and the bytes of an extranonce as hex, terminated. */
+#define MINER_BRANCH_MAX 64u
+#define MINER_EXTRANONCE_HEX_BYTES 64u
+
+/** @brief The bytes of a coinbase: both parts and both extranonces. */
+#define MINER_COINBASE_BYTES (MINER_COINBASE_HEX_BYTES + MINER_EXTRANONCE_HEX_BYTES)
+
+/** @brief The workers the client starts at max. */
+#define MINER_WORKERS_MAX 256u
+
+/** @brief The bytes of the pool's text that the client holds before a line ends, and of one message it sends. */
+#define MINER_INBOUND_BYTES 65536u
+#define MINER_PAYLOAD_BYTES 1024u
+
+/** @brief The slots of the ticket ring of the shares: 2^6, far above the shares of one turn of the network thread. */
+#define MINER_SHARE_SHIFT 6u
+#define MINER_SHARE_SLOTS (1u << MINER_SHARE_SHIFT)
 
 /**
  * @brief An example address that belongs to nobody here.
@@ -56,7 +85,7 @@ const char *const DEFAULT_POOL_PORT = "3333";
 const char *const KNOWN_EXAMPLE_ADDRESS = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
 
 /** @brief Who gets paid. Set from the command line or a config file; never defaulted. */
-std::string g_payout_address;
+char g_payout_address[MINER_IDENTITY_BYTES];
 
 /**
  * @brief The name stratum authorizes and submits under, where it is not the payout address.
@@ -69,12 +98,12 @@ std::string g_payout_address;
  * @note The password field stays "x" either way. The stratum password of a pool is not an account
  *       password. Never put an account password on this wire.
  */
-std::string g_stratum_user;
+char g_stratum_user[MINER_IDENTITY_BYTES];
 
 /** @brief What stratum should authorize and submit as. */
-const std::string &stratum_identity()
+const char *stratum_identity()
 {
-    return g_stratum_user.empty() ? g_payout_address : g_stratum_user;
+    return (g_stratum_user[0] == '\0') ? g_payout_address : g_stratum_user;
 }
 
 /**
@@ -90,25 +119,55 @@ bool g_dry_run = false;
 const uint32_t NONCE_CHUNK = 1u << 21;
 
 // ---------------------------------------------------------------------------------------------
-// Byte and hex handling
+// Texts, bytes and hex
 // ---------------------------------------------------------------------------------------------
 
-/**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert, an even count.
- * @return        The bytes that they encode, or empty where the input has a bad form.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
+/** @brief True where two terminated texts are equal. */
+bool text_same(const char *one, const char *other)
 {
-    std::vector<uint8_t> bytes;
+    return EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = one, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = other,
+                      .ci = EMBED_FALSE);
+}
 
-    if ((hex.size() % 2u) != 0u)
+/** @brief The bytes of a terminated text. */
+size_t text_length(const char *text)
+{
+    return EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+}
+
+/**
+ * @brief A terminated text copied into a field of `capacity` bytes.
+ *
+ * @return True where it fits with its terminator, and false where it does not, the field then empty.
+ */
+bool text_set(char *field, size_t capacity, const char *text)
+{
+    const size_t length = text_length(text);
+    if (length >= capacity)
     {
-        return bytes;
+        field[0] = '\0';
+        return false;
     }
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; at < hex.size(); at += 2u)
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = field, .src = text, .bytes = length + 1u);
+    return true;
+}
+
+/**
+ * @brief Converts a hex text to bytes.
+ *
+ * @param[in]  hex      Characters to convert, an even count [BORROWS].
+ * @param[out] bytes    Where the bytes go [BORROWS].
+ * @param[in]  capacity Bytes at bytes.
+ * @return              The bytes that they encode, or 0 where the input has a bad form or passes the capacity.
+ */
+size_t bytes_from_hex(const char *hex, uint8_t *bytes, size_t capacity)
+{
+    const size_t length = text_length(hex);
+    if (((length % 2u) != 0u) || ((length / 2u) > capacity))
+    {
+        return 0u;
+    }
+    for (size_t at = 0u; at < length; at += 2u)
     {
         unsigned value = 0u;
         for (size_t nibble = 0u; nibble < 2u; nibble += 1u)
@@ -117,47 +176,43 @@ std::vector<uint8_t> bytes_from_hex(const std::string &hex)
             const uint8_t character = (uint8_t)hex[at + nibble];
             if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = character))
             {
-                bytes.clear();
-                return bytes;
+                return 0u;
             }
             const unsigned digit = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = character)
                                        ? (unsigned)(character - '0')
                                        : (unsigned)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = character) - 'a') + 10u;
             value = (value << 4) | digit;
         }
-        bytes.push_back((uint8_t)value);
+        bytes[at / 2u] = (uint8_t)value;
     }
-    return bytes;
+    return length / 2u;
 }
 
 /**
  * @brief Renders bytes as hex in the order they sit in memory.
  *
- * @param[in] bytes Bytes to render [BORROWS].
- * @param[in] count How many.
- * @return          The hex string.
+ * @param[in]  bytes    Bytes to render [BORROWS].
+ * @param[in]  count    How many.
+ * @param[out] rendered 2 count + 1 bytes for the hex, terminated [BORROWS].
  */
-std::string hex_from_bytes(const uint8_t *bytes, size_t count)
+void hex_from_bytes(const uint8_t *bytes, size_t count, char *rendered)
 {
     static const char digits[] = "0123456789abcdef";
-    std::string rendered;
-
-    rendered.reserve(count * 2u);
     for (size_t at = 0u; at < count; at += 1u)
     {
-        rendered.push_back(digits[bytes[at] >> 4]);
-        rendered.push_back(digits[bytes[at] & 0x0Fu]);
+        rendered[2u * at] = digits[bytes[at] >> 4];
+        rendered[(2u * at) + 1u] = digits[bytes[at] & 0x0Fu];
     }
-    return rendered;
+    rendered[2u * count] = '\0';
 }
 
 /**
  * @brief Renders a digest the way a block explorer prints it, most significant byte first.
  *
- * @param[in] digest Thirty-two bytes as SHA-256 emitted them [BORROWS].
- * @return           The reversed hex string.
+ * @param[in]  digest   Thirty-two bytes as SHA-256 emitted them [BORROWS].
+ * @param[out] rendered MINER_HASH_HEX_BYTES bytes for the reversed hex [BORROWS].
  */
-std::string block_hash_from_digest(const uint8_t *digest)
+void block_hash_from_digest(const uint8_t *digest, char *rendered)
 {
     uint8_t reversed[32];
 
@@ -165,21 +220,24 @@ std::string block_hash_from_digest(const uint8_t *digest)
     {
         reversed[at] = digest[31u - at];
     }
-    return hex_from_bytes(reversed, sizeof(reversed));
+    hex_from_bytes(reversed, sizeof(reversed), rendered);
 }
 
 /**
  * @brief Renders a value as eight hex characters, most significant first.
  *
- * @param[in] value Number to render.
- * @return          The hex string.
+ * @param[in]  value    Number to render.
+ * @param[out] rendered Nine bytes for the hex, terminated [BORROWS].
  */
-std::string hex_from_word(uint32_t value)
+void hex_from_word(uint32_t value, char *rendered)
 {
-    char rendered[9];
+    snprintf(rendered, 9u, "%08x", value);
+}
 
-    std::snprintf(rendered, sizeof(rendered), "%08x", value);
-    return std::string(rendered);
+/** @brief A hex field read as a word, as strtoul reads it. */
+uint32_t word_from_hex(const char *hex)
+{
+    return (uint32_t)strtoul(hex, NULL, 16);
 }
 
 /**
@@ -208,60 +266,216 @@ uint32_t schedule_word_from_header(const uint8_t *bytes)
 }
 
 // ---------------------------------------------------------------------------------------------
-// Job state
+// The counters, the work and the shares
 // ---------------------------------------------------------------------------------------------
 
-/** @brief One mining.notify, kept as the pool sent it. */
+/** @brief A counter read, with acquire ordering. */
+uint64_t counter_read(const embed_atomic_u64 *word)
+{
+    return EMBED_CALL(embed_atomic_u64_load, EmbedAtomicU64LoadCfg, .word = word);
+}
+
+/** @brief A counter added to, and its value before the add. */
+uint64_t counter_added(embed_atomic_u64 *word, uint64_t value)
+{
+    return EMBED_CALL(embed_atomic_u64_fetch_add, EmbedAtomicU64FetchAddCfg, .word = word, .value = value);
+}
+
+/** @brief A counter set, with release ordering. */
+void counter_set(embed_atomic_u64 *word, uint64_t value)
+{
+    EMBED_CALL(embed_atomic_u64_store, EmbedAtomicU64StoreCfg, .word = word, .value = value);
+}
+
+/** @brief One mining.notify, kept as the pool sent it, each field a text of a fixed bound. */
 struct MiningJob
 {
-    std::string job_id;
-    std::string prevhash_hex;
-    std::string coinbase_head_hex;
-    std::string coinbase_tail_hex;
-    std::vector<std::string> merkle_branch_hex;
-    std::string version_hex;
-    std::string nbits_hex;
-    std::string ntime_hex;
-    bool clean_jobs = false;
-    bool valid = false;
+    char job_id[MINER_JOB_ID_BYTES];
+    char prevhash_hex[MINER_HASH_HEX_BYTES];
+    char coinbase_head_hex[MINER_COINBASE_HEX_BYTES];
+    char coinbase_tail_hex[MINER_COINBASE_HEX_BYTES];
+    char merkle_branch_hex[MINER_BRANCH_MAX][MINER_HASH_HEX_BYTES];
+    unsigned int merkle_branch_count;
+    char version_hex[MINER_WORD_HEX_BYTES];
+    char nbits_hex[MINER_WORD_HEX_BYTES];
+    char ntime_hex[MINER_WORD_HEX_BYTES];
+    bool clean_jobs;
+    bool valid;
 };
 
-/** @brief What the whole client shares, guarded by one lock and one generation counter. */
+/** @brief The work every worker reads: the job, the extranonce the pool assigned, and the share difficulty. */
+struct MinerWork
+{
+    MiningJob job;
+    char extranonce1_hex[MINER_EXTRANONCE_HEX_BYTES];
+    size_t extranonce2_size;
+    double difficulty;
+};
+
+/**
+ * @brief The two records of the work. The network thread writes the one that is not published, publishes
+ *        it, and drains the turnstiles, and so no worker holds the other when it writes that one again.
+ */
+MinerWork g_work[2];
+
+/** @brief The record the network thread published last. The network thread alone reads and writes it. */
+unsigned int g_work_at = 0u;
+
+/** @brief The address of the published record. */
+embed_atomic_uptr g_work_published;
+
+/** @brief The turnstiles a worker passes through to read the published record. Zeros at rest. */
+EmbedTurnstiles g_work_turnstiles;
+
+/** @brief What the whole client counts. A change of the generation tells the workers to read the work again. */
 struct MinerState
 {
-    std::mutex lock;
-    MiningJob job;
-    std::string extranonce1_hex;
-    size_t extranonce2_size = 4u;
-    double difficulty = 1.0;
-
     // Rises whenever the work changes. Workers compare against it and drop their current work.
-    std::atomic<uint64_t> generation{0};
-    std::atomic<uint64_t> extranonce2_counter{0};
-    std::atomic<uint64_t> nonce_cursor{0};
-    std::atomic<uint64_t> hashes_done{0};
-    std::atomic<uint64_t> anchor_survivors{0};
-    std::atomic<bool> running{true};
+    embed_atomic_u64 generation;
+    embed_atomic_u64 extranonce2_counter;
+    embed_atomic_u64 nonce_cursor;
+    embed_atomic_u64 hashes_done;
+    embed_atomic_u64 anchor_survivors;
+    embed_atomic_u64 running;
 
     // Read through Sha256ScanRequest, which needs a volatile int instead of an atomic.
-    volatile int abandon = 0;
+    volatile int abandon;
 };
 
 MinerState g_state;
 
+/**
+ * @brief The published work copied into the worker's own record, inside a pass through the turnstiles.
+ *
+ * @param[out] work    The worker's record [BORROWS].
+ * @param[in]  address The worker's address, an immutable place that selects its lane [BORROWS].
+ */
+void work_read(MinerWork *work, const void *address)
+{
+    // Explicit casts carry the worker's address as the pass's entry and the published word as the record
+    const unsigned int place = EMBED_CALL(embed_turnstile_enter, EmbedTurnstileEnterCfg, .set = &g_work_turnstiles,
+                                          .address = (embed_atomic_uptr_value)(uintptr_t)address);
+    const MinerWork *const published = (const MinerWork *)(uintptr_t)EMBED_CALL(
+        embed_atomic_uptr_load, EmbedAtomicUptrLoadCfg, .word = &g_work_published);
+    *work = *published;
+    EMBED_CALL(embed_turnstile_leave, EmbedTurnstileLeaveCfg, .set = &g_work_turnstiles, .place = place);
+}
+
+/** @brief On the network thread: the record that is not published, a copy of the one that is, to change. */
+MinerWork *work_next()
+{
+    MinerWork *const next = &g_work[1u - g_work_at];
+    *next = g_work[g_work_at];
+    return next;
+}
+
+/** @brief On the network thread: the record work_next gave published, and every pass on the other waited out. */
+void work_published()
+{
+    // Explicit cast carries the record's address as the published word
+    EMBED_CALL(embed_atomic_uptr_store, EmbedAtomicUptrStoreCfg, .word = &g_work_published,
+               .value = (embed_atomic_uptr_value)(uintptr_t)&g_work[1u - g_work_at]);
+    EMBED_CALL(embed_turnstiles_drain, EmbedTurnstilesDrainCfg, .set = &g_work_turnstiles);
+    g_work_at = 1u - g_work_at;
+}
+
+/** @brief On the network thread: the work as it published it last. */
+const MinerWork *work_current()
+{
+    return &g_work[g_work_at];
+}
+
 /** @brief A share that a worker found and verified. It waits for the network thread to send it. */
 struct FoundShare
 {
-    std::string job_id;
-    std::string extranonce2_hex;
-    std::string ntime_hex;
-    uint32_t nonce = 0u;
-    std::string block_hash;
-    bool meets_block_target = false;
+    char job_id[MINER_JOB_ID_BYTES];
+    char extranonce2_hex[MINER_EXTRANONCE_HEX_BYTES];
+    char ntime_hex[MINER_WORD_HEX_BYTES];
+    uint32_t nonce;
+    char block_hash[MINER_HASH_HEX_BYTES];
+    bool meets_block_target;
 };
 
-std::mutex g_share_lock;
-std::vector<FoundShare> g_pending_shares;
+/** @brief The ticket ring of the shares: its slots, the share of each slot, and its turnstiles, zeros at rest. */
+EmbedTicketRingSlot g_share_slots[MINER_SHARE_SLOTS];
+EmbedTicketRing g_share_ring;
+FoundShare g_share_store[MINER_SHARE_SLOTS];
+EmbedTurnstiles g_share_turnstiles;
+
+/** @brief The next ticket of a share. A worker takes one with a fetch-add. */
+embed_atomic_u64 g_share_ticket;
+
+/** @brief The epoch of a stamp, from the clock: it moves every 2^32 ns, far past the life of a share's stamp. */
+embed_word share_epoch()
+{
+    return (embed_word)(platform_clock_ns() >> 32u);
+}
+
+/**
+ * @brief A share put in the ring for the network thread. A slot that the network thread has not given
+ *        back yet waits, so that no ticket is left with no share.
+ *
+ * @param[in] share   The share [BORROWS].
+ * @param[in] address The worker's address, an immutable place that selects its lane [BORROWS].
+ */
+void share_posted(const FoundShare *share, const void *address)
+{
+    const embed_word ticket = (embed_word)counter_added(&g_share_ticket, 1u);
+    const embed_word stamp =
+        EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, .epoch = share_epoch(), .ticket = ticket);
+    // Explicit cast carries the worker's address as the pass's entry
+    const embed_atomic_uptr_value entry = (embed_atomic_uptr_value)(uintptr_t)address;
+    embed_word found = 0u;
+    while (!EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, .set = &g_share_turnstiles,
+                       .address = entry, .ring = &g_share_ring, .stamp = stamp, .found_stamp = &found))
+    {
+        if (counter_read(&g_state.running) == 0u)
+        {
+            return;
+        }
+        platform_paused(1u);
+    }
+    FoundShare *const held = &g_share_store[ticket & (MINER_SHARE_SLOTS - 1u)];
+    *held = *share;
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, .set = &g_share_turnstiles,
+                     .address = entry, .ring = &g_share_ring, .stamp = stamp, .job = held, .found_stamp = &found);
+}
+
+/**
+ * @brief On the network thread: the share of ticket `taken` popped where the worker pushed it, copied out,
+ *        and its slot given back.
+ *
+ * @return True where a share was there, which then is at `share`.
+ */
+bool share_taken(uint64_t taken, FoundShare *share)
+{
+    EmbedTicketRingSlot *const slot = &g_share_slots[taken & (MINER_SHARE_SLOTS - 1u)];
+    const embed_word word = EMBED_CALL(embed_atomic_word_load, EmbedAtomicWordLoadCfg, .word = &slot->stamp);
+    const embed_word ticket_mask = (embed_word)((((embed_word)1u) << EMBED_TICKET_BITS) - 1u);
+    const embed_word flags = EMBED_CALL(embed_ticket_flags_of_stamp, EmbedTicketFlagsOfStampCfg, .stamp = word);
+    const embed_word pushed = (embed_word)(EMBED_TICKET_PUSHED_BIT >> EMBED_TICKET_FLAG_SHIFT);
+    const embed_word popped = (embed_word)(EMBED_TICKET_POPPED_BIT >> EMBED_TICKET_FLAG_SHIFT);
+    if ((EMBED_CALL(embed_ticket_of_stamp, EmbedTicketOfStampCfg, .stamp = word) !=
+         ((embed_word)taken & ticket_mask)) ||
+        ((flags & pushed) == 0u) || ((flags & popped) != 0u))
+    {
+        return false;
+    }
+    const embed_word stamp = EMBED_CALL(embed_ticket_fields_of_stamp, EmbedTicketFieldsOfStampCfg, .stamp = word);
+    void *job = NULL;
+    embed_word found = 0u;
+    // Explicit cast carries the share's own slot as the pass's entry
+    if (!EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, .set = &g_share_turnstiles,
+                    .address = (embed_atomic_uptr_value)(uintptr_t)slot, .ring = &g_share_ring, .stamp = stamp,
+                    .job = &job, .found_stamp = &found))
+    {
+        return false;
+    }
+    *share = *(const FoundShare *)job;
+    (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, .set = &g_share_turnstiles,
+                     .ring = &g_share_ring, .stamp = stamp, .found_stamp = &found);
+    return true;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Header assembly
@@ -270,28 +484,29 @@ std::vector<FoundShare> g_pending_shares;
 /**
  * @brief Folds a coinbase hash through a merkle branch to the root the header carries.
  *
- * @param[in]  coinbase     Serialized coinbase transaction [BORROWS].
- * @param[in]  branch_hex   Branch entries as the pool sent them [BORROWS].
- * @param[out] merkle_root  Thirty-two bytes of root, in header order [BORROWS].
+ * @param[in]  coinbase      Serialized coinbase transaction [BORROWS].
+ * @param[in]  coinbase_size Bytes of it.
+ * @param[in]  job           The job whose branch entries fold in, as the pool sent them [BORROWS].
+ * @param[out] merkle_root   Thirty-two bytes of root, in header order [BORROWS].
  * @note Every hash here stays in internal order. The branch entries concatenate as sent, and the
  *       root drops into the header as computed. Thus nothing in this function reverses anything.
  */
-void merkle_root_from_coinbase(const std::vector<uint8_t> &coinbase, const std::vector<std::string> &branch_hex,
+void merkle_root_from_coinbase(const uint8_t *coinbase, size_t coinbase_size, const MiningJob &job,
                                uint8_t *merkle_root)
 {
-    sha256_double_hash(coinbase.data(), coinbase.size(), merkle_root);
+    sha256_double_hash(coinbase, coinbase_size, merkle_root);
 
-    for (const std::string &entry_hex : branch_hex)
+    for (unsigned int at = 0u; at < job.merkle_branch_count; at += 1u)
     {
-        const std::vector<uint8_t> entry = bytes_from_hex(entry_hex);
+        uint8_t entry[32];
         uint8_t joined[64];
 
-        if (entry.size() != 32u)
+        if (bytes_from_hex(job.merkle_branch_hex[at], entry, sizeof(entry)) != 32u)
         {
             continue;
         }
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined, .src = merkle_root, .bytes = 32u);
-        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + 32u, .src = entry.data(), .bytes = 32u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + 32u, .src = entry, .bytes = 32u);
         sha256_double_hash(joined, sizeof(joined), merkle_root);
     }
 }
@@ -308,37 +523,32 @@ void merkle_root_from_coinbase(const std::vector<uint8_t> &coinbase, const std::
  *       reversal of each word recovers the header field. A reversal of the whole field yields a hash
  *       three zero characters short of the current target. A live job confirms this.
  */
-bool build_header(const MiningJob &job, const std::string &extranonce1_hex, const std::string &extranonce2_hex,
-                  uint8_t *header)
+bool build_header(const MiningJob &job, const char *extranonce1_hex, const char *extranonce2_hex, uint8_t *header)
 {
-    const std::vector<uint8_t> prevhash = bytes_from_hex(job.prevhash_hex);
-    const std::vector<uint8_t> coinbase_head = bytes_from_hex(job.coinbase_head_hex);
-    const std::vector<uint8_t> coinbase_tail = bytes_from_hex(job.coinbase_tail_hex);
-    const std::vector<uint8_t> extranonce1 = bytes_from_hex(extranonce1_hex);
-    const std::vector<uint8_t> extranonce2 = bytes_from_hex(extranonce2_hex);
+    uint8_t prevhash[32];
+    uint8_t coinbase[MINER_COINBASE_BYTES];
 
-    if (prevhash.size() != 32u)
+    if (bytes_from_hex(job.prevhash_hex, prevhash, sizeof(prevhash)) != 32u)
     {
         return false;
     }
-    if (coinbase_head.empty() || coinbase_tail.empty())
+    // the coinbase: its head, both extranonces and its tail, each put after the one before
+    const size_t head = bytes_from_hex(job.coinbase_head_hex, coinbase, sizeof(coinbase));
+    const size_t first = bytes_from_hex(extranonce1_hex, coinbase + head, sizeof(coinbase) - head);
+    const size_t second = bytes_from_hex(extranonce2_hex, coinbase + head + first, sizeof(coinbase) - head - first);
+    const size_t tail = bytes_from_hex(job.coinbase_tail_hex, coinbase + head + first + second,
+                                       sizeof(coinbase) - head - first - second);
+    if ((head == 0u) || (tail == 0u))
     {
         return false;
     }
-
-    std::vector<uint8_t> coinbase;
-    coinbase.reserve(coinbase_head.size() + extranonce1.size() + extranonce2.size() + coinbase_tail.size());
-    coinbase.insert(coinbase.end(), coinbase_head.begin(), coinbase_head.end());
-    coinbase.insert(coinbase.end(), extranonce1.begin(), extranonce1.end());
-    coinbase.insert(coinbase.end(), extranonce2.begin(), extranonce2.end());
-    coinbase.insert(coinbase.end(), coinbase_tail.begin(), coinbase_tail.end());
 
     uint8_t merkle_root[32];
-    merkle_root_from_coinbase(coinbase, job.merkle_branch_hex, merkle_root);
+    merkle_root_from_coinbase(coinbase, head + first + second + tail, job, merkle_root);
 
-    const uint32_t version = (uint32_t)std::stoul(job.version_hex, nullptr, 16);
-    const uint32_t nbits = (uint32_t)std::stoul(job.nbits_hex, nullptr, 16);
-    const uint32_t ntime = (uint32_t)std::stoul(job.ntime_hex, nullptr, 16);
+    const uint32_t version = word_from_hex(job.version_hex);
+    const uint32_t nbits = word_from_hex(job.nbits_hex);
+    const uint32_t ntime = word_from_hex(job.ntime_hex);
 
     write_header_field(header, version);
     for (size_t word = 0u; word < 8u; word += 1u)
@@ -377,11 +587,6 @@ bool verify_share(const uint8_t *header, const uint32_t *share_target, uint8_t *
 }
 
 /**
- * @brief One mining worker: claims nonce ranges for the current job until the work changes.
- *
- * @param[in] worker_index Which worker this is. Only the report uses it.
- */
-/**
  * @brief Counters that outlive one run of the process.
  *
  * @note A figure per run resets on restart. An anchor count that drops from 1020 to 85 then looks
@@ -415,36 +620,35 @@ const char *const TOTALS_PATH = "miner_totals.txt";
 LifetimeTotals load_totals()
 {
     LifetimeTotals held;
-    std::FILE *const handle = std::fopen(TOTALS_PATH, "r");
+    FILE *const handle = fopen(TOTALS_PATH, "r");
     if (handle == nullptr)
     {
         return held;
     }
-    if (std::fscanf(handle, "%llu %llu %llu %llu %llu %lf %llu", (unsigned long long *)&held.hashes,
-                    (unsigned long long *)&held.anchors, (unsigned long long *)&held.submitted,
-                    (unsigned long long *)&held.accepted, (unsigned long long *)&held.rejected, &held.seconds,
-                    (unsigned long long *)&held.runs) != 7)
+    if (fscanf(handle, "%llu %llu %llu %llu %llu %lf %llu", (unsigned long long *)&held.hashes,
+               (unsigned long long *)&held.anchors, (unsigned long long *)&held.submitted,
+               (unsigned long long *)&held.accepted, (unsigned long long *)&held.rejected, &held.seconds,
+               (unsigned long long *)&held.runs) != 7)
     {
         // A truncated file, or a file with a bad form, starts over. It does not carry half a total forward.
         held = LifetimeTotals();
     }
-    std::fclose(handle);
+    fclose(handle);
     return held;
 }
 
 /** @brief Writes the lifetime counters. */
 void save_totals(const LifetimeTotals &held)
 {
-    std::FILE *const handle = std::fopen(TOTALS_PATH, "w");
+    FILE *const handle = fopen(TOTALS_PATH, "w");
     if (handle == nullptr)
     {
         return;
     }
-    std::fprintf(handle, "%llu %llu %llu %llu %llu %.3f %llu\n", (unsigned long long)held.hashes,
-                 (unsigned long long)held.anchors, (unsigned long long)held.submitted,
-                 (unsigned long long)held.accepted, (unsigned long long)held.rejected, held.seconds,
-                 (unsigned long long)held.runs);
-    std::fclose(handle);
+    fprintf(handle, "%llu %llu %llu %llu %llu %.3f %llu\n", (unsigned long long)held.hashes,
+            (unsigned long long)held.anchors, (unsigned long long)held.submitted, (unsigned long long)held.accepted,
+            (unsigned long long)held.rejected, held.seconds, (unsigned long long)held.runs);
+    fclose(handle);
 }
 
 /** @brief Winners that one device launch may report. The launch drops the rest. */
@@ -458,9 +662,37 @@ const uint64_t DEVICE_NONCE_CHUNK = 1ull << 26;
 /** @brief Nonzero where the operator asked for the device instead of the eight-lane arm. */
 bool g_use_device = true;
 
-void mining_worker(int worker_index)
+/** @brief The extranonce2 of a counter, as hex of the width the pool asked for, the low digits kept or zeros put first.
+ */
+void extranonce2_of(uint64_t counter, size_t extranonce2_size, char *rendered)
 {
-    (void)worker_index;
+    char counter_hex[9];
+    hex_from_word((uint32_t)counter, counter_hex);
+    const size_t needed = extranonce2_size * 2u;
+    const size_t have = 8u;
+    // a width that the field does not hold renders as the empty extranonce, which the header then refuses
+    if (needed >= MINER_EXTRANONCE_HEX_BYTES)
+    {
+        rendered[0] = '\0';
+        return;
+    }
+    if (have >= needed)
+    {
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = rendered, .src = counter_hex + (have - needed), .bytes = needed + 1u);
+        return;
+    }
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = rendered, .bytes = needed - have, .val = '0');
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = rendered + (needed - have), .src = counter_hex, .bytes = have + 1u);
+}
+
+/**
+ * @brief One mining worker: claims nonce ranges for the current job until the work changes.
+ *
+ * @param[in] context The worker's index, an int. Only the device's choice reads it [BORROWS].
+ */
+void mining_worker(void *context)
+{
+    const int worker_index = *(const int *)context;
 
     // One device context per worker. Worker zero takes it, and the rest fall back to the eight-lane
     // arm. One feeder at 2 GH/s already saturates the device. A second context would contend for
@@ -479,50 +711,37 @@ void mining_worker(int worker_index)
     }
 
     uint64_t known_generation = UINT64_MAX;
-    MiningJob job;
-    std::string extranonce1_hex;
-    std::string extranonce2_hex;
+    // the worker's own copy of the work, which it reads in a pass and keeps until the work changes
+    static MinerWork s_worker_work[MINER_WORKERS_MAX];
+    MinerWork *const work = &s_worker_work[(unsigned int)worker_index % MINER_WORKERS_MAX];
+    char extranonce2_hex[MINER_EXTRANONCE_HEX_BYTES];
     uint8_t header[BITCOIN_HEADER_BYTES];
     Sha256ScanRequest request;
     uint32_t share_target[SHA256_STATE_WORDS];
     uint32_t block_target[SHA256_STATE_WORDS];
     bool header_ready = false;
 
-    while (g_state.running.load(std::memory_order_relaxed))
+    while (counter_read(&g_state.running) != 0u)
     {
-        const uint64_t current_generation = g_state.generation.load(std::memory_order_acquire);
+        const uint64_t current_generation = counter_read(&g_state.generation);
 
         if (current_generation != known_generation)
         {
             known_generation = current_generation;
             header_ready = false;
 
+            work_read(work, work);
+            if (!work->job.valid)
             {
-                std::lock_guard<std::mutex> held(g_state.lock);
-                if (!g_state.job.valid)
-                {
-                    continue;
-                }
-                job = g_state.job;
-                extranonce1_hex = g_state.extranonce1_hex;
-                sha256_share_target_from_difficulty(share_target, g_state.difficulty);
+                continue;
             }
+            sha256_share_target_from_difficulty(share_target, work->difficulty);
 
-            const uint64_t counter = g_state.extranonce2_counter.load(std::memory_order_relaxed);
-            std::string counter_hex = hex_from_word((uint32_t)counter);
-            size_t needed = 0u;
-            {
-                std::lock_guard<std::mutex> held(g_state.lock);
-                needed = g_state.extranonce2_size * 2u;
-            }
-            // Left-pad with zeros to whatever width the pool asked for at subscribe time.
-            extranonce2_hex = (counter_hex.size() >= needed)
-                                  ? counter_hex.substr(counter_hex.size() - needed)
-                                  : std::string(needed - counter_hex.size(), '0') + counter_hex;
+            extranonce2_of(counter_read(&g_state.extranonce2_counter), work->extranonce2_size, extranonce2_hex);
 
-            if (!build_header(job, extranonce1_hex, extranonce2_hex, header))
+            if (!build_header(work->job, work->extranonce1_hex, extranonce2_hex, header))
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                platform_paused(50u);
                 continue;
             }
 
@@ -534,13 +753,13 @@ void mining_worker(int worker_index)
             request.abandon = &g_state.abandon;
             EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.share_target, .src = share_target,
                        .bytes = sizeof(share_target));
-            sha256_target_from_nbits(block_target, (uint32_t)std::stoul(job.nbits_hex, nullptr, 16));
+            sha256_target_from_nbits(block_target, word_from_hex(work->job.nbits_hex));
             header_ready = true;
         }
 
         if (!header_ready)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            platform_paused(50u);
             continue;
         }
 
@@ -548,16 +767,18 @@ void mining_worker(int worker_index)
         // Two million nonces is a millisecond of work at 2 GH/s, and the round trip costs more than
         // that. All workers share the cursor. A device worker simply claims more of it per turn.
         const uint64_t chunk = (device != nullptr) ? DEVICE_NONCE_CHUNK : NONCE_CHUNK;
-        const uint64_t claimed = g_state.nonce_cursor.fetch_add(chunk, std::memory_order_relaxed);
+        const uint64_t claimed = counter_added(&g_state.nonce_cursor, chunk);
         if (claimed >= 0x100000000ULL)
         {
-            // This extranonce2 has no nonce space left. Roll it and let every worker rebuild.
-            std::lock_guard<std::mutex> held(g_state.lock);
-            if (g_state.nonce_cursor.load(std::memory_order_relaxed) >= 0x100000000ULL)
+            // This extranonce2 has no nonce space left. The worker whose swap sets the cursor back to 0 rolls
+            // it, and every worker rebuilds; a worker whose swap finds another value leaves the roll to the
+            // one that swapped first
+            uint64_t seen = counter_read(&g_state.nonce_cursor);
+            if ((seen >= 0x100000000ULL) && EMBED_CALL(embed_atomic_u64_swap_if, EmbedAtomicU64SwapIfCfg,
+                                                       .word = &g_state.nonce_cursor, .expected = &seen, .value = 0u))
             {
-                g_state.extranonce2_counter.fetch_add(1u, std::memory_order_relaxed);
-                g_state.nonce_cursor.store(0u, std::memory_order_relaxed);
-                g_state.generation.fetch_add(1u, std::memory_order_release);
+                (void)counter_added(&g_state.extranonce2_counter, 1u);
+                (void)counter_added(&g_state.generation, 1u);
             }
             continue;
         }
@@ -591,7 +812,7 @@ void mining_worker(int worker_index)
             {
                 // A failed launch is not a scanned range. A count of it would inflate the rate and
                 // silently skip nonces. Thus the loop drops the chunk and tries the next one.
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                platform_paused(50u);
                 continue;
             }
 
@@ -619,8 +840,8 @@ void mining_worker(int worker_index)
             sha256_scan_avx2(&request, &result);
         }
 
-        g_state.hashes_done.fetch_add(result.nonces_evaluated, std::memory_order_relaxed);
-        g_state.anchor_survivors.fetch_add(result.anchors_survived, std::memory_order_relaxed);
+        (void)counter_added(&g_state.hashes_done, result.nonces_evaluated);
+        (void)counter_added(&g_state.anchor_survivors, result.anchors_survived);
 
         if (result.found == 0)
         {
@@ -645,17 +866,13 @@ void mining_worker(int worker_index)
         }
 
         FoundShare share;
-        share.job_id = job.job_id;
-        share.extranonce2_hex = extranonce2_hex;
-        share.ntime_hex = job.ntime_hex;
+        (void)text_set(share.job_id, sizeof(share.job_id), work->job.job_id);
+        (void)text_set(share.extranonce2_hex, sizeof(share.extranonce2_hex), extranonce2_hex);
+        (void)text_set(share.ntime_hex, sizeof(share.ntime_hex), work->job.ntime_hex);
         share.nonce = result.winning_nonce;
-        share.block_hash = block_hash_from_digest(digest);
+        block_hash_from_digest(digest, share.block_hash);
         share.meets_block_target = sha256_digest_within_target(digest, block_target) != 0;
-
-        {
-            std::lock_guard<std::mutex> held(g_share_lock);
-            g_pending_shares.push_back(share);
-        }
+        share_posted(&share, work);
     }
 
     if (device != nullptr)
@@ -672,16 +889,17 @@ void mining_worker(int worker_index)
  * @brief Sends a whole payload. It loops over partial writes.
  *
  * @param[in] connection Socket to write to.
- * @param[in] payload    Bytes to send.
+ * @param[in] payload    Bytes to send, terminated [BORROWS].
  * @return               True where all of it went out.
  */
-bool send_payload(SOCKET connection, const std::string &payload)
+bool send_payload(SOCKET connection, const char *payload)
 {
+    const size_t size = text_length(payload);
     size_t sent_total = 0u;
 
-    while (sent_total < payload.size())
+    while (sent_total < size)
     {
-        const int sent = send(connection, payload.data() + sent_total, (int)(payload.size() - sent_total), 0);
+        const int sent = send(connection, payload + sent_total, (int)(size - sent_total), 0);
         if (sent == SOCKET_ERROR)
         {
             return false;
@@ -691,47 +909,72 @@ bool send_payload(SOCKET connection, const std::string &payload)
     return true;
 }
 
+/** @brief A line that tells of a field that passes its bound. */
+void report_refused(const char *what)
+{
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "\n[REFUSED] ");
+    mmgr_line_put(output_line, what);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
+}
+
 /**
  * @brief Reads a mining.notify into a job.
  *
- * @param[in]  params Parameter array as sent [BORROWS].
- * @param[out] job    Where the job lands [BORROWS].
- * @return            True where every field was present and the right type.
+ * @param[in]  document The message [BORROWS].
+ * @param[in]  params   Parameter array as sent.
+ * @param[out] job      Where the job lands [BORROWS].
+ * @return              True where every field was present, the right type, and inside its bound.
  * @note The order is job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime,
  *       clean_jobs. A live job confirms this order, and it is not an assumption.
  */
-bool job_from_notify(const JsonValue &params, MiningJob &job)
+bool job_from_notify(const JsonDocument *document, unsigned int params, MiningJob &job)
 {
-    if ((params.type != JsonType::Array) || (params.elements.size() < 9u))
+    if ((json_type(document, params) != JsonType::Array) || (json_count(document, params) < 9u))
     {
         return false;
     }
-    if (!params.at(0).is_string() || !params.at(1).is_string() || !params.at(2).is_string() ||
-        !params.at(3).is_string() || !params.at(5).is_string() || !params.at(6).is_string() ||
-        !params.at(7).is_string())
+    const unsigned int field[9] = {
+        json_at(document, params, 0u), json_at(document, params, 1u), json_at(document, params, 2u),
+        json_at(document, params, 3u), json_at(document, params, 4u), json_at(document, params, 5u),
+        json_at(document, params, 6u), json_at(document, params, 7u), json_at(document, params, 8u)};
+    if (!json_is_string(document, field[0]) || !json_is_string(document, field[1]) ||
+        !json_is_string(document, field[2]) || !json_is_string(document, field[3]) ||
+        !json_is_string(document, field[5]) || !json_is_string(document, field[6]) ||
+        !json_is_string(document, field[7]))
     {
         return false;
     }
 
-    job.job_id = params.at(0).text;
-    job.prevhash_hex = params.at(1).text;
-    job.coinbase_head_hex = params.at(2).text;
-    job.coinbase_tail_hex = params.at(3).text;
-    job.merkle_branch_hex.clear();
+    bool fits = text_set(job.job_id, sizeof(job.job_id), json_text(document, field[0])) &&
+                text_set(job.prevhash_hex, sizeof(job.prevhash_hex), json_text(document, field[1])) &&
+                text_set(job.coinbase_head_hex, sizeof(job.coinbase_head_hex), json_text(document, field[2])) &&
+                text_set(job.coinbase_tail_hex, sizeof(job.coinbase_tail_hex), json_text(document, field[3]));
+    job.merkle_branch_count = 0u;
 
-    const JsonValue &branch = params.at(4);
-    for (size_t at = 0u; at < branch.elements.size(); at += 1u)
+    const unsigned int branch = field[4];
+    for (unsigned int at = 0u; fits && (at < json_count(document, branch)); at += 1u)
     {
-        if (branch.at(at).is_string())
+        const unsigned int entry = json_at(document, branch, at);
+        if (json_is_string(document, entry))
         {
-            job.merkle_branch_hex.push_back(branch.at(at).text);
+            fits = (job.merkle_branch_count < MINER_BRANCH_MAX) &&
+                   text_set(job.merkle_branch_hex[job.merkle_branch_count], MINER_HASH_HEX_BYTES,
+                            json_text(document, entry));
+            job.merkle_branch_count += fits ? 1u : 0u;
         }
     }
 
-    job.version_hex = params.at(5).text;
-    job.nbits_hex = params.at(6).text;
-    job.ntime_hex = params.at(7).text;
-    job.clean_jobs = params.at(8).boolean;
+    fits = fits && text_set(job.version_hex, sizeof(job.version_hex), json_text(document, field[5])) &&
+           text_set(job.nbits_hex, sizeof(job.nbits_hex), json_text(document, field[6])) &&
+           text_set(job.ntime_hex, sizeof(job.ntime_hex), json_text(document, field[7]));
+    if (!fits)
+    {
+        report_refused("a field of mining.notify passes the bound of its text");
+        return false;
+    }
+    job.clean_jobs = document->node[field[8]].boolean;
     job.valid = true;
     return true;
 }
@@ -743,10 +986,10 @@ bool job_from_notify(const JsonValue &params, MiningJob &job)
  */
 void report_job(const MiningJob &job)
 {
-    const std::vector<uint8_t> prevhash = bytes_from_hex(job.prevhash_hex);
-    std::string previous_block;
+    uint8_t prevhash[32];
+    char previous_block[MINER_HASH_HEX_BYTES] = "";
 
-    if (prevhash.size() == 32u)
+    if (bytes_from_hex(job.prevhash_hex, prevhash, sizeof(prevhash)) == 32u)
     {
         uint8_t header_order[32];
         for (size_t word = 0u; word < 8u; word += 1u)
@@ -756,29 +999,29 @@ void report_job(const MiningJob &job)
                 header_order[(word * 4u) + byte] = prevhash[(word * 4u) + (3u - byte)];
             }
         }
-        previous_block = block_hash_from_digest(header_order);
+        block_hash_from_digest(header_order, previous_block);
     }
 
-    const size_t leading_zeros = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = previous_block.c_str(),
-                                            .cap = previous_block.size(), .other = "0");
+    const size_t leading_zeros = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = previous_block,
+                                            .cap = text_length(previous_block), .other = "0");
 
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "\n[JOB] ");
-        mmgr_line_put(output_line, job.job_id.c_str());
+        mmgr_line_put(output_line, job.job_id);
         mmgr_line_put(output_line, "  branch ");
-        mmgr_line_decimal(output_line, job.merkle_branch_hex.size(), 1u);
+        mmgr_line_decimal(output_line, job.merkle_branch_count, 1u);
         mmgr_line_put(output_line, "  ntime ");
-        mmgr_line_put(output_line, job.ntime_hex.c_str());
+        mmgr_line_put(output_line, job.ntime_hex);
         mmgr_line_put(output_line, "  nbits ");
-        mmgr_line_put(output_line, job.nbits_hex.c_str());
+        mmgr_line_put(output_line, job.nbits_hex);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "      previous block ");
-        mmgr_line_put(output_line, previous_block.c_str());
+        mmgr_line_put(output_line, previous_block);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
@@ -806,12 +1049,17 @@ void report_job(const MiningJob &job)
  *       difficulty the same job declares. A header assembled wrongly still hashes; it just hashes
  *       to noise, and noise does not sit near a target.
  */
-bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex, size_t extranonce2_size)
+bool dry_run_check_job(const MiningJob &job, const char *extranonce1_hex, size_t extranonce2_size)
 {
     uint8_t header[BITCOIN_HEADER_BYTES];
-    const std::string extranonce2_hex(extranonce2_size * 2u, '0');
+    char extranonce2_hex[MINER_EXTRANONCE_HEX_BYTES] = "";
     bool all_held = true;
 
+    if ((2u * extranonce2_size) < sizeof(extranonce2_hex))
+    {
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = extranonce2_hex, .bytes = 2u * extranonce2_size, .val = '0');
+        extranonce2_hex[2u * extranonce2_size] = '\0';
+    }
     if (!build_header(job, extranonce1_hex, extranonce2_hex, header))
     {
         {
@@ -823,10 +1071,12 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
         return false;
     }
 
+    char rendered[(2u * BITCOIN_HEADER_BYTES) + 1u];
+    hex_from_bytes(header, BITCOIN_HEADER_BYTES, rendered);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "      header      ");
-        mmgr_line_put(output_line, hex_from_bytes(header, BITCOIN_HEADER_BYTES).c_str());
+        mmgr_line_put(output_line, rendered);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
@@ -840,10 +1090,11 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
             merkle_is_zero = false;
         }
     }
+    hex_from_bytes(header + 36u, 32u, rendered);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "      merkle root ");
-        mmgr_line_put(output_line, hex_from_bytes(header + 36u, 32u).c_str());
+        mmgr_line_put(output_line, rendered);
         mmgr_line_put(output_line, "  ");
         mmgr_line_put(output_line, merkle_is_zero ? "[FAIL] all zero" : "[ok]");
         mmgr_line_ch(output_line, '\n');
@@ -856,8 +1107,8 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
         (uint32_t)header[0] | ((uint32_t)header[1] << 8) | ((uint32_t)header[2] << 16) | ((uint32_t)header[3] << 24);
     const uint32_t nbits_back = (uint32_t)header[72] | ((uint32_t)header[73] << 8) | ((uint32_t)header[74] << 16) |
                                 ((uint32_t)header[75] << 24);
-    const bool version_ok = (version_back == (uint32_t)std::stoul(job.version_hex, nullptr, 16));
-    const bool nbits_ok = (nbits_back == (uint32_t)std::stoul(job.nbits_hex, nullptr, 16));
+    const bool version_ok = (version_back == word_from_hex(job.version_hex));
+    const bool nbits_ok = (nbits_back == word_from_hex(job.nbits_hex));
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "      version     ");
@@ -899,10 +1150,12 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
     // good form, and the scan path must agree with the plain double hash on the same input.
     uint8_t digest[32];
     sha256_double_hash(header, BITCOIN_HEADER_BYTES, digest);
+    char digest_hex[MINER_HASH_HEX_BYTES];
+    block_hash_from_digest(digest, digest_hex);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "      hash@nonce0 ");
-        mmgr_line_put(output_line, block_hash_from_digest(digest).c_str());
+        mmgr_line_put(output_line, digest_hex);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
@@ -934,12 +1187,19 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
     return all_held;
 }
 
+/** @brief The JSON document of the line the network thread reads, held for the life of the process. */
+JsonDocument g_message;
+
+/** @brief The workers and the index each reads. */
+PlatformWorker g_workers[MINER_WORKERS_MAX];
+int g_worker_index[MINER_WORKERS_MAX];
+
 } // namespace
 
 int program_main(int argument_count, char **arguments)
 {
-    std::string pool_hostname = DEFAULT_POOL_HOSTNAME;
-    std::string pool_port = DEFAULT_POOL_PORT;
+    const char *pool_hostname = DEFAULT_POOL_HOSTNAME;
+    const char *pool_port = DEFAULT_POOL_PORT;
 
     // Vardiff can climb to 10000 after a flood of false submissions. At this hash rate, that is one
     // share every six hours. Ask for a difficulty that produces shares while a person watches the
@@ -956,48 +1216,56 @@ int program_main(int argument_count, char **arguments)
 
     for (int index = 1; index < argument_count; index += 1)
     {
-        const std::string argument = arguments[index];
+        const char *const argument = arguments[index];
         const bool has_value = (index + 1) < argument_count;
 
-        if ((argument == "--address") && has_value)
+        if (text_same(argument, "--address") && has_value)
         {
-            g_payout_address = arguments[index + 1];
+            if (!text_set(g_payout_address, sizeof(g_payout_address), arguments[index + 1]))
+            {
+                report_refused("--address passes the bound of its text");
+                return 1;
+            }
             index += 1;
         }
-        else if ((argument == "--pool") && has_value)
+        else if (text_same(argument, "--pool") && has_value)
         {
             pool_hostname = arguments[index + 1];
             index += 1;
         }
-        else if ((argument == "--port") && has_value)
+        else if (text_same(argument, "--port") && has_value)
         {
             pool_port = arguments[index + 1];
             index += 1;
         }
-        else if ((argument == "--difficulty") && has_value)
+        else if (text_same(argument, "--difficulty") && has_value)
         {
-            suggested_difficulty = std::stod(arguments[index + 1]);
+            suggested_difficulty = strtod(arguments[index + 1], NULL);
             index += 1;
         }
-        else if ((argument == "--threads") && has_value)
+        else if (text_same(argument, "--threads") && has_value)
         {
-            requested_threads = (unsigned)std::stoul(arguments[index + 1]);
+            requested_threads = (unsigned)strtoul(arguments[index + 1], NULL, 10);
             index += 1;
         }
-        else if (argument == "--normal-priority")
+        else if (text_same(argument, "--normal-priority"))
         {
             background_priority = false;
         }
-        else if ((argument == "--user") && has_value)
+        else if (text_same(argument, "--user") && has_value)
         {
-            g_stratum_user = arguments[index + 1];
+            if (!text_set(g_stratum_user, sizeof(g_stratum_user), arguments[index + 1]))
+            {
+                report_refused("--user passes the bound of its text");
+                return 1;
+            }
             index += 1u;
         }
-        else if (argument == "--no-gpu")
+        else if (text_same(argument, "--no-gpu"))
         {
             g_use_device = false;
         }
-        else if (argument == "--dry-run")
+        else if (text_same(argument, "--dry-run"))
         {
             g_dry_run = true;
         }
@@ -1033,7 +1301,7 @@ int program_main(int argument_count, char **arguments)
     // An account pool identifies by worker name, and keeps the payout destination in an account
     // setting. Thus --user alone is a complete identity there. A demand for an address too would
     // refuse a correct configuration. An address pool still needs the address.
-    if (g_payout_address.empty() && g_stratum_user.empty() && !g_dry_run)
+    if ((g_payout_address[0] == '\0') && (g_stratum_user[0] == '\0') && !g_dry_run)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -1067,7 +1335,7 @@ int program_main(int argument_count, char **arguments)
         }
         return 1;
     }
-    if (g_payout_address == KNOWN_EXAMPLE_ADDRESS)
+    if (text_same(g_payout_address, KNOWN_EXAMPLE_ADDRESS))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -1084,12 +1352,12 @@ int program_main(int argument_count, char **arguments)
         return 1;
     }
 
-    if (!g_stratum_user.empty())
+    if (g_stratum_user[0] != '\0')
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "worker: ");
-            mmgr_line_put(output_line, g_stratum_user.c_str());
+            mmgr_line_put(output_line, g_stratum_user);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -1099,7 +1367,7 @@ int program_main(int argument_count, char **arguments)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        if (!g_payout_address.empty())
+        if (g_payout_address[0] != '\0')
         {
             // Say so, and do not silently prefer one. An operator who passes both probably believes
             // that the address has an effect here. On an account pool, it has none.
@@ -1115,7 +1383,7 @@ int program_main(int argument_count, char **arguments)
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "paying: ");
-        mmgr_line_put(output_line, g_payout_address.c_str());
+        mmgr_line_put(output_line, g_payout_address);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
@@ -1133,6 +1401,16 @@ int program_main(int argument_count, char **arguments)
             platform_line_out_ended();
         }
     }
+
+    // the work at rest: the first record, no job, an extranonce2 of four bytes and difficulty 1, published
+    g_work[0].extranonce2_size = 4u;
+    g_work[0].difficulty = 1.0;
+    // Explicit cast carries the record's address as the published word
+    EMBED_CALL(embed_atomic_uptr_store, EmbedAtomicUptrStoreCfg, .word = &g_work_published,
+               .value = (embed_atomic_uptr_value)(uintptr_t)&g_work[0]);
+    counter_set(&g_state.running, 1u);
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, .ring = &g_share_ring, .slots = g_share_slots,
+               .shift = MINER_SHARE_SHIFT);
 
     WSADATA winsock;
     if (WSAStartup(MAKEWORD(2, 2), &winsock) != 0)
@@ -1153,12 +1431,12 @@ int program_main(int argument_count, char **arguments)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 
-    if (getaddrinfo(pool_hostname.c_str(), pool_port.c_str(), &hints, &resolved) != 0)
+    if (getaddrinfo(pool_hostname, pool_port, &hints, &resolved) != 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "cannot resolve ");
-            mmgr_line_put(output_line, pool_hostname.c_str());
+            mmgr_line_put(output_line, pool_hostname);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -1182,9 +1460,9 @@ int program_main(int argument_count, char **arguments)
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "connecting to ");
-        mmgr_line_put(output_line, pool_hostname.c_str());
+        mmgr_line_put(output_line, pool_hostname);
         mmgr_line_put(output_line, ":");
-        mmgr_line_put(output_line, pool_port.c_str());
+        mmgr_line_put(output_line, pool_port);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
@@ -1203,11 +1481,18 @@ int program_main(int argument_count, char **arguments)
     }
     freeaddrinfo(resolved);
 
+    char payload[MINER_PAYLOAD_BYTES];
     send_payload(connection, "{\"id\":1,\"method\":\"mining.subscribe\",\"params\":[\"btc/0.1\"]}\r\n");
     if (!g_dry_run)
     {
-        send_payload(connection, std::string("{\"id\":2,\"method\":\"mining.authorize\",\"params\":[\"") +
-                                     stratum_identity() + "\",\"x\"]}\r\n");
+        {
+            VerbaLinea line = mmgr_line_over(payload, sizeof(payload));
+            mmgr_line_put(&line, "{\"id\":2,\"method\":\"mining.authorize\",\"params\":[\"");
+            mmgr_line_put(&line, stratum_identity());
+            mmgr_line_put(&line, "\",\"x\"]}\r\n");
+            (void)mmgr_line_finish(&line);
+        }
+        send_payload(connection, payload);
 
         // Ask for a difficulty this hash rate actually produces shares at. Vardiff aims at roughly
         // one share every ten to thirty seconds; the pool is free to ignore this and its own
@@ -1215,10 +1500,10 @@ int program_main(int argument_count, char **arguments)
         if (suggested_difficulty > 0.0)
         {
             char request[192];
-            std::snprintf(request, sizeof(request),
-                          "{\"id\":3,\"method\":\"mining.suggest_difficulty\",\"params\":[%.4f]}"
-                          "\r\n",
-                          suggested_difficulty);
+            snprintf(request, sizeof(request),
+                     "{\"id\":3,\"method\":\"mining.suggest_difficulty\",\"params\":[%.4f]}"
+                     "\r\n",
+                     suggested_difficulty);
             send_payload(connection, request);
             {
                 VerbaLinea *const output_line = platform_line_out();
@@ -1233,10 +1518,10 @@ int program_main(int argument_count, char **arguments)
     // Leave one thread for the person at the machine. A miner that takes every core makes the
     // desktop unusable. The last core is worth less than the ability to type. Override with
     // --threads on a dedicated box.
-    const unsigned available = (std::thread::hardware_concurrency() > 0u) ? std::thread::hardware_concurrency() : 8u;
-    const unsigned worker_count =
-        (requested_threads > 0u) ? requested_threads : ((available > 1u) ? (available - 1u) : 1u);
-    std::vector<std::thread> workers;
+    const unsigned available = platform_processors();
+    const unsigned wanted = (requested_threads > 0u) ? requested_threads : ((available > 1u) ? (available - 1u) : 1u);
+    const unsigned worker_count = (wanted < MINER_WORKERS_MAX) ? wanted : MINER_WORKERS_MAX;
+    unsigned started_workers = 0u;
     if (g_dry_run)
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -1246,10 +1531,11 @@ int program_main(int argument_count, char **arguments)
     }
     else
     {
-        workers.reserve(worker_count);
         for (unsigned index = 0u; index < worker_count; index += 1u)
         {
-            workers.emplace_back(mining_worker, (int)index);
+            g_worker_index[index] = (int)index;
+            started_workers +=
+                (platform_worker_started(&g_workers[index], mining_worker, &g_worker_index[index]) != 0) ? 1u : 0u;
         }
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -1260,14 +1546,17 @@ int program_main(int argument_count, char **arguments)
         }
     }
 
-    std::string inbound;
+    // the pool's text that waits for its line to end, `inbound_used` bytes of it
+    static char s_inbound[MINER_INBOUND_BYTES];
+    size_t inbound_used = 0u;
     char buffer[16384];
     uint64_t submitted = 0u;
     uint64_t accepted = 0u;
     uint64_t rejected = 0u;
     uint64_t next_submit_id = 100u;
-    auto last_report = std::chrono::steady_clock::now();
-    const auto started = std::chrono::steady_clock::now();
+    uint64_t share_taken_ticket = 0u;
+    unsigned long long last_report = platform_clock_ns();
+    const unsigned long long started = platform_clock_ns();
 
     // What previous runs accumulated. Thus the report can show both this run and the lifetime total.
     LifetimeTotals lifetime = load_totals();
@@ -1301,59 +1590,68 @@ int program_main(int argument_count, char **arguments)
         const int received = recv(connection, buffer, (int)sizeof(buffer) - 1, 0);
         if (received > 0)
         {
-            buffer[received] = '\0';
-            inbound.append(buffer, (size_t)received);
-
-            size_t line_end = inbound.find('\n');
-            while (line_end != std::string::npos)
+            if ((inbound_used + (size_t)received) > sizeof(s_inbound))
             {
-                std::string line = inbound.substr(0u, line_end);
-                inbound.erase(0u, line_end + 1u);
-                while (!line.empty() && ((line.back() == '\r') || (line.back() == ' ')))
-                {
-                    line.pop_back();
-                }
-                line_end = inbound.find('\n');
+                // a line longer than the text the client holds is refused whole, and the text starts over
+                report_refused("a line from the pool passes the bytes the client holds; dropped");
+                inbound_used = 0u;
+            }
+            if ((inbound_used + (size_t)received) <= sizeof(s_inbound))
+            {
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_inbound + inbound_used, .src = buffer,
+                           .bytes = (size_t)received);
+                inbound_used += (size_t)received;
+            }
 
-                if (line.empty())
+            const char *line_end =
+                (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = s_inbound, .bytes = inbound_used, .val = '\n');
+            while (line_end != NULL)
+            {
+                // the line, its line break made a terminator and its trailing returns and spaces cut, then the
+                // bytes after it moved to the front once the message is read
+                char *const line = s_inbound;
+                size_t line_size = (size_t)(line_end - s_inbound);
+                const size_t consumed = line_size + 1u;
+                while ((line_size > 0u) && ((line[line_size - 1u] == '\r') || (line[line_size - 1u] == ' ')))
+                {
+                    line_size -= 1u;
+                }
+
+                const unsigned int message = (line_size != 0u) ? json_parse(line, line_size, &g_message) : JSON_ABSENT;
+                EMBED_CALL(memor.move_down, MemoriaCfg, .dst = s_inbound, .src = s_inbound + consumed,
+                           .bytes = inbound_used - consumed);
+                inbound_used -= consumed;
+                line_end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = s_inbound, .bytes = inbound_used,
+                                                    .val = '\n');
+
+                if (message == JSON_ABSENT)
                 {
                     continue;
                 }
 
-                JsonValue message;
-                if (!json_parse(line, message))
-                {
-                    continue;
-                }
+                const JsonDocument *const document = &g_message;
+                const unsigned int method = json_member(document, message, "method");
+                const unsigned int params = json_member(document, message, "params");
 
-                const JsonValue &method = message.member("method");
-                const JsonValue &params = message.member("params");
-
-                if (method.is_string() && (method.text == "mining.notify"))
+                if (json_is_string(document, method) && text_same(json_text(document, method), "mining.notify"))
                 {
-                    MiningJob job;
-                    if (job_from_notify(params, job))
+                    static MiningJob s_job;
+                    if (job_from_notify(document, params, s_job))
                     {
-                        {
-                            std::lock_guard<std::mutex> held(g_state.lock);
-                            g_state.job = job;
-                        }
+                        MinerWork *const next = work_next();
+                        next->job = s_job;
+                        work_published();
                         g_state.abandon = 1;
-                        g_state.nonce_cursor.store(0u, std::memory_order_relaxed);
-                        g_state.generation.fetch_add(1u, std::memory_order_release);
+                        counter_set(&g_state.nonce_cursor, 0u);
+                        (void)counter_added(&g_state.generation, 1u);
                         g_state.abandon = 0;
-                        report_job(job);
+                        report_job(s_job);
 
                         if (g_dry_run)
                         {
-                            std::string extranonce1_hex;
-                            size_t extranonce2_size = 4u;
-                            {
-                                std::lock_guard<std::mutex> held(g_state.lock);
-                                extranonce1_hex = g_state.extranonce1_hex;
-                                extranonce2_size = g_state.extranonce2_size;
-                            }
-                            const bool held_up = dry_run_check_job(job, extranonce1_hex, extranonce2_size);
+                            const MinerWork *const current = work_current();
+                            const bool held_up =
+                                dry_run_check_job(s_job, current->extranonce1_hex, current->extranonce2_size);
                             {
                                 VerbaLinea *const output_line = platform_line_out();
                                 mmgr_line_put(output_line, "\n  DRY RUN RESULT: ");
@@ -1361,7 +1659,7 @@ int program_main(int argument_count, char **arguments)
                                 mmgr_line_ch(output_line, '\n');
                                 platform_line_out_ended();
                             }
-                            g_state.running.store(false, std::memory_order_relaxed);
+                            counter_set(&g_state.running, 0u);
                             closesocket(connection);
                             WSACleanup();
                             return held_up ? 0 : 1;
@@ -1370,19 +1668,19 @@ int program_main(int argument_count, char **arguments)
                     continue;
                 }
 
-                if (method.is_string() && (method.text == "mining.set_difficulty"))
+                if (json_is_string(document, method) && text_same(json_text(document, method), "mining.set_difficulty"))
                 {
-                    if (params.at(0).type == JsonType::Number)
+                    const unsigned int first = json_at(document, params, 0u);
+                    if (json_type(document, first) == JsonType::Number)
                     {
-                        {
-                            std::lock_guard<std::mutex> held(g_state.lock);
-                            g_state.difficulty = params.at(0).number;
-                        }
-                        g_state.generation.fetch_add(1u, std::memory_order_release);
+                        MinerWork *const next = work_next();
+                        next->difficulty = document->node[first].number;
+                        work_published();
+                        (void)counter_added(&g_state.generation, 1u);
                         {
                             VerbaLinea *const output_line = platform_line_out();
                             mmgr_line_put(output_line, "\n[DIFF] share difficulty ");
-                            mmgr_line_fixed(output_line, (double)(params.at(0).number), 4u, 0u, EMBED_FALSE);
+                            mmgr_line_fixed(output_line, (double)(document->node[first].number), 4u, 0u, EMBED_FALSE);
                             mmgr_line_ch(output_line, '\n');
                             platform_line_out_ended();
                         }
@@ -1390,27 +1688,37 @@ int program_main(int argument_count, char **arguments)
                     continue;
                 }
 
-                const JsonValue &identifier = message.member("id");
-                const JsonValue &outcome = message.member("result");
+                const unsigned int identifier = json_member(document, message, "id");
+                const unsigned int outcome = json_member(document, message, "result");
+                const bool numbered = json_type(document, identifier) == JsonType::Number;
+                const double number = document->node[identifier].number;
 
-                if ((identifier.type == JsonType::Number) && (identifier.number == 1.0))
+                if (numbered && (number == 1.0))
                 {
                     // Subscribe reply: the extranonce is its purpose, and the client must keep it.
                     // Element one is extranonce1, element two is the extranonce2 width.
-                    if (outcome.at(1).is_string())
+                    const unsigned int extranonce1 = json_at(document, outcome, 1u);
+                    const unsigned int extranonce2 = json_at(document, outcome, 2u);
+                    if (json_is_string(document, extranonce1))
                     {
-                        std::lock_guard<std::mutex> held(g_state.lock);
-                        g_state.extranonce1_hex = outcome.at(1).text;
-                        if (outcome.at(2).type == JsonType::Number)
+                        MinerWork *const next = work_next();
+                        if (!text_set(next->extranonce1_hex, sizeof(next->extranonce1_hex),
+                                      json_text(document, extranonce1)))
                         {
-                            g_state.extranonce2_size = (size_t)outcome.at(2).number;
+                            report_refused("the extranonce1 of the subscribe reply passes the bound of its text");
                         }
+                        if (json_type(document, extranonce2) == JsonType::Number)
                         {
+                            next->extranonce2_size = (size_t)document->node[extranonce2].number;
+                        }
+                        work_published();
+                        {
+                            const MinerWork *const current = work_current();
                             VerbaLinea *const output_line = platform_line_out();
                             mmgr_line_put(output_line, "[SUBSCRIBE] extranonce1 ");
-                            mmgr_line_put(output_line, g_state.extranonce1_hex.c_str());
+                            mmgr_line_put(output_line, current->extranonce1_hex);
                             mmgr_line_put(output_line, ", extranonce2 ");
-                            mmgr_line_decimal(output_line, g_state.extranonce2_size, 1u);
+                            mmgr_line_decimal(output_line, current->extranonce2_size, 1u);
                             mmgr_line_put(output_line, " bytes");
                             mmgr_line_ch(output_line, '\n');
                             platform_line_out_ended();
@@ -1419,9 +1727,9 @@ int program_main(int argument_count, char **arguments)
                     continue;
                 }
 
-                if ((identifier.type == JsonType::Number) && (identifier.number >= 100.0))
+                if (numbered && (number >= 100.0))
                 {
-                    if ((outcome.type == JsonType::Boolean) && outcome.boolean)
+                    if ((json_type(document, outcome) == JsonType::Boolean) && document->node[outcome].boolean)
                     {
                         accepted += 1u;
                         {
@@ -1438,22 +1746,23 @@ int program_main(int argument_count, char **arguments)
                     else
                     {
                         rejected += 1u;
-                        const JsonValue &failure = message.member("error");
-                        std::string reason = "unspecified";
-                        if (failure.type == JsonType::Array)
+                        const unsigned int failure = json_member(document, message, "error");
+                        const char *reason = "unspecified";
+                        if (json_type(document, failure) == JsonType::Array)
                         {
-                            for (const JsonValue &part : failure.elements)
+                            for (unsigned int at = 0u; at < json_count(document, failure); at += 1u)
                             {
-                                if (part.is_string())
+                                const unsigned int part = json_at(document, failure, at);
+                                if (json_is_string(document, part))
                                 {
-                                    reason = part.text;
+                                    reason = json_text(document, part);
                                 }
                             }
                         }
                         {
                             VerbaLinea *const output_line = platform_line_out();
                             mmgr_line_put(output_line, "\n[SHARE] REJECTED: ");
-                            mmgr_line_put(output_line, reason.c_str());
+                            mmgr_line_put(output_line, reason);
                             mmgr_line_ch(output_line, '\n');
                             platform_line_out_ended();
                         }
@@ -1489,26 +1798,39 @@ int program_main(int argument_count, char **arguments)
             }
         }
 
-        std::vector<FoundShare> outgoing;
+        // every share the workers pushed, in the order of its ticket
+        FoundShare share;
+        while (share_taken(share_taken_ticket, &share))
         {
-            std::lock_guard<std::mutex> held(g_share_lock);
-            outgoing.swap(g_pending_shares);
-        }
-        for (const FoundShare &share : outgoing)
-        {
-            const std::string payload = "{\"id\":" + std::to_string(next_submit_id) +
-                                        ",\"method\":\"mining.submit\",\"params\":[\"" + stratum_identity() + "\",\"" +
-                                        share.job_id + "\",\"" + share.extranonce2_hex + "\",\"" + share.ntime_hex +
-                                        "\",\"" + hex_from_word(share.nonce) + "\"]}\r\n";
+            share_taken_ticket += 1u;
+            char nonce_hex[9];
+            hex_from_word(share.nonce, nonce_hex);
+            {
+                VerbaLinea line = mmgr_line_over(payload, sizeof(payload));
+                mmgr_line_put(&line, "{\"id\":");
+                mmgr_line_decimal(&line, next_submit_id, 1u);
+                mmgr_line_put(&line, ",\"method\":\"mining.submit\",\"params\":[\"");
+                mmgr_line_put(&line, stratum_identity());
+                mmgr_line_put(&line, "\",\"");
+                mmgr_line_put(&line, share.job_id);
+                mmgr_line_put(&line, "\",\"");
+                mmgr_line_put(&line, share.extranonce2_hex);
+                mmgr_line_put(&line, "\",\"");
+                mmgr_line_put(&line, share.ntime_hex);
+                mmgr_line_put(&line, "\",\"");
+                mmgr_line_put(&line, nonce_hex);
+                mmgr_line_put(&line, "\"]}\r\n");
+                (void)mmgr_line_finish(&line);
+            }
             next_submit_id += 1u;
             submitted += 1u;
 
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, "\n[SUBMIT] nonce ");
-                mmgr_line_put(output_line, hex_from_word(share.nonce).c_str());
+                mmgr_line_put(output_line, nonce_hex);
                 mmgr_line_put(output_line, "  hash ");
-                mmgr_line_put(output_line, share.block_hash.c_str());
+                mmgr_line_put(output_line, share.block_hash);
                 mmgr_line_ch(output_line, '\n');
                 platform_line_out_ended();
             }
@@ -1522,18 +1844,18 @@ int program_main(int argument_count, char **arguments)
             send_payload(connection, payload);
         }
 
-        const auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration<double>(now - last_report).count() >= 2.0)
+        const unsigned long long now = platform_clock_ns();
+        if ((double)(now - last_report) / 1.0e9 >= 2.0)
         {
-            const double elapsed = std::chrono::duration<double>(now - started).count();
-            const uint64_t hashes = g_state.hashes_done.load(std::memory_order_relaxed);
-            const uint64_t anchors = g_state.anchor_survivors.load(std::memory_order_relaxed);
+            const double elapsed = (double)(now - started) / 1.0e9;
+            const uint64_t hashes = counter_read(&g_state.hashes_done);
+            const uint64_t anchors = counter_read(&g_state.anchor_survivors);
             const double rate = (elapsed > 0.0) ? ((double)hashes / elapsed) : 0.0;
 
             // The window rate. It says whether the device is healthy *now*. A lifetime average takes
             // many minutes to recover after another program shares the device for a few minutes.
             // Thus it reports a fault long after the fault ends, and hides a fault that just began.
-            const double window_seconds = std::chrono::duration<double>(now - last_report).count();
+            const double window_seconds = (double)(now - last_report) / 1.0e9;
             const double window_rate = (window_seconds > 0.0) ? ((double)(hashes - last_hashes) / window_seconds) : 0.0;
 
             // The anchor count is a live correctness check, worth a display against its expected
@@ -1596,11 +1918,11 @@ int program_main(int argument_count, char **arguments)
         }
     }
 
-    g_state.running.store(false, std::memory_order_relaxed);
+    counter_set(&g_state.running, 0u);
     g_state.abandon = 1;
-    for (std::thread &worker : workers)
+    for (unsigned index = 0u; index < started_workers; index += 1u)
     {
-        worker.join();
+        platform_worker_joined(&g_workers[index]);
     }
 
     closesocket(connection);
