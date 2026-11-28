@@ -488,7 +488,6 @@ src/cu/engine/nbody/orior/scan.c	3
 src/cu/engine/nbody/orior/scan.cu	14
 src/cu/engine/nbody/orior/scan_avx2.c	12
 src/cu/engine/nbody/orior/scan_avx512.c	14
-src/cu/engine/nbody/orior/scan_neon.c	15
 src/cu/engine/nbody/orior/scan_sve.c	13
 src/cu/engine/render/orior_raster.c	13
 src/cu/engine/render/orior_raster_internal.h	4

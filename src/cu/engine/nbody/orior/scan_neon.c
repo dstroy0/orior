@@ -10,23 +10,25 @@
  * @brief The steering scan under NEON, sixteen alignments per compare.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION AVX2 ANSWERS, ONE ARM OVER. Fixed at one needle offset, does
- * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
- * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
- * alignments still located. A NEON register is 128 bits and answers sixteen of those in one compare.
+ * THE SAME QUESTION THAT AVX2 ANSWERS, ONE ARM OVER. At one fixed needle offset, does
+ * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`? The needle byte broadcasts
+ * once, and the corpus side is a window that moves at unit stride. The survivor mask enters as the
+ * alignments that are still truthy. A NEON register is 128 bits, and answers sixteen of those in
+ * one compare.
  *
- * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
- * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract OriorSteerEngine carries, the same one the exact arms carry in includes/exact_types/integers/arm.h.
+ * WHAT THIS ARM MUST NOT DO. It returns the count of the portable arm, or it has a defect. The
+ * value is an integer count of alignments, and the two arms agree exactly or one is wrong. That
+ * is the contract that OriorSteerEngine carries, the same one that the exact arms carry in
+ * includes/exact_types/integers/arm.h.
  *
- * @note Written for the Raspberry Pi 5, a Cortex-A76 at aarch64. This arm runs and its name has
+ * @note Written for the Raspberry Pi 5, a Cortex-A76 at aarch64. This arm runs, and its name has
  *       no unrun tag. NEON is mandatory in the base aarch64 architecture. A build that reached
- *       here can always run it and there is nothing to detect.
- * @note There is no movemask on NEON. A byte compare sets a lane to all ones where it agrees, the
- *       alive lanes enter the same way, and the count is taken by shifting each surviving lane down
- *       to one and adding the sixteen lanes across the register. The across-vector add is an aarch64
- *       form, the architecture this arm targets.
- * @note The tail below sixteen is finished scalar, the same code the portable arm runs.
+ *       here can always run it, and there is nothing to detect.
+ * @note There is no movemask on NEON. A byte compare sets a lane to all ones where it agrees, and
+ *       the alive lanes enter the same way. The count comes from a shift of each survivor lane down
+ *       to one, and an add of the sixteen lanes across the register. The across-vector add is an
+ *       aarch64 form, the architecture that this arm targets.
+ * @note The tail below sixteen ends scalar, in the same code that the portable arm runs.
  */
 
 #include "orior.h"
@@ -39,8 +41,9 @@
 size_t orior_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                       size_t offset)
 {
-    /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
+    /* Counted before the argument check. A caller that passes nothing still records that this arm
+     * was the one requested. The claim that the counters carry is which arm RAN, and not what it
+     * returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -61,14 +64,14 @@ size_t orior_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, c
 
         const uint8x16_t agrees = vceqq_u8(window, broadcast);
 
-        /* An alive flag is zero or non-zero. vceqq against zero marks the refuted lanes, and the
-         * complement marks the located ones. Complementing instead of comparing against one retains
-         * this correct if a caller ever stores a flag other than one. */
+        /* An alive flag is zero or not zero. vceqq against zero marks the refuted lanes, and the
+         * complement marks the alive ones. A complement, and not a compare against one, keeps this
+         * correct if a caller ever stores a flag other than one. */
         const uint8x16_t alive_mask = vmvnq_u8(vceqq_u8(located_bytes, zero));
 
-        /* A surviving lane is all ones. Shifting it down to one and adding the sixteen lanes gives
-         * the block's count, which cannot exceed sixteen and so does not overflow the byte the
-         * across-vector add returns. */
+        /* A survivor lane is all ones. A shift of it down to one, and an add of the sixteen lanes,
+         * give the count of the block. That count cannot exceed sixteen, thus it does not overflow
+         * the byte that the across-vector add returns. */
         const uint8x16_t hits = vshrq_n_u8(vandq_u8(agrees, alive_mask), 7);
         located += (size_t)vaddvq_u8(hits);
     }
