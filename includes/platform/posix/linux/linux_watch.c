@@ -201,7 +201,7 @@ static void inotify_walk_each(const CliEachNameIsFolderCfg *args)
 }
 
 // the folder watched under `first`, walked. The call watches each folder under it, and reports each file where
-// `reported` is 1
+// `reported` is not zero
 EMBED_INLINE void inotify_walk(const PosixWatchCtx *args)
 {
     CliInotifyWalk walk = {
