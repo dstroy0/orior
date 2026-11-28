@@ -180,7 +180,7 @@ long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome)
         return QASM_ERROR;
     }
     EMBED_CALL(memor.set, MemoriaCfg, .dst = outcome, .bytes = sizeof(*outcome), .val = 0);
-    const auto started = std::chrono::steady_clock::now();
+    const unsigned long long started = platform_clock_ns();
     const int on_host = (request->on_host != 0) ? 1 : 0;
     QasmProgram programs[QASM_PROGRAMS];
     EMBED_CALL(memor.set, MemoriaCfg, .dst = programs, .bytes = sizeof(programs), .val = 0);
@@ -255,9 +255,7 @@ long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome)
     {
         qasm_program_release(&programs[which]);
     }
-    outcome->microseconds = (unsigned long long)std::chrono::duration_cast<std::chrono::microseconds>(
-                                std::chrono::steady_clock::now() - started)
-                                .count();
+    outcome->microseconds = (platform_clock_ns() - started) / 1000ull;
     if (!ok)
     {
         engine_error_frame(error);
