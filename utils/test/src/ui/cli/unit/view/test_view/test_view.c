@@ -182,7 +182,7 @@ static void colored_view(const char *text, unsigned int rows)
     TEST_ASSERT_TRUE(
         EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = grammar, .err_msg = &why));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = s_key,
-                                .grammar = grammar, .named = 1));
+                                .grammar = grammar));
     cli_document_walk();
     input_sent(&size);
 }

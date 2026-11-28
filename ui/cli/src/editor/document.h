@@ -494,7 +494,6 @@ struct CliDocumentKeyGrammarCfg
 {
     const char *key;
     const char *grammar;
-    int named;
 };
 
 struct CliDocumentContextCfg

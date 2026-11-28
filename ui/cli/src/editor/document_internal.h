@@ -119,8 +119,6 @@ typedef struct CliStoredText
     unsigned int state_last;
     unsigned int origin;
     int refused;
-    unsigned long long changes;
-    int named;
     int paged;
     int whole;
     unsigned int cached_from;

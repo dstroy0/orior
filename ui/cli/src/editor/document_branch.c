@@ -1,23 +1,34 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// document_branch.c: a stored text colored as a branch of the tree is walked, its grammar applied a line at a time, the
-// runs of each line colored passed on and the states it is colored from and ends in saved with the line. The walk works
-// out from a line, the view's first, the lines nearest it first, below it before above it at each distance. A run of
-// lines below is entered in the state the line above it ends in; a run above starts from root, as far above as it
-// reaches; and the lines after a run are colored again until one is entered in the state it was entered in before.
-// Once every line is colored, a line entered in a state the line above does not end in is colored again the same way,
-// until each line is entered in the state the line above ends in, root for the first. Only the lines colored go on.
-// A paged text is walked the same way, its lines read through the pages as far as their index has read, once the page
-// mirrors some of them; every line is colored and only the runs of those the page mirrors go on.
-// As each line is colored the regions its grammar's roles open and close on it are saved with it, and once every line
-// of a text is colored and its regions moved since, its folds go on: each region from the line it opens on to the last
-// line the fold hides, a paged text's those that meet the lines the page mirrors.
-// The lock is taken only to claim lines and to put in what a coloring found: each batch of lines is claimed under it,
-// its lines and the state the first is entered in copied out, read and colored with the lock given back, in a work of
-// the coloring's own, and put in under the lock again where the text did not move meanwhile. So the walk, the views
-// and the reads color at once, each on its own thread, and every call that reads a text waits on none of them. The walk
-// runs on as many threads as the machine has processors to spare, each walking one text at a time, and every coloring
-// passes its colors on in the order they were put in
+// document_branch.c: the walk of a stored text that the tree colors as a branch. The walk applies its grammar a line at
+// a time. It passes on the runs of each line that it colors. It saves with the line the state that the walk colored it
+// from, and the state that it ends in.
+//
+// The walk works out from a line, the first of the view, the nearest lines first, below before above at each
+// distance. A run of lines below enters in the state that the line above it ends in. A run above starts from root, as
+// far above as it reaches. The walk colors the lines after a run again until one enters in the same state as before.
+//
+// Once it colored every line, the walk colors again a line that enters in a state that the line above does not end
+// in. It does so until each line enters in the state that the line above ends in, root for the first. Only the lines
+// colored go on.
+//
+// The walk goes over a paged text in the same way, once the view mirrors some of its lines. It reads the lines through
+// the pages, as far as their index read. It colors every line, and only the runs of the lines that the view mirrors go
+// on.
+//
+// As the walk colors each line, it saves with it the regions that the roles of its grammar open and close on it. Once
+// it colored every line of a text, and its regions moved since, its folds go on. A fold is a region from the line that
+// it opens on to the last line that the fold hides. For a paged text, they are those that meet the lines that the view
+// mirrors.
+//
+// The walk takes the lock only to claim lines and to put in what a coloring found. It claims each batch of lines under
+// it, and copies out its lines and the state that the first enters in. Then it reads and colors them with the lock
+// given back, in an own work of the coloring. It puts them in under the lock again where the text did not move in that
+// time.
+//
+// Thus the walk, the views and the reads color at once, each on its own thread. No call that reads a text waits on
+// them. The walk runs on as many threads as the machine has processors to spare, each on one text at a time. Every
+// coloring passes its colors on in the order that they went in
 #include "../code/symbols.h"
 #include "../code/symbols_internal.h"
 #include "../command_line/callback_cfg.h"
@@ -60,12 +71,9 @@ typedef struct
     CliThread thread;
     int walking;
 } CliBranchWalker;
-// The runs of runs of lines, passed on as the walk writes them:
+// A range of lines that the walk colors:
 //
-// - `begun`: whether a `{"from", "runs"}` started
-// - `written`: how many runs of lines it holds
-// - `any`: whether the walk wrote a run of lines passed on with it before it
-// - `out`: where the walk writes them
+// - `any`: the flag that the walk sets where it passes on the runs of a line in the range
 // - `columns`: the columns of each line whose runs go on, 0 for every one
 // - `names`: how many names the tokens of the grammar take. That is also the place of the first name that a run which
 //   counts depth takes by its depth. It is 0 for a grammar that names none.
@@ -73,16 +81,13 @@ typedef struct
 // - `next`: the line after the last whose runs the walk wrote
 // - `stale`: whether the text moved while it colored, and then it colors no more
 // - `requested`: whether the lines whose runs go on are those that it asks, from `hand_from` to before `hand_to`. Else
-//   they are those that the page holds as each goes in.
+//   they are those that the view mirrors as each goes in.
 // - `high`: the line that it colors no further than, as it goes on past the lines asked
 //
 // Its columns read as those of the text as each line goes in, where it names them
 typedef struct
 {
-    int begun;
-    unsigned int written;
     int *any;
-    VerbaLinea *out;
     unsigned long long columns;
     unsigned int names;
     unsigned long long bytes;
@@ -1111,16 +1116,6 @@ EMBED_INLINE unsigned int branch_regions_get(const DocumentBranchCtx *args)
     return found | opens | (closes << CLI_DOC_REGION_CLOSES_AT) | (unled << CLI_DOC_REGION_UNLED_AT);
 }
 
-// The names that the tokens of the grammar of a branch take, written as the page reads them. That is the names, then
-// each name that counts the depth of a pair, followed by `.` and each depth. The walk names a run of it in that way.
-// Then the place of the first of those, and how many of the names the call writes
-typedef struct
-{
-    VerbaLinea *out;
-    int depths;
-    unsigned int written;
-} CliBranchNames;
-
 // one name of a grammar, passed over as the call counts its names
 static void branch_name_pass(const CliNameEachCfg *args)
 {
@@ -1614,7 +1609,7 @@ EMBED_INLINE unsigned int branch_state_ended(const DocumentBranchCtx *args)
 // `*entering`, and in the scope at the place `place` among the states of the text. For each line, the call puts:
 //
 // - the state that the walk entered it in, and the state that it ends in
-// - its regions, and its runs saved: those of a paged text where the page holds the line or the range passes it on
+// - its regions, and its runs saved: those of a paged text where the view mirrors the line or the range passes it on
 // - the runs passed on, where the range passes it on, each no further than the columns of the text where the range
 //   names them
 //
@@ -2012,7 +2007,7 @@ EMBED_INLINE void branch_run_get(const DocumentBranchCtx *args)
 }
 
 // the lines of `one` that the walk colors, from `*low` to before `*high`. For a paged text, those are the lines that
-// the page holds alone, with the first of them entered from root. For any other text, they are every line
+// the view mirrors alone, with the first of them entered from root. For any other text, they are every line
 EMBED_INLINE void branch_bounds(const DocumentBranchCtx *args)
 {
     unsigned int *low = args->low_pointer;
@@ -2036,15 +2031,12 @@ EMBED_INLINE void branch_bounds(const DocumentBranchCtx *args)
     }
 }
 
-// a run of lines passed on in `out`, begun. The call writes their runs as `{"from", "runs"}`, after a comma where
-// `*any` is not zero, and sets `*any` where they are. Each line goes no further than `columns` characters where that is
-// not 0. There are no more lines than `bytes` reach, those that the page holds go on, and the call colors none past
-// `high`
+// a range of lines begun. Each line goes no further than `columns` characters where that is not 0. There are no more
+// lines than `bytes` reach. Those that the view mirrors go on, and the call colors none past `high`
 EMBED_INLINE CliBranchRange branch_range_begin(const DocumentBranchCtx *args)
 {
     const CliBranchRange range = {
-        0,  0u, args->any_pointer, args->out, args->columns, args->one_read->names, args->bytes, 0u, 0, 0,
-        0u, 0u, args->high};
+        args->any_pointer, args->columns, args->one_read->names, args->bytes, 0u, 0, 0, 0u, 0u, args->high};
     return range;
 }
 
@@ -2143,12 +2135,12 @@ void cli_document_telemetry_off(void)
 }
 
 // one step of the walk of `one`. The call colors the run of lines to color nearest its origin. Where the walk colored
-// or claimed every line, it colors again the first line whose start state differs from the end state above. It writes
-// that into `out` as `{"key", "seq", "colors"}`, and sets `*passed` where it holds the runs of a line that the page
-// holds. The return is 1 where it colored a line, else 0.
+// or claimed every line, it colors again the first line whose start state differs from the end state above. It sets
+// `*transferred` where it passes on the runs of a line that the view mirrors. The return is 1 where it colored a line,
+// else 0.
 //
-// The call counts the lines of a paged text again first, and walks it across the lines that the page holds alone. This
-// runs under the lock, which it gives back as it colors. Its caller saves the text across it
+// The call counts the lines of a paged text again first, and walks it across the lines that the view mirrors alone.
+// This runs under the lock, which it gives back as it colors. Its caller saves the text across it
 EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
 {
     CliStoredText *one = args->one;
@@ -2200,7 +2192,7 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
     }
     CliBranchRange range =
         EMBED_CALL(branch_range_begin, DocumentBranchCtx, .one_read = one, .any_pointer = args->transferred,
-                   .out = NULL, .columns = one->columns, .bytes = CLI_DOC_STEP_BYTES, .high = high);
+                   .columns = one->columns, .bytes = CLI_DOC_STEP_BYTES, .high = high);
     EMBED_CALL(branch_range_color, DocumentBranchCtx, .one = one, .first = first, .end = end, .onward = 1,
                .range = &range);
     if (s_telemetry)
@@ -2220,7 +2212,7 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
 //
 // A mark of no characters closes a region on the line that it ends, with a leaf before it. Else it closes it on the
 // last line above that holds one. A bracket closes it on the line before its own, where a leaf is before it, or another
-// leaf on its line closes nothing. It closes it on its own line, shown, where its line holds closes alone
+// leaf on its line closes nothing. It closes it on its own line, shown, where its line holds only closers
 EMBED_INLINE unsigned int branch_fold_get(const DocumentBranchCtx *args)
 {
     const int mark = (args->regions & CLI_DOC_REGION_MARK) != 0u;
@@ -2243,7 +2235,7 @@ EMBED_INLINE unsigned int branch_fold_get(const DocumentBranchCtx *args)
     {
         last = args->line - 1u;
     }
-    // a line displayed on the fold's first line is no line hidden
+    // a line shown on the first line of the fold is not a hidden line
     const unsigned int hidden = displayed ? (last - 1u) : last;
     if ((last == CLI_DOC_NONE) || (hidden <= args->opened))
     {
@@ -2254,7 +2246,7 @@ EMBED_INLINE unsigned int branch_fold_get(const DocumentBranchCtx *args)
 
 // the folds of `one` found, each passed to `each` with its first line and the last line that it hides. Then whether it
 // shows the line that it closes on after what it hides. Each fold is the widest of the regions that open on its first
-// line, in the order of their first lines. For a paged text, they are those of the lines that the page mirrors alone.
+// line, in the order of their first lines. For a paged text, they are those of the lines that the view mirrors alone.
 // There are none where the cells cannot meet the capacity that the call finds them in. This runs under the lock of the
 // texts
 static void branch_folds_each(const DocumentBranchCtx *args)
@@ -2465,7 +2457,7 @@ unsigned int cli_document_run_roles(const CliDocumentKeyLineCfg *args)
 }
 
 // whether the folds of `one` go on. That is where its regions moved since they last went, and the walk colored every
-// line of it. The step of the walk over it colored none, no coloring under way claims any, and the page holds lines
+// line of it. The step of the walk over it colored none, no coloring under way claims any, and the view mirrors lines
 // of it
 EMBED_INLINE int branch_folds_ready(const DocumentBranchCtx *args)
 {
@@ -2595,7 +2587,6 @@ void cli_document_colors_to(const CliDocumentColoredCfg *args)
 
 int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
 {
-    int named = args->named;
     // the call counts the names that the tokens of the grammar take before it takes the lock of the texts
     const unsigned int names =
         (args->grammar[0] != '\0')
@@ -2615,7 +2606,6 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         // index stay for the states to come
         EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = one);
         one->refused = 0;
-        one->named = named;
         (void)EMBED_CALL(branch_state, DocumentBranchCtx, .one = one, .text = "root");
         for (unsigned int line = 0u; line < one->lines.lines; line += 1u)
         {
@@ -2726,9 +2716,8 @@ EMBED_INLINE void branch_lines_walk(const DocumentBranchCtx *args)
 {
     CliStoredText *const one = args->one;
     int any = 0;
-    CliBranchRange range =
-        EMBED_CALL(branch_range_begin, DocumentBranchCtx, .one_read = one, .any_pointer = &any, .out = NULL,
-                   .columns = args->columns, .bytes = CLI_DOC_ALL_BYTES, .high = args->end);
+    CliBranchRange range = EMBED_CALL(branch_range_begin, DocumentBranchCtx, .one_read = one, .any_pointer = &any,
+                                      .columns = args->columns, .bytes = CLI_DOC_ALL_BYTES, .high = args->end);
     range.requested = 1;
     range.hand_from = args->first;
     range.hand_to = args->end;

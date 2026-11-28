@@ -395,8 +395,8 @@ EMBED_INLINE void terminal_store(const TerminalCtx *args)
     {
         grammar[0] = '\0';
     }
-    (void)EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = tab->key, .grammar = grammar,
-                     .named = 0);
+    (void)EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = tab->key,
+                     .grammar = grammar);
     const CliViewInput sized = {.type = CLI_VIEW_SIZE, .rows = rows, .columns = tab->xterm.columns};
     err_msg.at = 0ULL;
     (void)EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = tab->key, .input = &sized,

@@ -282,7 +282,7 @@ EMBED_INLINE void text_colored(const NotebookCellsCtx *args)
         grammar[0] = '\0';
     }
     (void)EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = args->text,
-                     .grammar = grammar, .named = 0);
+                     .grammar = grammar);
 }
 
 int cli_notebook_model_source_stored(const CliNotebookModelCtx *args)
