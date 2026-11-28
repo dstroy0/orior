@@ -45,8 +45,8 @@ field	symbol.name	0	4
 field	symbol.size	16	8
 size	symbol	24
 #
-# The count of registers a thread holds sits in the top byte of the code section's info, and the symbol it names in
-# the rest. A format that retains it elsewhere moves these two rows and nothing else
+# The count of registers that a thread holds sits in the top byte of the info of the code section. The symbol that it
+# names sits in the rest. A format that keeps it in another place moves only these two rows
 tag	registers.shift	24
 tag	registers.symbol_mask	16777215
 #
