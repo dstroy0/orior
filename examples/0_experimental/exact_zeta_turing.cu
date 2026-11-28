@@ -151,10 +151,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <algorithm>
-#include <string>
-#include <vector>
-
 // the seconds that the run spends on the imprint, layout and load of programs. Then the seconds on the checks of the
 // host with the copies back that they read. Each is a sum over each stage
 static double turing_load_seconds = 0.0;
@@ -231,6 +227,38 @@ typedef struct
     unsigned int *device[TURING_OWNED_MAX];
     unsigned int count;
 } TuringOwned;
+
+// The limbs of one value of a record at max. The bound is the record's own, and four more for the sign and the carries
+// of a sum
+#define TURING_VALUE_LIMBS (ENGINE_RECORD_LIMBS_MAX + 4u)
+
+// one value of a record, sign-extended, `count` limbs of it
+typedef struct
+{
+    unsigned int limbs[TURING_VALUE_LIMBS];
+    unsigned int count;
+} TuringValue;
+
+// `count` words in a cell of the temporary tier, or no cell where `count` is 0. Its owner gives the cell back
+typedef struct
+{
+    unsigned int *at;
+    unsigned long long count;
+} TuringWords;
+
+// `count` lane numbers in a cell of the temporary tier, or no cell where `count` is 0. Its owner gives the cell back
+typedef struct
+{
+    unsigned long long *at;
+    unsigned long long count;
+} TuringLanes;
+
+// `count` signed values in a cell of the temporary tier, or no cell where `count` is 0. Its owner gives the cell back
+typedef struct
+{
+    long long *at;
+    unsigned long long count;
+} TuringSigned;
 
 // the bytes of a line of the input of serve at max, its terminator with it. A path and the name of the job take as many
 #define TURING_LINE_BYTES 4096u
@@ -552,6 +580,79 @@ static void turing_released(void *cell)
     {
         platform_cell_released(cell, platform_place_g_program_owner);
     }
+}
+
+// `count` words, cleared, in a cell of the temporary tier. A pool that cannot meet them stops the process
+static TuringWords turing_words_taken(unsigned long long count)
+{
+    TuringWords words = {NULL, count};
+    if (count != 0ull)
+    {
+        words.at = (unsigned int *)turing_cleared(count, sizeof(unsigned int), 1);
+        if (words.at == NULL)
+        {
+            fprintf(stderr, "  exact_zeta_turing: the pool cannot meet %llu words\n", count);
+            exit(1);
+        }
+    }
+    return words;
+}
+
+static void turing_words_released(TuringWords *words)
+{
+    turing_released(words->at);
+    words->at = NULL;
+    words->count = 0ull;
+}
+
+// `count` lane numbers, cleared, in a cell of the temporary tier. A pool that cannot meet them stops the process
+static TuringLanes turing_lanes_taken(unsigned long long count)
+{
+    TuringLanes lanes = {NULL, count};
+    if (count != 0ull)
+    {
+        lanes.at = (unsigned long long *)turing_cleared(count, sizeof(unsigned long long), 1);
+        if (lanes.at == NULL)
+        {
+            fprintf(stderr, "  exact_zeta_turing: the pool cannot meet %llu lane numbers\n", count);
+            exit(1);
+        }
+    }
+    return lanes;
+}
+
+static void turing_lanes_released(TuringLanes *lanes)
+{
+    turing_released(lanes->at);
+    lanes->at = NULL;
+    lanes->count = 0ull;
+}
+
+// `count` signed values, each `value`, in a cell of the temporary tier. A pool that cannot meet them stops the process
+static TuringSigned turing_signed_taken(unsigned long long count, long long value)
+{
+    TuringSigned values = {NULL, count};
+    if (count != 0ull)
+    {
+        values.at = (long long *)turing_cleared(count, sizeof(long long), 1);
+        if (values.at == NULL)
+        {
+            fprintf(stderr, "  exact_zeta_turing: the pool cannot meet %llu signed values\n", count);
+            exit(1);
+        }
+    }
+    for (unsigned long long at = 0ull; (value != 0) && (at < count); at += 1ull)
+    {
+        values.at[at] = value;
+    }
+    return values;
+}
+
+static void turing_signed_released(TuringSigned *values)
+{
+    turing_released(values->at);
+    values->at = NULL;
+    values->count = 0ull;
 }
 
 // The stage's shared record a cell of `count` words of the temporary tier, cleared, in place of the one before. A pool
@@ -2423,16 +2524,43 @@ static int turing_run(TuringStage *stage, unsigned int *const members[3], const 
 
 // the inputs of a host check, copied back from the device. Of each member, it holds the records that the checked lanes
 // read, and their count. It also holds the index into them, and the records of the device of the checked lanes. The
-// first of them is lane `records_first`
+// first of them is lane `records_first`. `out` takes the records of the host, as many as `records`. Each part of the
+// check writes the lanes it runs, and no worker takes a cell
 typedef struct
 {
     EngineRecordLayout layout;
-    std::vector<unsigned int> members[3];
+    TuringWords members[3];
     unsigned long long bodies[3];
-    std::vector<unsigned int> index;
-    std::vector<unsigned int> records;
+    TuringWords index;
+    TuringWords records;
+    TuringWords out;
     unsigned long long records_first;
 } TuringCheck;
+
+// a check in a cell of the temporary tier, cleared, its words empty. A pool that cannot meet it stops the process
+static TuringCheck *turing_check_taken(void)
+{
+    TuringCheck *const check = (TuringCheck *)turing_cleared(1ull, sizeof(TuringCheck), 1);
+    if (check == NULL)
+    {
+        fprintf(stderr, "  exact_zeta_turing: the pool cannot meet a host check\n");
+        exit(1);
+    }
+    return check;
+}
+
+// a check given back with each cell it holds
+static void turing_check_released(TuringCheck *check)
+{
+    for (unsigned int member = 0u; member < 3u; member += 1u)
+    {
+        turing_words_released(&check->members[member]);
+    }
+    turing_words_released(&check->index);
+    turing_words_released(&check->records);
+    turing_words_released(&check->out);
+    turing_released(check);
+}
 
 // the host's run of lanes [first, end) of a check, each with its own number, against the device's records of them
 static int turing_check_lanes(const TuringCheck *check, unsigned long long first, unsigned long long end)
@@ -2443,23 +2571,21 @@ static int turing_check_lanes(const TuringCheck *check, unsigned long long first
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &host, .bytes = sizeof(host), .val = 0);
     for (unsigned int member = 0u; member < check_ref.layout.members; member += 1u)
     {
-        host.in[member] = check_ref.members[member].data();
+        host.in[member] = check_ref.members[member].at;
         host.bodies[member] = check_ref.bodies[member];
     }
-    std::vector<unsigned int> host_out((size_t)(count * check_ref.layout.out_limbs));
+    const unsigned long long at = (first - check_ref.records_first) * check_ref.layout.out_limbs;
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     host.layout = &check_ref.layout;
-    host.index = check_ref.index.empty() ? NULL : check_ref.index.data();
+    host.index = check_ref.index.at;
     host.count = count;
-    host.out = host_out.data();
+    host.out = check_ref.out.at + at;
     host.error = &error;
     host.first = first;
     return (cycle_record_run_host(&host) == (long)count) &&
-           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(),
-                       .other =
-                           check_ref.records.data() + (first - check_ref.records_first) * check_ref.layout.out_limbs,
-                       .bytes = host_out.size() * sizeof(unsigned int)) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = check_ref.out.at + at, .other = check_ref.records.at + at,
+                       .bytes = count * check_ref.layout.out_limbs * sizeof(unsigned int)) == 0);
 }
 
 // The host checks beside the device go through a ticket ring of embedded_types behind a set of turnstiles. The main
@@ -2608,7 +2734,7 @@ static void turing_settle_one(void)
     }
     if (part->last_part)
     {
-        delete part->check;
+        turing_check_released(part->check);
     }
     turing_job_settled += 1ull;
 }
@@ -2623,9 +2749,12 @@ static void turing_dispatch(TuringCheck *check, unsigned long long from, unsigne
 {
     if (tried == 0ull)
     {
-        delete check;
+        turing_check_released(check);
         return;
     }
+    // the main thread takes the records of the host before the first part
+    turing_words_released(&check->out);
+    check->out = turing_words_taken(check->records.count);
     if (turing_worker_count == 0u)
     {
         turing_workers_started();
@@ -2714,32 +2843,34 @@ static void turing_settle(SimResults *job)
     turing_deferred_count = 0u;
 }
 
-static std::vector<unsigned int> turing_copy_back(const unsigned int *device, size_t words)
+// `words` words of the device copied back to a cell of the host. A copy that fails gives back the cell and gives no
+// words
+static TuringWords turing_copy_back(const unsigned int *device, size_t words)
 {
-    std::vector<unsigned int> host(words, 0u);
+    TuringWords host = turing_words_taken(words);
     if ((words != 0u) &&
-        (cudaMemcpy(host.data(), device, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) != cudaSuccess))
+        (cudaMemcpy(host.at, device, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) != cudaSuccess))
     {
-        host.clear();
+        turing_words_released(&host);
     }
     return host;
 }
 
 // the records `taken` of a device array of `limbs` limbs a record, ascending, copied back side by side. Each run of
 // consecutive records goes in one copy. The result is 1 where each copy matches
-static int turing_gather(const unsigned int *device, unsigned int limbs, const std::vector<unsigned long long> &taken,
-                         std::vector<unsigned int> *host)
+static int turing_gather(const unsigned int *device, unsigned int limbs, const TuringLanes &taken, TuringWords *host)
 {
-    host->assign(taken.size() * limbs, 0u);
+    turing_words_released(host);
+    *host = turing_words_taken(taken.count * limbs);
     int ok = 1;
-    for (size_t at = 0u; ok && (at < taken.size());)
+    for (unsigned long long at = 0ull; ok && (at < taken.count);)
     {
-        size_t end = at + 1u;
-        while ((end < taken.size()) && (taken[end] == taken[end - 1u] + 1ull))
+        unsigned long long end = at + 1ull;
+        while ((end < taken.count) && (taken.at[end] == taken.at[end - 1ull] + 1ull))
         {
-            end += 1u;
+            end += 1ull;
         }
-        ok = cudaMemcpy(&(*host)[at * limbs], device + taken[at] * limbs, (end - at) * limbs * sizeof(unsigned int),
+        ok = cudaMemcpy(&host->at[at * limbs], device + taken.at[at] * limbs, (end - at) * limbs * sizeof(unsigned int),
                         cudaMemcpyDeviceToHost) == cudaSuccess;
         at = end;
     }
@@ -2749,7 +2880,14 @@ static int turing_gather(const unsigned int *device, unsigned int limbs, const s
 // a two's complement value of `limbs` limbs, written as a signed hexadecimal integer
 static void turing_hex(FILE *out, const unsigned int *word, unsigned int limbs)
 {
-    std::vector<unsigned int> value(word, word + limbs);
+    if (limbs > TURING_VALUE_LIMBS)
+    {
+        fprintf(stderr, "  exact_zeta_turing: a value of %u limbs, past the %u it writes at max\n", limbs,
+                TURING_VALUE_LIMBS);
+        exit(1);
+    }
+    unsigned int value[TURING_VALUE_LIMBS];
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = value, .src = word, .bytes = limbs * sizeof(unsigned int));
     const int negative = (limbs != 0u) && ((value[limbs - 1u] >> 31u) != 0u);
     if (negative)
     {
@@ -2775,44 +2913,50 @@ static void turing_hex(FILE *out, const unsigned int *word, unsigned int limbs)
 }
 
 // output `output` of record `lane` of a stage's records on the host, sign-extended into limbs
-static std::vector<unsigned int> turing_output(const TuringStage *stage, const std::vector<unsigned int> &records,
-                                               unsigned long long lane, unsigned int output)
+static TuringValue turing_output(const TuringStage *stage, const TuringWords &records, unsigned long long lane,
+                                 unsigned int output)
 {
     const DeviceRecordStep *const step = turing_place(stage, output);
     const unsigned int limbs = (step->out_bits + 31u) / 32u + 1u;
-    std::vector<unsigned int> value(limbs, 0u);
-    const unsigned int *const record = &records[(size_t)(lane * stage->layout.out_limbs)];
+    TuringValue value;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = value.limbs, .bytes = limbs * sizeof(unsigned int), .val = 0);
+    value.count = limbs;
+    const unsigned int *const record = &records.at[lane * stage->layout.out_limbs];
     for (unsigned int bit = 0u; bit < step->out_bits; bit += 1u)
     {
         const unsigned int from = step->out_offset + bit;
-        value[bit / 32u] |= ((record[from / 32u] >> (from % 32u)) & 1u) << (bit % 32u);
+        value.limbs[bit / 32u] |= ((record[from / 32u] >> (from % 32u)) & 1u) << (bit % 32u);
     }
-    if (((value[(step->out_bits - 1u) / 32u] >> ((step->out_bits - 1u) % 32u)) & 1u) != 0u)
+    if (((value.limbs[(step->out_bits - 1u) / 32u] >> ((step->out_bits - 1u) % 32u)) & 1u) != 0u)
     {
         for (unsigned int bit = step->out_bits; bit < 32u * limbs; bit += 1u)
         {
-            value[bit / 32u] |= 1u << (bit % 32u);
+            value.limbs[bit / 32u] |= 1u << (bit % 32u);
         }
     }
     return value;
 }
 
-static void turing_write_output(FILE *out, const TuringStage *stage, const std::vector<unsigned int> &records,
+static void turing_write_output(FILE *out, const TuringStage *stage, const TuringWords &records,
                                 unsigned long long lane, unsigned int output)
 {
-    const std::vector<unsigned int> value = turing_output(stage, records, lane, output);
-    turing_hex(out, value.data(), (unsigned int)value.size());
+    const TuringValue value = turing_output(stage, records, lane, output);
+    turing_hex(out, value.limbs, value.count);
 }
 
 // the sum of output `output` over lanes [first, first + count) of the records of a stage, on the device and on the
 // host, written after `key`. The result is 1 where the two agree word for word
 static int turing_range(FILE *out, const char *key, const TuringStage *stage, const unsigned int *device_records,
-                        const std::vector<unsigned int> &host_records, unsigned long long first,
-                        unsigned long long count, unsigned int output, EngineError *error)
+                        const TuringWords &host_records, unsigned long long first, unsigned long long count,
+                        unsigned int output, EngineError *error)
 {
     const DeviceRecordStep *const step = turing_place(stage, output);
     const unsigned int limbs = (step->out_bits + 40u + 31u) / 32u + 1u;
-    std::vector<unsigned int> sum(limbs, 0u), host_sum(limbs, 0u);
+    TuringValue sum_value, host_value;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sum_value, .bytes = sizeof(sum_value), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &host_value, .bytes = sizeof(host_value), .val = 0);
+    unsigned int *const sum = sum_value.limbs;
+    unsigned int *const host_sum = host_value.limbs;
     int same = 1;
     if (count != 0ull)
     {
@@ -2824,23 +2968,23 @@ static int turing_range(FILE *out, const char *key, const TuringStage *stage, co
                                               step->out_offset,
                                               step->out_bits,
                                               limbs,
-                                              sum.data(),
+                                              sum,
                                               error};
-        const CycleRecordSumRequest host = {host_records.data() + first * out_limbs,
+        const CycleRecordSumRequest host = {host_records.at + first * out_limbs,
                                             count,
                                             count,
                                             out_limbs,
                                             step->out_offset,
                                             step->out_bits,
                                             limbs,
-                                            host_sum.data(),
+                                            host_sum,
                                             error};
         same = (cycle_record_sum(&device) != CYCLE_ERROR) && (cycle_record_sum_host(&host) != CYCLE_ERROR) &&
-               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = sum.data(), .other = host_sum.data(),
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = sum, .other = host_sum,
                            .bytes = limbs * sizeof(unsigned int)) == 0);
     }
     fprintf(out, "%s", key);
-    turing_hex(out, sum.data(), limbs);
+    turing_hex(out, sum, limbs);
     fprintf(out, "\n");
     return same;
 }
@@ -2897,9 +3041,40 @@ static unsigned int *turing_upload_words(TuringOwned *owned, const unsigned int 
     return device;
 }
 
-static unsigned int *turing_upload(TuringOwned *owned, const std::vector<unsigned int> &host)
+static unsigned int *turing_upload(TuringOwned *owned, const TuringWords &host)
 {
-    return turing_upload_words(owned, host.data(), host.size());
+    return turing_upload_words(owned, host.at, host.count);
+}
+
+// no words: the index of a run whose lanes each read their own record
+static const TuringWords turing_no_words = {NULL, 0ull};
+
+// the order of two lane numbers, for memor.sort
+static int turing_lane_order(const void *left, const void *right)
+{
+    const unsigned long long one = *(const unsigned long long *)left;
+    const unsigned long long other = *(const unsigned long long *)right;
+    return (one < other) ? -1 : ((one > other) ? 1 : 0);
+}
+
+// The place of `lane` in the ascending lane numbers `taken`, found by halves, or `taken.count` where it is not in them
+static unsigned long long turing_lane_found(const TuringLanes &taken, unsigned long long lane)
+{
+    unsigned long long low = 0ull;
+    unsigned long long high = taken.count;
+    while (low < high)
+    {
+        const unsigned long long middle = low + (high - low) / 2ull;
+        if (taken.at[middle] < lane)
+        {
+            low = middle + 1ull;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return ((low < taken.count) && (taken.at[low] == lane)) ? low : taken.count;
 }
 
 // the check of the host of lanes [from, from + tried) of the run of a stage, beside the next runs of the device. Of
@@ -2908,69 +3083,87 @@ static unsigned int *turing_upload(TuringOwned *owned, const std::vector<unsigne
 // A record that a lane names past the end of its member stays past the end of the copy. The lane is zero on both.
 // With no index, a lane reads its own record, and the checked lanes start at 0. The result is 1 where the copies match
 static int turing_check_range(const TuringStage *stage, unsigned int *const members[3],
-                              const unsigned long long bodies[3], const std::vector<unsigned int> &index,
-                              unsigned long long from, unsigned long long tried, const unsigned int *device_out,
-                              int *same)
+                              const unsigned long long bodies[3], const TuringWords &index, unsigned long long from,
+                              unsigned long long tried, const unsigned int *device_out, int *same)
 {
     // the ring frees the check when its last part settles, and this call frees it where it dispatches no part
-    TuringCheck *const check = new TuringCheck;
+    TuringCheck *const check = turing_check_taken();
     check->layout = stage->layout;
-    check->bodies[0] = check->bodies[1] = check->bodies[2] = 0ull;
     check->records_first = from;
-    std::vector<unsigned int> &host_index = check->index;
-    host_index.assign(index.empty() ? 0u : (size_t)((from + tried) * stage->members), 0u);
-    int ok = index.empty() ? (from == 0ull) : 1;
+    const int indexed = (index.count != 0ull);
+    check->index = turing_words_taken(indexed ? (from + tried) * stage->members : 0ull);
+    int ok = indexed ? 1 : (from == 0ull);
     for (unsigned int member = 0u; ok && (member < stage->members); member += 1u)
     {
-        std::vector<unsigned long long> taken;
-        if (index.empty())
+        // The lanes read at max `tried` records of the member, and one record where they read none. The count of
+        // `taken` falls to the records they read
+        TuringLanes taken = turing_lanes_taken(tried + 1ull);
+        taken.count = 0ull;
+        if (!indexed)
         {
             const unsigned long long first =
                 (bodies[member] == 1ull) ? 1ull : ((tried < bodies[member]) ? tried : bodies[member]);
             for (unsigned long long body = 0ull; body < first; body += 1ull)
             {
-                taken.push_back(body);
+                taken.at[taken.count] = body;
+                taken.count += 1ull;
             }
         }
         else
         {
             for (unsigned long long lane = from; lane < from + tried; lane += 1ull)
             {
-                const unsigned long long body = index[(size_t)(lane * stage->members + member)];
+                const unsigned long long body = index.at[lane * stage->members + member];
                 if (body < bodies[member])
                 {
-                    taken.push_back(body);
+                    taken.at[taken.count] = body;
+                    taken.count += 1ull;
                 }
             }
-            std::sort(taken.begin(), taken.end());
-            taken.erase(std::unique(taken.begin(), taken.end()), taken.end());
+            TuringLanes scratch = turing_lanes_taken(taken.count);
+            (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = taken.at, .bytes = sizeof(unsigned long long),
+                             .scratch = scratch.at, .count = (size_t)taken.count, .order = turing_lane_order);
+            turing_lanes_released(&scratch);
+            // each lane number once: a number that equals the one before it drops out
+            unsigned long long kept = 0ull;
+            for (unsigned long long at = 0ull; at < taken.count; at += 1ull)
+            {
+                if ((kept == 0ull) || (taken.at[at] != taken.at[kept - 1ull]))
+                {
+                    taken.at[kept] = taken.at[at];
+                    kept += 1ull;
+                }
+            }
+            taken.count = kept;
             for (unsigned long long lane = from; lane < from + tried; lane += 1ull)
             {
-                const unsigned long long body = index[(size_t)(lane * stage->members + member)];
-                const std::vector<unsigned long long>::const_iterator at =
-                    std::lower_bound(taken.begin(), taken.end(), body);
-                host_index[(size_t)(lane * stage->members + member)] =
-                    (unsigned int)(((at != taken.end()) && (*at == body)) ? (at - taken.begin()) : taken.size());
+                const unsigned long long body = index.at[lane * stage->members + member];
+                // Explicit cast narrows the place in the copy, below `tried + 1`, to the width of the index
+                check->index.at[lane * stage->members + member] = (unsigned int)turing_lane_found(taken, body);
             }
         }
-        if (taken.empty())
+        if (taken.count == 0ull)
         {
-            taken.push_back(0ull);
+            taken.at[0] = 0ull;
+            taken.count = 1ull;
         }
         ok = turing_gather(members[member], stage->in_limbs[member], taken, &check->members[member]);
-        check->bodies[member] = taken.size();
+        check->bodies[member] = taken.count;
+        turing_lanes_released(&taken);
     }
-    check->records =
-        ok ? turing_copy_back(device_out + from * stage->layout.out_limbs, (size_t)(tried * stage->layout.out_limbs))
-           : std::vector<unsigned int>();
-    ok = ok && !check->records.empty();
+    if (ok)
+    {
+        check->records =
+            turing_copy_back(device_out + from * stage->layout.out_limbs, (size_t)(tried * stage->layout.out_limbs));
+    }
+    ok = ok && (check->records.count != 0ull);
     if (ok)
     {
         turing_dispatch(check, from, tried, same);
     }
     else
     {
-        delete check;
+        turing_check_released(check);
     }
     return ok;
 }
@@ -2980,7 +3173,7 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
 // many again from lane `also` where it is not 0.
 // The result is 1 where the run matches. `same` stays 0 once a check differs, and turing_settle settles it
 static int turing_sweep(TuringStage *stage, unsigned int *const members[3], const unsigned long long bodies[3],
-                        const std::vector<unsigned int> &index, unsigned long long lanes, unsigned int *device_out,
+                        const TuringWords &index, unsigned long long lanes, unsigned int *device_out,
                         unsigned long long checked, EngineError *error, int *same, unsigned long long also = 0ull)
 {
     if (lanes == 0ull)
@@ -2989,9 +3182,9 @@ static int turing_sweep(TuringStage *stage, unsigned int *const members[3], cons
     }
     // the index lives for the run alone
     unsigned int *device_index = NULL;
-    int ok = index.empty() ||
-             ((cudaMalloc((void **)&device_index, index.size() * sizeof(unsigned int)) == cudaSuccess) &&
-              (cudaMemcpy(device_index, index.data(), index.size() * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
+    int ok = (index.count == 0ull) ||
+             ((cudaMalloc((void **)&device_index, index.count * sizeof(unsigned int)) == cudaSuccess) &&
+              (cudaMemcpy(device_index, index.at, index.count * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
                cudaSuccess));
     ok = ok && turing_run(stage, members, bodies, device_index, lanes, device_out, error);
     if (device_index != NULL)
@@ -3013,10 +3206,10 @@ static int turing_sweep(TuringStage *stage, unsigned int *const members[3], cons
     return ok;
 }
 
-// a stage's shared record on the device, its parameters set first
-static unsigned int *turing_shared(TuringOwned *owned, TuringStage *stage, const std::vector<long long> &params)
+// a stage's shared record on the device, its `count` parameters set first
+static unsigned int *turing_shared(TuringOwned *owned, TuringStage *stage, const long long *params, unsigned int count)
 {
-    for (size_t at = 0u; (at < params.size()) && (at < stage->param_count); at += 1u)
+    for (unsigned int at = 0u; (at < count) && (at < stage->param_count); at += 1u)
     {
         const unsigned long long magnitude =
             (params[at] < 0) ? (unsigned long long)(-params[at]) : (unsigned long long)params[at];
@@ -3025,24 +3218,24 @@ static unsigned int *turing_shared(TuringOwned *owned, TuringStage *stage, const
     return turing_upload_words(owned, stage->shared, stage->shared_count);
 }
 
-// a stage's shared records on the device, one for each list of parameters, in order: a lane reads the one its index
-// names
-static unsigned int *turing_shared_records(TuringOwned *owned, TuringStage *stage,
-                                           const std::vector<std::vector<long long>> &params)
+// A stage's shared records on the device, `record_count` of them, in order: a lane reads the one its index names.
+// Record r takes the `per_record` parameters from `params[r * per_record]`
+static unsigned int *turing_shared_records(TuringOwned *owned, TuringStage *stage, const long long *params,
+                                           unsigned long long record_count, unsigned int per_record)
 {
     // the records one after another, in a cell of the temporary tier that the call gives back once the device holds
     // them
-    const unsigned long long count = params.size() * stage->shared_count;
+    const unsigned long long count = record_count * stage->shared_count;
     unsigned int *const records = (unsigned int *)turing_cleared(count, sizeof(unsigned int), 1);
     if (records == NULL)
     {
         return NULL;
     }
-    for (size_t record = 0u; record < params.size(); record += 1u)
+    for (unsigned long long record = 0ull; record < record_count; record += 1ull)
     {
-        for (size_t at = 0u; (at < params[record].size()) && (at < stage->param_count); at += 1u)
+        for (unsigned int at = 0u; (at < per_record) && (at < stage->param_count); at += 1u)
         {
-            const long long value = params[record][at];
+            const long long value = params[record * per_record + at];
             turing_put_small(stage, stage->params[at],
                              (value < 0) ? (unsigned long long)(-value) : (unsigned long long)value,
                              (value < 0) ? -1 : 1);
@@ -3055,23 +3248,24 @@ static unsigned int *turing_shared_records(TuringOwned *owned, TuringStage *stag
     return device;
 }
 
-// sums of output `output` over each run of `group` records, to the host, each as a signed 64-bit value
-static std::vector<long long> turing_group_sums(const TuringStage *stage, const unsigned int *device_records,
-                                                unsigned long long count, unsigned long long group, unsigned int output,
-                                                unsigned int sum_limbs, EngineError *error, int *ok)
+// Sums of output `output` over each run of `group` records, to the host, each as a signed 64-bit value. `values` takes
+// `count / group` of them
+static void turing_group_sums(const TuringStage *stage, const unsigned int *device_records, unsigned long long count,
+                              unsigned long long group, unsigned int output, unsigned int sum_limbs, EngineError *error,
+                              int *ok, long long *values)
 {
     const DeviceRecordStep *const place = turing_place(stage, output);
-    std::vector<unsigned int> sums((size_t)((count / group) * sum_limbs), 0u);
+    TuringWords sums = turing_words_taken((count / group) * sum_limbs);
     const CycleRecordSumRequest request = {
-        device_records, count,       group, stage->layout.out_limbs, place->out_offset, place->out_bits,
-        sum_limbs,      sums.data(), error};
+        device_records, count,   group, stage->layout.out_limbs, place->out_offset, place->out_bits,
+        sum_limbs,      sums.at, error};
     *ok = *ok && (count == 0ull || cycle_record_sum(&request) != CYCLE_ERROR);
-    std::vector<long long> values((size_t)(count / group), 0);
-    for (size_t at = 0u; at < values.size(); at += 1u)
+    for (unsigned long long at = 0ull; at < count / group; at += 1ull)
     {
-        values[at] = (long long)(((unsigned long long)sums[at * sum_limbs + 1u] << 32u) | sums[at * sum_limbs]);
+        // Explicit cast takes the two low limbs of the sum as a two's complement 64-bit value
+        values[at] = (long long)(((unsigned long long)sums.at[at * sum_limbs + 1u] << 32u) | sums.at[at * sum_limbs]);
     }
-    return values;
+    turing_words_released(&sums);
 }
 
 // the fold of each group of `group` expansions into one expansion a group, by sums of three. Each is record
@@ -3079,18 +3273,21 @@ static std::vector<long long> turing_group_sums(const TuringStage *stage, const 
 // Returns the array of one a group. The groups are `sets` runs of as many each, and the code checks the lanes of each
 // run
 static unsigned int *turing_fold(TuringOwned *owned, TuringStage *fold, unsigned int *records, unsigned long long zero,
-                                 std::vector<unsigned int> map, unsigned long long groups, unsigned long long group,
+                                 const TuringWords &map, unsigned long long groups, unsigned long long group,
                                  unsigned long long checked, EngineError *error, int *same, int *ok,
                                  unsigned int sets = 1u)
 {
     unsigned int *current = records;
     unsigned long long current_zero = zero;
     const unsigned int limbs = fold->layout.out_limbs;
-    while (*ok && (group > 1ull || map.size() != groups))
+    // After the first fold, the map of each next fold takes record `at` to position `at`
+    int identity = 0;
+    unsigned long long map_count = map.count;
+    while (*ok && (group > 1ull || map_count != groups))
     {
         const unsigned long long next = (group + 2ull) / 3ull;
         const unsigned long long lanes = groups * next;
-        std::vector<unsigned int> index((size_t)(3ull * lanes), 0u);
+        TuringWords index = turing_words_taken(3ull * lanes);
         for (unsigned long long g = 0ull; g < groups; g += 1ull)
         {
             for (unsigned long long j = 0ull; j < next; j += 1ull)
@@ -3098,8 +3295,10 @@ static unsigned int *turing_fold(TuringOwned *owned, TuringStage *fold, unsigned
                 for (unsigned long long t = 0ull; t < 3ull; t += 1ull)
                 {
                     const unsigned long long member_at = 3ull * j + t;
-                    index[(size_t)(3ull * (g * next + j) + t)] =
-                        (unsigned int)((member_at < group) ? map[(size_t)(g * group + member_at)] : current_zero);
+                    const unsigned long long place = g * group + member_at;
+                    // Explicit cast narrows a record number, below the records of the array, to the width of the index
+                    index.at[3ull * (g * next + j) + t] =
+                        (unsigned int)((member_at < group) ? (identity ? place : map.at[place]) : current_zero);
                 }
             }
         }
@@ -3108,58 +3307,59 @@ static unsigned int *turing_fold(TuringOwned *owned, TuringStage *fold, unsigned
         const unsigned long long bodies[3] = {current_zero + 1ull, current_zero + 1ull, current_zero + 1ull};
         *ok = (out != NULL) && turing_sweep(fold, members, bodies, index, lanes, out, checked, error, same,
                                             (sets > 1u) ? (groups / sets) * next : 0ull);
+        turing_words_released(&index);
         current = out;
         current_zero = lanes;
         group = next;
-        map.resize((size_t)lanes);
-        for (unsigned long long at = 0ull; at < lanes; at += 1ull)
-        {
-            map[(size_t)at] = (unsigned int)at;
-        }
+        identity = 1;
+        map_count = lanes;
     }
     return current;
 }
 
 // the largest |a - b| over `points` lanes, a and b output `output` of two stages' records, as limbs, and the lane it
 // falls at after them
-static std::vector<unsigned int> turing_widest(const TuringStage *stage_a, const std::vector<unsigned int> &records_a,
-                                               const TuringStage *stage_b, const std::vector<unsigned int> &records_b,
-                                               unsigned int output, unsigned long long points)
+static TuringValue turing_widest(const TuringStage *stage_a, const TuringWords &records_a, const TuringStage *stage_b,
+                                 const TuringWords &records_b, unsigned int output, unsigned long long points)
 {
     unsigned long long widest_at = 0ull;
-    std::vector<unsigned int> widest;
+    TuringValue widest;
+    widest.count = 0u;
     for (unsigned long long lane = 0ull; lane < points; lane += 1ull)
     {
-        const std::vector<unsigned int> a = turing_output(stage_a, records_a, lane, output);
-        const std::vector<unsigned int> b = turing_output(stage_b, records_b, lane, output);
-        const size_t limbs = (a.size() > b.size()) ? a.size() : b.size();
-        std::vector<unsigned int> d(limbs, 0u);
+        const TuringValue a = turing_output(stage_a, records_a, lane, output);
+        const TuringValue b = turing_output(stage_b, records_b, lane, output);
+        const unsigned int limbs = (a.count > b.count) ? a.count : b.count;
+        TuringValue d;
+        d.count = limbs;
         long long borrow = 0;
-        for (size_t at = 0u; at < limbs; at += 1u)
+        for (unsigned int at = 0u; at < limbs; at += 1u)
         {
-            const long long left = (long long)((at < a.size()) ? a[at] : ((a.back() >> 31u) ? 0xFFFFFFFFu : 0u));
-            const long long right = (long long)((at < b.size()) ? b[at] : ((b.back() >> 31u) ? 0xFFFFFFFFu : 0u));
+            const long long left =
+                (long long)((at < a.count) ? a.limbs[at] : ((a.limbs[a.count - 1u] >> 31u) ? 0xFFFFFFFFu : 0u));
+            const long long right =
+                (long long)((at < b.count) ? b.limbs[at] : ((b.limbs[b.count - 1u] >> 31u) ? 0xFFFFFFFFu : 0u));
             long long v = left - right - borrow;
             borrow = (v < 0) ? 1 : 0;
-            d[at] = (unsigned int)(v & 0xFFFFFFFFll);
+            d.limbs[at] = (unsigned int)(v & 0xFFFFFFFFll);
         }
-        if (d.back() >> 31u)
+        if (d.limbs[limbs - 1u] >> 31u)
         {
             unsigned long long carry = 1ull;
-            for (size_t at = 0u; at < limbs; at += 1u)
+            for (unsigned int at = 0u; at < limbs; at += 1u)
             {
-                carry += (unsigned long long)(~d[at] & 0xFFFFFFFFu);
-                d[at] = (unsigned int)carry;
+                carry += (unsigned long long)(~d.limbs[at] & 0xFFFFFFFFu);
+                d.limbs[at] = (unsigned int)carry;
                 carry >>= 32u;
             }
         }
-        int larger = widest.empty();
-        for (size_t at = limbs; !larger && (at-- > 0u);)
+        int larger = (widest.count == 0u);
+        for (unsigned int at = limbs; !larger && (at-- > 0u);)
         {
-            const unsigned int w = (at < widest.size()) ? widest[at] : 0u;
-            if (d[at] != w)
+            const unsigned int w = (at < widest.count) ? widest.limbs[at] : 0u;
+            if (d.limbs[at] != w)
             {
-                larger = (d[at] > w);
+                larger = (d.limbs[at] > w);
                 break;
             }
         }
@@ -3169,7 +3369,9 @@ static std::vector<unsigned int> turing_widest(const TuringStage *stage_a, const
             widest_at = lane;
         }
     }
-    widest.push_back((unsigned int)widest_at);
+    // the lane of the widest, last, past its limbs
+    widest.limbs[widest.count] = (unsigned int)widest_at;
+    widest.count += 1u;
     return widest;
 }
 
@@ -3180,10 +3382,91 @@ static unsigned long long turing_apart(unsigned long long a, unsigned long long 
     return (d < boxes - d) ? d : boxes - d;
 }
 
+// the stages of the multiple evaluation, and the boxes of a level at max as a power of two
+#define TURING_OS_STAGES 10u
+#define TURING_LEVELS_MAX 64u
+
+// the steps of each stage of the multiple evaluation, in the order of its stages
 typedef struct
 {
-    std::vector<unsigned int> steps;
+    unsigned int steps[TURING_OS_STAGES];
+    unsigned int count;
 } TuringOsReport;
+
+// the pairs of a box: their count, and the first five, the ones its fold reads
+typedef struct
+{
+    unsigned int count;
+    unsigned int first[5];
+} TuringBoxPairs;
+
+// The sources that each target of a level interacts with, by the circular distance Delta from -5 to 5. Where
+// `targets` is NULL, the call counts the pairs of each Delta into `counts`. Otherwise it puts each pair after the
+// `filled[d]` already put, at the place of Delta d
+static void turing_interactions(unsigned int level, const TuringSigned &multipole_map, unsigned long long counts[11],
+                                TuringLanes *targets, TuringLanes *sources, unsigned long long filled[11])
+{
+    const unsigned long long boxes = 1ull << level;
+    for (unsigned long long target = 0ull; target < boxes; target += 1ull)
+    {
+        // a target's list holds at max eight sources at level 3, and ten below it
+        unsigned long long list[10];
+        unsigned int listed = 0u;
+        if (level == 3u)
+        {
+            for (unsigned long long source = 0ull; source < boxes; source += 1ull)
+            {
+                if (turing_apart(source, target, boxes) >= 3ull)
+                {
+                    list[listed] = source;
+                    listed += 1u;
+                }
+            }
+        }
+        else
+        {
+            const unsigned long long parents = boxes / 2ull;
+            for (long long shift = -2; shift <= 2; shift += 1)
+            {
+                const unsigned long long parent =
+                    (unsigned long long)(((long long)(target / 2ull) + shift + (long long)parents) %
+                                         (long long)parents);
+                for (unsigned long long child = 2ull * parent; child < 2ull * parent + 2ull; child += 1ull)
+                {
+                    if (turing_apart(child, target, boxes) >= 3ull)
+                    {
+                        list[listed] = child;
+                        listed += 1u;
+                    }
+                }
+            }
+        }
+        for (unsigned int at = 0u; at < listed; at += 1u)
+        {
+            const unsigned long long source = list[at];
+            if (multipole_map.at[source] < 0)
+            {
+                continue;
+            }
+            long long delta = (long long)((target + boxes - source) % boxes);
+            if (delta > (long long)(boxes / 2ull))
+            {
+                delta -= (long long)boxes;
+            }
+            const unsigned int d = (unsigned int)(delta + 5);
+            if (targets == NULL)
+            {
+                counts[d] += 1ull;
+            }
+            else
+            {
+                targets[d].at[filled[d]] = target;
+                sources[d].at[filled[d]] = source;
+                filled[d] += 1ull;
+            }
+        }
+    }
+}
 
 // the multiple evaluation. It takes `sets` sets of pole records, each nu of them with a zero record after, and the
 // poles of each set at the same places. It puts the sum at each point of the cell for each set into the returned
@@ -3323,26 +3606,31 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
     {
         boundaries = leaves / 2ull - 2ull;
     }
-    std::vector<long long> below_count;
+    // the count of poles below each boundary, `boundaries + 1` of them where the run holds
+    TuringSigned below_count = {NULL, 0ull};
     if (ok)
     {
         const unsigned long long lanes = (boundaries + 1ull) * nu;
-        std::vector<unsigned int> index((size_t)(2ull * lanes), 0u);
+        TuringWords index = turing_words_taken(2ull * lanes);
         for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
         {
-            index[(size_t)(2ull * lane)] = (unsigned int)(lane % nu);
+            // Explicit cast narrows a pole number, below nu, to the width of the index
+            index.at[2ull * lane] = (unsigned int)(lane % nu);
         }
         unsigned int *const out = turing_alloc(owned, (size_t)(lanes * below.layout.out_limbs));
-        unsigned int *const shared = turing_shared(owned, &below, std::vector<long long>(1u, (long long)nu));
+        const long long below_params[1] = {(long long)nu};
+        unsigned int *const shared = turing_shared(owned, &below, below_params, 1u);
         unsigned int *const members[3] = {device_pole, shared, NULL};
         const unsigned long long bodies[3] = {poles, 1ull, 0ull};
         ok = (shared != NULL) && (out != NULL) &&
              turing_sweep(&below, members, bodies, index, lanes, out, checked, error, same);
-        below_count = turing_group_sums(&below, out, lanes, nu, 0u, 2u, error, &ok);
-        ok = ok && (below_count.size() == boundaries + 1ull) && (below_count[(size_t)boundaries] == (long long)nu);
+        turing_words_released(&index);
+        below_count = turing_signed_taken(lanes / nu, 0);
+        turing_group_sums(&below, out, lanes, nu, 0u, 2u, error, &ok, below_count.at);
+        ok = ok && (below_count.count == boundaries + 1ull) && (below_count.at[boundaries] == (long long)nu);
         for (unsigned long long b = 1ull; ok && (b < boundaries); b += 1ull)
         {
-            if (below_count[(size_t)b] == (long long)nu)
+            if (below_count.at[b] == (long long)nu)
             {
                 boundaries = b;
             }
@@ -3351,62 +3639,76 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
     sim_check(job, ok, "every pole falls in a leaf the multiple evaluation arranges");
 
     // the leaves' multipoles: lane (leaf, position) over the leaves that contain poles
-    std::vector<unsigned long long> source_leaf;
+    TuringLanes source_leaf = turing_lanes_taken(ok ? boundaries : 0ull);
+    source_leaf.count = 0ull;
     unsigned long long poles_per_leaf = 1ull;
     for (unsigned long long r = 0ull; ok && (r < boundaries); r += 1ull)
     {
-        const unsigned long long in_range =
-            (unsigned long long)(below_count[(size_t)(r + 1ull)] - below_count[(size_t)r]);
+        const unsigned long long in_range = (unsigned long long)(below_count.at[r + 1ull] - below_count.at[r]);
         if (in_range != 0ull)
         {
-            source_leaf.push_back(r);
+            source_leaf.at[source_leaf.count] = r;
+            source_leaf.count += 1ull;
             poles_per_leaf = (in_range > poles_per_leaf) ? in_range : poles_per_leaf;
         }
     }
-    std::vector<std::vector<long long>> multipole_map(top + 1u);
-    std::vector<unsigned int *> multipole(top + 1u, (unsigned int *)NULL);
-    std::vector<unsigned long long> multipole_count(top + 1u, 0ull);
+    // Of each level, the map of its boxes to their multipoles, -1 where a box holds none. Then the array of its
+    // multipoles and their count
+    ok = ok && (top < TURING_LEVELS_MAX);
+    TuringSigned multipole_map[TURING_LEVELS_MAX];
+    unsigned int *multipole[TURING_LEVELS_MAX];
+    unsigned long long multipole_count[TURING_LEVELS_MAX];
+    for (unsigned int level = 0u; level < TURING_LEVELS_MAX; level += 1u)
+    {
+        multipole_map[level].at = NULL;
+        multipole_map[level].count = 0ull;
+        multipole[level] = NULL;
+        multipole_count[level] = 0ull;
+    }
     if (ok)
     {
-        const unsigned long long per = source_leaf.size() * poles_per_leaf;
+        const unsigned long long per = source_leaf.count * poles_per_leaf;
         const unsigned long long lanes = sets * per;
-        std::vector<unsigned int> index((size_t)(2ull * lanes), 0u);
+        TuringWords index = turing_words_taken(2ull * lanes);
         for (unsigned long long set = 0ull; set < sets; set += 1ull)
         {
-            for (unsigned long long leaf = 0ull; leaf < source_leaf.size(); leaf += 1ull)
+            for (unsigned long long leaf = 0ull; leaf < source_leaf.count; leaf += 1ull)
             {
-                const unsigned long long r = source_leaf[(size_t)leaf];
-                const unsigned long long first = (unsigned long long)below_count[(size_t)r];
-                const unsigned long long in_range = (unsigned long long)below_count[(size_t)(r + 1ull)] - first;
+                const unsigned long long r = source_leaf.at[leaf];
+                const unsigned long long first = (unsigned long long)below_count.at[r];
+                const unsigned long long in_range = (unsigned long long)below_count.at[r + 1ull] - first;
                 for (unsigned long long position = 0ull; position < poles_per_leaf; position += 1ull)
                 {
-                    index[(size_t)(2ull * (set * per + leaf * poles_per_leaf + position))] =
+                    index.at[2ull * (set * per + leaf * poles_per_leaf + position)] =
                         (unsigned int)(set * poles + ((position < in_range) ? first + position : nu));
                 }
             }
         }
-        unsigned int *const shared = turing_shared(owned, &p2m, std::vector<long long>());
+        unsigned int *const shared = turing_shared(owned, &p2m, NULL, 0u);
         unsigned int *const out = turing_alloc(owned, (size_t)((lanes + 1ull) * limbs));
         unsigned int *const members[3] = {device_pole, shared, NULL};
         const unsigned long long bodies[3] = {sets * poles, 1ull, 0ull};
         ok = (shared != NULL) && (out != NULL) &&
              turing_sweep(&p2m, members, bodies, index, lanes, out, checked, error, same, TURING_ALSO(per));
-        std::vector<unsigned int> map((size_t)lanes);
+        turing_words_released(&index);
+        TuringWords map = turing_words_taken(lanes);
         for (unsigned long long at = 0ull; at < lanes; at += 1ull)
         {
-            map[(size_t)at] = (unsigned int)at;
+            // Explicit cast narrows a lane number, below the lanes of the run, to the width of the map
+            map.at[at] = (unsigned int)at;
         }
-        multipole[top] = (poles_per_leaf == 1ull)
-                             ? out
-                             : turing_fold(owned, &fold, out, lanes, map, sets * source_leaf.size(), poles_per_leaf,
-                                           checked, error, same, &ok, sets);
-        multipole_count[top] = source_leaf.size();
-        multipole_map[top].assign((size_t)leaves, -1);
-        for (unsigned long long leaf = 0ull; leaf < source_leaf.size(); leaf += 1ull)
+        multipole[top] = (poles_per_leaf == 1ull) ? out
+                                                  : turing_fold(owned, &fold, out, lanes, map, sets * source_leaf.count,
+                                                                poles_per_leaf, checked, error, same, &ok, sets);
+        turing_words_released(&map);
+        multipole_count[top] = source_leaf.count;
+        multipole_map[top] = turing_signed_taken(leaves, -1);
+        for (unsigned long long leaf = 0ull; leaf < source_leaf.count; leaf += 1ull)
         {
-            multipole_map[top][(size_t)(leaves / 2ull + source_leaf[(size_t)leaf])] = (long long)leaf;
+            multipole_map[top].at[leaves / 2ull + source_leaf.at[leaf]] = (long long)leaf;
         }
     }
+    turing_lanes_released(&source_leaf);
     sim_check(job, ok, "the leaves' multipoles are summed on the device");
 
     // up the tree. Each box with poles goes to the center of its parent, the lower children in one run and the upper
@@ -3414,194 +3716,214 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
     for (unsigned int level = top - 1u; ok && (level >= 3u) && (level < top); level -= 1u)
     {
         const unsigned long long boxes = 1ull << level;
-        const std::vector<long long> &children = multipole_map[level + 1u];
-        std::vector<unsigned long long> parents;
-        std::vector<unsigned int> side_index[2];
+        const TuringSigned &children = multipole_map[level + 1u];
+        // A level holds at max one parent a box, and one child a side of each box. `side_child[side]` holds the
+        // multipole of each child of that side
+        TuringLanes parents = turing_lanes_taken(boxes);
+        parents.count = 0ull;
+        TuringWords side_child[2] = {turing_words_taken(boxes), turing_words_taken(boxes)};
+        side_child[0].count = 0ull;
+        side_child[1].count = 0ull;
         for (unsigned long long box = 0ull; box < boxes; box += 1ull)
         {
-            if ((children[(size_t)(2ull * box)] >= 0) || (children[(size_t)(2ull * box + 1ull)] >= 0))
+            if ((children.at[2ull * box] >= 0) || (children.at[2ull * box + 1ull] >= 0))
             {
-                parents.push_back(box);
+                parents.at[parents.count] = box;
+                parents.count += 1ull;
             }
             for (unsigned int side = 0u; side < 2u; side += 1u)
             {
-                if (children[(size_t)(2ull * box + side)] >= 0)
+                if (children.at[2ull * box + side] >= 0)
                 {
-                    side_index[side].push_back((unsigned int)children[(size_t)(2ull * box + side)]);
-                    side_index[side].push_back(side);
+                    // Explicit cast narrows a multipole number, below the multipoles of the level, to the index width
+                    side_child[side].at[side_child[side].count] = (unsigned int)children.at[2ull * box + side];
+                    side_child[side].count += 1ull;
                 }
             }
         }
         // the lower children's lanes first, then the upper's, each reading the shared record of its side, set after set
-        const unsigned long long lower_count = side_index[0].size() / 2u;
-        const unsigned long long shifted = lower_count + side_index[1].size() / 2u;
+        const unsigned long long lower_count = side_child[0].count;
+        const unsigned long long shifted = lower_count + side_child[1].count;
         const unsigned long long child_count = multipole_count[level + 1u];
-        std::vector<unsigned int> index;
+        TuringWords index = turing_words_taken(2ull * sets * shifted);
+        unsigned long long placed = 0ull;
         for (unsigned long long set = 0ull; set < sets; set += 1ull)
         {
             for (unsigned int side = 0u; side < 2u; side += 1u)
             {
-                for (size_t at = 0u; at < side_index[side].size(); at += 2u)
+                for (unsigned long long at = 0ull; at < side_child[side].count; at += 1ull)
                 {
-                    index.push_back((unsigned int)(set * child_count + side_index[side][at]));
-                    index.push_back(side_index[side][at + 1u]);
+                    index.at[placed] = (unsigned int)(set * child_count + side_child[side].at[at]);
+                    index.at[placed + 1ull] = side;
+                    placed += 2ull;
                 }
             }
         }
-        std::vector<std::vector<long long>> params(2u, std::vector<long long>(1u, (long long)(1ull << (level + 1u))));
-        params[0].push_back(-1);
-        params[1].push_back(1);
-        unsigned int *const shared = turing_shared_records(owned, &m2m, params);
+        turing_words_released(&side_child[0]);
+        turing_words_released(&side_child[1]);
+        const long long params[4] = {(long long)(1ull << (level + 1u)), -1, (long long)(1ull << (level + 1u)), 1};
+        unsigned int *const shared = turing_shared_records(owned, &m2m, params, 2ull, 2u);
         unsigned int *const out = turing_alloc(owned, (size_t)((sets * shifted + 1ull) * limbs));
         unsigned int *const members[3] = {multipole[level + 1u], shared, NULL};
         const unsigned long long bodies[3] = {sets * child_count + 1ull, 2ull, 0ull};
         ok =
             (shared != NULL) && (out != NULL) &&
             turing_sweep(&m2m, members, bodies, index, sets * shifted, out, checked, error, same, TURING_ALSO(shifted));
+        turing_words_released(&index);
         // each parent's lower and upper shifted multipoles, where it has them, folded to one, set after set
-        std::vector<unsigned int> map((size_t)(2ull * sets * parents.size()), (unsigned int)(sets * shifted));
-        multipole_map[level].assign((size_t)boxes, -1);
+        TuringWords map = turing_words_taken(2ull * sets * parents.count);
+        for (unsigned long long at = 0ull; at < map.count; at += 1ull)
+        {
+            // Explicit cast narrows the zero record, the last of the run, to the width of the map
+            map.at[at] = (unsigned int)(sets * shifted);
+        }
+        multipole_map[level] = turing_signed_taken(boxes, -1);
         for (unsigned long long set = 0ull; set < sets; set += 1ull)
         {
             unsigned long long lower_at = set * shifted, upper_at = set * shifted + lower_count;
-            for (unsigned long long at = 0ull; at < parents.size(); at += 1ull)
+            for (unsigned long long at = 0ull; at < parents.count; at += 1ull)
             {
-                const unsigned long long box = parents[(size_t)at];
-                const size_t position = (size_t)(2ull * (set * parents.size() + at));
-                if (children[(size_t)(2ull * box)] >= 0)
+                const unsigned long long box = parents.at[at];
+                const unsigned long long position = 2ull * (set * parents.count + at);
+                if (children.at[2ull * box] >= 0)
                 {
-                    map[position] = (unsigned int)lower_at++;
+                    map.at[position] = (unsigned int)lower_at;
+                    lower_at += 1ull;
                 }
-                if (children[(size_t)(2ull * box + 1ull)] >= 0)
+                if (children.at[2ull * box + 1ull] >= 0)
                 {
-                    map[position + 1u] = (unsigned int)upper_at++;
+                    map.at[position + 1ull] = (unsigned int)upper_at;
+                    upper_at += 1ull;
                 }
-                multipole_map[level][(size_t)box] = (long long)at;
+                multipole_map[level].at[box] = (long long)at;
             }
         }
-        multipole[level] = ok ? turing_fold(owned, &fold, out, sets * shifted, map, sets * parents.size(), 2ull,
-                                            checked, error, same, &ok, sets)
+        multipole[level] = ok ? turing_fold(owned, &fold, out, sets * shifted, map, sets * parents.count, 2ull, checked,
+                                            error, same, &ok, sets)
                               : NULL;
-        multipole_count[level] = parents.size();
+        turing_words_released(&map);
+        multipole_count[level] = parents.count;
+        turing_lanes_released(&parents);
     }
     sim_check(job, ok, "the multipoles are carried up the tree on the device");
 
     // across: each box's interaction list, the children of its parent's neighbors that are not its own neighbors;
     // then each box's sum by folds
-    std::vector<unsigned int *> local_sum(top + 1u, (unsigned int *)NULL);
-    std::vector<std::vector<long long>> local_sum_map(top + 1u);
-    std::vector<unsigned long long> local_sum_count(top + 1u, 0ull);
+    //
+    // Of each level, the array of the sums of its boxes, the map of its boxes to those sums, and their count
+    unsigned int *local_sum[TURING_LEVELS_MAX];
+    TuringSigned local_sum_map[TURING_LEVELS_MAX];
+    unsigned long long local_sum_count[TURING_LEVELS_MAX];
+    for (unsigned int level = 0u; level < TURING_LEVELS_MAX; level += 1u)
+    {
+        local_sum[level] = NULL;
+        local_sum_map[level].at = NULL;
+        local_sum_map[level].count = 0ull;
+        local_sum_count[level] = 0ull;
+    }
     for (unsigned int level = 3u; ok && (level <= top); level += 1u)
     {
         const unsigned long long boxes = 1ull << level;
-        std::vector<std::vector<unsigned long long>> targets_of(11u);
-        std::vector<std::vector<unsigned long long>> sources_of(11u);
-        for (unsigned long long target = 0ull; target < boxes; target += 1ull)
+        // the pairs of each Delta counted, then taken at their counts and put
+        unsigned long long counts[11] = {0ull};
+        unsigned long long filled[11] = {0ull};
+        turing_interactions(level, multipole_map[level], counts, NULL, NULL, filled);
+        TuringLanes targets_of[11];
+        TuringLanes sources_of[11];
+        unsigned long long pairs = 0ull;
+        for (unsigned int d = 0u; d < 11u; d += 1u)
         {
-            std::vector<unsigned long long> list;
-            if (level == 3u)
-            {
-                for (unsigned long long source = 0ull; source < boxes; source += 1ull)
-                {
-                    if (turing_apart(source, target, boxes) >= 3ull)
-                    {
-                        list.push_back(source);
-                    }
-                }
-            }
-            else
-            {
-                const unsigned long long parents = boxes / 2ull;
-                for (long long shift = -2; shift <= 2; shift += 1)
-                {
-                    const unsigned long long parent =
-                        (unsigned long long)(((long long)(target / 2ull) + shift + (long long)parents) %
-                                             (long long)parents);
-                    for (unsigned long long child = 2ull * parent; child < 2ull * parent + 2ull; child += 1ull)
-                    {
-                        if (turing_apart(child, target, boxes) >= 3ull)
-                        {
-                            list.push_back(child);
-                        }
-                    }
-                }
-            }
-            for (size_t at = 0u; at < list.size(); at += 1u)
-            {
-                const unsigned long long source = list[at];
-                if (multipole_map[level][(size_t)source] < 0)
-                {
-                    continue;
-                }
-                long long delta = (long long)((target + boxes - source) % boxes);
-                if (delta > (long long)(boxes / 2ull))
-                {
-                    delta -= (long long)boxes;
-                }
-                targets_of[(size_t)(delta + 5)].push_back(target);
-                sources_of[(size_t)(delta + 5)].push_back(source);
-            }
+            targets_of[d] = turing_lanes_taken(counts[d]);
+            sources_of[d] = turing_lanes_taken(counts[d]);
+            pairs += counts[d];
         }
+        turing_interactions(level, multipole_map[level], counts, targets_of, sources_of, filled);
         // one run over every pair of the level, each lane reading the shared record of its Delta
-        std::vector<unsigned int> index;
-        std::vector<std::vector<unsigned int>> pair_of(boxes);
-        std::vector<std::vector<long long>> params(11u);
-        for (size_t d = 0u; d < 11u; d += 1u)
+        TuringWords index = turing_words_taken(2ull * sets * pairs);
+        TuringBoxPairs *const pair_of = (TuringBoxPairs *)turing_cleared(boxes, sizeof(TuringBoxPairs), 1);
+        if (pair_of == NULL)
         {
-            params[d].push_back((long long)d - 5);
-            params[d].push_back((long long)(1ull << level));
-            for (size_t lane = 0u; lane < targets_of[d].size(); lane += 1u)
+            fprintf(stderr, "  exact_zeta_turing: the pool cannot meet the pairs of %llu boxes\n", boxes);
+            exit(1);
+        }
+        long long params[22];
+        unsigned long long lane_at = 0ull;
+        for (unsigned int d = 0u; d < 11u; d += 1u)
+        {
+            params[2u * d] = (long long)d - 5;
+            params[2u * d + 1u] = (long long)(1ull << level);
+            for (unsigned long long lane = 0ull; lane < targets_of[d].count; lane += 1ull)
             {
-                pair_of[(size_t)targets_of[d][lane]].push_back((unsigned int)(index.size() / 2u));
-                index.push_back((unsigned int)multipole_map[level][(size_t)sources_of[d][lane]]);
-                index.push_back((unsigned int)d);
+                TuringBoxPairs *const box_pairs = &pair_of[targets_of[d].at[lane]];
+                if (box_pairs->count < 5u)
+                {
+                    // Explicit cast narrows a pair number, below the pairs of the level, to the width of the map
+                    box_pairs->first[box_pairs->count] = (unsigned int)lane_at;
+                }
+                box_pairs->count += 1u;
+                index.at[2ull * lane_at] = (unsigned int)multipole_map[level].at[sources_of[d].at[lane]];
+                index.at[2ull * lane_at + 1ull] = d;
+                lane_at += 1ull;
             }
+            turing_lanes_released(&targets_of[d]);
+            turing_lanes_released(&sources_of[d]);
         }
         // the pairs of every set after the first's, each reading its own set's multipoles
-        const unsigned long long pairs = index.size() / 2u;
         const unsigned long long source_count = multipole_count[level];
         for (unsigned long long set = 1ull; set < sets; set += 1ull)
         {
             for (unsigned long long lane = 0ull; lane < pairs; lane += 1ull)
             {
-                index.push_back((unsigned int)(set * source_count + index[(size_t)(2ull * lane)]));
-                index.push_back(index[(size_t)(2ull * lane + 1ull)]);
+                const unsigned long long at = 2ull * (set * pairs + lane);
+                index.at[at] = (unsigned int)(set * source_count + index.at[2ull * lane]);
+                index.at[at + 1ull] = index.at[2ull * lane + 1ull];
             }
         }
-        unsigned int *const shared = turing_shared_records(owned, &m2l, params);
+        unsigned int *const shared = turing_shared_records(owned, &m2l, params, 11ull, 2u);
         unsigned int *const out = turing_alloc(owned, (size_t)((sets * pairs + 1ull) * limbs));
         unsigned int *const members[3] = {multipole[level], shared, NULL};
         const unsigned long long bodies[3] = {sets * source_count + 1ull, 11ull, 0ull};
         ok = (shared != NULL) && (out != NULL) &&
              turing_sweep(&m2l, members, bodies, index, sets * pairs, out, checked, error, same, TURING_ALSO(pairs));
+        turing_words_released(&index);
         // the boxes with pairs, each list padded to five with the zero record, folded to one sum a box
-        std::vector<unsigned long long> with;
+        TuringLanes with = turing_lanes_taken(boxes);
+        with.count = 0ull;
         for (unsigned long long target = 0ull; target < boxes; target += 1ull)
         {
-            if (!pair_of[(size_t)target].empty())
+            if (pair_of[target].count != 0u)
             {
-                with.push_back(target);
+                with.at[with.count] = target;
+                with.count += 1ull;
             }
         }
-        std::vector<unsigned int> map((size_t)(5ull * sets * with.size()), (unsigned int)(sets * pairs));
-        local_sum_map[level].assign((size_t)boxes, -1);
+        TuringWords map = turing_words_taken(5ull * sets * with.count);
+        for (unsigned long long at = 0ull; at < map.count; at += 1ull)
+        {
+            // Explicit cast narrows the zero record, the last of the run, to the width of the map
+            map.at[at] = (unsigned int)(sets * pairs);
+        }
+        local_sum_map[level] = turing_signed_taken(boxes, -1);
         for (unsigned long long set = 0ull; set < sets; set += 1ull)
         {
-            for (unsigned long long w = 0ull; w < with.size(); w += 1ull)
+            for (unsigned long long w = 0ull; w < with.count; w += 1ull)
             {
-                const std::vector<unsigned int> &list = pair_of[(size_t)with[(size_t)w]];
-                for (size_t position = 0u; position < list.size() && position < 5u; position += 1u)
+                const TuringBoxPairs *const list = &pair_of[with.at[w]];
+                for (unsigned int position = 0u; position < list->count && position < 5u; position += 1u)
                 {
-                    map[(size_t)(5ull * (set * with.size() + w) + position)] =
-                        (unsigned int)(set * pairs + list[position]);
+                    map.at[5ull * (set * with.count + w) + position] =
+                        (unsigned int)(set * pairs + list->first[position]);
                 }
-                local_sum_map[level][(size_t)with[(size_t)w]] = (long long)w;
+                local_sum_map[level].at[with.at[w]] = (long long)w;
             }
         }
-        local_sum[level] = with.empty() ? out
-                                        : turing_fold(owned, &fold, out, sets * pairs, map, sets * with.size(), 5ull,
-                                                      checked, error, same, &ok, sets);
-        local_sum_count[level] = with.size();
+        turing_released(pair_of);
+        local_sum[level] = (with.count == 0ull) ? out
+                                                : turing_fold(owned, &fold, out, sets * pairs, map, sets * with.count,
+                                                              5ull, checked, error, same, &ok, sets);
+        turing_words_released(&map);
+        local_sum_count[level] = with.count;
+        turing_lanes_released(&with);
     }
     sim_check(job, ok, "the multipoles are carried across to local expansions on the device");
 
@@ -3611,7 +3933,7 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
     for (unsigned int level = 3u; ok && (level <= top); level += 1u)
     {
         const unsigned long long boxes = 1ull << level;
-        std::vector<unsigned int> index((size_t)(3ull * sets * boxes), 0u);
+        TuringWords index = turing_words_taken(3ull * sets * boxes);
         unsigned int *const parent = (level == 3u) ? local_sum[level] : local;
         // a set's parents and own sums, each array's zero record after every set's
         const unsigned long long parent_count = (level == 3u) ? local_sum_count[level] : local_count;
@@ -3621,19 +3943,21 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
             for (unsigned long long box = 0ull; box < boxes; box += 1ull)
             {
                 const size_t lane = (size_t)(set * boxes + box);
-                index[3u * lane] =
+                index.at[3u * lane] =
                     (unsigned int)((level == 3u) ? sets * parent_count : set * parent_count + box / 2ull);
-                const long long own = local_sum_map[level][(size_t)box];
-                index[3u * lane + 1u] =
+                const long long own = local_sum_map[level].at[box];
+                index.at[3u * lane + 1u] =
                     (unsigned int)((own >= 0) ? set * own_count + (unsigned long long)own : sets * own_count);
             }
         }
-        unsigned int *const shared = turing_shared(owned, &l2l, std::vector<long long>(1u, (long long)boxes));
+        const long long l2l_params[1] = {(long long)boxes};
+        unsigned int *const shared = turing_shared(owned, &l2l, l2l_params, 1u);
         unsigned int *const out = turing_alloc(owned, (size_t)((sets * boxes + 1ull) * limbs));
         unsigned int *const members[3] = {parent, local_sum[level], shared};
         const unsigned long long bodies[3] = {sets * parent_count + 1ull, sets * own_count + 1ull, 1ull};
         ok = (shared != NULL) && (out != NULL) &&
              turing_sweep(&l2l, members, bodies, index, sets * boxes, out, checked, error, same, TURING_ALSO(boxes));
+        turing_words_released(&index);
         local = out;
         local_count = boxes;
     }
@@ -3651,16 +3975,16 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
         const long long hi = (leaf + 3 > (long long)boundaries) ? (long long)boundaries : leaf + 3;
         if (lo < hi)
         {
-            const unsigned long long in_range = (unsigned long long)(below_count[(size_t)hi] - below_count[(size_t)lo]);
+            const unsigned long long in_range = (unsigned long long)(below_count.at[hi] - below_count.at[lo]);
             near_poles = (in_range > near_poles) ? in_range : near_poles;
         }
     }
-    std::vector<unsigned int> near_records;
+    TuringWords near_records = {NULL, 0ull};
     if (ok)
     {
         const unsigned long long per = near_points * near_poles;
         const unsigned long long lanes = sets * per;
-        std::vector<unsigned int> index((size_t)(2ull * per), 0u);
+        TuringWords index = turing_words_taken(2ull * per);
         for (unsigned long long h = 0ull; h < near_points; h += 1ull)
         {
             const long long point = near_low + (long long)h;
@@ -3668,18 +3992,16 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
                 (point >= 0) ? point / (long long)width : -((-point + (long long)width - 1) / (long long)width);
             const long long lo = (leaf - 2 < 0) ? 0 : leaf - 2;
             const long long hi = (leaf + 3 > (long long)boundaries) ? (long long)boundaries : leaf + 3;
-            const unsigned long long first = (lo < hi) ? (unsigned long long)below_count[(size_t)lo] : 0ull;
-            const unsigned long long in_range = (lo < hi) ? (unsigned long long)below_count[(size_t)hi] - first : 0ull;
+            const unsigned long long first = (lo < hi) ? (unsigned long long)below_count.at[lo] : 0ull;
+            const unsigned long long in_range = (lo < hi) ? (unsigned long long)below_count.at[hi] - first : 0ull;
             for (unsigned long long position = 0ull; position < near_poles; position += 1ull)
             {
-                index[(size_t)(2ull * (h * near_poles + position))] =
+                index.at[(size_t)(2ull * (h * near_poles + position))] =
                     (unsigned int)((position < in_range) ? first + position : nu);
             }
         }
-        std::vector<long long> params;
-        params.push_back(near_low);
-        params.push_back((long long)near_poles);
-        unsigned int *const shared = turing_shared(owned, &near, params);
+        const long long near_params[2] = {near_low, (long long)near_poles};
+        unsigned int *const shared = turing_shared(owned, &near, near_params, 2u);
         unsigned int *const out = turing_alloc(owned, (size_t)(lanes * near.layout.out_limbs));
         ok = (shared != NULL) && (out != NULL);
         // a lane finds its point from its own number: one run a set, its lanes from 0, each set's first lanes checked
@@ -3691,24 +4013,28 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
             ok = turing_sweep(&near, members, bodies, index, per, out + set * per * near.layout.out_limbs, checked,
                               error, same);
         }
+        turing_words_released(&index);
         // each point's sum, positioned into a record of two fields of near_limbs limbs, set after set
-        near_records.assign((size_t)((sets * near_points + 1ull) * 2ull * near_limbs), 0u);
+        near_records = turing_words_taken((sets * near_points + 1ull) * 2ull * near_limbs);
+        TuringWords sums = turing_words_taken(sets * near_points * near_limbs);
         for (unsigned int part = 0u; ok && (part < 2u); part += 1u)
         {
             const DeviceRecordStep *const place = turing_place(&near, part);
-            std::vector<unsigned int> sums((size_t)(sets * near_points * near_limbs), 0u);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = sums.at, .bytes = sums.count * sizeof(unsigned int), .val = 0);
             const CycleRecordSumRequest request = {
-                out,        lanes,       near_poles, near.layout.out_limbs, place->out_offset, place->out_bits,
-                near_limbs, sums.data(), error};
+                out,        lanes,   near_poles, near.layout.out_limbs, place->out_offset, place->out_bits,
+                near_limbs, sums.at, error};
             ok = cycle_record_sum(&request) != CYCLE_ERROR;
             for (unsigned long long h = 0ull; ok && (h < sets * near_points); h += 1ull)
             {
-                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &near_records[(size_t)((h * 2ull + part) * near_limbs)],
-                           .src = &sums[(size_t)(h * near_limbs)], .bytes = near_limbs * sizeof(unsigned int));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &near_records.at[(h * 2ull + part) * near_limbs],
+                           .src = &sums.at[h * near_limbs], .bytes = near_limbs * sizeof(unsigned int));
             }
         }
+        turing_words_released(&sums);
     }
     unsigned int *const device_near = ok ? turing_upload(owned, near_records) : NULL;
+    turing_words_released(&near_records);
     ok = ok && (device_near != NULL);
     sim_check(job, ok, "the near field runs on the device and sums over each point");
 
@@ -3716,26 +4042,27 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
     unsigned int *transform = NULL;
     if (ok)
     {
-        std::vector<unsigned int> index((size_t)(3ull * sets * points), 0u);
+        TuringWords index = turing_words_taken(3ull * sets * points);
         for (unsigned long long set = 0ull; set < sets; set += 1ull)
         {
             for (unsigned long long o = 0ull; o < points; o += 1ull)
             {
                 const long long h = (long long)o - (long long)(points / 2ull);
                 const size_t lane = (size_t)(set * points + o);
-                index[3u * lane] = (unsigned int)(set * local_count + (o >> beta));
-                index[3u * lane + 1u] = (unsigned int)(((h >= near_low) && (h < near_high))
-                                                           ? set * near_points + (unsigned long long)(h - near_low)
-                                                           : sets * near_points);
+                index.at[3u * lane] = (unsigned int)(set * local_count + (o >> beta));
+                index.at[3u * lane + 1u] = (unsigned int)(((h >= near_low) && (h < near_high))
+                                                              ? set * near_points + (unsigned long long)(h - near_low)
+                                                              : sets * near_points);
             }
         }
-        unsigned int *const shared = turing_shared(owned, &eval, std::vector<long long>());
+        unsigned int *const shared = turing_shared(owned, &eval, NULL, 0u);
         transform = turing_alloc(owned, (size_t)(sets * points * values->out_limbs));
         unsigned int *const members[3] = {local, device_near, shared};
         const unsigned long long bodies[3] = {sets * local_count + 1ull, sets * near_points + 1ull, 1ull};
         ok = (shared != NULL) && (transform != NULL) &&
              turing_sweep(&eval, members, bodies, index, sets * points, transform, checked, error, same,
                           TURING_ALSO(points));
+        turing_words_released(&index);
     }
     sim_check(job, ok, "every point's sum of its expansion and near field runs on the device");
 
@@ -3743,13 +4070,12 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
     unsigned int *twiddles = NULL;
     if (ok)
     {
-        unsigned int *const shared = turing_shared(owned, &twiddle, std::vector<long long>());
+        unsigned int *const shared = turing_shared(owned, &twiddle, NULL, 0u);
         twiddles = turing_alloc(owned, (size_t)(points * twiddle.layout.out_limbs));
         unsigned int *const members[3] = {shared, NULL, NULL};
         const unsigned long long bodies[3] = {1ull, 0ull, 0ull};
         ok = (shared != NULL) && (twiddles != NULL) &&
-             turing_sweep(&twiddle, members, bodies, std::vector<unsigned int>(), points, twiddles, checked, error,
-                          same);
+             turing_sweep(&twiddle, members, bodies, turing_no_words, points, twiddles, checked, error, same);
     }
     // two arrays the stages run between, the evaluation's records left behind after the first
     unsigned int *const passes[2] = {ok ? turing_alloc(owned, (size_t)(sets * points * values->out_limbs)) : NULL,
@@ -3757,7 +4083,7 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
     for (unsigned int stage = 0u; ok && (stage < p); stage += 1u)
     {
         const unsigned long long span = 1ull << stage;
-        std::vector<unsigned int> index((size_t)(3ull * sets * points), 0u);
+        TuringWords index = turing_words_taken(3ull * sets * points);
         for (unsigned long long set = 0ull; set < sets; set += 1ull)
         {
             for (unsigned long long o = 0ull; o < points; o += 1ull)
@@ -3768,9 +4094,9 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
                 const unsigned long long at0 = (stage == 0u) ? (j + points / 2ull) % points : j;
                 const unsigned long long at1 = (stage == 0u) ? j : j + points / 2ull;
                 const size_t lane = (size_t)(set * points + o);
-                index[3u * lane] = (unsigned int)(set * points + at0);
-                index[3u * lane + 1u] = (unsigned int)(set * points + at1);
-                index[3u * lane + 2u] = (unsigned int)(k * (points / (2ull * span)) + e * (points / 2ull));
+                index.at[3u * lane] = (unsigned int)(set * points + at0);
+                index.at[3u * lane + 1u] = (unsigned int)(set * points + at1);
+                index.at[3u * lane + 2u] = (unsigned int)(k * (points / (2ull * span)) + e * (points / 2ull));
             }
         }
         unsigned int *const out = passes[stage % 2u];
@@ -3778,14 +4104,23 @@ static unsigned int *turing_os(SimResults *job, TuringOwned *owned, unsigned lon
         const unsigned long long bodies[3] = {sets * points, sets * points, points};
         ok = (out != NULL) &&
              turing_sweep(&fft, members, bodies, index, sets * points, out, checked, error, same, TURING_ALSO(points));
+        turing_words_released(&index);
         transform = out;
     }
     sim_check(job, ok, "the transform's stages run on the device");
 #undef TURING_ALSO
 
-    for (unsigned int at = 0u; at < 10u; at += 1u)
+    turing_signed_released(&below_count);
+    for (unsigned int level = 0u; level < TURING_LEVELS_MAX; level += 1u)
     {
-        report->steps.push_back(stages[at]->layout.steps);
+        turing_signed_released(&multipole_map[level]);
+        turing_signed_released(&local_sum_map[level]);
+    }
+    report->count = 0u;
+    for (unsigned int at = 0u; at < TURING_OS_STAGES; at += 1u)
+    {
+        report->steps[at] = stages[at]->layout.steps;
+        report->count += 1u;
         turing_release(stages[at]);
     }
     return ok ? transform : NULL;
@@ -3953,14 +4288,17 @@ static int turing_job(const char *input, const char *output)
                         turing_read_constant(in, &steep) && (third.sign > 0) && (margin.sign > 0) && (steep.sign > 0)));
     // the listed points j, each below 2^p, a record of two limbs a point, least significant first
     const unsigned int j_limbs = read ? ((unsigned int)header[3] + 2u + 31u) / 32u : 1u;
-    std::vector<unsigned int> listed_j;
+    // the listed points, counted from the header, in a cell that the job gives back at its end
+    TuringWords listed_j = turing_words_taken((read && listed_header) ? (unsigned long long)header[0] * j_limbs : 0ull);
+    listed_j.count = 0ull;
     for (long long k = 0; read && listed_header && (k < header[0]); k += 1)
     {
         long long j = 0;
         read = turing_word(in, &j) && (j >= 0) && (j < (1ll << header[3]));
         for (unsigned int limb = 0u; read && (limb < j_limbs); limb += 1u)
         {
-            listed_j.push_back((unsigned int)(((unsigned long long)j >> (32u * limb)) & 0xFFFFFFFFull));
+            listed_j.at[listed_j.count] = (unsigned int)(((unsigned long long)j >> (32u * limb)) & 0xFFFFFFFFull);
+            listed_j.count += 1ull;
         }
     }
     os.cosine = cosine;
@@ -3969,6 +4307,7 @@ static int turing_job(const char *input, const char *output)
         fprintf(stderr, "  exact_zeta_turing: %s is not an input this program reads\n", input);
         turing_released(input_cell);
         turing_released(constants);
+        turing_words_released(&listed_j);
         return 2;
     }
     const unsigned long long floor_s = (nu * nu) << p;
@@ -4122,8 +4461,7 @@ static int turing_job(const char *input, const char *output)
     ok = ok && (device_pole_shared != NULL) && (device_pole != NULL);
     {
         unsigned int *const members[3] = {device_pole_shared, NULL, NULL};
-        ok = ok && turing_sweep(&pole, members, one, std::vector<unsigned int>(), poles, device_pole, poles, &error,
-                                &host_pole);
+        ok = ok && turing_sweep(&pole, members, one, turing_no_words, poles, device_pole, poles, &error, &host_pole);
     }
     turing_defer(ok, &host_pole, "the pole stage runs and the host's records equal the device's");
     unsigned int *const device_point_shared = ok ? turing_upload_words(&owned, point.shared, point.shared_count) : NULL;
@@ -4135,28 +4473,25 @@ static int turing_job(const char *input, const char *output)
         ok = ok && (!listed_run || (device_listed != NULL));
         unsigned int *const members[3] = {device_point_shared, device_listed, NULL};
         const unsigned long long bodies[3] = {1ull, listed_run ? points : 0ull, 0ull};
-        ok = ok && turing_sweep(&point, members, bodies, std::vector<unsigned int>(), points, device_point, checked,
-                                &error, &host_point);
+        ok = ok &&
+             turing_sweep(&point, members, bodies, turing_no_words, points, device_point, checked, &error, &host_point);
     }
     turing_defer(ok, &host_point, "the point stage runs and the host's records equal the device's");
     marks[1] = turing_now();
 
     // the pair stage, a piece of points at a time, each point's nu lanes summed on the device
-    std::vector<unsigned int> sums((size_t)(points * sum_limbs), 0u);
+    TuringWords sums = turing_words_taken(points * sum_limbs);
     // with the listed points sloped, each point's sums of the sine terms, k^(-1/2) sin(phi) and k^(-1/2) ln k sin(phi)
-    std::vector<unsigned int> sine_sums[2];
-    for (unsigned int at = 0u; pairs_sloped && (at < 2u); at += 1u)
-    {
-        sine_sums[at].assign((size_t)(points * sum_limbs), 0u);
-    }
+    TuringWords sine_sums[2] = {turing_words_taken(pairs_sloped ? points * sum_limbs : 0ull),
+                                turing_words_taken(pairs_sloped ? points * sum_limbs : 0ull)};
     if (pairs_run)
     {
         const DeviceRecordStep *const term_place = ok ? turing_place(&pair, 0u) : NULL;
-        std::vector<unsigned int> index((size_t)(3ull * pair_lanes), 0u);
+        TuringWords index = turing_words_taken(3ull * pair_lanes);
         for (unsigned long long lane = 0ull; lane < pair_lanes; lane += 1ull)
         {
-            index[(size_t)(3ull * lane)] = (unsigned int)(lane % heads);
-            index[(size_t)(3ull * lane + 1ull)] = (unsigned int)(lane / heads);
+            index.at[3ull * lane] = (unsigned int)(lane % heads);
+            index.at[3ull * lane + 1ull] = (unsigned int)(lane / heads);
         }
         unsigned int *const device_index = ok ? turing_upload(&owned, index) : NULL;
         unsigned int *const device_pair_shared = ok ? turing_alloc(&owned, pair.shared_count) : NULL;
@@ -4179,7 +4514,7 @@ static int turing_job(const char *input, const char *output)
                                                term_place->out_offset,
                                                term_place->out_bits,
                                                sum_limbs,
-                                               &sums[(size_t)(start * sum_limbs)],
+                                               &sums.at[start * sum_limbs],
                                                &error};
             ok = ok && (cycle_record_sum(&sum) != CYCLE_ERROR);
             for (unsigned int at = 0u; ok && pairs_sloped && (at < 2u); at += 1u)
@@ -4192,7 +4527,7 @@ static int turing_job(const char *input, const char *output)
                                                     sine_place->out_offset,
                                                     sine_place->out_bits,
                                                     sum_limbs,
-                                                    &sine_sums[at][(size_t)(start * sum_limbs)],
+                                                    &sine_sums[at].at[start * sum_limbs],
                                                     &error};
                 ok = (cycle_record_sum(&sine) != CYCLE_ERROR);
             }
@@ -4200,62 +4535,70 @@ static int turing_job(const char *input, const char *output)
             {
                 // the first piece's records whole, for the host's sums, and its first `checked` points' pairs run on
                 // the host beside the device
-                const std::vector<unsigned int> records =
-                    turing_copy_back(device_pair_out, (size_t)(pair_lanes * pair.layout.out_limbs));
+                TuringWords records = turing_copy_back(device_pair_out, (size_t)(pair_lanes * pair.layout.out_limbs));
                 const unsigned long long tried = checked * heads;
                 // the ring frees the check when its last part settles, and this block frees it where it dispatches none
-                TuringCheck *const check = new TuringCheck;
+                TuringCheck *const check = turing_check_taken();
                 check->layout = pair.layout;
                 check->members[0] = turing_copy_back(device_pole, (size_t)((poles + 1ull) * pole.layout.out_limbs));
                 check->members[1] = turing_copy_back(device_point, (size_t)(points * point.layout.out_limbs));
-                check->members[2].assign(pair.shared, pair.shared + pair.shared_count);
+                check->members[2] = turing_words_taken(pair.shared_count);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = check->members[2].at, .src = pair.shared,
+                           .bytes = pair.shared_count * sizeof(unsigned int));
                 check->bodies[0] = bodies[0];
                 check->bodies[1] = bodies[1];
                 check->bodies[2] = bodies[2];
-                host_pair = !records.empty() && !check->members[0].empty() && !check->members[1].empty();
+                host_pair =
+                    (records.count != 0ull) && (check->members[0].count != 0ull) && (check->members[1].count != 0ull);
                 if (host_pair)
                 {
-                    check->index.assign(index.begin(), index.begin() + (size_t)(3ull * tried));
-                    check->records.assign(records.begin(), records.begin() + (size_t)(tried * pair.layout.out_limbs));
+                    check->index = turing_words_taken(3ull * tried);
+                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = check->index.at, .src = index.at,
+                               .bytes = 3ull * tried * sizeof(unsigned int));
+                    check->records = turing_words_taken(tried * pair.layout.out_limbs);
+                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = check->records.at, .src = records.at,
+                               .bytes = tried * pair.layout.out_limbs * sizeof(unsigned int));
                     check->records_first = 0ull;
                     turing_dispatch(check, 0ull, tried, &host_pair);
                 }
                 else
                 {
-                    delete check;
+                    turing_check_released(check);
                 }
-                std::vector<unsigned int> host_piece((size_t)(piece * sum_limbs), 0u);
-                const CycleRecordSumRequest host_sum = {records.data(),
+                TuringWords host_piece = turing_words_taken(piece * sum_limbs);
+                const CycleRecordSumRequest host_sum = {records.at,
                                                         pair_lanes,
                                                         heads,
                                                         pair.layout.out_limbs,
                                                         term_place->out_offset,
                                                         term_place->out_bits,
                                                         sum_limbs,
-                                                        host_piece.data(),
+                                                        host_piece.at,
                                                         &error};
                 host_sums = (cycle_record_sum_host(&host_sum) != CYCLE_ERROR) &&
-                            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_piece.data(), .other = sums.data(),
-                                        .bytes = host_piece.size() * sizeof(unsigned int)) == 0);
+                            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_piece.at, .other = sums.at,
+                                        .bytes = host_piece.count * sizeof(unsigned int)) == 0);
                 for (unsigned int at = 0u; pairs_sloped && (at < 2u); at += 1u)
                 {
                     const DeviceRecordStep *const sine_place = turing_place(&pair, 1u + at);
-                    const CycleRecordSumRequest host_sine = {records.data(),
+                    const CycleRecordSumRequest host_sine = {records.at,
                                                              pair_lanes,
                                                              heads,
                                                              pair.layout.out_limbs,
                                                              sine_place->out_offset,
                                                              sine_place->out_bits,
                                                              sum_limbs,
-                                                             host_piece.data(),
+                                                             host_piece.at,
                                                              &error};
-                    host_sums =
-                        host_sums && (cycle_record_sum_host(&host_sine) != CYCLE_ERROR) &&
-                        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_piece.data(), .other = sine_sums[at].data(),
-                                    .bytes = host_piece.size() * sizeof(unsigned int)) == 0);
+                    host_sums = host_sums && (cycle_record_sum_host(&host_sine) != CYCLE_ERROR) &&
+                                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_piece.at, .other = sine_sums[at].at,
+                                            .bytes = host_piece.count * sizeof(unsigned int)) == 0);
                 }
+                turing_words_released(&host_piece);
+                turing_words_released(&records);
             }
         }
+        turing_words_released(&index);
         sim_check(&job, ok, "every pair of the cell runs on the device and sums over its point");
         turing_defer(host_sums, &host_pair, "the host's pair records and sums equal the device's word for word");
     }
@@ -4270,14 +4613,15 @@ static int turing_job(const char *input, const char *output)
         device_pole_twist = turing_alloc(&owned, (size_t)((poles + 1ull) * pole_twist.layout.out_limbs));
         ok = (shared != NULL) && (device_pole_twist != NULL);
         unsigned int *const members[3] = {shared, NULL, NULL};
-        ok = ok && turing_sweep(&pole_twist, members, one, std::vector<unsigned int>(), poles, device_pole_twist, poles,
-                                &error, &host_twist);
+        ok = ok && turing_sweep(&pole_twist, members, one, turing_no_words, poles, device_pole_twist, poles, &error,
+                                &host_twist);
     }
 
     // the multiple evaluation. With the twist, it runs over the poles and the weighted poles as two sets of one
     // evaluation. The records of the weighted poles come after those of the poles, where the two have the same layout
     TuringExpansion values, values_twist;
     TuringOsReport report;
+    report.count = 0u;
     unsigned int *device_transform = NULL;
     unsigned int *device_transform_twist = NULL;
     if (ok && transform_run)
@@ -4313,7 +4657,7 @@ static int turing_job(const char *input, const char *output)
 
     marks[3] = turing_now();
     // with the twist: F' / 2^shift from the evaluation over the weighted poles, and the twist stage
-    std::vector<unsigned int> twist_records;
+    TuringWords twist_records = {NULL, 0ull};
     unsigned int *device_twist = NULL;
     if (ok && twisted)
     {
@@ -4336,12 +4680,12 @@ static int turing_job(const char *input, const char *output)
         {
             unsigned int *const twist_members[3] = {device_transform_twist, device_point, NULL};
             const unsigned long long bodies[3] = {points, points, 0ull};
-            ok = ok && turing_sweep(&twist, twist_members, bodies, std::vector<unsigned int>(), points, device_twist,
-                                    checked, &error, &host_twist);
+            ok = ok && turing_sweep(&twist, twist_members, bodies, turing_no_words, points, device_twist, checked,
+                                    &error, &host_twist);
         }
-        twist_records = ok ? turing_copy_back(device_twist, (size_t)(points * twist.layout.out_limbs))
-                           : std::vector<unsigned int>();
-        ok = ok && !twist_records.empty();
+        twist_records =
+            ok ? turing_copy_back(device_twist, (size_t)(points * twist.layout.out_limbs)) : turing_no_words;
+        ok = ok && (twist_records.count != 0ull);
         turing_defer(ok, &host_twist,
                      "the twist runs over the weighted poles and the host's records equal the device's");
     }
@@ -4358,8 +4702,7 @@ static int turing_job(const char *input, const char *output)
         unsigned int *const members[3] = {device_pole + (poles - 1ull) * pole.layout.out_limbs, device_point,
                                           device_em_shared};
         const unsigned long long bodies[3] = {1ull, points, 1ull};
-        ok = ok && turing_sweep(&em, members, bodies, std::vector<unsigned int>(), points, device_em, checked, &error,
-                                &host_em);
+        ok = ok && turing_sweep(&em, members, bodies, turing_no_words, points, device_em, checked, &error, &host_em);
         turing_defer(ok, &host_em, "the Euler-Maclaurin stage runs and the host's records equal the device's");
     }
 
@@ -4391,18 +4734,21 @@ static int turing_job(const char *input, const char *output)
         unsigned int *const members[3] = {transform_run ? device_transform : device_sums,
                                           em_run ? device_em : device_point, device_verdict_shared};
         const unsigned long long bodies[3] = {points, points, 1ull};
-        ok = ok && turing_sweep(&verdict, members, bodies, std::vector<unsigned int>(), points,
+        ok = ok && turing_sweep(&verdict, members, bodies, turing_no_words, points,
                                 device_verdict + TURING_PADS * verdict_limbs, checked, &error, &host_verdict);
     }
     turing_defer(ok, &host_verdict, "the verdict stage runs and the host's records equal the device's");
-    std::vector<unsigned int> verdict_records =
-        ok ? turing_copy_back(device_verdict, (size_t)((points + TURING_PADS) * verdict_limbs))
-           : std::vector<unsigned int>();
-    const std::vector<unsigned int> verdicts(
-        ok ? verdict_records.begin() + TURING_PADS * verdict_limbs : verdict_records.end(), verdict_records.end());
+    TuringWords verdict_records =
+        ok ? turing_copy_back(device_verdict, (size_t)((points + TURING_PADS) * verdict_limbs)) : turing_no_words;
+    // the verdicts past the pads, in the cell of verdict_records [BORROWS]
+    const unsigned long long pad_words = TURING_PADS * verdict_limbs;
+    const TuringWords verdicts = (verdict_records.count > pad_words)
+                                     ? TuringWords{verdict_records.at + pad_words, verdict_records.count - pad_words}
+                                     : turing_no_words;
 
     // both ways at once: the pairs' verdict beside the transform's, and the max their Z differ by
-    std::vector<unsigned int> apart;
+    TuringValue apart;
+    apart.count = 0u;
     if (ok && pairs_run && transform_run)
     {
         (void)turing_built(&verdict_pairs, [&]() {
@@ -4421,16 +4767,17 @@ static int turing_job(const char *input, const char *output)
         unsigned int *const out = ok ? turing_alloc(&owned, (size_t)(points * verdict_pairs.layout.out_limbs)) : NULL;
         unsigned int *const members[3] = {device_sums, device_point, shared};
         const unsigned long long bodies[3] = {points, points, 1ull};
-        ok = ok && (shared != NULL) && (out != NULL) &&
-             turing_sweep(&verdict_pairs, members, bodies, std::vector<unsigned int>(), points, out, checked, &error,
-                          &host_verdict);
-        const std::vector<unsigned int> other =
-            ok ? turing_copy_back(out, (size_t)(points * verdict_pairs.layout.out_limbs)) : std::vector<unsigned int>();
+        ok =
+            ok && (shared != NULL) && (out != NULL) &&
+            turing_sweep(&verdict_pairs, members, bodies, turing_no_words, points, out, checked, &error, &host_verdict);
+        TuringWords other =
+            ok ? turing_copy_back(out, (size_t)(points * verdict_pairs.layout.out_limbs)) : turing_no_words;
         // the largest |Z_transform - Z_pairs| over the cell, as limbs, and where it falls
         if (ok)
         {
             apart = turing_widest(&verdict, verdicts, &verdict_pairs, other, 6u, points);
         }
+        turing_words_released(&other);
     }
 
     // the count stage, over the verdict records at q, q - 1 and q - 2
@@ -4449,18 +4796,20 @@ static int turing_job(const char *input, const char *output)
         unsigned int *const members[3] = {device_verdict + 2u * verdict_limbs, device_verdict + verdict_limbs,
                                           device_verdict};
         const unsigned long long bodies[3] = {points, points, points};
-        ok = ok && turing_sweep(&counted, members, bodies, std::vector<unsigned int>(), points, device_count, checked,
-                                &error, &host_count);
+        ok = ok && turing_sweep(&counted, members, bodies, turing_no_words, points, device_count, checked, &error,
+                                &host_count);
     }
     turing_defer(ok, &host_count, "the count stage runs and the host's records equal the device's");
-    const std::vector<unsigned int> count_records =
-        ok ? turing_copy_back(device_count, (size_t)(points * counted.layout.out_limbs)) : std::vector<unsigned int>();
+    TuringWords count_records =
+        ok ? turing_copy_back(device_count, (size_t)(points * counted.layout.out_limbs)) : turing_no_words;
 
     marks[5] = turing_now();
     // with the listing word 2: Z' at every point, by the twist or by the pairs' sine sums, then each step's hull
     // against the margin. The slope records positioned after one empty record, which point 0's step reads as
     // uncertified
-    std::vector<unsigned int> margin_records, slope_apart;
+    TuringWords margin_records = {NULL, 0ull};
+    TuringValue slope_apart;
+    slope_apart.count = 0u;
     unsigned int *device_margin = NULL;
     if (ok && sloped)
     {
@@ -4469,17 +4818,17 @@ static int turing_job(const char *input, const char *output)
         unsigned int *device_sines = NULL;
         if (pairs_sloped)
         {
-            std::vector<unsigned int> both((size_t)(2ull * points * sum_limbs), 0u);
+            TuringWords both = turing_words_taken(2ull * points * sum_limbs);
             for (unsigned long long lane = 0ull; lane < points; lane += 1ull)
             {
                 for (unsigned int at = 0u; at < 2u; at += 1u)
                 {
-                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &both[(size_t)((2ull * lane + at) * sum_limbs)],
-                               .src = &sine_sums[at][(size_t)(lane * sum_limbs)],
-                               .bytes = sum_limbs * sizeof(unsigned int));
+                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &both.at[(2ull * lane + at) * sum_limbs],
+                               .src = &sine_sums[at].at[lane * sum_limbs], .bytes = sum_limbs * sizeof(unsigned int));
                 }
             }
             device_sines = turing_upload(&owned, both);
+            turing_words_released(&both);
             ok = (device_sines != NULL);
         }
         if (twisted)
@@ -4503,8 +4852,8 @@ static int turing_job(const char *input, const char *output)
             unsigned int *const members[3] = {twisted ? device_twist : device_sines,
                                               device_verdict + TURING_PADS * verdict_limbs, device_point};
             const unsigned long long bodies[3] = {points, points, points};
-            ok = ok && turing_sweep(&slope, members, bodies, std::vector<unsigned int>(), points,
-                                    device_slope + slope_limbs, checked, &error, &host_twist);
+            ok = ok && turing_sweep(&slope, members, bodies, turing_no_words, points, device_slope + slope_limbs,
+                                    checked, &error, &host_twist);
         }
         // with both methods, Z' by the pairs beside Z' by the twist, and the max the two differ by
         if (ok && twisted && pairs_sloped)
@@ -4519,20 +4868,20 @@ static int turing_job(const char *input, const char *output)
             unsigned int *const out = ok ? turing_alloc(&owned, (size_t)(points * slope_pairs.layout.out_limbs)) : NULL;
             unsigned int *const members[3] = {device_sines, device_verdict + TURING_PADS * verdict_limbs, device_point};
             const unsigned long long bodies[3] = {points, points, points};
-            ok = ok && (out != NULL) &&
-                 turing_sweep(&slope_pairs, members, bodies, std::vector<unsigned int>(), points, out, checked, &error,
-                              &host_twist);
-            const std::vector<unsigned int> by_twist =
-                ok ? turing_copy_back(device_slope + slope_limbs, (size_t)(points * slope_limbs))
-                   : std::vector<unsigned int>();
-            const std::vector<unsigned int> by_pairs =
-                ok ? turing_copy_back(out, (size_t)(points * slope_pairs.layout.out_limbs))
-                   : std::vector<unsigned int>();
-            ok = ok && !by_twist.empty() && !by_pairs.empty();
+            ok =
+                ok && (out != NULL) &&
+                turing_sweep(&slope_pairs, members, bodies, turing_no_words, points, out, checked, &error, &host_twist);
+            TuringWords by_twist =
+                ok ? turing_copy_back(device_slope + slope_limbs, (size_t)(points * slope_limbs)) : turing_no_words;
+            TuringWords by_pairs =
+                ok ? turing_copy_back(out, (size_t)(points * slope_pairs.layout.out_limbs)) : turing_no_words;
+            ok = ok && (by_twist.count != 0ull) && (by_pairs.count != 0ull);
             if (ok)
             {
                 slope_apart = turing_widest(&slope, by_twist, &slope_pairs, by_pairs, 2u, points);
             }
+            turing_words_released(&by_twist);
+            turing_words_released(&by_pairs);
         }
         if (ok)
         {
@@ -4553,12 +4902,12 @@ static int turing_job(const char *input, const char *output)
         {
             unsigned int *const members[3] = {device_slope + slope_limbs, device_slope, device_margin_shared};
             const unsigned long long bodies[3] = {points, points + 1ull, 1ull};
-            ok = ok && turing_sweep(&margined, members, bodies, std::vector<unsigned int>(), points, device_margin,
-                                    checked, &error, &host_twist);
+            ok = ok && turing_sweep(&margined, members, bodies, turing_no_words, points, device_margin, checked, &error,
+                                    &host_twist);
         }
-        margin_records = ok ? turing_copy_back(device_margin, (size_t)(points * margined.layout.out_limbs))
-                            : std::vector<unsigned int>();
-        ok = ok && !margin_records.empty();
+        margin_records =
+            ok ? turing_copy_back(device_margin, (size_t)(points * margined.layout.out_limbs)) : turing_no_words;
+        ok = ok && (margin_records.count != 0ull);
         turing_defer(ok, &host_twist, "the slope and margin stages run and the host's records equal the device's");
     }
 
@@ -4567,12 +4916,12 @@ static int turing_job(const char *input, const char *output)
     unsigned long long first = points, last = points;
     for (unsigned long long lane = 0ull; ok && (lane < points); lane += 1ull)
     {
-        const std::vector<unsigned int> sign = turing_output(&verdict, verdicts, lane, 0u);
-        if ((sign[0] != 0u) && (first == points))
+        const TuringValue sign = turing_output(&verdict, verdicts, lane, 0u);
+        if ((sign.limbs[0] != 0u) && (first == points))
         {
             first = lane;
         }
-        if (sign[0] != 0u)
+        if (sign.limbs[0] != 0u)
         {
             last = lane;
         }
@@ -4644,7 +4993,7 @@ static int turing_job(const char *input, const char *output)
         fprintf(out, "programs %u %u\n", turing_loads, turing_reuses);
         fprintf(out, "steps %u %u %u %u %u", pole.layout.steps, point.layout.steps, pairs_run ? pair.layout.steps : 0u,
                 verdict.layout.steps, counted.layout.steps);
-        for (size_t at = 0u; at < report.steps.size(); at += 1u)
+        for (unsigned int at = 0u; at < report.count; at += 1u)
         {
             fprintf(out, " %u", report.steps[at]);
         }
@@ -4653,17 +5002,17 @@ static int turing_job(const char *input, const char *output)
             fprintf(out, " %u", em.layout.steps);
         }
         fprintf(out, "\n");
-        if (!apart.empty())
+        if (apart.count != 0u)
         {
             fprintf(out, "apart");
-            turing_hex(out, apart.data(), (unsigned int)apart.size() - 1u);
-            fprintf(out, " %u\n", apart.back());
+            turing_hex(out, apart.limbs, apart.count - 1u);
+            fprintf(out, " %u\n", apart.limbs[apart.count - 1u]);
         }
-        if (!slope_apart.empty())
+        if (slope_apart.count != 0u)
         {
             fprintf(out, "slope_apart");
-            turing_hex(out, slope_apart.data(), (unsigned int)slope_apart.size() - 1u);
-            fprintf(out, " %u\n", slope_apart.back());
+            turing_hex(out, slope_apart.limbs, slope_apart.count - 1u);
+            fprintf(out, " %u\n", slope_apart.limbs[slope_apart.count - 1u]);
         }
         // each point, where the input asks: its sign, S, Z and `w = exp(i theta) F`, read from its verdict record. With
         // the twist, `exp(i theta) F' / 2^shift` from its twist record. With the listing word 2, last, the flag of the
@@ -4717,6 +5066,14 @@ static int turing_job(const char *input, const char *output)
     turing_release(&margined);
     turing_released(input_cell);
     turing_released(constants);
+    turing_words_released(&listed_j);
+    turing_words_released(&sums);
+    turing_words_released(&sine_sums[0]);
+    turing_words_released(&sine_sums[1]);
+    turing_words_released(&twist_records);
+    turing_words_released(&verdict_records);
+    turing_words_released(&count_records);
+    turing_words_released(&margin_records);
     return sim_close(&job, "exact_zeta_turing");
 }
 
