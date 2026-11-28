@@ -595,50 +595,54 @@ void cli_servers_check_open_clear(void);
 // each file that `server` has open and the check does not take, given to it again, thus it reads it against what
 // changed under it
 void cli_servers_reread_open(const CliServersServerCommandCtx *args);
-// the tree's files the check was given, by their paths in the tree, each ended by a 0, in a cell of their size counted
-// to g_cli_servers_owner, their size into `size`: the cell, or NULL where the check is off or on another tree or the
-// cell cannot be taken; the files a change on the disk named recorded among the tree's files, those no longer there let
-// go, and where the check's word goes into `emit`: 1, or 0 where the check is off or on another tree; and the files
-// `paths`, `count` of them, each with its server, referenced for it, and its language, queued behind those waiting,
-// each once, the check notified it is done where none waits: `count` (servers_check.c)
+// the files of the tree that the check got, by their paths in the tree, each ended by a 0 (servers_check.c). They go in
+// a cell of their size counted to g_cli_servers_owner, with their size into `size`. The return is the cell, or NULL
+// where the check is off or on another tree, or the call cannot take the cell
 char *cli_servers_check_tree_files(const CliServersRootSizeCtx *args);
+// the files that a change on the disk named, recorded among the files of the tree, with those no longer there let go.
+// Where the word of the check goes into `emit`. The return is 1, or 0 where the check is off or on another tree
 int cli_servers_check_files_change(const CliServersFilesCountCtx *args);
+// the files `paths`, `count` of them, each with its server, referenced for it, and its language, queued once each,
+// behind those that wait. Where none waits, the call tells the check that it finished. The return is `count`
 unsigned int cli_servers_check_queue(const CliServersCountCtx *args);
-// the files the editor opens and the check took let go of the check
+// the files that the editor opens and the check took, let go of the check
 void cli_servers_let_go_clear(const CliServersKeyCheckerCtx *args);
-// the check's queue made empty and its taken files let go, as another tree opens
+// the queue of the check made empty, and the files that it took let go, as another tree opens
 void cli_servers_check_let_go(void);
-// the files of `files`, `count` of them, queued for the tree's check, or their servers have them check their projects:
-// how many wait
+// the files of `files`, `count` of them, queued for the check of the tree, or their servers made to check their
+// projects. The return is how many wait
 unsigned int cli_servers_check_files(const CliServersFilesCtx *args);
-// the file at `path` passed by the checker thread `checker` to its server as the disk stores it, or a window of its
-// slices at a time where the server is given the tree's slices, the server queried for its diagnostics or, where it
-// refuses to be queried, waited on to give them, and let go where the check still takes it; a file the editor has open
-// is left to the editor (servers_check_one.c)
+// the file at `path`, passed by the checker thread `checker` to its server as the disk stores it (servers_check_one.c).
+// Where the server gets the slices of the tree, the call passes a window of its slices at a time. The call queries the
+// server for its diagnostics. Where the server refuses the query, the call waits on it to give them. Then it lets the
+// file go, where the check still takes it. The call leaves a file that the editor has open to the editor
 void cli_servers_check_one(const CliServersPathSinkCtx *args);
-// a file a server's first diagnostics wake the check's wait of, by its key
+// the wait of the check on a file, by its key, which the first diagnostics of its server wake
 void cli_servers_wake(const CliServersKeyCheckerCtx *args);
-// the diagnostics `all`, `size` bytes, moved to the lines of the file of `key`, taken by the checker that gathers its
-// diagnostics a window of its slices at a time, in place of those it took last, and its wait woken: 1, or 0 where no
-// checker gathers them, theirs to pass on who received them; and the gathering of the file of `key` ended, as the
-// editor takes it
+// the diagnostics `all`, `size` bytes, moved to the lines of the file of `key`. The checker that gathers its
+// diagnostics a window of its slices at a time takes them, in place of those of last time. Its wait wakes. The return
+// is 1, or 0 where no checker gathers them, and those who got them pass them on
 int cli_servers_gather(const CliServersSizeKeyCtx *args);
+// the collection of the diagnostics of the file of `key`, ended as the editor takes it
 void cli_servers_gathering_end(const CliServersKeyCheckerCtx *args);
-// whether the check lets go of a file whose diagnostics come empty, as it closes it: 1 where they are not passed on
+// whether the check lets go of a file whose diagnostics come empty, as it closes it. The return is 1 where the call
+// does not pass them on
 int cli_servers_letting_go(const CliServersKeyCheckerCtx *args);
-// what the servers' check reaches: the check set on or off, where it reports how far it has gone, and how far, and
-// read back with how many files wait (servers_check.c); a checker made to wait on the file of `key`, whether it was
-// woken since, and the file of `key` let go as the check lets go of one (servers_check_one.c); and whether a line
-// that includes, imports or uses another names `size` bytes of `stem` as a word (servers_changed.c)
+// the check of the servers set on or off, with where it reports how far it went (servers_check.c)
 void cli_servers_check_set(const CliServersSinkCtx *args);
+// how far the check went, read back with how many files wait
 void cli_servers_check_count(const CliServersOnCtx *args);
+// a checker made to wait on the file of `key` (servers_check_one.c)
 void cli_servers_wait_on(const CliServersKeyCheckerCtx *args);
+// whether something woke that checker since
 int cli_servers_was_wake(const CliServersKeyCheckerCtx *args);
+// the file of `key`, let go as the check lets go of one
 void cli_servers_let_go_get(const CliServersKeyCheckerCtx *args);
+// whether a line that includes, imports or uses another names `size` bytes of `stem` as a word (servers_changed.c)
 int cli_servers_line_names(const CliServersSizeLengthCtx *args);
-// the attribute and the class a server's report that a class has no such attribute names, as pyright writes it:
-// `Cannot access attribute "name" for class "Class*"`, each with its size: 1, or 0 where the report is none
-// (servers_emit.c)
+// the attribute and the class that a report of a server names, where a class has no such attribute (servers_emit.c).
+// Pyright writes it as `Cannot access attribute "name" for class "Class*"`. Each comes with its size. The return is 1,
+// or 0 where the report is none
 int cli_servers_attribute_get(const CliServersLengthCtx *args);
 
 struct CliServersPathCtx
