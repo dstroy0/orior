@@ -68,17 +68,21 @@ int program_main(int count, char **arguments)
         sass_operations_take(probe, &s_sass_form);
         sass_machine_listing(&s_sass_machine, &s_sass_form);
     }
-    // The resident, the kernel the host launches, which no question covers. Its PTX already runs and the part's own
-    // compiler turned it into SASS that already runs. What is read here is that SASS: the floor a rearrangement
-    // has to beat, and the operations a whole coherent program needs that no single question reaches.
+    // The resident, the kernel that the host launches, which no question covers. Its PTX already runs, and the own
+    // compiler of the part turned it into SASS that already runs. The call reads that SASS here. It is the floor that a
+    // new arrangement must beat. It also has the operations that a whole coherent program needs and no single question
+    // reaches.
     //
-    // It is listed after the questions, and the order carries weight. A form is keyed by its operation and the types
-    // of its operands: the resident's CALL.ABS.NOINC `(cycle_lane) and the division question's
-    // CALL.ABS.NOINC `(__cuda_sm20_div_u64) are one form, and the first listing seen retains it. The assembler carries
-    // a symbol operand by the text the form was learned with, having no way to write a relocation for another:
-    // whichever call is listed first is the only call that assembles. Listing the resident first took that form and
-    // the division question stopped being writable. That limit on symbol operands is real and is either way;
-    // the order prevents it from costing a question that used to pass
+    // The listing puts it after the questions, and the order is important. The key of a form is its operation and the
+    // types of its operands. Two calls are one form: CALL.ABS.NOINC
+    // `(cycle_lane) in the resident and CALL.ABS.NOINC `(__cuda_sm20_div_u64) in the division question. The first
+    // listing that the call sees keeps the form. The assembler carries a symbol operand by the text that the form came
+    // with, and cannot write a relocation for another. Thus the call that the listing puts first is the only call that
+    // assembles.
+    //
+    // With the resident first, it took that form, and the program could no longer write the division question. That
+    // limit on symbol operands is real in both orders. This order keeps it from the loss of a question that passed
+    // before
     if (sass_list(probe, "resident", &s_sass_resident))
     {
         sass_form_print("the program resident", &s_sass_resident, &s_sass_kernel);
@@ -105,10 +109,10 @@ int program_main(int count, char **arguments)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // every operation one bit from one the listings gave, queried of the disassembler before the fields are found, so
-    // that the widened forms get their operand runs in the same pass
+    // every operation one bit from one that the listings gave. The call queries the disassembler for them before it
+    // finds the fields, so that the widened forms get their operand runs in the same pass
     sass_machine_widen(&s_sass_machine, probe->architecture, probe->folder);
-    // and every operation the part has a coding for at all, queried without starting from a compiler's output
+    // and every operation that the part has any coding for, queried with no start from the output of a compiler
     sass_machine_sweep(&s_sass_machine, probe->architecture, probe->folder);
     // the forms the listings contain and the bits each one's operands sit in, written out for the assembler
     probe->failed += sass_machine_fields(&s_sass_machine, probe->architecture, probe->folder) ? 0u : 1u;
@@ -158,12 +162,16 @@ int program_main(int count, char **arguments)
         platform_line_out_ended();
     }
     probe->failed += (differed == 0u) ? 0u : 1u;
-    // The resident put through the same check, counted apart. Everything above came from a membership question, and
-    // an instruction of one that stops assembling is this assembler breaking. The resident is a whole program the
-    // part's compiler wrote, and it reaches operands no question ever produced - a convergence barrier B0, the
-    // predicate file PR, a uniform predicate UP0, a constant bank past 0, a call to a symbol the form was not
-    // learned with. Those are refused and never guessed at: the reader working. Counting them beside the
-    // questions would read as a break where it is a frontier: they are counted and named on their own
+    // The resident, put through the same check and counted apart. All above came from a membership question. An
+    // instruction of one that no longer assembles is a break of this assembler.
+    //
+    // The resident is a whole program that the compiler of the part wrote, and it reaches operands that no question
+    // ever made. Examples are a convergence barrier B0, the predicate file PR, a uniform predicate UP0 and a constant
+    // bank past 0. Another is a call to a symbol that the form did not come with. The reader refuses those and never
+    // guesses at them, as it must.
+    //
+    // A count of them beside the questions would read as a break where it is a frontier. The call counts and names them
+    // on their own
     SassCheck reached;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &reached, .bytes = sizeof(reached), .val = 0);
     unsigned int resident_differed = 0u;
@@ -190,9 +198,9 @@ int program_main(int count, char **arguments)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // A lane of our own put into the resident's cubin: how a SASS program is built. The resident retains the
-    // code the part's own compiler gave it and only cycle_lane is replaced: what is checked here is that
-    // replacing one function of a cubin leaves the other as it was, byte for byte
+    // A lane of our own, put into the cubin of the resident: how the program builds a SASS program. The resident keeps
+    // the code that the own compiler of the part gave it, and the call replaces only cycle_lane. This checks that a
+    // replacement of one function of a cubin leaves the other as it was, byte for byte
     probe->failed += sass_lane_written(probe) ? 0u : 1u;
     // each kernel written again into a cubin of its own, loaded and run, and its answer same to the toolchain's
     unsigned int cubins = 0u;
@@ -253,9 +261,10 @@ int program_main(int count, char **arguments)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // How this system was queried and what came back. Written beside the machine this run learned, in the run's own
-    // folder, and copied into the tree by a hand the same way the machine is: a test writes nothing into the source
-    // tree, and a record of what the part reported is worth reading before it replaces the one already there
+    // How the program queried this system, and what came back. The call writes it beside the machine that this run
+    // learned, in the own folder of the run. A person copies it into the tree, as with the machine. A test writes
+    // nothing into the source tree. A record of what the part reported is worth a read before it replaces the one
+    // already there
     probe->failed += sass_class_write(probe->folder, s_sass_machine.part) ? 0u : 1u;
     return (probe->failed == 0u) ? 0 : 1;
 }
