@@ -6,8 +6,9 @@
 
 #include "keymath_core_affine.h"
 
-// the bits a form's value needs: with B = |c| + sum |c_i| 2^(b_i), the value is at max B - 1 where any atom is read,
-// since each atom is below 2^(b_i), and at max |c| where none is; B summed in `bound`, KEYMATH_BOUND_LIMBS words
+// the bits that the value of a form needs. With `B = |c| + sum |c_i| 2^(b_i)`, the value is at max `B - 1` where the
+// form reads any atom, because each atom is below `2^(b_i)`. It is at max `|c|` where it reads none. The call sums B in
+// `bound`, KEYMATH_BOUND_LIMBS words
 KEYMATH_CORE unsigned int keymath_core_affine_bits(const KeymathCoreArena *arena, const KeymathCoreAffine *form,
                                                    const EngineRecordTerm *terms, unsigned int *bound)
 {
@@ -52,8 +53,8 @@ KEYMATH_CORE int keymath_core_error(KeymathCoreEncode *encoding, unsigned int en
     return 0;
 }
 
-// Each step's term, width, never-negative mark and linear form, in step order, as keymath_record_encode positions them out:
-// 1 where every step and output succeeds, else 0 with where it ended in `end` and `at`
+// The term, width, never-negative mark and linear form of each step, in step order, as keymath_record_encode arranges
+// them. The return is 1 where every step and output succeeds, else 0, with where it ended in `end` and `at`
 KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
 {
     encoding->end = KEYMATH_CORE_OK;
@@ -140,9 +141,10 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         }
         else if ((doing->operation == ENGINE_RECORD_XOR) || (doing->operation == ENGINE_RECORD_AND))
         {
-            // both operands lie in the signed range of one bit over the wider, and so does any bitwise result there,
-            // down to -2^wider, whose magnitude takes that bit. An and with a register never negative lies between 0
-            // and that register, and the xor of two never negative lies below 2^wider. Neither takes the extra bit.
+            // both operands lie in the signed range of one bit over the wider. Any bitwise result there does too, down
+            // to `-2^wider`, whose magnitude takes that bit. An and with a register that is never negative lies between
+            // 0 and that register. The xor of two that are never negative lies below `2^wider`. Neither takes the extra
+            // bit.
             const unsigned int left_bits = terms[doing->left].bits;
             const unsigned int right_bits = terms[doing->right].bits;
             const unsigned int wider = (left_bits > right_bits) ? left_bits : right_bits;
@@ -169,8 +171,8 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
             {
                 return keymath_core_error(encoding, KEYMATH_CORE_STEP, step);
             }
-            // a register of fewer bits than the wrap already lies in its signed range and passes through; a wider one
-            // lands in [-2^(right - 1), 2^(right - 1)), whose magnitude takes all `right` bits at -2^(right - 1)
+            // a register of fewer bits than the wrap already lies in its signed range, and passes through. A wider one
+            // lands in `[-2^(right - 1), 2^(right - 1))`, whose magnitude takes all `right` bits at `-2^(right - 1)`
             term->bits = (terms[doing->left].bits < doing->right) ? terms[doing->left].bits : doing->right;
             // the one register read is the left, as the absolute's; the width rides in the term's constant
             term->right = doing->left;
@@ -192,8 +194,8 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         }
         else if (doing->operation == ENGINE_RECORD_LANE)
         {
-            // the lane's number is known only at the sweep, and its register represents any lane a sweep can count. It
-            // reads nothing, and the step's left and right name nothing
+            // the number of the lane comes only at the sweep, and its register stands for any lane that a sweep can
+            // count. It reads nothing, and the left and right of the step name nothing
             term->bits = ENGINE_RECORD_LANE_BITS;
             term->left = 0u;
             term->right = 0u;
@@ -203,10 +205,11 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
             return keymath_core_error(encoding, KEYMATH_CORE_STEP, step);
         }
         const int wrap_passes = (doing->operation == ENGINE_RECORD_WRAP) && (terms[doing->left].bits < doing->right);
-        // the register's form: a sum or difference adds its operands', a product by a constant scales the other's, a
-        // constant is its value, and a wrap that passes its register through preserves that register's form. The form's
-        // bound narrows the width the operation's own rule gave where it is tighter. Where a form would outgrow its
-        // words, or for any other register, the register is an atom. A form found no room for leaves the arena full
+        // the form of the register. A sum or difference adds the forms of its operands, and a product by a constant
+        // scales that of the other. A constant is its value, and a wrap that passes its register through keeps the form
+        // of that register. The bound of the form narrows the width that the own rule of the operation gave, where it
+        // is tighter. Where a form would outgrow its words, or for any other register, the register is an atom. A form
+        // with no room leaves the arena full
         KeymathCoreAffine *const form = &encoding->forms[step];
         KeymathCoreArena *const arena = &encoding->arena;
         const unsigned long long begun = arena->used;
@@ -252,7 +255,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         }
         else
         {
-            // the terms a form not formed left on the arena are given back, and the register is an atom
+            // the call gives back the terms that a form not formed left on the arena, and the register is an atom
             arena->used = begun;
             form->constant = 0LL;
             form->first = arena->used;
