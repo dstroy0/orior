@@ -35,8 +35,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <algorithm>
-
 #define RANK_LIST_MAX 25u
 #define RANK_MODES 2u
 #define RANK_ENVELOPE_FIELDS 4u
@@ -92,6 +90,49 @@ typedef struct
     unsigned long long group_count;
 } RankGroups;
 
+// the larger of two counts
+static unsigned int rank_larger(unsigned int one, unsigned int other)
+{
+    return (one > other) ? one : other;
+}
+
+// the smaller of two counts
+static unsigned int rank_smaller(unsigned int one, unsigned int other)
+{
+    return (one < other) ? one : other;
+}
+
+// the order of two record numbers, for memor.sort
+static int rank_number_order(const void *left, const void *right)
+{
+    const unsigned int one = *(const unsigned int *)left;
+    const unsigned int other = *(const unsigned int *)right;
+    return (one < other) ? -1 : ((one > other) ? 1 : 0);
+}
+
+// 1 where `wanted` is among the `count` sorted numbers at `numbers`
+static int rank_number_found(const unsigned int *numbers, unsigned long long count, unsigned int wanted)
+{
+    unsigned long long low = 0ull;
+    unsigned long long high = count;
+    while (low < high)
+    {
+        const unsigned long long middle = low + ((high - low) / 2ull);
+        low = (numbers[middle] < wanted) ? (middle + 1ull) : low;
+        high = (numbers[middle] < wanted) ? high : middle;
+    }
+    return (low < count) && (numbers[low] == wanted);
+}
+
+// the `count` cells at `cells` given back
+static void rank_cells_given(void *const *cells, unsigned int count)
+{
+    for (unsigned int each = 0u; each < count; each += 1u)
+    {
+        rank_cell_released(cells[each]);
+    }
+}
+
 // ---- reading ----
 
 static int rank_hex_read(const char *text, OriorExactInteger *value)
@@ -137,19 +178,6 @@ static int rank_cfg_string(const char *text, const CfgJsonToken *tokens, unsigne
 {
     const unsigned int value = (block != 0u) ? cfg_json_member(text, tokens, block, name) : 0u;
     return (value != 0u) && cfg_json_string(text, &tokens[value], out, RANK_PATH_BYTES);
-}
-
-// a text's id in the set's table of that column, RANK_ABSENT where the set contains no such string
-static unsigned int rank_string_find(const RankSet *set, unsigned int text, const char *wanted)
-{
-    for (size_t each = 0u; each < set->strings[text].size(); each += 1u)
-    {
-        if (set->strings[text][each] == wanted)
-        {
-            return (unsigned int)each;
-        }
-    }
-    return RANK_ABSENT;
 }
 
 static unsigned int rank_terms_merge(const CasmiFormula *formula, const CasmiAdduct *adduct, RankTerm *term)
@@ -318,10 +346,10 @@ static int rank_sum_position(SimResults *results, RankField value, unsigned int 
 // Sums each group's records on the device, three to a lane, pass after pass, until each group is one record. Every
 // group takes every pass, zero records filling a short lane; every sum ends in one layout. A pass positions its lanes'
 // records as three planes, lane l's three records record l of each: the sweep reads them with no index. *summed
-// stores group g's sum at g, then a zero record
+// stores group g's sum at g, then a zero record, a cell of the persistent tier that the caller gives back
 static int rank_group_sum(SimResults *results, const char *name, RankField value, unsigned int value_limbs,
                           const unsigned int *records, unsigned long long record_count, const RankGroups *groups,
-                          std::vector<unsigned int> *summed, RankField *summed_field, unsigned int *summed_limbs,
+                          unsigned int **summed, RankField *summed_field, unsigned int *summed_limbs,
                           unsigned long long *microseconds)
 {
     (void)record_count;
@@ -330,11 +358,21 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
     {
         entry_total += groups->count[group];
     }
-    std::vector<unsigned int> current;
+    // the groups' entries, firsts and counts, cells of the temporary tier that the call gives back. Each pass's sums
+    // are a cell of the persistent tier, and the last of them goes to the caller
+    unsigned int *current = NULL;
     const unsigned int *source = records;
-    std::vector<unsigned int> entry((size_t)entry_total + 1u);
-    std::vector<unsigned long long> first((size_t)groups->group_count + 1u);
-    std::vector<unsigned long long> count((size_t)groups->group_count + 1u);
+    unsigned int *const entry = (unsigned int *)rank_cell(entry_total + 1ull, sizeof(unsigned int), 1);
+    unsigned long long *const first =
+        (unsigned long long *)rank_cell(groups->group_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const count =
+        (unsigned long long *)rank_cell(groups->group_count + 1ull, sizeof(unsigned long long), 1);
+    void *const work[3] = {count, first, entry};
+    if (rank_cells_refused(results))
+    {
+        rank_cells_given(work, 3u);
+        return 0;
+    }
     unsigned long long widest = 0ull;
     entry_total = 0ull;
     for (unsigned long long group = 0ull; group < groups->group_count; group += 1ull)
@@ -360,12 +398,22 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
         RankMachine sum;
         if (!rank_sum_position(results, field, limbs, &sum))
         {
+            rank_cell_released(current);
+            rank_cells_given(work, 3u);
             return 0;
         }
-        std::vector<unsigned int> plane[3];
-        for (unsigned int member = 0u; member < 3u; member += 1u)
+        // the pass's three planes, cells of the temporary tier that the pass gives back
+        unsigned int *const plane[3] = {(unsigned int *)rank_cell(lanes * limbs, sizeof(unsigned int), 1),
+                                        (unsigned int *)rank_cell(lanes * limbs, sizeof(unsigned int), 1),
+                                        (unsigned int *)rank_cell(lanes * limbs, sizeof(unsigned int), 1)};
+        void *const planes[3] = {plane[2], plane[1], plane[0]};
+        if (rank_cells_refused(results))
         {
-            plane[member].assign((size_t)(lanes * limbs), 0u);
+            rank_cells_given(planes, 3u);
+            rank_machine_release(&sum);
+            rank_cell_released(current);
+            rank_cells_given(work, 3u);
+            return 0;
         }
         unsigned long long lane = 0ull;
         widest = 0ull;
@@ -388,23 +436,31 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
             lane += group_lanes;
         }
         const unsigned int out_limbs = sum.layout.out_limbs;
-        std::vector<unsigned int> next((size_t)((lanes + 1ull) * out_limbs), 0u);
-        const unsigned int *const members[ENGINE_RECORD_MEMBERS_MAX] = {plane[0].data(), plane[1].data(),
-                                                                        plane[2].data()};
+        unsigned int *const next = (unsigned int *)rank_cell((lanes + 1ull) * out_limbs, sizeof(unsigned int), 0);
+        const unsigned int *const members[ENGINE_RECORD_MEMBERS_MAX] = {plane[0], plane[1], plane[2]};
         const unsigned long long member_bodies[ENGINE_RECORD_MEMBERS_MAX] = {lanes, lanes, lanes};
-        if (!rank_sweep(results, name, &sum, members, member_bodies, NULL, lanes, next.data(), microseconds))
+        const int swept =
+            (next != NULL) && rank_sweep(results, name, &sum, members, member_bodies, NULL, lanes, next, microseconds);
+        rank_cells_given(planes, 3u);
+        if (!swept)
         {
+            (void)rank_cells_refused(results);
+            rank_cell_released(next);
             rank_machine_release(&sum);
+            rank_cell_released(current);
+            rank_cells_given(work, 3u);
             return 0;
         }
         field = rank_output(&sum, 0u);
         limbs = out_limbs;
         rank_machine_release(&sum);
-        current.swap(next);
-        source = current.data();
+        rank_cell_released(current);
+        current = next;
+        source = current;
         passes += 1u;
     }
-    summed->swap(current);
+    rank_cells_given(work, 3u);
+    *summed = current;
     *summed_field = field;
     *summed_limbs = limbs;
     return 1;
@@ -422,12 +478,23 @@ static int rank_group_best(SimResults *results, const char *name, const RankMach
     {
         entry_total += groups->count[group];
     }
-    std::vector<unsigned int> entry((size_t)entry_total + 1u);
-    std::vector<unsigned long long> first((size_t)groups->group_count + 1u);
-    std::vector<unsigned long long> count((size_t)groups->group_count + 1u);
-    std::vector<unsigned int> index((size_t)entry_total + 2u);
+    // the groups' entries, firsts and counts, the pairs' index and their signs, cells of the temporary tier that the
+    // call gives back
     const unsigned int out_limbs = order->layout.out_limbs;
-    std::vector<unsigned int> signs((size_t)((entry_total / 2ull) + 1ull) * out_limbs);
+    unsigned int *const entry = (unsigned int *)rank_cell(entry_total + 1ull, sizeof(unsigned int), 1);
+    unsigned long long *const first =
+        (unsigned long long *)rank_cell(groups->group_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const count =
+        (unsigned long long *)rank_cell(groups->group_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned int *const index = (unsigned int *)rank_cell(entry_total + 2ull, sizeof(unsigned int), 1);
+    unsigned int *const signs =
+        (unsigned int *)rank_cell(((entry_total / 2ull) + 1ull) * out_limbs, sizeof(unsigned int), 1);
+    void *const work[5] = {signs, index, count, first, entry};
+    if (rank_cells_refused(results))
+    {
+        rank_cells_given(work, 5u);
+        return 0;
+    }
     entry_total = 0ull;
     for (unsigned long long group = 0ull; group < groups->group_count; group += 1ull)
     {
@@ -455,8 +522,9 @@ static int rank_group_best(SimResults *results, const char *name, const RankMach
         }
         const unsigned int *const members[ENGINE_RECORD_MEMBERS_MAX] = {records, records, NULL};
         const unsigned long long member_bodies[ENGINE_RECORD_MEMBERS_MAX] = {record_count, record_count, 0ull};
-        if (!rank_sweep(results, name, order, members, member_bodies, index.data(), lanes, signs.data(), microseconds))
+        if (!rank_sweep(results, name, order, members, member_bodies, index, lanes, signs, microseconds))
         {
+            rank_cells_given(work, 5u);
             return 0;
         }
         unsigned long long lane = 0ull;
@@ -480,6 +548,7 @@ static int rank_group_best(SimResults *results, const char *name, const RankMach
     {
         winner[group] = (count[group] == 0ull) ? RANK_ABSENT : entry[first[group]];
     }
+    rank_cells_given(work, 5u);
     return 1;
 }
 
@@ -611,7 +680,14 @@ int rank_run(SimResults *results, int count, char **arguments)
         envelope_at += envelope_layout.bits[part];
     }
     envelope_layout.limbs = (envelope_at + 31u) / 32u;
-    std::vector<unsigned int> envelope_records((size_t)(RANK_MODES * envelope_layout.limbs), 0u);
+    // The envelopes' records, a cell of the temporary tier. Every table of the run below is one too, and the run gives
+    // them back as it ends, except the lists that grow, which rank_host_room keeps on the persistent tier
+    const unsigned long long envelope_words = (unsigned long long)RANK_MODES * envelope_layout.limbs;
+    unsigned int *const envelope_records = (unsigned int *)rank_cell(envelope_words, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned int mode = 0u; mode < RANK_MODES; mode += 1u)
     {
         for (unsigned int part = 0u; part < RANK_ENVELOPE_FIELDS; part += 1u)
@@ -623,12 +699,12 @@ int rank_run(SimResults *results, int count, char **arguments)
 
     // the train file, and in test the test file read after it, whose spectra are the queries
     static RankSet set;
-    const int train_read = rank_file_load(results, train_path, &set);
-    const unsigned long long set_spectra = set.spectra;
-    if (!train_read || (test && !rank_file_load(results, arguments[5], &set)))
+    const char *const paths[RANK_FILES] = {train_path, test ? arguments[5] : NULL};
+    if (!rank_set_load(results, paths, test ? 2u : 1u, &set))
     {
         return 0;
     }
+    const unsigned long long set_spectra = set.file_spectra[0];
     const unsigned long long spectra = set.spectra;
     if (test)
     {
@@ -638,8 +714,8 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     rank_line_decimal(results, "  read: ", spectra);
     rank_line_decimal(results, " spectra in ", (unsigned long long)set.row_groups);
-    rank_line_decimal(results, " row groups, ", set.mz.bits.size());
-    rank_line_decimal(results, " peaks, ", (unsigned long long)set.strings[RANK_KEY].size());
+    rank_line_decimal(results, " row groups, ", set.mz.values);
+    rank_line_decimal(results, " peaks, ", (unsigned long long)set.strings[RANK_KEY].count);
     rank_line_decimal(results, " structures, by ", engine_clock_microseconds() - s_rank_started);
     mmgr_line_put(&results->line, " us of the run");
     rank_line_end(results);
@@ -651,17 +727,26 @@ int rank_run(SimResults *results, int count, char **arguments)
     int signs_agree = 1;
     for (int column = 0; column < 2; column += 1)
     {
-        const std::vector<unsigned long long> &bits = (column == 0) ? set.precursor.bits : set.mz.bits;
-        for (size_t value = 0u; value < bits.size(); value += 1u)
+        const RankColumn *const stored = (column == 0) ? &set.precursor : &set.mz;
+        const unsigned long long *const bits = stored->bits;
+        for (unsigned long long value = 0ull; value < stored->values; value += 1ull)
         {
             unsigned long long mantissa = 0ull;
             unsigned int exponent = 0u;
             rank_double(bits[value], &mantissa, &exponent);
             signs_agree = signs_agree && ((bits[value] >> RANK_SIGN_BIT) == 0ull) && (exponent <= RANK_UNIT_EXPONENT);
-            two_max = std::max(two_max, RANK_UNIT_EXPONENT - std::min(exponent, RANK_UNIT_EXPONENT));
+            two_max = rank_larger(two_max, RANK_UNIT_EXPONENT - rank_smaller(exponent, RANK_UNIT_EXPONENT));
         }
     }
-    std::vector<unsigned int> intensity_floor((size_t)spectra + 1u, RANK_UNIT_EXPONENT);
+    unsigned int *const intensity_floor = (unsigned int *)rank_cell(spectra + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
+    for (unsigned long long spectrum = 0ull; spectrum <= spectra; spectrum += 1ull)
+    {
+        intensity_floor[spectrum] = RANK_UNIT_EXPONENT;
+    }
     unsigned int shift_max = 0u;
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
@@ -675,14 +760,15 @@ int rank_run(SimResults *results, int count, char **arguments)
             signs_agree = signs_agree && ((set.intensity.bits[value] >> RANK_SIGN_BIT) == 0ull);
             if (mantissa != 0ull)
             {
-                intensity_floor[spectrum] = std::min(intensity_floor[spectrum], exponent);
-                highest = std::max(highest, exponent);
+                intensity_floor[spectrum] = rank_smaller(intensity_floor[spectrum], exponent);
+                highest = rank_larger(highest, exponent);
             }
         }
-        shift_max = std::max(shift_max, (highest > intensity_floor[spectrum]) ? (highest - intensity_floor[spectrum]) : 0u);
+        shift_max =
+            rank_larger(shift_max, (highest > intensity_floor[spectrum]) ? (highest - intensity_floor[spectrum]) : 0u);
     }
-    const unsigned int two_bits = std::max(1u, exact_record_bits_of(two_max));
-    const unsigned int shift_bits = std::max(1u, exact_record_bits_of(shift_max));
+    const unsigned int two_bits = rank_larger(1u, exact_record_bits_of(two_max));
+    const unsigned int shift_bits = rank_larger(1u, exact_record_bits_of(shift_max));
     rank_line_decimal(results, "  bounds: 1075 - E at max ", two_max);
     rank_line_decimal(results, ", an intensity's exponent above its row's least at max ", shift_max);
     rank_line_end(results);
@@ -700,7 +786,17 @@ int rank_run(SimResults *results, int count, char **arguments)
     // each spectrum's mode, the reserved library, and the reference spectra of each structure
     unsigned int mode_of_string[2] = {rank_string_find(&set, RANK_MODE, mode_name[0]),
                                       rank_string_find(&set, RANK_MODE, mode_name[1])};
-    std::vector<unsigned int> mode((size_t)spectra, RANK_ABSENT);
+    // each spectrum's mode, whether it is a query and whether it is a reference, and each structure's first reference
+    const unsigned long long structures = set.strings[RANK_KEY].count;
+    unsigned int *const mode = (unsigned int *)rank_cell(spectra, sizeof(unsigned int), 1);
+    unsigned char *const is_query = (unsigned char *)rank_cell(spectra, 1u, 1);
+    unsigned char *const reference = (unsigned char *)rank_cell(spectra, 1u, 1);
+    unsigned long long *const structure_reference_first =
+        (unsigned long long *)rank_cell(structures + 1ull, sizeof(unsigned long long), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
         const unsigned int named = set.text[RANK_MODE][spectrum];
@@ -716,15 +812,11 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     // each spectrum a query or a reference: in validate the reserved library's spectra and every other, in test the
     // test set's and the set's
-    std::vector<unsigned char> is_query((size_t)spectra, 0u);
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
         is_query[spectrum] =
             (unsigned char)(validate ? (set.text[RANK_LIBRARY][spectrum] == library_query) : (spectrum >= set_spectra));
     }
-    const unsigned long long structures = set.strings[RANK_KEY].size();
-    std::vector<unsigned char> reference((size_t)spectra, 0u);
-    std::vector<unsigned long long> structure_reference_first((size_t)structures + 1u, 0ull);
     unsigned long long reference_count = 0ull;
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
@@ -741,9 +833,16 @@ int rank_run(SimResults *results, int count, char **arguments)
     {
         structure_reference_first[structure + 1ull] += structure_reference_first[structure];
     }
-    std::vector<unsigned int> structure_reference((size_t)reference_count + 1u);
+    unsigned int *const structure_reference =
+        (unsigned int *)rank_cell(reference_count + 1ull, sizeof(unsigned int), 1);
     {
-        std::vector<unsigned long long> filled((size_t)structures + 1u, 0ull);
+        // each structure's references so far, a cell of the temporary tier that the block gives back
+        unsigned long long *const filled =
+            (unsigned long long *)rank_cell(structures + 1ull, sizeof(unsigned long long), 1);
+        if (rank_cells_refused(results))
+        {
+            return 0;
+        }
         for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
         {
             if (reference[spectrum])
@@ -753,6 +852,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                 filled[structure] += 1ull;
             }
         }
+        rank_cell_released(filled);
     }
     rank_line_decimal(results, "  reference spectra: ", reference_count);
     rank_line_end(results);
@@ -760,9 +860,18 @@ int rank_run(SimResults *results, int count, char **arguments)
     // the queries and their molecules: the query spectra of a known mode, grouped by structure in validate and by
     // molecule_id in test
     const unsigned int molecule_text = validate ? RANK_KEY : RANK_MOLECULE;
-    std::vector<unsigned int> query;
-    std::vector<unsigned int> molecule_of_name(set.strings[molecule_text].size() + 1u, RANK_ABSENT);
-    std::vector<unsigned int> molecule_name;
+    const unsigned long long names = set.strings[molecule_text].count;
+    unsigned int *const query = (unsigned int *)rank_cell(spectra + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const molecule_of_name = (unsigned int *)rank_cell(names + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const molecule_name = (unsigned int *)rank_cell(names + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = molecule_of_name, .bytes = (size_t)((names + 1ull) * sizeof(unsigned int)),
+               .val = 0xFF);
+    unsigned long long query_count = 0ull;
+    unsigned long long molecule_count = 0ull;
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
         const unsigned int name = set.text[molecule_text][spectrum];
@@ -772,15 +881,20 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
         if (molecule_of_name[name] == RANK_ABSENT)
         {
-            molecule_of_name[name] = (unsigned int)molecule_name.size();
-            molecule_name.push_back(name);
+            molecule_of_name[name] = (unsigned int)molecule_count;
+            molecule_name[molecule_count] = name;
+            molecule_count += 1ull;
         }
-        query.push_back((unsigned int)spectrum);
+        query[query_count] = (unsigned int)spectrum;
+        query_count += 1ull;
     }
-    const unsigned long long query_count = query.size();
-    const unsigned long long molecule_count = molecule_name.size();
-    std::vector<unsigned long long> molecule_query_first((size_t)molecule_count + 2u, 0ull);
-    std::vector<unsigned int> molecule_query((size_t)query_count + 1u);
+    unsigned long long *const molecule_query_first =
+        (unsigned long long *)rank_cell(molecule_count + 2ull, sizeof(unsigned long long), 1);
+    unsigned int *const molecule_query = (unsigned int *)rank_cell(query_count + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long each = 0ull; each < query_count; each += 1ull)
     {
         molecule_query_first[molecule_of_name[set.text[molecule_text][query[each]]] + 1ull] += 1ull;
@@ -790,13 +904,20 @@ int rank_run(SimResults *results, int count, char **arguments)
         molecule_query_first[molecule + 1ull] += molecule_query_first[molecule];
     }
     {
-        std::vector<unsigned long long> filled((size_t)molecule_count + 1u, 0ull);
+        // each molecule's queries so far, a cell of the temporary tier that the block gives back
+        unsigned long long *const filled =
+            (unsigned long long *)rank_cell(molecule_count + 1ull, sizeof(unsigned long long), 1);
+        if (rank_cells_refused(results))
+        {
+            return 0;
+        }
         for (unsigned long long each = 0ull; each < query_count; each += 1ull)
         {
             const unsigned int molecule = molecule_of_name[set.text[molecule_text][query[each]]];
             molecule_query[molecule_query_first[molecule] + filled[molecule]] = (unsigned int)each;
             filled[molecule] += 1ull;
         }
+        rank_cell_released(filled);
     }
     rank_line_decimal(results, "  queries: ", query_count);
     rank_line_decimal(results, " spectra of ", molecule_count);
@@ -804,42 +925,65 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_end(results);
 
     // the query adducts, each read once
-    std::vector<CasmiAdduct> adduct;
-    std::vector<unsigned int> adduct_name;
-    std::vector<unsigned int> query_adduct((size_t)query_count + 1u, RANK_ABSENT);
+    // the adducts, RANK_ADDUCTS_MAX at max, `adduct_count` of them, and each query's
+    CasmiAdduct *const adduct = (CasmiAdduct *)rank_cell(RANK_ADDUCTS_MAX, sizeof(CasmiAdduct), 1);
+    unsigned int adduct_name[RANK_ADDUCTS_MAX];
+    unsigned int adduct_count = 0u;
+    unsigned int *const query_adduct = (unsigned int *)rank_cell(query_count + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     unsigned long long refused_adduct = 0ull;
     for (unsigned long long each = 0ull; each < query_count; each += 1ull)
     {
         const unsigned int name = set.text[RANK_ADDUCT][query[each]];
-        size_t position = 0u;
-        while ((position < adduct_name.size()) && (adduct_name[position] != name))
+        unsigned int position = 0u;
+        while ((position < adduct_count) && (adduct_name[position] != name))
         {
             position += 1u;
         }
-        if ((position == adduct_name.size()) && (name != RANK_ABSENT) && (position < RANK_ADDUCTS_MAX))
+        if ((position == adduct_count) && (name != RANK_ABSENT) && (position < RANK_ADDUCTS_MAX))
         {
             CasmiAdduct read;
             EMBED_CALL(memor.set, MemoriaCfg, .dst = &read, .bytes = sizeof(read), .val = 0);
-            const std::string &text = set.strings[RANK_ADDUCT][name];
-            const CasmiAdductRead request = {text.data(), text.size(), &read};
+            const CasmiAdductRead request = {rank_string(&set, RANK_ADDUCT, name),
+                                             (size_t)rank_string_length(&set, RANK_ADDUCT, name), &read};
             if (casmi_adduct_read(&request) == ENGINE_BYTES_ERROR)
             {
                 read.charge = 0ll;
             }
-            adduct.push_back(read);
-            adduct_name.push_back(name);
+            adduct[adduct_count] = read;
+            adduct_name[adduct_count] = name;
+            adduct_count += 1u;
         }
-        const int readable = (position < adduct.size()) && (adduct[position].charge != 0ll);
+        const int readable = (position < adduct_count) && (adduct[position].charge != 0ll);
         query_adduct[each] = readable ? (unsigned int)position : RANK_ABSENT;
         refused_adduct += readable ? 0ull : 1ull;
     }
-    rank_line_decimal(results, "  query adducts: ", adduct.size());
+    rank_line_decimal(results, "  query adducts: ", adduct_count);
     rank_line_decimal(results, " read; query spectra whose adduct was refused ", refused_adduct);
     rank_line_end(results);
 
     // the candidate formulas: every structure containing a reference spectrum, its formula the first its spectra name
-    std::vector<unsigned int> formula_of_structure((size_t)structures + 1u, RANK_ABSENT);
-    std::vector<unsigned int> formula_text_of_structure((size_t)structures + 1u, RANK_ABSENT);
+    const unsigned long long formula_texts = set.strings[RANK_FORMULA].count;
+    unsigned int *const formula_of_structure = (unsigned int *)rank_cell(structures + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const formula_text_of_structure =
+        (unsigned int *)rank_cell(structures + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const window_of_text = (unsigned int *)rank_cell(formula_texts + 1ull, sizeof(unsigned int), 1);
+    CasmiFormula *const formula = (CasmiFormula *)rank_cell(formula_texts + 1ull, sizeof(CasmiFormula), 1);
+    unsigned int *const formula_text = (unsigned int *)rank_cell(formula_texts + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = formula_of_structure,
+               .bytes = (size_t)((structures + 1ull) * sizeof(unsigned int)), .val = 0xFF);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = formula_text_of_structure,
+               .bytes = (size_t)((structures + 1ull) * sizeof(unsigned int)), .val = 0xFF);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = window_of_text,
+               .bytes = (size_t)((formula_texts + 1ull) * sizeof(unsigned int)), .val = 0xFF);
+    unsigned long long formula_count = 0ull;
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
         const unsigned int structure = set.text[RANK_KEY][spectrum];
@@ -848,10 +992,6 @@ int rank_run(SimResults *results, int count, char **arguments)
             formula_text_of_structure[structure] = set.text[RANK_FORMULA][spectrum];
         }
     }
-    const unsigned long long formula_texts = set.strings[RANK_FORMULA].size();
-    std::vector<unsigned int> window_of_text((size_t)formula_texts + 1u, RANK_ABSENT);
-    std::vector<CasmiFormula> formula;
-    std::vector<unsigned int> formula_text;
     unsigned long long candidate_structures = 0ull;
     unsigned long long refused_formula = 0ull;
     for (unsigned long long structure = 0ull; structure < structures; structure += 1ull)
@@ -867,18 +1007,19 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             CasmiFormula read;
             EMBED_CALL(memor.set, MemoriaCfg, .dst = &read, .bytes = sizeof(read), .val = 0);
-            const std::string &formula_entry = set.strings[RANK_FORMULA][text];
-            const CasmiFormulaRead request = {formula_entry.data(), formula_entry.size(), &read};
-            int good = !formula_entry.empty() && (casmi_formula_read(&request) >= 0ll) && (read.element_count > 0u);
+            const unsigned long long formula_length = rank_string_length(&set, RANK_FORMULA, text);
+            const CasmiFormulaRead request = {rank_string(&set, RANK_FORMULA, text), (size_t)formula_length, &read};
+            int good = (formula_length != 0ull) && (casmi_formula_read(&request) >= 0ll) && (read.element_count > 0u);
             for (unsigned int element = 0u; good && (element < read.element_count); element += 1u)
             {
                 good = read.count[element] >= 0ll;
             }
             if (good)
             {
-                window_of_text[text] = (unsigned int)formula.size();
-                formula.push_back(read);
-                formula_text.push_back(text);
+                window_of_text[text] = (unsigned int)formula_count;
+                formula[formula_count] = read;
+                formula_text[formula_count] = text;
+                formula_count += 1ull;
             }
             else
             {
@@ -889,8 +1030,12 @@ int rank_run(SimResults *results, int count, char **arguments)
         const unsigned int named = window_of_text[text];
         formula_of_structure[structure] = (named < (RANK_ABSENT - 1u)) ? named : RANK_ABSENT;
     }
-    const unsigned long long formula_count = formula.size();
-    std::vector<unsigned long long> formula_structure_first((size_t)formula_count + 2u, 0ull);
+    unsigned long long *const formula_structure_first =
+        (unsigned long long *)rank_cell(formula_count + 2ull, sizeof(unsigned long long), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long structure = 0ull; structure < structures; structure += 1ull)
     {
         if (formula_of_structure[structure] != RANK_ABSENT)
@@ -902,9 +1047,16 @@ int rank_run(SimResults *results, int count, char **arguments)
     {
         formula_structure_first[each + 1ull] += formula_structure_first[each];
     }
-    std::vector<unsigned int> formula_structure((size_t)formula_structure_first[formula_count] + 1u);
+    unsigned int *const formula_structure =
+        (unsigned int *)rank_cell(formula_structure_first[formula_count] + 1ull, sizeof(unsigned int), 1);
     {
-        std::vector<unsigned long long> filled((size_t)formula_count + 1u, 0ull);
+        // each formula's structures so far, a cell of the temporary tier that the block gives back
+        unsigned long long *const filled =
+            (unsigned long long *)rank_cell(formula_count + 1ull, sizeof(unsigned long long), 1);
+        if (rank_cells_refused(results))
+        {
+            return 0;
+        }
         for (unsigned long long structure = 0ull; structure < structures; structure += 1ull)
         {
             const unsigned int each = formula_of_structure[structure];
@@ -914,6 +1066,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                 filled[each] += 1ull;
             }
         }
+        rank_cell_released(filled);
     }
     rank_line_decimal(results, "  candidate structures: ", candidate_structures);
     rank_line_decimal(results, "; formulas read ", formula_count);
@@ -931,24 +1084,24 @@ int rank_run(SimResults *results, int count, char **arguments)
     unsigned int formula_bits = 1u;
     unsigned int adduct_bits = 1u;
     unsigned int mass_bits = 1u;
-    for (size_t position = 0u; position < adduct.size(); position += 1u)
+    for (unsigned int position = 0u; position < adduct_count; position += 1u)
     {
         if (adduct[position].charge == 0ll)
         {
             continue;
         }
-        molecules_bits = std::max(molecules_bits, rank_magnitude_bits(adduct[position].molecules));
-        charge_bits = std::max(charge_bits, rank_magnitude_bits(adduct[position].charge));
+        molecules_bits = rank_larger(molecules_bits, rank_magnitude_bits(adduct[position].molecules));
+        charge_bits = rank_larger(charge_bits, rank_magnitude_bits(adduct[position].charge));
         for (unsigned long long each = 0ull; each < formula_count; each += 1ull)
         {
             RankTerm term[RANK_TERMS_MAX];
             const unsigned int terms = rank_terms_merge(&formula[each], &adduct[position], term);
-            terms_max = std::max(terms_max, terms);
+            terms_max = rank_larger(terms_max, terms);
             for (unsigned int entry = 0u; entry < terms; entry += 1u)
             {
-                mass_bits = std::max(mass_bits, rank_magnitude_bits(isotope[term[entry].isotope].mass));
-                formula_bits = std::max(formula_bits, rank_magnitude_bits(term[entry].formula));
-                adduct_bits = std::max(adduct_bits, rank_magnitude_bits(term[entry].adduct));
+                mass_bits = rank_larger(mass_bits, rank_magnitude_bits(isotope[term[entry].isotope].mass));
+                formula_bits = rank_larger(formula_bits, rank_magnitude_bits(term[entry].formula));
+                adduct_bits = rank_larger(adduct_bits, rank_magnitude_bits(term[entry].adduct));
             }
         }
     }
@@ -1040,22 +1193,37 @@ int rank_run(SimResults *results, int count, char **arguments)
     const RankField window_low = rank_output(&window, 1u);
 
     // ion and window, one adduct at a time: the formulas inside each query's window, in formula order
-    std::vector<unsigned long long> inside_first((size_t)query_count + 1u, 0ull);
-    std::vector<unsigned long long> inside_count((size_t)query_count + 1u, 0ull);
-    std::vector<unsigned int> inside;
-    std::vector<unsigned int> ion_atoms((size_t)((formula_count + 1ull) * ion_atom_limbs), 0u);
-    std::vector<unsigned int> ion_records((size_t)((formula_count + 1ull) * ion.layout.out_limbs), 0u);
+    // The formulas inside each query's window, a list that grows by the device's verdicts. The ion's records, and a
+    // chunk's queries and their precursor records at the most queries a chunk holds
+    unsigned long long *const inside_first =
+        (unsigned long long *)rank_cell(query_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const inside_count =
+        (unsigned long long *)rank_cell(query_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned int *inside = NULL;
+    unsigned long long inside_used = 0ull;
+    unsigned long long inside_room = 0ull;
+    const unsigned long long ion_words = (formula_count + 1ull) * ion_atom_limbs;
+    unsigned int *const ion_atoms = (unsigned int *)rank_cell(ion_words, sizeof(unsigned int), 1);
+    unsigned int *const ion_records =
+        (unsigned int *)rank_cell((formula_count + 1ull) * ion.layout.out_limbs, sizeof(unsigned int), 1);
+    const unsigned long long queries_max = (RANK_CHUNK_LANES / (formula_count + 1ull)) + 1ull;
+    const unsigned long long chunk_queries = (queries_max < query_count) ? queries_max : query_count;
+    unsigned int *const window_atoms =
+        (unsigned int *)rank_cell(chunk_queries * precursor_limbs, sizeof(unsigned int), 1);
+    unsigned int *const window_query = (unsigned int *)rank_cell(chunk_queries, sizeof(unsigned int), 1);
+    ok = !rank_cells_refused(results);
     RankTally ion_tally = {0ull, 0ull};
     RankTally window_tally = {0ull, 0ull};
     unsigned long long ion_against_c = 0ull;
     unsigned long long window_mixed = 0ull;
-    for (size_t position = 0u; ok && (position < adduct.size()); position += 1u)
+    for (unsigned int position = 0u; ok && (position < adduct_count); position += 1u)
     {
         if (adduct[position].charge == 0ll)
         {
             continue;
         }
-        std::fill(ion_atoms.begin(), ion_atoms.end(), 0u);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = ion_atoms, .bytes = (size_t)(ion_words * sizeof(unsigned int)),
+                   .val = 0);
         for (unsigned long long each = 0ull; each < formula_count; each += 1ull)
         {
             unsigned int *const atom = &ion_atoms[each * ion_atom_limbs];
@@ -1082,9 +1250,9 @@ int rank_run(SimResults *results, int count, char **arguments)
                 at += mass_bits + 1u;
             }
         }
-        const unsigned int *const ion_in[ENGINE_RECORD_MEMBERS_MAX] = {ion_atoms.data(), NULL, NULL};
+        const unsigned int *const ion_in[ENGINE_RECORD_MEMBERS_MAX] = {ion_atoms, NULL, NULL};
         const unsigned long long ion_bodies[ENGINE_RECORD_MEMBERS_MAX] = {formula_count, 0ull, 0ull};
-        ok = rank_sweep(results, "ion", &ion, ion_in, ion_bodies, NULL, formula_count, ion_records.data(),
+        ok = rank_sweep(results, "ion", &ion, ion_in, ion_bodies, NULL, formula_count, ion_records,
                         &ion_tally.microseconds);
         ion_tally.lanes += formula_count;
         // the engine's own C sum beside the record machine's, for every formula
@@ -1102,12 +1270,10 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
         // the queries of this adduct against every formula, as many at a time as fill a chunk
         unsigned long long each = 0ull;
-        const unsigned long long queries_max = (RANK_CHUNK_LANES / (formula_count + 1ull)) + 1ull;
         while (ok && (each < query_count))
         {
-            std::vector<unsigned int> query_atoms;
-            std::vector<unsigned int> window_query;
-            while ((each < query_count) && (window_query.size() < queries_max))
+            unsigned long long taken = 0ull;
+            while ((each < query_count) && (taken < queries_max))
             {
                 if (query_adduct[each] == position)
                 {
@@ -1115,44 +1281,49 @@ int rank_run(SimResults *results, int count, char **arguments)
                     unsigned long long mantissa = 0ull;
                     unsigned int exponent = 0u;
                     rank_double(set.precursor.bits[set.precursor.row_start[spectrum]], &mantissa, &exponent);
-                    const size_t base_at = query_atoms.size();
-                    query_atoms.resize(base_at + precursor_limbs, 0u);
-                    rank_put_unsigned(&query_atoms[base_at], 0u, RANK_MANTISSA_FIELD_BITS, mantissa);
-                    rank_put_unsigned(&query_atoms[base_at], 64u, RANK_EXPONENT_BITS, exponent);
-                    window_query.push_back((unsigned int)each);
+                    unsigned int *const atom = &window_atoms[taken * precursor_limbs];
+                    EMBED_CALL(memor.set, MemoriaCfg, .dst = atom, .bytes = precursor_limbs * sizeof(unsigned int),
+                               .val = 0);
+                    rank_put_unsigned(atom, 0u, RANK_MANTISSA_FIELD_BITS, mantissa);
+                    rank_put_unsigned(atom, 64u, RANK_EXPONENT_BITS, exponent);
+                    window_query[taken] = (unsigned int)each;
+                    taken += 1ull;
                 }
                 each += 1ull;
             }
-            const unsigned long long taken = window_query.size();
             if (taken == 0ull)
             {
                 continue;
             }
-            std::vector<unsigned int> index;
-            index.reserve((size_t)(3ull * taken * formula_count));
-            for (unsigned long long local = 0ull; local < taken; local += 1ull)
+            // the chunk's index and signs, cells of the temporary tier that the chunk gives back
+            const unsigned long long lanes = taken * formula_count;
+            unsigned int *const index = (unsigned int *)rank_cell(3ull * lanes, sizeof(unsigned int), 1);
+            unsigned int *const signs =
+                (unsigned int *)rank_cell((lanes + 1ull) * window.layout.out_limbs, sizeof(unsigned int), 1);
+            ok = !rank_cells_refused(results);
+            unsigned long long index_at = 0ull;
+            for (unsigned long long local = 0ull; ok && (local < taken); local += 1ull)
             {
                 const unsigned int query_mode = mode[query[window_query[local]]];
                 for (unsigned long long candidate = 0ull; candidate < formula_count; candidate += 1ull)
                 {
-                    index.push_back((unsigned int)local);
-                    index.push_back((unsigned int)candidate);
-                    index.push_back(query_mode);
+                    index[index_at] = (unsigned int)local;
+                    index[index_at + 1ull] = (unsigned int)candidate;
+                    index[index_at + 2ull] = query_mode;
+                    index_at += 3ull;
                 }
             }
-            const unsigned long long lanes = taken * formula_count;
-            std::vector<unsigned int> signs((size_t)((lanes + 1ull) * window.layout.out_limbs), 0u);
-            const unsigned int *const window_in[ENGINE_RECORD_MEMBERS_MAX] = {query_atoms.data(), ion_records.data(),
-                                                                             envelope_records.data()};
+            const unsigned int *const window_in[ENGINE_RECORD_MEMBERS_MAX] = {window_atoms, ion_records,
+                                                                              envelope_records};
             const unsigned long long window_bodies[ENGINE_RECORD_MEMBERS_MAX] = {taken, formula_count, RANK_MODES};
-            ok = rank_sweep(results, "window", &window, window_in, window_bodies, index.data(), lanes, signs.data(),
-                            &window_tally.microseconds);
+            ok = ok && rank_sweep(results, "window", &window, window_in, window_bodies, index, lanes, signs,
+                                  &window_tally.microseconds);
             window_tally.lanes += lanes;
             unsigned long long lane = 0ull;
             for (unsigned long long local = 0ull; ok && (local < taken); local += 1ull)
             {
                 const unsigned int formula_entry = window_query[local];
-                inside_first[formula_entry] = inside.size();
+                inside_first[formula_entry] = inside_used;
                 for (unsigned long long candidate = 0ull; candidate < formula_count; candidate += 1ull)
                 {
                     const unsigned int *const record = &signs[lane * window.layout.out_limbs];
@@ -1161,12 +1332,20 @@ int rank_run(SimResults *results, int count, char **arguments)
                     window_mixed += ((high == 0) || (low == 0)) ? 1ull : 0ull;
                     if ((high < 0) && (low > 0))
                     {
-                        inside.push_back((unsigned int)candidate);
-                        inside_count[formula_entry] += 1ull;
+                        ok = ok && rank_host_room((void **)&inside, &inside_room, inside_used + 1ull, inside_used,
+                                                  sizeof(unsigned int));
+                        if (ok)
+                        {
+                            inside[inside_used] = (unsigned int)candidate;
+                            inside_used += 1ull;
+                            inside_count[formula_entry] += 1ull;
+                        }
                     }
                     lane += 1ull;
                 }
             }
+            rank_cell_released(signs);
+            rank_cell_released(index);
         }
     }
     rank_machine_release(&ion);
@@ -1184,7 +1363,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     {
         queries_empty += (inside_count[each] == 0ull) ? 1ull : 0ull;
     }
-    rank_line_decimal(results, "  window: (query, formula) inside ", inside.size());
+    rank_line_decimal(results, "  window: (query, formula) inside ", inside_used);
     rank_line_decimal(results, "; queries containing none ", queries_empty);
     rank_line_decimal(results, "; signs of 0 ", window_mixed);
     rank_line_end(results);
@@ -1277,33 +1456,57 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_end(results);
 
     // match: each query's peaks against every peak of every reference spectrum its window names, same mode
-    std::vector<unsigned int> matched;
-    std::vector<unsigned int> matched_group_first;
-    std::vector<unsigned int> pair_query;
-    std::vector<unsigned int> pair_spectrum;
-    std::vector<unsigned int> pair_group_first;
-    std::vector<unsigned long long> query_pair_first((size_t)query_count + 1u, 0ull);
-    std::vector<unsigned long long> query_pair_count((size_t)query_count + 1u, 0ull);
+    // The retained records and their (pair, query peak) groups, and the pairs: lists that grow by the device's
+    // verdicts. A query's reference spectra, a chunk's spectra, and a chunk's retained lanes and records, cells that
+    // grow to the most any of them holds
+    unsigned int *matched = NULL;
+    unsigned long long matched_used = 0ull;
+    unsigned long long matched_room = 0ull;
+    unsigned int *matched_group_first = NULL;
+    unsigned long long group_used = 0ull;
+    unsigned long long group_room = 0ull;
+    unsigned int *pair_query = NULL;
+    unsigned int *pair_spectrum = NULL;
+    unsigned int *pair_group_first = NULL;
+    unsigned long long pair_used = 0ull;
+    unsigned long long pair_rooms[3] = {0ull, 0ull, 0ull};
+    unsigned long long *const query_pair_first =
+        (unsigned long long *)rank_cell(query_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const query_pair_count =
+        (unsigned long long *)rank_cell(query_count + 1ull, sizeof(unsigned long long), 1);
     RankTally match_tally = {0ull, 0ull};
     RankMatchDevice match_device;
-    ok = rank_match_open(&match_device, envelope_records.data(), envelope_records.size());
-    std::vector<unsigned int> matched_lanes;
-    std::vector<unsigned int> matched_records;
+    ok = !rank_cells_refused(results) && rank_match_open(&match_device, envelope_records, envelope_words);
+    unsigned int *matched_lanes = NULL;
+    unsigned long long lanes_room = 0ull;
+    unsigned int *matched_records = NULL;
+    unsigned long long records_room = 0ull;
+    unsigned long long retained = 0ull;
+    unsigned int *query_reference = NULL;
+    unsigned long long query_reference_room = 0ull;
+    unsigned int *chunk = NULL;
+    unsigned long long chunk_room = 0ull;
     for (unsigned long long each = 0ull; ok && (each < query_count); each += 1ull)
     {
         const unsigned int spectrum_q = query[each];
         const unsigned int query_mode = mode[spectrum_q];
         const unsigned long long query_peaks = set.mz.row_start[spectrum_q + 1ull] - set.mz.row_start[spectrum_q];
-        query_pair_first[each] = pair_query.size();
+        query_pair_first[each] = pair_used;
         if ((query_peaks == 0ull) || (inside_count[each] == 0ull))
         {
             continue;
         }
-        std::vector<unsigned int> query_atoms((size_t)(query_peaks * peak_layout.limbs), 0u);
-        peak_put(spectrum_q, query_atoms.data());
-        ok = rank_match_query(&match_device, query_atoms.data(), query_atoms.size());
-        std::vector<unsigned int> query_reference;
-        for (unsigned long long position = 0ull; position < inside_count[each]; position += 1ull)
+        // the query's peaks, a cell of the temporary tier that the query gives back
+        unsigned int *const query_atoms =
+            (unsigned int *)rank_cell(query_peaks * peak_layout.limbs, sizeof(unsigned int), 1);
+        ok = !rank_cells_refused(results);
+        if (ok)
+        {
+            peak_put(spectrum_q, query_atoms);
+        }
+        ok = ok && rank_match_query(&match_device, query_atoms, (size_t)(query_peaks * peak_layout.limbs));
+        unsigned long long reference_used = 0ull;
+        for (unsigned long long position = 0ull; ok && (position < inside_count[each]); position += 1ull)
         {
             const unsigned int named = inside[inside_first[each] + position];
             for (unsigned long long at = formula_structure_first[named]; at < formula_structure_first[named + 1ull];
@@ -1315,41 +1518,57 @@ int rank_run(SimResults *results, int count, char **arguments)
                 {
                     const unsigned int spectrum = structure_reference[spectrum_at];
                     const unsigned long long peaks = set.mz.row_start[spectrum + 1ull] - set.mz.row_start[spectrum];
-                    if ((mode[spectrum] == query_mode) && (peaks > 0ull))
+                    if (ok && (mode[spectrum] == query_mode) && (peaks > 0ull))
                     {
-                        query_reference.push_back(spectrum);
+                        ok = rank_host_room((void **)&query_reference, &query_reference_room, reference_used + 1ull,
+                                            reference_used, sizeof(unsigned int));
+                        if (ok)
+                        {
+                            query_reference[reference_used] = spectrum;
+                            reference_used += 1ull;
+                        }
                     }
                 }
             }
         }
-        size_t start = 0u;
-        while (ok && (start < query_reference.size()))
+        unsigned long long start = 0ull;
+        while (ok && (start < reference_used))
         {
             // a chunk: reference spectra until their lanes would pass the chunk, at least one
-            std::vector<unsigned int> chunk;
+            unsigned long long chunk_used = 0ull;
             unsigned long long lanes = 0ull;
             unsigned long long reference_peaks = 0ull;
-            while (start < query_reference.size())
+            while (ok && (start < reference_used))
             {
                 const unsigned int spectrum = query_reference[start];
                 const unsigned long long peaks = set.mz.row_start[spectrum + 1ull] - set.mz.row_start[spectrum];
-                if (!chunk.empty() && ((lanes + (query_peaks * peaks)) > RANK_CHUNK_LANES))
+                if ((chunk_used != 0ull) && ((lanes + (query_peaks * peaks)) > RANK_CHUNK_LANES))
                 {
                     break;
                 }
-                chunk.push_back(spectrum);
+                ok = rank_host_room((void **)&chunk, &chunk_room, chunk_used + 1ull, chunk_used, sizeof(unsigned int));
+                if (ok)
+                {
+                    chunk[chunk_used] = spectrum;
+                    chunk_used += 1ull;
+                }
                 lanes += query_peaks * peaks;
                 reference_peaks += peaks;
-                start += 1u;
+                start += 1ull;
             }
-            // the chunk's peaks, and each spectrum's first lane, first peak and peak count
-            std::vector<unsigned int> reference_atoms((size_t)(reference_peaks * peak_layout.limbs) + 1u, 0u);
-            std::vector<unsigned long long> lane_first(chunk.size() + 1u);
-            std::vector<unsigned int> atom_first(chunk.size());
-            std::vector<unsigned int> chunk_peaks(chunk.size());
+            // the chunk's peaks, and each spectrum's first lane, first peak and peak count, cells of the temporary tier
+            // that the chunk gives back
+            unsigned int *const reference_atoms =
+                (unsigned int *)rank_cell((reference_peaks * peak_layout.limbs) + 1ull, sizeof(unsigned int), 1);
+            unsigned long long *const lane_first =
+                (unsigned long long *)rank_cell(chunk_used + 1ull, sizeof(unsigned long long), 1);
+            unsigned int *const atom_first = (unsigned int *)rank_cell(chunk_used, sizeof(unsigned int), 1);
+            unsigned int *const chunk_peaks = (unsigned int *)rank_cell(chunk_used, sizeof(unsigned int), 1);
+            void *const chunk_cells[4] = {chunk_peaks, atom_first, lane_first, reference_atoms};
+            ok = ok && !rank_cells_refused(results);
             unsigned long long atom = 0ull;
             unsigned long long lane_at = 0ull;
-            for (size_t local = 0u; local < chunk.size(); local += 1u)
+            for (unsigned long long local = 0ull; ok && (local < chunk_used); local += 1ull)
             {
                 const unsigned int spectrum = chunk[local];
                 const unsigned long long peaks = set.mz.row_start[spectrum + 1ull] - set.mz.row_start[spectrum];
@@ -1360,63 +1579,88 @@ int rank_run(SimResults *results, int count, char **arguments)
                 lane_at += query_peaks * peaks;
                 atom += peaks;
             }
-            lane_first[chunk.size()] = lane_at;
-            const RankMatchChunk run = {&match,
-                                        match_field,
-                                        reference_atoms.data(),
-                                        reference_peaks,
-                                        lane_first.data(),
-                                        atom_first.data(),
-                                        chunk_peaks.data(),
-                                        chunk.size(),
-                                        query_peaks,
-                                        RANK_MODES,
-                                        query_mode,
-                                        lanes};
-            ok = rank_match_chunk(results, &match_device, &run, &matched_lanes, &matched_records,
-                                  &match_tally.microseconds);
+            if (ok)
+            {
+                lane_first[chunk_used] = lane_at;
+            }
+            const RankMatchChunk run = {&match,      match_field, reference_atoms, reference_peaks,
+                                        lane_first,  atom_first,  chunk_peaks,     (size_t)chunk_used,
+                                        query_peaks, RANK_MODES,  query_mode,      lanes};
+            retained = 0ull;
+            ok = ok && rank_match_chunk(results, &match_device, &run, &matched_lanes, &lanes_room, &matched_records,
+                                        &records_room, &retained, &match_tally.microseconds);
             match_tally.lanes += lanes;
             // each retained lane, least first: its spectrum and query peak from the chunk's first lanes; a spectrum's
             // retained lanes are one pair, and a run of one (spectrum, query peak) is one group
-            size_t local = 0u;
-            size_t open_spectrum = chunk.size();
+            unsigned long long local = 0ull;
+            unsigned long long open_spectrum = chunk_used;
             unsigned long long open_peak = ~0ull;
-            for (size_t matched_at = 0u; ok && (matched_at < matched_lanes.size()); matched_at += 1u)
+            for (unsigned long long matched_at = 0ull; ok && (matched_at < retained); matched_at += 1ull)
             {
                 const unsigned long long lane = matched_lanes[matched_at];
-                while (lane >= lane_first[local + 1u])
+                while (lane >= lane_first[local + 1ull])
                 {
-                    local += 1u;
+                    local += 1ull;
                 }
                 const unsigned long long query_peak = (lane - lane_first[local]) / chunk_peaks[local];
                 if (local != open_spectrum)
                 {
-                    pair_query.push_back((unsigned int)each);
-                    pair_spectrum.push_back(chunk[local]);
-                    pair_group_first.push_back((unsigned int)matched_group_first.size());
+                    ok = rank_host_room((void **)&pair_query, &pair_rooms[0], pair_used + 1ull, pair_used,
+                                        sizeof(unsigned int)) &&
+                         rank_host_room((void **)&pair_spectrum, &pair_rooms[1], pair_used + 1ull, pair_used,
+                                        sizeof(unsigned int)) &&
+                         rank_host_room((void **)&pair_group_first, &pair_rooms[2], pair_used + 1ull, pair_used,
+                                        sizeof(unsigned int));
+                    if (!ok)
+                    {
+                        break;
+                    }
+                    pair_query[pair_used] = (unsigned int)each;
+                    pair_spectrum[pair_used] = chunk[local];
+                    pair_group_first[pair_used] = (unsigned int)group_used;
+                    pair_used += 1ull;
                     query_pair_count[each] += 1ull;
                     open_spectrum = local;
                     open_peak = ~0ull;
                 }
                 if (query_peak != open_peak)
                 {
-                    matched_group_first.push_back((unsigned int)(matched.size() / match_limbs));
+                    ok = rank_host_room((void **)&matched_group_first, &group_room, group_used + 1ull, group_used,
+                                        sizeof(unsigned int));
+                    if (!ok)
+                    {
+                        break;
+                    }
+                    matched_group_first[group_used] = (unsigned int)(matched_used / match_limbs);
+                    group_used += 1ull;
                     open_peak = query_peak;
                 }
-                const unsigned int *const record = &matched_records[matched_at * match_limbs];
-                matched.insert(matched.end(), record, record + match_limbs);
+                ok = rank_host_room((void **)&matched, &matched_room, matched_used + match_limbs, matched_used,
+                                    sizeof(unsigned int));
+                if (ok)
+                {
+                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &matched[matched_used],
+                               .src = &matched_records[matched_at * match_limbs],
+                               .bytes = match_limbs * sizeof(unsigned int));
+                    matched_used += match_limbs;
+                }
             }
+            rank_cells_given(chunk_cells, 4u);
         }
+        rank_cell_released(query_atoms);
     }
     rank_match_close(&match_device);
     rank_machine_release(&match);
+    void *const match_cells[4] = {chunk, query_reference, matched_records, matched_lanes};
+    rank_cells_given(match_cells, 4u);
     if (!ok)
     {
+        (void)rank_cells_refused(results);
         return 0;
     }
-    const unsigned long long matched_count = matched.size() / match_limbs;
-    const unsigned long long pair_count = pair_query.size();
-    const unsigned long long peak_group_count = matched_group_first.size();
+    const unsigned long long matched_count = matched_used / match_limbs;
+    const unsigned long long pair_count = pair_used;
+    const unsigned long long peak_group_count = group_used;
     rank_tally_line(results, "match", &match_tally);
     rank_line_decimal(results, "  match: pairs containing a matched peak ", pair_count);
     rank_line_decimal(results, "; (pair, query peak) groups ", peak_group_count);
@@ -1426,10 +1670,16 @@ int rank_run(SimResults *results, int count, char **arguments)
     // peak: each (pair, query peak) group's heaviest weight
     RankMachine value_order;
     ok = rank_value_order_position(results, weight_field, match_limbs, &value_order);
-    std::vector<unsigned long long> peak_first((size_t)peak_group_count + 1u);
-    std::vector<unsigned long long> peak_count((size_t)peak_group_count + 1u);
-    std::vector<unsigned int> matched_entry((size_t)matched_count + 1u);
-    std::vector<unsigned int> peak_winner((size_t)peak_group_count + 1u);
+    unsigned long long *const peak_first =
+        (unsigned long long *)rank_cell(peak_group_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const peak_count =
+        (unsigned long long *)rank_cell(peak_group_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned int *const matched_entry = (unsigned int *)rank_cell(matched_count + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const peak_winner = (unsigned int *)rank_cell(peak_group_count + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long group = 0ull; group < peak_group_count; group += 1ull)
     {
         peak_first[group] = matched_group_first[group];
@@ -1441,15 +1691,21 @@ int rank_run(SimResults *results, int count, char **arguments)
         matched_entry[record] = (unsigned int)record;
     }
     RankTally peak_tally = {0ull, 0ull};
-    const RankGroups peak_groups = {peak_first.data(), peak_count.data(), matched_entry.data(), peak_group_count};
-    ok = ok && rank_group_best(results, "peak", &value_order, rank_output(&value_order, 0u), matched.data(), matched_count,
-                               &peak_groups, peak_winner.data(), &peak_tally.microseconds);
+    const RankGroups peak_groups = {peak_first, peak_count, matched_entry, peak_group_count};
+    ok = ok && rank_group_best(results, "peak", &value_order, rank_output(&value_order, 0u), matched, matched_count,
+                               &peak_groups, peak_winner, &peak_tally.microseconds);
     rank_machine_release(&value_order);
     rank_tally_line(results, "peak tournament", &peak_tally);
 
     // sum: M per pair, the sum of its query peaks' retained weights
-    std::vector<unsigned long long> pair_first((size_t)pair_count + 1u);
-    std::vector<unsigned long long> pair_peaks((size_t)pair_count + 1u);
+    unsigned long long *const pair_first =
+        (unsigned long long *)rank_cell(pair_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const pair_peaks =
+        (unsigned long long *)rank_cell(pair_count + 1ull, sizeof(unsigned long long), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long pair = 0ull; pair < pair_count; pair += 1ull)
     {
         pair_first[pair] = pair_group_first[pair];
@@ -1457,35 +1713,47 @@ int rank_run(SimResults *results, int count, char **arguments)
         pair_peaks[pair] = past - pair_first[pair];
     }
     RankTally weight_tally = {0ull, 0ull};
-    const RankGroups pair_groups = {pair_first.data(), pair_peaks.data(), peak_winner.data(), pair_count};
-    std::vector<unsigned int> weight_sums;
-    RankField weight_sum_field;
+    const RankGroups pair_groups = {pair_first, pair_peaks, peak_winner, pair_count};
+    unsigned int *weight_sums = NULL;
+    RankField weight_sum_field = {0u, 0u};
     unsigned int weight_sum_limbs = 0u;
-    ok = ok && rank_group_sum(results, "weight", weight_field, match_limbs, matched.data(), matched_count, &pair_groups,
+    ok = ok && rank_group_sum(results, "weight", weight_field, match_limbs, matched, matched_count, &pair_groups,
                               &weight_sums, &weight_sum_field, &weight_sum_limbs, &weight_tally.microseconds);
     rank_tally_line(results, "weight sums", &weight_tally);
 
     // norm: Q and R, the sum of I^2 over each spectrum a pair names
-    std::vector<unsigned int> norm_of_reference((size_t)spectra + 1u, RANK_ABSENT);
-    std::vector<unsigned int> norm_of_query((size_t)query_count + 1u, RANK_ABSENT);
-    std::vector<unsigned int> norm_spectrum;
+    // each pair names two spectra, and so the spectra of the norms number twice the pairs at max
+    unsigned int *const norm_of_reference = (unsigned int *)rank_cell(spectra + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const norm_of_query = (unsigned int *)rank_cell(query_count + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const norm_spectrum = (unsigned int *)rank_cell((2ull * pair_count) + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = norm_of_reference,
+               .bytes = (size_t)((spectra + 1ull) * sizeof(unsigned int)), .val = 0xFF);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = norm_of_query,
+               .bytes = (size_t)((query_count + 1ull) * sizeof(unsigned int)), .val = 0xFF);
+    unsigned long long norm_used = 0ull;
     for (unsigned long long pair = 0ull; pair < pair_count; pair += 1ull)
     {
         const unsigned int pair_query_at = pair_query[pair];
         const unsigned int pair_reference = pair_spectrum[pair];
         if (norm_of_query[pair_query_at] == RANK_ABSENT)
         {
-            norm_of_query[pair_query_at] = (unsigned int)norm_spectrum.size();
-            norm_spectrum.push_back(query[pair_query_at]);
+            norm_of_query[pair_query_at] = (unsigned int)norm_used;
+            norm_spectrum[norm_used] = query[pair_query_at];
+            norm_used += 1ull;
         }
         if (norm_of_reference[pair_reference] == RANK_ABSENT)
         {
-            norm_of_reference[pair_reference] = (unsigned int)norm_spectrum.size();
-            norm_spectrum.push_back(pair_reference);
+            norm_of_reference[pair_reference] = (unsigned int)norm_used;
+            norm_spectrum[norm_used] = pair_reference;
+            norm_used += 1ull;
         }
     }
     unsigned long long norm_peaks = 0ull;
-    for (size_t each = 0u; each < norm_spectrum.size(); each += 1u)
+    for (unsigned long long each = 0ull; each < norm_used; each += 1ull)
     {
         norm_peaks += set.mz.row_start[norm_spectrum[each] + 1ull] - set.mz.row_start[norm_spectrum[each]];
     }
@@ -1506,12 +1774,19 @@ int rank_run(SimResults *results, int count, char **arguments)
         ok = ok && rank_machine_load(results, "norm", &program, &square, 1u, 1u, limbs, &norm);
         exact_record_close(&program);
     }
-    std::vector<unsigned int> norm_atoms((size_t)((norm_peaks + 1ull) * peak_layout.limbs), 0u);
-    std::vector<unsigned long long> norm_first(norm_spectrum.size() + 1u);
-    std::vector<unsigned long long> norm_count(norm_spectrum.size() + 1u);
-    std::vector<unsigned int> norm_entry((size_t)norm_peaks + 1u);
+    unsigned int *const norm_atoms =
+        (unsigned int *)rank_cell((norm_peaks + 1ull) * peak_layout.limbs, sizeof(unsigned int), 1);
+    unsigned long long *const norm_first =
+        (unsigned long long *)rank_cell(norm_used + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const norm_count =
+        (unsigned long long *)rank_cell(norm_used + 1ull, sizeof(unsigned long long), 1);
+    unsigned int *const norm_entry = (unsigned int *)rank_cell(norm_peaks + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     unsigned long long norm_atom = 0ull;
-    for (size_t each = 0u; each < norm_spectrum.size(); each += 1u)
+    for (unsigned long long each = 0ull; each < norm_used; each += 1ull)
     {
         const unsigned int spectrum = norm_spectrum[each];
         const unsigned long long peaks = set.mz.row_start[spectrum + 1ull] - set.mz.row_start[spectrum];
@@ -1525,20 +1800,22 @@ int rank_run(SimResults *results, int count, char **arguments)
         norm_atom += peaks;
     }
     const unsigned int norm_limbs = ok ? norm.layout.out_limbs : 1u;
-    std::vector<unsigned int> norm_squares((size_t)((norm_peaks + 1ull) * norm_limbs), 0u);
+    unsigned int *const norm_squares =
+        (unsigned int *)rank_cell((norm_peaks + 1ull) * norm_limbs, sizeof(unsigned int), 1);
+    ok = ok && !rank_cells_refused(results);
     RankTally square_tally = {norm_peaks, 0ull};
-    const unsigned int *const norm_in[ENGINE_RECORD_MEMBERS_MAX] = {norm_atoms.data(), NULL, NULL};
+    const unsigned int *const norm_in[ENGINE_RECORD_MEMBERS_MAX] = {norm_atoms, NULL, NULL};
     const unsigned long long norm_bodies[ENGINE_RECORD_MEMBERS_MAX] = {norm_peaks, 0ull, 0ull};
-    ok = ok && rank_sweep(results, "norm", &norm, norm_in, norm_bodies, NULL, norm_peaks, norm_squares.data(),
+    ok = ok && rank_sweep(results, "norm", &norm, norm_in, norm_bodies, NULL, norm_peaks, norm_squares,
                           &square_tally.microseconds);
-    const RankField square_field = ok ? rank_output(&norm, 0u) : RankField();
+    const RankField square_field = ok ? rank_output(&norm, 0u) : RankField{0u, 0u};
     rank_machine_release(&norm);
     RankTally norm_tally = {0ull, 0ull};
-    const RankGroups norm_groups = {norm_first.data(), norm_count.data(), norm_entry.data(), norm_spectrum.size()};
-    std::vector<unsigned int> norm_sums;
-    RankField norm_sum_field;
+    const RankGroups norm_groups = {norm_first, norm_count, norm_entry, norm_used};
+    unsigned int *norm_sums = NULL;
+    RankField norm_sum_field = {0u, 0u};
     unsigned int norm_sum_limbs = 0u;
-    ok = ok && rank_group_sum(results, "norm", square_field, norm_limbs, norm_squares.data(), norm_peaks, &norm_groups,
+    ok = ok && rank_group_sum(results, "norm", square_field, norm_limbs, norm_squares, norm_peaks, &norm_groups,
                               &norm_sums, &norm_sum_field, &norm_sum_limbs, &norm_tally.microseconds);
     rank_tally_line(results, "norm squares", &square_tally);
     rank_tally_line(results, "norm sums", &norm_tally);
@@ -1560,8 +1837,12 @@ int rank_run(SimResults *results, int count, char **arguments)
         exact_record_close(&program);
     }
     const unsigned int score_limbs = ok ? score.layout.out_limbs : 1u;
-    std::vector<unsigned int> score_index((size_t)(3ull * pair_count) + 3u);
-    std::vector<unsigned int> scores((size_t)((pair_count + 1ull) * score_limbs), 0u);
+    unsigned int *const score_index = (unsigned int *)rank_cell((3ull * pair_count) + 3ull, sizeof(unsigned int), 1);
+    unsigned int *const scores = (unsigned int *)rank_cell((pair_count + 1ull) * score_limbs, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long pair = 0ull; pair < pair_count; pair += 1ull)
     {
         score_index[3ull * pair] = (unsigned int)pair;
@@ -1569,14 +1850,13 @@ int rank_run(SimResults *results, int count, char **arguments)
         score_index[(3ull * pair) + 2ull] = norm_of_reference[pair_spectrum[pair]];
     }
     RankTally score_tally = {pair_count, 0ull};
-    const unsigned int *const score_in[ENGINE_RECORD_MEMBERS_MAX] = {weight_sums.data(), norm_sums.data(),
-                                                                    norm_sums.data()};
-    const unsigned long long score_bodies[ENGINE_RECORD_MEMBERS_MAX] = {pair_count + 1ull, norm_spectrum.size() + 1ull,
-                                                                       norm_spectrum.size() + 1ull};
-    ok = ok && rank_sweep(results, "score", &score, score_in, score_bodies, score_index.data(), pair_count, scores.data(),
+    const unsigned int *const score_in[ENGINE_RECORD_MEMBERS_MAX] = {weight_sums, norm_sums, norm_sums};
+    const unsigned long long score_bodies[ENGINE_RECORD_MEMBERS_MAX] = {pair_count + 1ull, norm_used + 1ull,
+                                                                        norm_used + 1ull};
+    ok = ok && rank_sweep(results, "score", &score, score_in, score_bodies, score_index, pair_count, scores,
                           &score_tally.microseconds);
-    const RankField score_numerator = ok ? rank_output(&score, 0u) : RankField();
-    const RankField score_denominator = ok ? rank_output(&score, 1u) : RankField();
+    const RankField score_numerator = ok ? rank_output(&score, 0u) : RankField{0u, 0u};
+    const RankField score_denominator = ok ? rank_output(&score, 1u) : RankField{0u, 0u};
     rank_machine_release(&score);
     rank_tally_line(results, "score", &score_tally);
     RankMachine ratio_order;
@@ -1588,16 +1868,27 @@ int rank_run(SimResults *results, int count, char **arguments)
     const RankField order_sign = rank_output(&ratio_order, 0u);
 
     // structure: each (molecule, structure) group's heaviest pair
-    std::vector<unsigned int> structure_group((size_t)structures + 1u, RANK_ABSENT);
-    std::vector<unsigned int> group_structure;
-    std::vector<unsigned int> group_entry;
-    std::vector<unsigned long long> molecule_group_first((size_t)molecule_count + 2u, 0ull);
-    std::vector<unsigned int> group_first_list;
-    std::vector<unsigned int> group_count_list;
+    // A group holds a pair at least, and each pair is of one query and so of one molecule. The groups and their entries
+    // therefore number the pairs at max
+    unsigned int *const structure_group = (unsigned int *)rank_cell(structures + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const group_structure = (unsigned int *)rank_cell(pair_count + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const group_entry = (unsigned int *)rank_cell(pair_count + 1ull, sizeof(unsigned int), 1);
+    unsigned long long *const molecule_group_first =
+        (unsigned long long *)rank_cell(molecule_count + 2ull, sizeof(unsigned long long), 1);
+    unsigned int *const group_first_list = (unsigned int *)rank_cell(pair_count + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const group_count_list = (unsigned int *)rank_cell(pair_count + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = structure_group,
+               .bytes = (size_t)((structures + 1ull) * sizeof(unsigned int)), .val = 0xFF);
+    unsigned long long structure_groups_used = 0ull;
+    unsigned long long entry_used = 0ull;
     for (unsigned long long molecule = 0ull; molecule < molecule_count; molecule += 1ull)
     {
-        molecule_group_first[molecule] = group_structure.size();
-        const size_t base = group_structure.size();
+        molecule_group_first[molecule] = structure_groups_used;
+        const unsigned long long base = structure_groups_used;
         for (unsigned long long at = molecule_query_first[molecule]; at < molecule_query_first[molecule + 1ull]; at += 1ull)
         {
             const unsigned int formula_entry = molecule_query[at];
@@ -1607,21 +1898,22 @@ int rank_run(SimResults *results, int count, char **arguments)
                 const unsigned int structure = set.text[RANK_KEY][pair_spectrum[pair]];
                 if (structure_group[structure] == RANK_ABSENT)
                 {
-                    structure_group[structure] = (unsigned int)(group_structure.size() - base);
-                    group_structure.push_back(structure);
-                    group_count_list.push_back(0u);
+                    structure_group[structure] = (unsigned int)(structure_groups_used - base);
+                    group_structure[structure_groups_used] = structure;
+                    group_count_list[structure_groups_used] = 0u;
+                    structure_groups_used += 1ull;
                 }
                 group_count_list[base + structure_group[structure]] += 1u;
             }
         }
-        unsigned int running = (unsigned int)group_entry.size();
-        for (size_t group = base; group < group_structure.size(); group += 1u)
+        unsigned int running = (unsigned int)entry_used;
+        for (unsigned long long group = base; group < structure_groups_used; group += 1ull)
         {
-            group_first_list.push_back(running);
+            group_first_list[group] = running;
             running += group_count_list[group];
         }
-        group_entry.resize(running, 0u);
-        for (size_t group = base; group < group_structure.size(); group += 1u)
+        entry_used = running;
+        for (unsigned long long group = base; group < structure_groups_used; group += 1ull)
         {
             group_count_list[group] = 0u;
         }
@@ -1632,40 +1924,53 @@ int rank_run(SimResults *results, int count, char **arguments)
                  pair < (query_pair_first[formula_entry] + query_pair_count[formula_entry]); pair += 1ull)
             {
                 const unsigned int structure = set.text[RANK_KEY][pair_spectrum[pair]];
-                const size_t group = base + structure_group[structure];
+                const unsigned long long group = base + structure_group[structure];
                 group_entry[group_first_list[group] + group_count_list[group]] = (unsigned int)pair;
                 group_count_list[group] += 1u;
             }
         }
-        for (size_t group = base; group < group_structure.size(); group += 1u)
+        for (unsigned long long group = base; group < structure_groups_used; group += 1ull)
         {
             structure_group[group_structure[group]] = RANK_ABSENT;
         }
     }
-    molecule_group_first[molecule_count] = group_structure.size();
-    const unsigned long long group_count = group_structure.size();
-    std::vector<unsigned long long> structure_first((size_t)group_count + 1u);
-    std::vector<unsigned long long> structure_count((size_t)group_count + 1u);
-    std::vector<unsigned int> structure_winner((size_t)group_count + 1u);
+    molecule_group_first[molecule_count] = structure_groups_used;
+    const unsigned long long group_count = structure_groups_used;
+    unsigned long long *const structure_first =
+        (unsigned long long *)rank_cell(group_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const structure_count =
+        (unsigned long long *)rank_cell(group_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned int *const structure_winner = (unsigned int *)rank_cell(group_count + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long group = 0ull; group < group_count; group += 1ull)
     {
         structure_first[group] = group_first_list[group];
         structure_count[group] = group_count_list[group];
     }
     RankTally structure_tally = {0ull, 0ull};
-    const RankGroups structure_groups = {structure_first.data(), structure_count.data(), group_entry.data(), group_count};
-    ok = rank_group_best(results, "structure", &ratio_order, order_sign, scores.data(), pair_count, &structure_groups,
-                         structure_winner.data(), &structure_tally.microseconds);
+    const RankGroups structure_groups = {structure_first, structure_count, group_entry, group_count};
+    ok = rank_group_best(results, "structure", &ratio_order, order_sign, scores, pair_count, &structure_groups,
+                         structure_winner, &structure_tally.microseconds);
     rank_tally_line(results, "structure tournament", &structure_tally);
 
     // list: per molecule, repeated tournaments over its structures' winning pairs, heaviest first
-    std::vector<unsigned long long> list_first((size_t)molecule_count + 1u);
-    std::vector<unsigned long long> list_count((size_t)molecule_count + 1u);
-    std::vector<unsigned int> list_entry((size_t)group_count + 1u);
-    std::vector<unsigned int> list_group((size_t)group_count + 1u);
-    std::vector<unsigned int> list_winner((size_t)molecule_count + 1u);
-    std::vector<unsigned int> chosen((size_t)(molecule_count * RANK_LIST_MAX) + 1u);
-    std::vector<unsigned int> chosen_count((size_t)molecule_count + 1u, 0u);
+    unsigned long long *const list_first =
+        (unsigned long long *)rank_cell(molecule_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned long long *const list_count =
+        (unsigned long long *)rank_cell(molecule_count + 1ull, sizeof(unsigned long long), 1);
+    unsigned int *const list_entry = (unsigned int *)rank_cell(group_count + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const list_group = (unsigned int *)rank_cell(group_count + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const list_winner = (unsigned int *)rank_cell(molecule_count + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const chosen =
+        (unsigned int *)rank_cell((molecule_count * RANK_LIST_MAX) + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const chosen_count = (unsigned int *)rank_cell(molecule_count + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
     for (unsigned long long molecule = 0ull; molecule < molecule_count; molecule += 1ull)
     {
         list_first[molecule] = molecule_group_first[molecule];
@@ -1680,9 +1985,9 @@ int rank_run(SimResults *results, int count, char **arguments)
     RankTally list_tally = {0ull, 0ull};
     for (unsigned int pick = 0u; ok && (pick < RANK_LIST_MAX); pick += 1u)
     {
-        const RankGroups list_groups = {list_first.data(), list_count.data(), list_entry.data(), molecule_count};
-        ok = rank_group_best(results, "list", &ratio_order, order_sign, scores.data(), pair_count, &list_groups,
-                             list_winner.data(), &list_tally.microseconds);
+        const RankGroups list_groups = {list_first, list_count, list_entry, molecule_count};
+        ok = rank_group_best(results, "list", &ratio_order, order_sign, scores, pair_count, &list_groups, list_winner,
+                             &list_tally.microseconds);
         for (unsigned long long molecule = 0ull; ok && (molecule < molecule_count); molecule += 1ull)
         {
             if (list_winner[molecule] == RANK_ABSENT)
@@ -1716,8 +2021,19 @@ int rank_run(SimResults *results, int count, char **arguments)
     // the answer's place in it. In test the list's SMILES, each structure's from its first reference spectrum that
     // contains one, written as the molecule's line of the submission
     FILE *submission = NULL;
-    std::vector<unsigned int> structure_smiles((size_t)structures + 1u, RANK_ABSENT);
-    std::vector<unsigned char> molecule_written(set.strings[RANK_MOLECULE].size() + 1u, 0u);
+    const unsigned long long molecule_names = set.strings[RANK_MOLECULE].count;
+    unsigned int *const structure_smiles = (unsigned int *)rank_cell(structures + 1ull, sizeof(unsigned int), 1);
+    unsigned char *const molecule_written = (unsigned char *)rank_cell(molecule_names + 1ull, 1u, 1);
+    // each structure's mark, and a molecule's candidates, each structure once, and the room their sort takes
+    unsigned char *const structure_mark = (unsigned char *)rank_cell(structures + 1ull, 1u, 1);
+    unsigned int *const candidate = (unsigned int *)rank_cell(structures + 1ull, sizeof(unsigned int), 1);
+    unsigned int *const candidate_room = (unsigned int *)rank_cell(structures + 1ull, sizeof(unsigned int), 1);
+    if (rank_cells_refused(results))
+    {
+        return 0;
+    }
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = structure_smiles,
+               .bytes = (size_t)((structures + 1ull) * sizeof(unsigned int)), .val = 0xFF);
     if (test)
     {
         for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
@@ -1739,7 +2055,6 @@ int rank_run(SimResults *results, int count, char **arguments)
         fprintf(submission, "molecule_id,smiles\n");
     }
     unsigned long long given_none = 0ull;
-    std::vector<unsigned char> structure_mark((size_t)structures + 1u, 0u);
     unsigned long long rank_counts[RANK_LIST_MAX + 1u];
     EMBED_CALL(memor.set, MemoriaCfg, .dst = rank_counts, .bytes = sizeof(rank_counts), .val = 0);
     unsigned long long truth_no_reference = 0ull;
@@ -1748,7 +2063,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     unsigned long long truth_isomer = 0ull;
     for (unsigned long long molecule = 0ull; molecule < molecule_count; molecule += 1ull)
     {
-        std::vector<unsigned int> candidate;
+        unsigned long long candidate_count = 0ull;
         for (unsigned long long at = molecule_query_first[molecule]; at < molecule_query_first[molecule + 1ull]; at += 1ull)
         {
             const unsigned int formula_entry = molecule_query[at];
@@ -1762,12 +2077,14 @@ int rank_run(SimResults *results, int count, char **arguments)
                     if (structure_mark[structure] == 0u)
                     {
                         structure_mark[structure] = 1u;
-                        candidate.push_back(structure);
+                        candidate[candidate_count] = structure;
+                        candidate_count += 1ull;
                     }
                 }
             }
         }
-        std::sort(candidate.begin(), candidate.end());
+        EMBED_CALL(memor.sort, MemoriaCfg, .dst = candidate, .bytes = sizeof(unsigned int), .scratch = candidate_room,
+                   .count = candidate_count, .order = rank_number_order);
         unsigned int list[RANK_LIST_MAX];
         unsigned int listed = 0u;
         for (unsigned int place = 0u; place < chosen_count[molecule]; place += 1u)
@@ -1782,7 +2099,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             structure_mark[group_structure[group]] = 2u;
         }
-        for (size_t each = 0u; (each < candidate.size()) && (listed < RANK_LIST_MAX); each += 1u)
+        for (unsigned long long each = 0ull; (each < candidate_count) && (listed < RANK_LIST_MAX); each += 1ull)
         {
             if (structure_mark[candidate[each]] == 1u)
             {
@@ -1794,13 +2111,13 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             // the molecule's id, then its list's SMILES joined by ';', or C where it lists none
             unsigned int written = 0u;
-            fprintf(submission, "%s,", set.strings[RANK_MOLECULE][molecule_name[molecule]].c_str());
+            fprintf(submission, "%s,", rank_string(&set, RANK_MOLECULE, molecule_name[molecule]));
             for (unsigned int at = 0u; at < listed; at += 1u)
             {
                 const unsigned int smiles = structure_smiles[list[at]];
                 if (smiles != RANK_ABSENT)
                 {
-                    fprintf(submission, "%s%s", (written == 0u) ? "" : ";", set.strings[RANK_SMILES][smiles].c_str());
+                    fprintf(submission, "%s%s", (written == 0u) ? "" : ";", rank_string(&set, RANK_SMILES, smiles));
                     written += 1u;
                 }
             }
@@ -1818,7 +2135,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             }
             rank_counts[place] += 1ull;
             const int has_reference = structure_reference_first[truth + 1ull] != structure_reference_first[truth];
-            const int is_candidate = std::binary_search(candidate.begin(), candidate.end(), truth);
+            const int is_candidate = rank_number_found(candidate, candidate_count, truth);
             int is_scored = 0;
             for (unsigned long long group = molecule_group_first[molecule]; group < molecule_group_first[molecule + 1ull];
                  group += 1ull)
@@ -1839,7 +2156,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                     truth_group = (group_structure[group] == truth) ? (unsigned int)group : truth_group;
                 }
                 mmgr_line_put(&results->line, "  miss ");
-                mmgr_line_put(&results->line, set.strings[RANK_KEY][truth].c_str());
+                mmgr_line_put(&results->line, rank_string(&set, RANK_KEY, truth));
                 if (place == 0u)
                 {
                     mmgr_line_put(&results->line, " not listed: ");
@@ -1859,7 +2176,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                     const unsigned int first = group_structure[first_group];
                     const int same_formula = formula_text_of_structure[first] == formula_text_of_structure[truth];
                     mmgr_line_put(&results->line, "; first ");
-                    mmgr_line_put(&results->line, set.strings[RANK_KEY][first].c_str());
+                    mmgr_line_put(&results->line, rank_string(&set, RANK_KEY, first));
                     rank_line_decimal(results, " cos2 ",
                                       rank_score_ppm(&scores[(size_t)structure_winner[first_group] * score_limbs],
                                                      score_numerator, score_denominator));
@@ -1872,11 +2189,11 @@ int rank_run(SimResults *results, int count, char **arguments)
                     mmgr_line_put(&results->line, same_formula ? ", same formula" : ", another formula");
                     truth_isomer += (is_scored && same_formula) ? 1ull : 0ull;
                 }
-                rank_line_decimal(results, "; candidates ", candidate.size());
+                rank_line_decimal(results, "; candidates ", candidate_count);
                 rank_line_end(results);
             }
         }
-        for (size_t each = 0u; each < candidate.size(); each += 1u)
+        for (unsigned long long each = 0ull; each < candidate_count; each += 1ull)
         {
             structure_mark[candidate[each]] = 0u;
         }
@@ -1886,6 +2203,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             structure_mark[group_structure[group]] = 0u;
         }
     }
+    int finished = 1;
     if (test)
     {
         // a test molecule with no query of a known mode lists none: given C
@@ -1895,7 +2213,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             const unsigned int name = set.text[RANK_MOLECULE][spectrum];
             if ((name != RANK_ABSENT) && (molecule_written[name] == 0u))
             {
-                fprintf(submission, "%s,C\n", set.strings[RANK_MOLECULE][name].c_str());
+                fprintf(submission, "%s,C\n", rank_string(&set, RANK_MOLECULE, name));
                 molecule_written[name] = 1u;
                 unranked += 1ull;
             }
@@ -1908,44 +2226,124 @@ int rank_run(SimResults *results, int count, char **arguments)
         rank_line_decimal(results, "; with no query of a known mode, given C, ", unranked);
         rank_line_end(results);
         sim_check(results, closed, "the submission is written");
-        return closed;
+        finished = closed;
     }
-    rank_line_decimal(results, "  answers: molecules ", molecule_count);
-    rank_line_decimal(results, "; with no reference spectrum ", truth_no_reference);
-    rank_line_decimal(results, "; formula outside every window ", truth_outside);
-    rank_line_decimal(results, "; candidate with no matched peak ", truth_unscored);
-    rank_line_decimal(results, "; scored and outranked by a structure of its formula ", truth_isomer);
-    rank_line_end(results);
-    mmgr_line_put(&results->line, "  answers at each place, 1 to 25, then not listed:");
-    for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
+    else
     {
-        rank_line_decimal(results, " ", rank_counts[place]);
-    }
-    rank_line_decimal(results, "; ", rank_counts[0]);
-    rank_line_end(results);
-    // MRR@25 = sum count_k / k over the molecules: each count_k times lcm(1..25) / k summed, over lcm(1..25) times the
-    // molecules, read in parts per million
-    unsigned long long numerator = 0ull;
-    unsigned long long common = 1ull;
-    for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
-    {
-        unsigned long long a = common;
-        unsigned long long b = place;
-        while (b != 0ull)
+        rank_line_decimal(results, "  answers: molecules ", molecule_count);
+        rank_line_decimal(results, "; with no reference spectrum ", truth_no_reference);
+        rank_line_decimal(results, "; formula outside every window ", truth_outside);
+        rank_line_decimal(results, "; candidate with no matched peak ", truth_unscored);
+        rank_line_decimal(results, "; scored and outranked by a structure of its formula ", truth_isomer);
+        rank_line_end(results);
+        mmgr_line_put(&results->line, "  answers at each place, 1 to 25, then not listed:");
+        for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
         {
-            const unsigned long long r = a % b;
-            a = b;
-            b = r;
+            rank_line_decimal(results, " ", rank_counts[place]);
         }
-        common = (common / a) * place;
+        rank_line_decimal(results, "; ", rank_counts[0]);
+        rank_line_end(results);
+        // MRR@25 = sum count_k / k over the molecules: each count_k times lcm(1..25) / k summed, over lcm(1..25) times
+        // the molecules, read in parts per million
+        unsigned long long numerator = 0ull;
+        unsigned long long common = 1ull;
+        for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
+        {
+            unsigned long long a = common;
+            unsigned long long b = place;
+            while (b != 0ull)
+            {
+                const unsigned long long r = a % b;
+                a = b;
+                b = r;
+            }
+            common = (common / a) * place;
+        }
+        for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
+        {
+            numerator += rank_counts[place] * (common / place);
+        }
+        const unsigned long long parts =
+            (molecule_count != 0ull) ? ((numerator * 1000000ull) / (common * molecule_count)) : 0ull;
+        rank_line_decimal(results, "  MRR@25: ", parts);
+        mmgr_line_put(&results->line, " parts per million, floored");
+        rank_line_end(results);
     }
-    for (unsigned int place = 1u; place <= RANK_LIST_MAX; place += 1u)
-    {
-        numerator += rank_counts[place] * (common / place);
-    }
-    const unsigned long long parts = (molecule_count != 0ull) ? ((numerator * 1000000ull) / (common * molecule_count)) : 0ull;
-    rank_line_decimal(results, "  MRR@25: ", parts);
-    mmgr_line_put(&results->line, " parts per million, floored");
-    rank_line_end(results);
-    return 1;
+    // the run's cells given back, the newest first
+    void *const run_cells[] = {candidate_room,
+                               candidate,
+                               structure_mark,
+                               molecule_written,
+                               structure_smiles,
+                               chosen_count,
+                               chosen,
+                               list_winner,
+                               list_group,
+                               list_entry,
+                               list_count,
+                               list_first,
+                               structure_winner,
+                               structure_count,
+                               structure_first,
+                               group_count_list,
+                               group_first_list,
+                               molecule_group_first,
+                               group_entry,
+                               group_structure,
+                               structure_group,
+                               scores,
+                               score_index,
+                               norm_sums,
+                               norm_squares,
+                               norm_entry,
+                               norm_count,
+                               norm_first,
+                               norm_atoms,
+                               norm_spectrum,
+                               norm_of_query,
+                               norm_of_reference,
+                               weight_sums,
+                               pair_peaks,
+                               pair_first,
+                               peak_winner,
+                               matched_entry,
+                               peak_count,
+                               peak_first,
+                               query_pair_count,
+                               query_pair_first,
+                               pair_group_first,
+                               pair_spectrum,
+                               pair_query,
+                               matched_group_first,
+                               matched,
+                               window_query,
+                               window_atoms,
+                               ion_records,
+                               ion_atoms,
+                               inside,
+                               inside_count,
+                               inside_first,
+                               formula_structure,
+                               formula_structure_first,
+                               formula_text,
+                               formula,
+                               window_of_text,
+                               formula_text_of_structure,
+                               formula_of_structure,
+                               query_adduct,
+                               adduct,
+                               molecule_query,
+                               molecule_query_first,
+                               molecule_name,
+                               molecule_of_name,
+                               query,
+                               structure_reference,
+                               structure_reference_first,
+                               reference,
+                               is_query,
+                               mode,
+                               intensity_floor,
+                               envelope_records};
+    rank_cells_given(run_cells, (unsigned int)(sizeof(run_cells) / sizeof(run_cells[0])));
+    return finished;
 }

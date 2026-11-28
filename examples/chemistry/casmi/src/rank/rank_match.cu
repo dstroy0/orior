@@ -92,7 +92,8 @@ int rank_match_query(RankMatchDevice *device, const unsigned int *atoms, size_t 
 }
 
 int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMatchChunk *chunk,
-                     std::vector<unsigned int> *matched_lanes, std::vector<unsigned int> *matched_records,
+                     unsigned int **matched_lanes, unsigned long long *lanes_room, unsigned int **matched_records,
+                     unsigned long long *records_room, unsigned long long *matched_count,
                      unsigned long long *microseconds)
 {
     const RankMachine *const machine = chunk->machine;
@@ -146,26 +147,26 @@ int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMat
                                              chunk->matched.bits, 2u,    sums,  &error};
         ok = cycle_record_sum(&count) != CYCLE_ERROR;
     }
-    const unsigned long long matched_count = ((unsigned long long)sums[1] << 32u) | sums[0];
-    matched_lanes->resize((size_t)matched_count);
-    matched_records->resize((size_t)(matched_count * out_limbs));
-    if (ok && (matched_count != 0ull))
+    const unsigned long long retained = ok ? (((unsigned long long)sums[1] << 32u) | sums[0]) : 0ull;
+    *matched_count = retained;
+    ok = ok && rank_host_room((void **)matched_lanes, lanes_room, retained, 0ull, sizeof(unsigned int)) &&
+         rank_host_room((void **)matched_records, records_room, retained * out_limbs, 0ull, sizeof(unsigned int));
+    if (ok && (retained != 0ull))
     {
         const CycleRecordSortRequest sort = {
             device->out, lanes, lanes, out_limbs, chunk->matched.offset, chunk->matched.bits, device->order, &error};
         ok = (cycle_record_sort(&sort) != CYCLE_ERROR) &&
              rank_device_room((void **)&device->matched, &device->matched_room,
-                              (size_t)(matched_count * out_limbs) * sizeof(unsigned int));
-        const unsigned int *const tail = device->order + (lanes - matched_count);
+                              (size_t)(retained * out_limbs) * sizeof(unsigned int));
+        const unsigned int *const tail = device->order + (lanes - retained);
         if (ok)
         {
-            rank_match_gather_kernel<<<rank_match_blocks(matched_count * out_limbs), RANK_MATCH_THREADS>>>(
-                device->out, out_limbs, tail, matched_count, device->matched);
+            rank_match_gather_kernel<<<rank_match_blocks(retained * out_limbs), RANK_MATCH_THREADS>>>(
+                device->out, out_limbs, tail, retained, device->matched);
             ok = (cudaGetLastError() == cudaSuccess) &&
-                 (cudaMemcpy(matched_lanes->data(), tail, (size_t)matched_count * sizeof(unsigned int),
-                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                 (cudaMemcpy(matched_records->data(), device->matched,
-                             (size_t)(matched_count * out_limbs) * sizeof(unsigned int),
+                 (cudaMemcpy(*matched_lanes, tail, (size_t)retained * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
+                  cudaSuccess) &&
+                 (cudaMemcpy(*matched_records, device->matched, (size_t)(retained * out_limbs) * sizeof(unsigned int),
                              cudaMemcpyDeviceToHost) == cudaSuccess);
         }
     }

@@ -14,10 +14,6 @@
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 // the text columns the ranker reads
 #define RANK_TEXTS 7u
 #define RANK_LIBRARY 0u
@@ -34,30 +30,52 @@
 // the max device bytes a piece of a sweep occupies: the records its lanes read, its index and the records it writes
 #define RANK_SWEEP_BYTES (1ull << 30u)
 
-// one double column as the file stores it: each value's 64 bits, and row r's values from row_start[r] up to
-// row_start[r + 1]
+// the files a set reads at max: the train file, and in test the test file after it
+#define RANK_FILES 2u
+
+// the outputs a loaded program lists at max
+#define RANK_OUTPUTS_MAX 4u
+
+// One double column as the files store it: each value's 64 bits, `values` of them, and row r's values from
+// row_start[r] up to row_start[r + 1], `rows` rows. The cells are on the persistent tier, at the bounds of the files'
+// footers, `values_room` and `rows_room` + 1
 typedef struct
 {
-    std::vector<unsigned long long> bits;
-    std::vector<unsigned long long> row_start;
+    unsigned long long *bits;
+    unsigned long long values;
+    unsigned long long values_room;
+    unsigned long long *row_start;
+    unsigned long long rows;
+    unsigned long long rows_room;
 } RankColumn;
 
+// The distinct strings of one text column, `count` of them in the order of their first row. String s is the terminated
+// text at bytes + offset[s], and offset[s + 1] - offset[s] - 1 bytes long. order holds the ids in the order of their
+// bytes. The cells are on the persistent tier
+typedef struct
+{
+    char *bytes;
+    unsigned long long *offset;
+    unsigned int *order;
+    unsigned int count;
+} RankStrings;
+
 // The spectra of every file read: each spectrum's text ids, one a text column and RANK_ABSENT where the row has none,
-// and the three double columns; each text column's distinct strings over every row group of every file, and each
-// string's id
+// and the three double columns; each text column's distinct strings over every row group of every file. The spectra
+// of file f end at file_spectra[f]
 typedef struct
 {
     unsigned long long spectra;
-    std::vector<unsigned int> text[RANK_TEXTS];
-    std::vector<std::string> strings[RANK_TEXTS];
-    std::unordered_map<std::string, unsigned int> table[RANK_TEXTS];
+    unsigned long long file_spectra[RANK_FILES];
+    unsigned int *text[RANK_TEXTS];
+    RankStrings strings[RANK_TEXTS];
     RankColumn precursor;
     RankColumn mz;
     RankColumn intensity;
     unsigned int row_groups;
 } RankSet;
 
-// a program loaded on the record machine, its outputs and its members' limbs
+// a program loaded on the record machine, its outputs, `output_count` of them, and its members' limbs
 typedef struct
 {
     EngineRecordKey key;
@@ -65,7 +83,8 @@ typedef struct
     CycleRecord *record;
     unsigned int members;
     unsigned int limbs[ENGINE_RECORD_MEMBERS_MAX];
-    std::vector<unsigned int> outputs;
+    unsigned int outputs[RANK_OUTPUTS_MAX];
+    unsigned int output_count;
     int loaded;
 } RankMachine;
 
@@ -82,9 +101,35 @@ void rank_line_end(SimResults *results);
 
 void rank_error_line(SimResults *results, const char *what, const EngineError *error);
 
-// a parquet file's spectra read, every row group in order, after the spectra of any file read before it; 0 where a
-// row group did not read, the reason printed
-int rank_file_load(SimResults *results, const char *path, RankSet *out);
+// The `files` parquet files at `paths` read into the set in order, every row group of each in order. The first pass
+// reads each footer and bounds the cells, and the second fills them. 0 where a file or a row group did not read, or a
+// file holds no spectrum, the reason printed
+int rank_set_load(SimResults *results, const char *const *paths, unsigned int files, RankSet *out);
+
+// string `id` of text column `text`, terminated
+const char *rank_string(const RankSet *set, unsigned int text, unsigned int id);
+
+// the bytes of string `id` of text column `text`, its terminator not counted
+unsigned long long rank_string_length(const RankSet *set, unsigned int text, unsigned int id);
+
+// a text's id in the set's strings of that column, RANK_ABSENT where the set holds no such string
+unsigned int rank_string_find(const RankSet *set, unsigned int text, const char *wanted);
+
+// A cell of `count` elements of `size` bytes, each byte 0, on the temporary tier where `ephemeral` is 1 and else on the
+// persistent tier. NULL where the pool cannot meet it, and rank_cells_refused then answers 1
+void *rank_cell(unsigned long long count, unsigned long long size, int ephemeral);
+
+// A host cell on the persistent tier of `count` elements of `size` bytes at least. Where *room is less, the cell grows
+// to twice *room or to `count`, the larger, and its first `held` elements stay. The bytes past them are not 0. 1, or 0
+// where the pool cannot meet it, and the cell then stays as it was
+int rank_host_room(void **cell, unsigned long long *room, unsigned long long count, unsigned long long held,
+                   unsigned long long size);
+
+// 1 where the pool refused a cell of the ranker, the reason printed, and 0 where it refused none
+int rank_cells_refused(SimResults *results);
+
+// a cell of the ranker given back. Nothing goes back where the cell is NULL
+void rank_cell_released(void *cell);
 
 // a built program loaded with `members` members of the limbs given; 0 where it errored, the error printed
 int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram *program, const unsigned int *outputs,
@@ -159,9 +204,11 @@ void rank_match_close(RankMatchDevice *device);
 int rank_match_query(RankMatchDevice *device, const unsigned int *atoms, size_t limbs);
 
 // The chunk run on the device: its index built there, the program run over every lane, and only the retained lanes'
-// numbers and records brought back, least lane first; 0 where a copy or a run errored
+// numbers and records brought back, least lane first, *matched_count of them. The caller's cells grow to them through
+// rank_host_room. 0 where a copy, a run or a cell failed
 int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMatchChunk *chunk,
-                     std::vector<unsigned int> *matched_lanes, std::vector<unsigned int> *matched_records,
+                     unsigned int **matched_lanes, unsigned long long *lanes_room, unsigned int **matched_records,
+                     unsigned long long *records_room, unsigned long long *matched_count,
                      unsigned long long *microseconds);
 
 // a field of a record read as two's complement into an exact integer

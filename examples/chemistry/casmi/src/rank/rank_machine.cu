@@ -15,7 +15,18 @@ int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram 
     machine->loaded = 0;
     machine->record = NULL;
     machine->members = members;
-    machine->outputs.assign(outputs, outputs + output_count);
+    machine->output_count = 0u;
+    if (output_count > RANK_OUTPUTS_MAX)
+    {
+        mmgr_line_put(&results->line, "  program ");
+        mmgr_line_put(&results->line, name);
+        rank_line_decimal(results, " lists more outputs than a machine holds: ", (unsigned long long)output_count);
+        rank_line_end(results);
+        return 0;
+    }
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = machine->outputs, .src = outputs,
+               .bytes = output_count * sizeof(unsigned int));
+    machine->output_count = output_count;
     for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
     {
         machine->limbs[member] = (member < members) ? limbs[member] : 0u;
@@ -146,7 +157,18 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
     size_t index_room = 0u;
     unsigned int *device_out = NULL;
     size_t out_room = 0u;
-    std::vector<unsigned int> piece_index;
+    // A piece's index where every record does not fit at once, a cell of the temporary tier that the sweep gives back.
+    // A piece passes RANK_SWEEP_BYTES only where it is one lane, and a lane takes lane_bytes of it, which holds the
+    // lane's index, and so a piece holds RANK_SWEEP_BYTES / lane_bytes + 1 lanes at max
+    const unsigned long long piece_room = ((index != NULL) && !whole) ? ((RANK_SWEEP_BYTES / lane_bytes) + 1ull) : 0ull;
+    unsigned int *const piece_index =
+        (piece_room != 0ull)
+            ? (unsigned int *)rank_cell(((piece_room < lanes) ? piece_room : lanes) * count, sizeof(unsigned int), 1)
+            : NULL;
+    if ((piece_room != 0ull) && (piece_index == NULL))
+    {
+        return 0;
+    }
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long started = engine_clock_microseconds();
@@ -217,7 +239,6 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
         }
         if (ok && (index != NULL) && !whole)
         {
-            piece_index.resize((size_t)(piece * count));
             for (unsigned long long lane = 0ull; lane < piece; lane += 1ull)
             {
                 for (unsigned int member = 0u; member < count; member += 1u)
@@ -226,9 +247,9 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
                         (unsigned int)(index[((start + lane) * count) + member] - least[same[member]]);
                 }
             }
-            const size_t bytes = piece_index.size() * sizeof(unsigned int);
+            const size_t bytes = (size_t)(piece * count) * sizeof(unsigned int);
             ok = rank_device_room((void **)&device_index, &index_room, bytes) &&
-                 (cudaMemcpy(device_index, piece_index.data(), bytes, cudaMemcpyHostToDevice) == cudaSuccess);
+                 (cudaMemcpy(device_index, piece_index, bytes, cudaMemcpyHostToDevice) == cudaSuccess);
         }
         const size_t out_bytes = (size_t)(piece * out_limbs) * sizeof(unsigned int);
         ok = ok && rank_device_room((void **)&device_out, &out_room, out_bytes);
@@ -259,6 +280,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
     }
     cudaFree(device_index);
     cudaFree(device_out);
+    rank_cell_released(piece_index);
     return ok;
 }
 
