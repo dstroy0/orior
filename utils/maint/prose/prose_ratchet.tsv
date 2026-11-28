@@ -566,7 +566,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/verdicts.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/elf64_nvidia.tsv	8
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/accumulated.c	5
-src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/listing.c	8
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/slot.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/vendor.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	1

@@ -11,8 +11,8 @@ QryShared *s_run = NULL;
 const char *s_nvdisasm = NULL;
 const char *s_architecture = NULL;
 
-// the time the readings spent handing their runs to the writer's streams, and the time the vendor took over them,
-// each summed over every reader: the cross's account of where its time went
+// the time that the readings spent to give their runs to the streams of the writer, and the time that the vendor took
+// over them. The cross sums each over every reader, as its account of where its time went
 _Atomic unsigned long long s_streamed_nanoseconds;
 _Atomic unsigned long long s_vendor_nanoseconds;
 
@@ -57,10 +57,12 @@ int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const voi
     return 1;
 }
 
-// `count` runs at `runs` read by the vendor as one raw run: passed to the run's writer as the reader's stream of the
-// .qry (qry_streamed), the disassembler pointed at that stream and run over it, and everything it printed stored in the
-// reader's output and passed to the run as the cross's trace. Nothing but the run's writer writes a file. 0 where the
-// disassembler ended clean, 1 where it did not, and -1 where it could not be run
+// `count` runs at `runs`, read by the vendor as one raw run. The call passes them to the writer of the run as the
+// stream of the reader of the .qry (qry_streamed). It points the disassembler at that stream, and runs it over it. It
+// stores everything that it printed in the output of the reader, and passes it to the run as the trace of the cross.
+//
+// Only the writer of the run writes a file. The return is 0 where the disassembler ended clean, 1 where it did not,
+// and -1 where it could not run
 int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
 {
     reader->calls += 1ULL;
@@ -92,7 +94,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     char *const command[] = {(char *)s_nvdisasm, (char *)"--binary", (char *)s_architecture, stream_path, NULL};
     InterfaceAnswer answer;
     const unsigned long long vendor_began = msq_now();
-    // read again where the output ran past the room it was given, the room grown to contain it
+    // the call reads again where the output ran past the room that it got, with the room grown to hold it
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
     {
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &answer, .bytes = sizeof(answer), .val = 0);
@@ -162,10 +164,10 @@ void msq_listing_free(MsqListing *listing)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = listing, .bytes = sizeof(*listing), .val = 0);
 }
 
-// Every instruction of the listing `printed` of `length` bytes, in the order printed: a comment of four or more hex
-// digits giving its offset, `/*<offset>*/`, then space, then its text to the first `;` on its line. Its text past a
-// guard, `@P0 `, `@!UPT `, is its body. The listing stores one copy of the text, each instruction's text ended in it
-// where it ends. 1, or 0 where the system gives no memory
+// Every instruction of the listing `printed` of `length` bytes, in the order printed. It is a comment of four or more
+// hex digits that gives its offset, `/*<offset>*/`, then space, then its text to the first `;` on its line. Its text
+// past a guard, `@P0 `, `@!UPT `, is its body. The listing stores one copy of the text, with the text of each
+// instruction ended in it where it ends. The return is 1, or 0 where the system gives no memory
 int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = listing, .bytes = sizeof(*listing), .val = 0);
@@ -274,8 +276,8 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
     return 1;
 }
 
-// the reading of the instruction at `offset` the listing printed, the last printed there: its operation, the first
-// word of its body before any `.`, and its body
+// the reading of the instruction at `offset` that the listing printed, the last printed there. It is its operation,
+// the first word of its body before any `.`, and its body
 MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
 {
     MsqReading reading;
