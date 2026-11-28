@@ -31,25 +31,25 @@
 
 #define WRITINGS_REGISTERS 255u
 
-// the registers the case's two words are moved onto, each with a zero beside it for a form that reads a pair, and the
-// register the form's result is moved to, which the kernel then stores as the answer
+// the registers that the two words of the case move onto, each with a zero beside it for a form that reads a pair.
+// Then the register that the result of the form moves to, which the kernel then stores as the answer
 #define WRITINGS_LEFT "R10"
 
 #define WRITINGS_RIGHT "R12"
 
 #define WRITINGS_RESULT "R8"
 
-// the max cases put at once, one thread each, the max relations a form is read against, and the longest line read
-// back
+// the max cases put at once, one thread each, and the max relations that the program reads a form against. Then the
+// longest line read back
 #define WRITINGS_CASES 256u
 
 #define WRITINGS_RELATIONS 64u
 
 #define WRITINGS_LINE 4096u
 
-// the lines a form is run between: the case's words, which the kernel leaves in R0 and R7, moved onto the sources, the
-// result's register cleared, and every predicate the form may read set false. After the form its result is moved to
-// R7, which the kernel's own store writes as the answer's first word
+// the lines that a form runs between. The words of the case, which the kernel leaves in R0 and R7, move onto the
+// sources. The register of the result goes to zero, and every predicate that the form can read goes to false. After
+// the form, its result moves to R7, which the own store of the kernel writes as the first word of the answer
 #define WRITINGS_HEAD                                                                                                  \
     "IMAD.MOV.U32 R10, RZ, RZ, R0\nMOV R11, RZ\nIMAD.MOV.U32 R12, RZ, RZ, R7\nMOV R13, RZ\nMOV R8, RZ\nMOV R9, RZ\n"   \
     "ISETP.NE.AND P0, PT, RZ, RZ, PT\nISETP.NE.AND P1, PT, RZ, RZ, PT\nISETP.NE.AND P2, PT, RZ, RZ, PT\n"              \
@@ -69,8 +69,8 @@ static const char *const s_precept_text[] = {PRECEPTS(PRECEPT_TEXT)};
 
 #undef PRECEPT_TEXT
 
-// what a form is read against: a relation of the ladder, answered by ladder_answer, or a precept of the alphabet,
-// answered by precept_applied
+// what the program reads a form against: a relation of the ladder, which ladder_answer answers, or a precept of the
+// alphabet, which precept_applied answers
 typedef struct
 {
     const char *name;
@@ -81,15 +81,15 @@ typedef struct
 // the forms a search wrote, the answers the part gave them, and which relations each form satisfies
 #define WRITINGS_FORMS_MAX 16384u
 
-// the register each node of a chain writes its word to, the root's being WRITINGS_RESULT, and the register a word of
-// ones is set in for a chain that reads one
+// the register that each node of a chain writes its word to, with WRITINGS_RESULT for the root. Then the register that
+// holds a word of ones, for a chain that reads one
 #define WRITINGS_NODE_FIRST 16u
 
 #define WRITINGS_ONES "R24"
 
 #define WRITINGS_CHAIN_HEAD "IMAD.MOV.U32 R24, RZ, RZ, 4294967295\n"
 
-// the max nodes a chain is written with, and the max chains of a .kdm written
+// the max nodes that the program writes a chain with, and the max chains of a .kdm that it writes
 #define WRITINGS_CHAIN_NODES 8u
 
 #define WRITINGS_CHAINS_MAX 8192u
