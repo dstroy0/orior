@@ -1,8 +1,7 @@
 #include "../../../includes/platform/platform.h"
-#include <algorithm>
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <vector>
 
 #define BLOCK 64ull
 #define K_BITS 5ull
@@ -27,10 +26,9 @@ static long long floor_shift(long long value, unsigned int shift)
     return (value >= 0) ? (value >> shift) : -(((-value) + (1ll << shift) - 1) >> shift);
 }
 
-static unsigned long long rice_bits(const std::vector<unsigned int> &values)
+static unsigned long long rice_bits(const unsigned int *values, unsigned long long count)
 {
     unsigned long long total = 0ull;
-    const unsigned long long count = values.size();
     for (unsigned long long at = 0ull; at < count; at += BLOCK)
     {
         const unsigned long long take = ((count - at) < BLOCK) ? (count - at) : BLOCK;
@@ -95,7 +93,17 @@ static void lift_forward(Integer *line, unsigned long long n, Integer *scratch)
 static void lift_axis(Integer *data, const unsigned long long *stride, const unsigned long long *extent,
                       unsigned int axis)
 {
-    std::vector<Integer> line(extent[axis]), scratch(extent[axis] * 2ull + 2ull);
+    // a line of the axis and the lift's room, cells of the temporary tier that the call gives back
+    Integer *const line =
+        (Integer *)platform_cell_taken(extent[axis] * sizeof(Integer), platform_place_g_program_owner, 1);
+    Integer *const scratch = (Integer *)platform_cell_taken((extent[axis] * 2ull + 2ull) * sizeof(Integer),
+                                                            platform_place_g_program_owner, 1);
+    if ((line == NULL) || (scratch == NULL))
+    {
+        platform_cell_released(line, platform_place_g_program_owner);
+        platform_cell_released(scratch, platform_place_g_program_owner);
+        return;
+    }
     unsigned long long other[3], other_stride[3];
     unsigned int at = 0u;
     for (unsigned int a = 0u; a < 4u; a += 1u)
@@ -118,7 +126,7 @@ static void lift_axis(Integer *data, const unsigned long long *stride, const uns
                 {
                     line[p] = data[base + p * stride[axis]];
                 }
-                lift_forward(line.data(), extent[axis], scratch.data());
+                lift_forward(line, extent[axis], scratch);
                 for (unsigned long long p = 0ull; p < extent[axis]; p += 1ull)
                 {
                     data[base + p * stride[axis]] = line[p];
@@ -126,6 +134,8 @@ static void lift_axis(Integer *data, const unsigned long long *stride, const uns
             }
         }
     }
+    platform_cell_released(line, platform_place_g_program_owner);
+    platform_cell_released(scratch, platform_place_g_program_owner);
 }
 
 struct Rectangle
@@ -141,6 +151,58 @@ struct Place
 static long long radius_of(const Place &place)
 {
     return place.dy * place.dy + place.dx * place.dx;
+}
+
+// the floors an extent of 2^32 halves through to 1, and more: the bound of the table of floors
+#define SCAN_FLOORS 64u
+
+// shells by radius, each swept by angle from the positive half: below 0, 0 or above 0, a total order on distinct places
+static int scan_angle_order(const void *left, const void *right)
+{
+    const Place &one = *(const Place *)left;
+    const Place &other = *(const Place *)right;
+    if (radius_of(one) != radius_of(other))
+    {
+        return (radius_of(one) < radius_of(other)) ? -1 : 1;
+    }
+    const int half_one = ((one.dy < 0) || ((one.dy == 0) && (one.dx < 0))) ? 1 : 0;
+    const int half_other = ((other.dy < 0) || ((other.dy == 0) && (other.dx < 0))) ? 1 : 0;
+    if (half_one != half_other)
+    {
+        return (half_one < half_other) ? -1 : 1;
+    }
+    const long long cross = one.dx * other.dy - one.dy * other.dx;
+    return (cross > 0) ? -1 : ((cross < 0) ? 1 : 0);
+}
+
+// shells by radius, each by dy then dx: below 0, 0 or above 0
+static int scan_shell_order(const void *left, const void *right)
+{
+    const Place &one = *(const Place *)left;
+    const Place &other = *(const Place *)right;
+    if (radius_of(one) != radius_of(other))
+    {
+        return (radius_of(one) < radius_of(other)) ? -1 : 1;
+    }
+    if (one.dy != other.dy)
+    {
+        return (one.dy < other.dy) ? -1 : 1;
+    }
+    return (one.dx < other.dx) ? -1 : ((one.dx > other.dx) ? 1 : 0);
+}
+
+// the places of a shell in the golden order of their ranks: below 0, 0 or above 0
+static int scan_golden_order(const void *left, const void *right)
+{
+    const unsigned long long one = (*(const unsigned long long *)left + 1ull) * GOLDEN_TURN;
+    const unsigned long long other = (*(const unsigned long long *)right + 1ull) * GOLDEN_TURN;
+    return (one < other) ? -1 : ((one > other) ? 1 : 0);
+}
+
+// a cell of the temporary tier of `count` elements of `size` bytes, NULL where the pool cannot meet it
+static void *scan_cell(unsigned long long count, unsigned long long size)
+{
+    return platform_cell_taken((count != 0ull) ? (count * size) : size, platform_place_g_program_owner, 1);
 }
 
 int program_main(int argc, char **argv)
@@ -160,8 +222,19 @@ int program_main(int argc, char **argv)
     const unsigned long long extent[4] = {header[0], header[1], header[2], header[3]};
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
     const unsigned long long lanes = extent[0] * voxels;
-    std::vector<unsigned short> raw(lanes);
-    if (fread(raw.data(), 2, lanes, stack) != lanes)
+    // the stack's lanes, its integers and their naturals, each a cell of the persistent tier: the program reads the
+    // stack once and keeps it to its end
+    unsigned short *const raw =
+        (unsigned short *)platform_cell_taken(lanes * sizeof(unsigned short), platform_place_g_program_owner, 0);
+    Integer *const data = (Integer *)platform_cell_taken(lanes * sizeof(Integer), platform_place_g_program_owner, 0);
+    unsigned int *const naturals =
+        (unsigned int *)platform_cell_taken(lanes * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    if ((raw == NULL) || (data == NULL) || (naturals == NULL))
+    {
+        fprintf(stderr, "the pool could not meet the stack's lanes\n");
+        return 1;
+    }
+    if (fread(raw, 2, lanes, stack) != lanes)
     {
         fprintf(stderr, "short read\n");
         return 1;
@@ -170,21 +243,26 @@ int program_main(int argc, char **argv)
     const unsigned long long raw_bytes = lanes * 2ull;
     const unsigned long long stride[4] = {voxels, extent[2] * extent[3], extent[3], 1ull};
 
-    std::vector<Integer> data(lanes);
     for (unsigned long long i = 0ull; i < lanes; i += 1ull)
     {
         data[i] = raw[i];
     }
-    std::vector<std::vector<unsigned long long>> box;
+    // each floor's extents, the last all 1, in a table at a bound: an extent halves at each floor
+    static unsigned long long s_box[SCAN_FLOORS + 1u][4];
+    unsigned int floors = 0u;
     unsigned long long sub[4] = {extent[0], extent[1], extent[2], extent[3]};
-    while ((sub[0] > 1ull) || (sub[1] > 1ull) || (sub[2] > 1ull) || (sub[3] > 1ull))
+    while ((floors < SCAN_FLOORS) && ((sub[0] > 1ull) || (sub[1] > 1ull) || (sub[2] > 1ull) || (sub[3] > 1ull)))
     {
-        box.push_back(std::vector<unsigned long long>(sub, sub + 4));
+        for (unsigned int axis = 0u; axis < 4u; axis += 1u)
+        {
+            s_box[floors][axis] = sub[axis];
+        }
+        floors += 1u;
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
             if (sub[axis] > 1ull)
             {
-                lift_axis(data.data(), stride, sub, axis);
+                lift_axis(data, stride, sub, axis);
             }
         }
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
@@ -192,14 +270,15 @@ int program_main(int argc, char **argv)
             sub[axis] = (sub[axis] + 1ull) / 2ull;
         }
     }
-    const size_t floors = box.size();
-    box.push_back(std::vector<unsigned long long>(4u, 1ull));
-    std::vector<unsigned int> naturals(lanes);
+    for (unsigned int axis = 0u; axis < 4u; axis += 1u)
+    {
+        s_box[floors][axis] = 1ull;
+    }
     for (unsigned long long i = 0ull; i < lanes; i += 1ull)
     {
         naturals[i] = zigzag(data[i]);
     }
-    const unsigned long long base_bytes = (rice_bits(naturals) + 7ull) / 8ull;
+    const unsigned long long base_bytes = (rice_bits(naturals, lanes) + 7ull) / 8ull;
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
@@ -217,120 +296,128 @@ int program_main(int argc, char **argv)
     }
     platform_line_flushed();
 
-    std::vector<Rectangle> rectangles;
-    for (size_t level = 0u; level < floors; level += 1u)
+    // the rectangles of every floor and the last, in a table at a bound: three to a floor and one more
+    static Rectangle s_rectangles[(3u * SCAN_FLOORS) + 1u];
+    unsigned int rectangle_count = 0u;
+    for (unsigned int level = 0u; level < floors; level += 1u)
     {
-        const unsigned long long ey = box[level][2], ex = box[level][3], iy = box[level + 1u][2],
-                                 ix = box[level + 1u][3];
+        const unsigned long long ey = s_box[level][2], ex = s_box[level][3], iy = s_box[level + 1u][2],
+                                 ix = s_box[level + 1u][3];
         const Rectangle pieces[3] = {{0ull, iy, ix, ex}, {iy, ey, 0ull, ix}, {iy, ey, ix, ex}};
-        for (const Rectangle &piece : pieces)
+        for (unsigned int each = 0u; each < 3u; each += 1u)
         {
-            if ((piece.y1 > piece.y0) && (piece.x1 > piece.x0))
+            if ((pieces[each].y1 > pieces[each].y0) && (pieces[each].x1 > pieces[each].x0))
             {
-                rectangles.push_back(piece);
+                s_rectangles[rectangle_count] = pieces[each];
+                rectangle_count += 1u;
             }
         }
     }
-    rectangles.push_back({0ull, box[floors][2], 0ull, box[floors][3]});
+    s_rectangles[rectangle_count] = Rectangle{0ull, s_box[floors][2], 0ull, s_box[floors][3]};
+    rectangle_count += 1u;
+    // every rectangle's offsets one after another, the largest rectangle's area, and their sum
+    unsigned long long area_most = 0ull;
+    unsigned long long area_all = 0ull;
+    for (unsigned int index = 0u; index < rectangle_count; index += 1u)
+    {
+        const unsigned long long area =
+            (s_rectangles[index].y1 - s_rectangles[index].y0) * (s_rectangles[index].x1 - s_rectangles[index].x0);
+        area_most = (area > area_most) ? area : area_most;
+        area_all += area;
+    }
+    // the scan's offsets, a rectangle's places, the room their sorts write and their golden order, the stream and its
+    // decode, cells of the temporary tier at the counts the rectangles fix, given back as the program ends
+    unsigned long long *const offsets = (unsigned long long *)scan_cell(area_all, sizeof(unsigned long long));
+    Place *const places = (Place *)scan_cell(area_most, sizeof(Place));
+    Place *const places_room = (Place *)scan_cell(area_most, sizeof(Place));
+    Place *const golden = (Place *)scan_cell(area_most, sizeof(Place));
+    unsigned long long *const ranked = (unsigned long long *)scan_cell(area_most, sizeof(unsigned long long));
+    unsigned long long *const ranked_room = (unsigned long long *)scan_cell(area_most, sizeof(unsigned long long));
+    unsigned int *const stream = (unsigned int *)scan_cell(extent[0] * extent[1] * area_all, sizeof(unsigned int));
+    Integer *const undone = (Integer *)scan_cell(lanes, sizeof(Integer));
+    if ((offsets == NULL) || (places == NULL) || (places_room == NULL) || (golden == NULL) || (ranked == NULL) ||
+        (ranked_room == NULL) || (stream == NULL) || (undone == NULL))
+    {
+        fprintf(stderr, "the pool could not meet the cells of the scans\n");
+        return 1;
+    }
 
     const char *const names[3] = {"each floor's rectangles row by row", "shells, each swept by angle",
                                   "shells, each in the golden order"};
     for (int order = 0; order < 3; order += 1)
     {
-        std::vector<std::vector<unsigned long long>> scan(rectangles.size());
-        for (size_t index = 0u; index < rectangles.size(); index += 1u)
+        unsigned long long written = 0ull;
+        for (unsigned int index = 0u; index < rectangle_count; index += 1u)
         {
-            const Rectangle &piece = rectangles[index];
-            std::vector<Place> places;
+            const Rectangle &piece = s_rectangles[index];
+            unsigned long long count = 0ull;
             for (unsigned long long y = piece.y0; y < piece.y1; y += 1ull)
             {
                 for (unsigned long long x = piece.x0; x < piece.x1; x += 1ull)
                 {
-                    places.push_back({(long long)(2ull * y) - (long long)(piece.y0 + piece.y1 - 1ull),
-                                      (long long)(2ull * x) - (long long)(piece.x0 + piece.x1 - 1ull),
-                                      y * extent[3] + x});
+                    places[count] =
+                        Place{(long long)(2ull * y) - (long long)(piece.y0 + piece.y1 - 1ull),
+                              (long long)(2ull * x) - (long long)(piece.x0 + piece.x1 - 1ull), y * extent[3] + x};
+                    count += 1ull;
                 }
             }
             if (order == 1)
             {
-                std::sort(places.begin(), places.end(), [](const Place &one, const Place &other) {
-                    if (radius_of(one) != radius_of(other))
-                    {
-                        return radius_of(one) < radius_of(other);
-                    }
-                    const int half_one = ((one.dy < 0) || ((one.dy == 0) && (one.dx < 0))) ? 1 : 0;
-                    const int half_other = ((other.dy < 0) || ((other.dy == 0) && (other.dx < 0))) ? 1 : 0;
-                    if (half_one != half_other)
-                    {
-                        return half_one < half_other;
-                    }
-                    return (one.dx * other.dy - one.dy * other.dx) > 0;
-                });
+                (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = places, .bytes = sizeof(Place), .scratch = places_room,
+                                 .count = count, .order = scan_angle_order);
             }
             else if (order == 2)
             {
-                std::sort(places.begin(), places.end(), [](const Place &one, const Place &other) {
-                    if (radius_of(one) != radius_of(other))
-                    {
-                        return radius_of(one) < radius_of(other);
-                    }
-                    return (one.dy != other.dy) ? (one.dy < other.dy) : (one.dx < other.dx);
-                });
-                std::vector<Place> golden;
-                golden.reserve(places.size());
-                for (size_t start = 0u; start < places.size();)
+                (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = places, .bytes = sizeof(Place), .scratch = places_room,
+                                 .count = count, .order = scan_shell_order);
+                unsigned long long golden_count = 0ull;
+                for (unsigned long long start = 0ull; start < count;)
                 {
-                    size_t end = start;
-                    while ((end < places.size()) && (radius_of(places[end]) == radius_of(places[start])))
+                    unsigned long long end = start;
+                    while ((end < count) && (radius_of(places[end]) == radius_of(places[start])))
                     {
-                        end += 1u;
+                        end += 1ull;
                     }
-                    std::vector<size_t> ranked;
-                    for (size_t at = 0u; at < (end - start); at += 1u)
+                    for (unsigned long long at = 0ull; at < (end - start); at += 1ull)
                     {
-                        ranked.push_back(at);
+                        ranked[at] = at;
                     }
-                    std::sort(ranked.begin(), ranked.end(), [](size_t one, size_t other) {
-                        return ((unsigned long long)(one + 1u) * GOLDEN_TURN) <
-                               ((unsigned long long)(other + 1u) * GOLDEN_TURN);
-                    });
-                    for (const size_t at : ranked)
+                    (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = ranked, .bytes = sizeof(unsigned long long),
+                                     .scratch = ranked_room, .count = end - start, .order = scan_golden_order);
+                    for (unsigned long long at = 0ull; at < (end - start); at += 1ull)
                     {
-                        golden.push_back(places[start + at]);
+                        golden[golden_count] = places[start + ranked[at]];
+                        golden_count += 1ull;
                     }
                     start = end;
                 }
-                places.swap(golden);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = places, .src = golden,
+                           .bytes = (size_t)(count * sizeof(Place)));
             }
-            for (const Place &place : places)
+            for (unsigned long long at = 0ull; at < count; at += 1ull)
             {
-                scan[index].push_back(place.offset);
-            }
-        }
-        std::vector<unsigned int> stream;
-        stream.reserve(lanes);
-        for (unsigned long long plane = 0ull; plane < extent[0] * extent[1]; plane += 1ull)
-        {
-            for (const std::vector<unsigned long long> &piece : scan)
-            {
-                for (const unsigned long long offset : piece)
-                {
-                    stream.push_back(naturals[plane * stride[1] + offset]);
-                }
+                offsets[written] = places[at].offset;
+                written += 1ull;
             }
         }
-        const unsigned long long bytes = (rice_bits(stream) + 7ull) / 8ull;
-        std::vector<Integer> undone(lanes, 0);
-        size_t cursor = 0u;
+        unsigned long long streamed = 0ull;
         for (unsigned long long plane = 0ull; plane < extent[0] * extent[1]; plane += 1ull)
         {
-            for (const std::vector<unsigned long long> &piece : scan)
+            for (unsigned long long at = 0ull; at < written; at += 1ull)
             {
-                for (const unsigned long long offset : piece)
-                {
-                    undone[plane * stride[1] + offset] = (Integer)unzigzag(stream[cursor]);
-                    cursor += 1u;
-                }
+                stream[streamed] = naturals[plane * stride[1] + offsets[at]];
+                streamed += 1ull;
+            }
+        }
+        const unsigned long long bytes = (rice_bits(stream, streamed) + 7ull) / 8ull;
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = undone, .bytes = (size_t)(lanes * sizeof(Integer)), .val = 0);
+        unsigned long long cursor = 0ull;
+        for (unsigned long long plane = 0ull; plane < extent[0] * extent[1]; plane += 1ull)
+        {
+            for (unsigned long long at = 0ull; at < written; at += 1ull)
+            {
+                undone[plane * stride[1] + offsets[at]] = (Integer)unzigzag(stream[cursor]);
+                cursor += 1ull;
             }
         }
         unsigned long long differ = (cursor == lanes) ? 0ull : 1ull;
@@ -369,6 +456,12 @@ int program_main(int argc, char **argv)
             platform_line_out_ended();
         }
         platform_line_flushed();
+    }
+    void *const cells[11] = {offsets, places, places_room, golden, ranked,  ranked_room,
+                             stream,  undone, raw,         data,   naturals};
+    for (unsigned int each = 0u; each < 11u; each += 1u)
+    {
+        platform_cell_released(cells[each], platform_place_g_program_owner);
     }
     return 0;
 }
