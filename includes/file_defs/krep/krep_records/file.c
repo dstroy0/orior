@@ -109,8 +109,9 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
     return 1;
 }
 
-// `file` put together in memory and passed whole to the run's writer as the file at `path`, written by `who`, which
-// writes it in the file's place: the sequence of its bytes' blob, or 0 where it could not be written
+// `file` put together in memory and passed whole to the writer of the run as the file at `path`, written by `who`.
+// The writer writes it in the place of the file. The return is the sequence of the blob of its bytes, or 0 where the
+// writer could not write it
 static unsigned long long krep_filed(const KrepFile *file, const char *path, Who who)
 {
     static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
@@ -162,8 +163,8 @@ int krep_write_by(const KrepFile *file, const char *path, Who who)
     {
         return krep_filed(file, path, who) != 0ULL;
     }
-    // the file its rows put together written, the view of its table, and not the one stored: its bytes' blob linked to
-    // the head row of the rows it was written from
+    // the call writes the file that its rows put together, the view of its table, and not the stored one. The blob of
+    // its bytes links to the head row of the rows that the file came from
     KrepFile view;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &view, .bytes = sizeof(view), .val = 0);
     const unsigned long long written = krep_viewed(file, &view) ? krep_filed(&view, path, who) : 0ULL;

@@ -16,8 +16,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// the max forms the vendor's writer passes back, the longest line read, the max parameters a ruleset names a form
-// with, and the longest parameter name
+// the max forms that the writer of the vendor passes back, and the longest line read. Then the max parameters that a
+// ruleset names a form with, and the longest parameter name
 #define KRS_FORMS 16384u
 
 #define KRS_LINE 512u
@@ -29,8 +29,8 @@
 // the words of the web
 #define KRS_WORDS ((unsigned int)(sizeof(s_word_web) / sizeof(s_word_web[0])))
 
-// the names a form's relation is passed back under, as khw_write writes them: a ladder relation's, and a frame
-// relation's (Open 6.4)
+// the names under which the writer passes back the relation of a form, as khw_write writes them. There is one for a
+// ladder relation, and one for a frame relation (Open 6.4)
 #define KRS_READS_LADDER "ladder."
 
 #define KRS_READS_FRAME "frame."
@@ -41,9 +41,9 @@
 // the blob of the run the vendor's writer appends what it printed in; the forms it appends are FORMS_BLOB_NAME
 #define KRS_MACHINE_NAME "machine.txt"
 
-// one form the part answered for, as the vendor's writer passes it back: the relation's anchor, whether the answers
-// read a word signed, the encoding it was first seen with, and its text with each operand of the relation's tuple
-// written as {<place>}
+// one form that the part answered for, as the writer of the vendor passes it back. It holds the anchor of the relation,
+// whether the answers read a word signed, and the encoding that the writer first saw it with. It also holds its text,
+// with each operand of the tuple of the relation written as {<place>}
 typedef struct
 {
     unsigned int anchor;
@@ -64,8 +64,8 @@ unsigned int krs_costs_read(const char *path);
 unsigned int krs_given_read(const char *path);
 const char *krs_given_of(const char *name);
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers);
-// the place in `writer` of the form of the fewest operands, the first where several have as few: the operands are
-// the comma-separated places after the operation in the form's text
+// the place in `writer` of the form with the fewest operands, the first where several have as few. The operands are
+// the comma-separated places after the operation in the text of the form
 unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers);
 unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME]);
 

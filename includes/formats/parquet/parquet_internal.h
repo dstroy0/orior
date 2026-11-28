@@ -22,8 +22,8 @@
 #define PARQUET_MAGIC_BYTES 4u
 #define PARQUET_TRAILER_BYTES 8u
 
-// the max leaves a schema and row groups a footer may name, a leaf's dotted path with its terminator, the max
-// bytes a footer may contain, and the deepest a schema and a skipped Thrift value may nest
+// the max leaves of a schema and row groups that a footer can name, and the dotted path of a leaf with its
+// terminator. Then the max bytes of a footer, and the deepest that a schema and a skipped Thrift value can nest
 #define PARQUET_LEAVES_MAX 64u
 #define PARQUET_ROW_GROUPS_MAX 256u
 #define PARQUET_PATH_BYTES 128u
@@ -31,7 +31,7 @@
 #define PARQUET_SCHEMA_DEPTH_MAX 16u
 #define PARQUET_THRIFT_DEPTH_MAX 16u
 
-// a level is at max the schema's depth and the leaf's own one, and is stored in a byte
+// a level is at max the depth of the schema plus one for the leaf, and a byte holds it
 _Static_assert((PARQUET_SCHEMA_DEPTH_MAX + 1u) <= UCHAR_MAX,
                "PARQUET_SCHEMA_DEPTH_MAX: a definition or repetition level must fit the byte it is stored in");
 
@@ -102,7 +102,7 @@ typedef struct
     ParquetChunk chunk[PARQUET_LEAVES_MAX];
 } ParquetRowGroup;
 
-// the footer as this reader stores it, and where its bytes sit in the file. Large: it is allocated on the heap
+// the footer as this reader stores it, and where its bytes sit in the file. Large: the reader takes it from the heap
 typedef struct
 {
     unsigned long long rows;
@@ -114,7 +114,7 @@ typedef struct
     ParquetRowGroup row_group[PARQUET_ROW_GROUPS_MAX];
 } ParquetFooter;
 
-// bytes that grow as they are appended to
+// bytes that grow as the call adds to them
 typedef struct
 {
     unsigned char *bytes;
