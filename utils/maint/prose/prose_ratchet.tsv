@@ -495,7 +495,6 @@ src/cu/transpiler/lstar/protocol/table/sm_86.kdm	1
 src/cu/transpiler/lstar/protocol/table/vhdl.krs	1
 src/cu/transpiler/lstar/protocol/table_text.c	1
 src/cu/transpiler/vendor_bin_layouts/container_layout.c	1
-src/cu/transpiler/vendor_bin_layouts/container_write_internal.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/class.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/elf64_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	1
