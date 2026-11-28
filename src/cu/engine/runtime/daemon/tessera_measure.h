@@ -18,11 +18,11 @@ extern "C"
 
     void tessera_measure_close(TesseraMeasure *measure);
 
-    // 1 where no pid is measured from outside (WSL): each job's process reports its own bytes instead
+    // 1 where no one measures a pid from outside (WSL). Then the process of each job reports its own bytes
     int tessera_measure_reported(const TesseraMeasure *measure);
 
-    // 1 for the host's processors: the capacity is the processors jobs are given, and the daemon counts their use from
-    // what its running jobs report
+    // 1 for the processors of the host. The capacity is the processors that jobs get, and the daemon counts their use
+    // from what its jobs that run report
     int tessera_measure_host(const TesseraMeasure *measure);
 
     int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity, unsigned long long *in_use);
