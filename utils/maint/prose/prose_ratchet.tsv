@@ -603,7 +603,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/sass_nvidia.tsv	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/build_bar0.ps1	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cu_target.h	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/install_bar0.ps1	10
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_probe_internal.h	10
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_probe_questions.cu	6
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_check.c	5

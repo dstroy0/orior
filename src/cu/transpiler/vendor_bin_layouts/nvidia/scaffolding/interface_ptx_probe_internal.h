@@ -4,24 +4,27 @@
 #ifndef INTERFACE_PTX_PROBE_INTERNAL_H
 #define INTERFACE_PTX_PROBE_INTERNAL_H
 
-// A probe for the interface's PTX test (engine_table.md item 11(f) 4): questions queried of the device in the ruleset's
-// own words. Each question's kernel is written from ptx.krs, one form by its name at a time (target.h), around a kernel
-// of this probe's own that loads a case's eight input words and stores four output words, and nvJitLink assembles it as
-// the engine's PTX path does. The header is requested of NVRTC. One question a process, named by the first word:
-//   membership   every arithmetic, test and conversion form the code generator writes, over 65,536 cases of input
-//   words, each
-//                answer checked against the host's integers; a form's answer where PTX leaves it undefined (a divisor
-//                of 0) is printed and not checked. Exit 0 where every defined answer agrees, 1 where one does not
-//   address      a load from address 16, which no allocation covers
-//   misaligned   a 32-bit load from an address one byte past an allocation's start
-//   trap         PTX's trap instruction
-//   lacking      elect.sync, which PTX gives sm_90 and later, in a kernel for this device
-//   alive        one form over one case, to show a fresh process's device answers
-//   cubins <folder>  the membership questions' kernels and the kernel alone, assembled and written as cubins for the
-//                SASS probe (interface_sass_probe.c), nothing run
-// A question the device errors prints "error <code> <name>" for the CUDA error it gave, then the error the next
-// allocation gives, "after <code> <name>", and exits 3. One the toolchain errors prints "errored" and its log, and
-// exits 4. Exit 2 where the probe could not query at all
+// A probe for the PTX test of the interface (engine_table.md item 11(f) 4): questions queried of the device in the own
+// words of the ruleset. The probe writes the kernel of each question from ptx.krs, one form by its name at a time
+// (target.h). It goes around an own kernel of this probe that loads the eight input words of a case and stores four
+// output words. The tool nvJitLink assembles it as the PTX path of the engine does. The probe requests the header from
+// NVRTC. One question for each process, named by the first word:
+//
+// - `membership`: every arithmetic, test and conversion form that the code generator writes, over 65,536 cases of input
+//   words. The probe checks each answer against the integers of the host. It prints, and does not check, the answer of
+//   a form where PTX leaves it undefined (a divisor of 0). Exit 0 where every defined answer agrees, 1 where one does
+//   not.
+// - `address`: a load from address 16, which no allocation covers.
+// - `misaligned`: a 32-bit load from an address one byte past the start of an allocation.
+// - `trap`: the trap instruction of PTX.
+// - `lacking`: elect.sync, which PTX gives sm_90 and later, in a kernel for this device.
+// - `alive`: one form over one case, to show that the device of a new process answers.
+// - `cubins <folder>`: the kernels of the membership questions and the kernel alone, assembled and written as cubins
+//   for the SASS probe (interface_sass_probe.c), with nothing run.
+//
+// A question that the device fails prints "error <code> <name>" for the CUDA error that it gave. Then it prints the
+// error that the next allocation gives, "after <code> <name>", and exits 3. One that the toolchain fails prints
+// "errored" and its log, and exits 4. Exit 2 where the probe could not query at all
 #include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/rmc/machine_ir_builder.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -69,15 +72,16 @@ struct ProbeName
     char text[PROBE_NAME_BYTES];
 };
 
-// the registers of each bank a kernel declares: the questions' own below, and above them the scratch a construct
-// takes, numbered on through the whole process so that no two scratch registers share a number
+// the registers of each bank that a kernel declares: the own registers of the questions below, and above them the
+// scratch that a construct takes. The numbers go on through the whole process, so that no two scratch registers share
+// a number
 #define PROBE_TEMPORARIES 12u
 #define PROBE_WIDES 4u
 #define PROBE_PREDICATES 4u
 #define PROBE_DECLARED 1024u
 
-// the ruleset's written forms and a writer for its forms, which marks the text broken where a form is not written. The
-// next scratch register of each bank a construct may take
+// the written forms of the ruleset and a writer for its forms, which marks the text broken where it fails to write a
+// form. Then the next scratch register of each bank that a construct can take
 struct ProbeWriter
 {
     const Ruleset *rules;
