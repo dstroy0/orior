@@ -6,8 +6,9 @@
 
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 
-// The numbers this process appended, TABLE_TEXT_NUMBERS at max: an order of them sorted, `s_table_text_ordered` of
-// them, and a run of the newest, `s_table_text_run_count` of them, with the room that the sort of a full run writes
+// The numbers that this process added, TABLE_TEXT_NUMBERS at max. They are an order of them sorted,
+// `s_table_text_ordered` of them, and a run of the newest, `s_table_text_run_count` of them. Then the room that the
+// sort of a full run writes
 #define TABLE_TEXT_NUMBERS (1u << 16u)
 #define TABLE_TEXT_RUN 256u
 
