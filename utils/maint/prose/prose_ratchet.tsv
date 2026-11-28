@@ -649,7 +649,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/msq_internal.h
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/slot.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/vendor.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	14
-src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu	27
 src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/assemble.c	14
