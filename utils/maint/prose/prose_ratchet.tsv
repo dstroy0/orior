@@ -589,7 +589,6 @@ src/sims/cu/engine/analysis/knf_identity/knf_identity_internal.h	1
 src/sims/cu/engine/analysis/knf_identity/knf_identity_sections.cu	1
 src/sims/cu/engine/analysis/noise_floor/noise_floor_internal.h	2
 src/sims/cu/engine/analysis/noise_root/noise_root.cu	1
-src/sims/cu/engine/analysis/noise_terms/noise_terms_camera.cu	5
 src/sims/cu/engine/analysis/period_power/period_power.cu	1
 src/sims/cu/engine/analysis/root_universal/root_universal_internal.h	1
 src/sims/cu/engine/analysis/root_universal/root_universal_main.cu	3
