@@ -47,8 +47,8 @@ static const char *const s_control[] = {"BRA",   "BRX",   "JMP",  "JMX",      "C
 
 static const char s_illegal_why[] = "the vendor reads an illegal instruction our gate's key passed";
 
-// a position's reading: none where the vendor printed no instruction at its offset, its operation and its text past the
-// guard where it read one, or illegal
+// the reading of a position. It is none where the vendor printed no instruction at its offset, and illegal for an
+// illegal one. Else it is its operation and its text past the guard
 typedef enum
 {
     MSQ_NONE = 0,
@@ -63,8 +63,8 @@ typedef struct
     const char *body;
 } MsqReading;
 
-// one instruction of a listing: its offset, its text as printed, and that text past its guard, both in the listing's
-// own copy of what the vendor printed
+// one instruction of a listing: its offset, its text as printed, and that text past its guard. Both are in the own copy
+// of the listing of what the vendor printed
 typedef struct
 {
     unsigned long long offset;
@@ -89,8 +89,8 @@ typedef struct
     unsigned long long size;
 } MsqBytes;
 
-// a question: its answers' stem, its code's name, its position, the registers its kernel allots, its container's code,
-// and its probe instruction as the part would be passed it, where the code contains the probe
+// a question: the stem of its answers, the name of its code, its position, and the registers that its kernel allots.
+// Then the code of its container, and its probe instruction as the part would get it, where the code holds the probe
 typedef struct
 {
     char stem[256];
@@ -108,9 +108,9 @@ typedef struct
     size_t piece_key[2];
 } MsqQuestion;
 
-// A reader of the vendor's disassembler over raw runs: the stream its runs are passed as, the run it is handing, the
-// output it was passed back, and the count of runs it read. `ident` records the blob names of readers that run at once
-// apart, and `stream` their streams
+// A reader of the disassembler of the vendor over raw runs. It has the stream that its runs go as, and the run that it
+// now gives. Then the output that came back to it, and the count of runs that it read. `ident` keeps apart the blob
+// names of readers that run at once, and `stream` their streams
 typedef struct
 {
     unsigned int ident;
@@ -140,9 +140,9 @@ typedef struct
     size_t slot_count;
 } MsqDistinct;
 
-// A frame's reading, a question's code with its probe put to a NOP where it contains one: the place of every
-// instruction the vendor calls illegal, and the listing it reads once each of those is put to a NOP. `readable` 0 where
-// the vendor stopped at no instruction it named, and the frame can be blocked by no encoding
+// The reading of a frame, the code of a question with its probe put to a NOP where it holds one. It has the place of
+// every instruction that the vendor calls illegal. Then the listing that the vendor reads after each of those goes to a
+// NOP. `readable` is 0 where the vendor stopped at no instruction that it named, and no encoding can block the frame
 typedef struct
 {
     unsigned long long *illegal;
@@ -160,8 +160,8 @@ typedef enum
     MSQ_PIECE_TAIL = 2
 } MsqPieceType;
 
-// where a piece is after the accumulated run: read in it, stopped at by the vendor and so set aside, or set aside
-// unread where the vendor stopped at no address it named
+// where a piece is after the accumulated run: read in it, or set aside because the vendor stopped at it. Else the call
+// sets it aside unread, where the vendor stopped at no address that it named
 typedef enum
 {
     MSQ_PIECE_READ = 0,
@@ -169,8 +169,8 @@ typedef enum
     MSQ_PIECE_UNREAD = 2
 } MsqPieceState;
 
-// a piece: its type, its index among the distinct ones of its type, its bytes, where it was in the last run read, and
-// how it is
+// a piece: its type, and its index among the distinct ones of its type. Then its bytes, where it was in the last run
+// read, and its state
 typedef struct
 {
     MsqPieceType type;
@@ -180,10 +180,11 @@ typedef struct
     MsqPieceState state;
 } MsqPiece;
 
-// The pieces set aside from the accumulated run, each read alone by a pool of reader threads at once, each thread a
-// reader of its own: `aside` lists them by their place in `pieces`, every one put before a thread starts, and a thread
-// takes the next by `next`. What each reads goes where its type's reading is stored: a probe encoding's into
-// `readings`, a frame's into `frame_read`, a tail's addressed registers into `addressed`
+// The pieces set aside from the accumulated run. A pool of reader threads reads each alone, at once, and each thread is
+// a reader of its own. `aside` lists them by their place in `pieces`, every one put before a thread starts, and a
+// thread takes the next by `next`. What each reads goes where the program stores the reading of its type. That of a
+// probe encoding goes into `readings`, that of a frame into `frame_read`, and the addressed registers of a tail into
+// `addressed`
 typedef struct
 {
     const MsqPiece *pieces;
@@ -200,9 +201,9 @@ typedef struct
     const char *why;
 } MsqPool;
 
-// what the cross records, stored as it goes: the gated list, the report, the lines it reports of each refusal, the
-// refusals the teacher reads, and the positions it read clear, a line `<stem> <operation>` each, for a conference the
-// gate may call
+// what the cross records, stored as it goes: the gated list and the report. Then the lines that it reports of each
+// refusal, and the refusals that the teacher reads. Then the positions that it read clear, each a line
+// `<stem> <operation>`, for a conference that the gate can call
 typedef struct
 {
     unsigned char *gated;
