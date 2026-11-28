@@ -31,21 +31,22 @@ static void cubin_run_host_yield(void)
     platform_paused(0ULL);
 }
 
-// 1 where the last launch broke cubin_safe's rule 7: the process launches nothing after it and leaves what the launch
-// stays where it is, since a launch the part has not given back may still use it
+// 1 where the last launch broke rule 7 of cubin_safe. The process launches nothing after it, and leaves the memory that
+// the launch holds where it is. A launch that the part did not give back can still use it
 int s_launch_timed_out = 0;
 
-// 1 where the last launch broke cubin_safe's rule 8, read from the part's fault telemetry or the driver's own word on
-// the stop event: the part faulted, its context corrupt, and the launch is answered as refused
+// 1 where the last launch broke rule 8 of cubin_safe. The call reads it from the fault telemetry of the part, or the
+// own word of the driver on the stop event. Then the part faulted, its context is corrupt, and the program answers the
+// launch as refused
 int s_launch_faulted = 0;
 
-// the events a launch is carried between, made once for the process and recorded again for each launch
+// the events that a launch goes between, made once for the process and recorded again for each launch
 static void *s_start = NULL;
 
 static void *s_stop = NULL;
 
-// the part's memory a launch takes, allotted once and retained at the largest a question of the process requires: the
-// cases, a word each thread, and the room each thread writes its answer in
+// the memory of the part that a launch takes, allotted once and kept at the largest size that a question of the
+// process needs. It holds the cases, a word for each thread, and the room where each thread writes its answer
 static CubinRunAddress s_in = 0ULL;
 
 static size_t s_in_room = 0u;
@@ -74,10 +75,13 @@ static CubinRunStatus cubin_run_room(const CubinRunDriver *driver, CubinRunAddre
     return status;
 }
 
-// One launch of `function` over `arguments` carried under cubin_safe's rule 7: alone between two events the part stamps
-// from its own timer, its stop event read without waiting on it until the part reaches it, the driver gives an error,
-// or CUBIN_SAFE_LAUNCH_BOUND passes on the host's clock. Its block latency in nanoseconds into `nanoseconds`. 0, the
-// status the driver gave, or CUDA_ERROR_LAUNCH_TIMEOUT where the rule was broken, the driver's own or the bound's
+// One launch of `function` over `arguments` under rule 7 of cubin_safe. It runs alone between two events that the part
+// stamps from its own timer. The call reads its stop event with no wait on it. It reads until the part reaches it, the
+// driver gives an error, or CUBIN_SAFE_LAUNCH_BOUND passes on the host clock. Its block latency in nanoseconds goes
+// into `nanoseconds`.
+//
+// The return is 0, or the status that the driver gave. It is CUDA_ERROR_LAUNCH_TIMEOUT where the launch
+// broke the rule, by the own timeout of the driver or by the bound
 static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *function, void **arguments,
                                         const CubinRunShape *shape, unsigned long long *nanoseconds)
 {
@@ -116,9 +120,9 @@ static CubinRunStatus cubin_run_bounded(const CubinRunDriver *driver, void *func
         }
         cubin_run_host_yield();
     }
-    // rule 8: the part's fault telemetry read, and the driver's own word on the stop event with it. A launch that
-    // faulted the part halts the process and is answered as refused, named by the driver's error or, where only the
-    // stamp caught it, as a failed launch
+    // rule 8: the call reads the fault telemetry of the part, and the own word of the driver on the stop event with
+    // it. A launch that faulted the part halts the process, and the program answers it as refused. The error of the
+    // driver names it. Where only the stamp caught it, the name is a failed launch
     const unsigned long long faulted_began = cubin_run_host_now();
     s_clocks.launch += faulted_began - launch_began;
     const int faulted = cubin_run_telemetry_faulted(status);
@@ -145,15 +149,16 @@ unsigned long long s_timed_least;
 
 unsigned long long s_timed_max;
 
-// the register count the part reports for the last kernel a launch loaded (cuFuncGetAttribute), or
-// CUBIN_RUN_REGISTERS_UNREAD before it is read: the count read off the part, a question never walking up to the
-// boundary to find it
+// the register count that the part reports for the last kernel that a launch loaded (cuFuncGetAttribute), or
+// CUBIN_RUN_REGISTERS_UNREAD before the call reads it. The program reads the count from the part, and no question walks
+// up to the boundary to find it
 unsigned int s_part_registers = CUBIN_RUN_REGISTERS_UNREAD;
 
-// `launches` launches of `function` over `arguments`, one at a time, each under cubin_safe's rule 7, their block
-// latencies summed into `nanoseconds` and the least and the max of them into s_timed_least and s_timed_max: 0, or the
-// status the driver gave the first launch that did not return clean, none launched after it. The timer is the part's
-// and not the host's, and counts the same whatever clock the part's multiprocessors run at
+// `launches` launches of `function` over `arguments`, one at a time, each under rule 7 of cubin_safe. The call sums
+// their block latencies into `nanoseconds`, and puts the least and the max of them into s_timed_least and
+// s_timed_max. The return is 0, or the status that the driver gave the first launch that did not return clean. The
+// call launches none after it. The timer belongs to the part and not to the host, and counts the same at any clock of
+// the multiprocessors of the part
 static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *function, void **arguments,
                                       const CubinRunShape *shape, unsigned int launches,
                                       unsigned long long *nanoseconds)
@@ -185,13 +190,14 @@ static CubinRunStatus cubin_run_timed(const CubinRunDriver *driver, void *functi
     return status;
 }
 
-// The answers read as the kernel wrote them into `written`, the room of `count` threads filled with
-// CUBIN_RUN_FILL_WORD before the launch. Every thread writes its answer at one stride from the one before it, and the
-// writes reach (count - 1) strides and the words one thread writes: the stride is that reach over the count rounded up,
-// and the words a thread writes are what the last thread's write adds past the strides before it. That is true where
-// the room a thread leaves past what it writes is less than the count of threads, and where the last word the last
-// thread writes differs from the fill. Each case's answer into s_answers, the first two words its thread wrote, a word
-// it did not write read as 0
+// The answers, read as the kernel wrote them into `written`. Before the launch, the room of `count` threads holds
+// CUBIN_RUN_FILL_WORD. Every thread writes its answer one stride from the thread before it. The writes reach
+// `(count - 1)` strides plus the words that one thread writes. The stride is that reach over the count, rounded up. The
+// words that a thread writes are what the write of the last thread adds past the strides before it.
+//
+// That is true where the room that a thread leaves past what it writes is less than the count of threads. It must also
+// be true that the last word that the last thread writes differs from the fill. The answer of each case goes into
+// s_answers. It is the first two words that its thread wrote, with a word that it did not write read as 0
 static void cubin_run_answers_read(const unsigned int *written, unsigned int count)
 {
     unsigned long long reach = (unsigned long long)count * CUBIN_RUN_OUT_ROOM;
@@ -210,9 +216,10 @@ static void cubin_run_answers_read(const unsigned int *written, unsigned int cou
     }
 }
 
-// The container in s_container loaded and its kernel launched as `shape` specifies, every thread given a case, thread t
-// case t of the cases taken round, and each case's answer into s_answers as the kernel wrote it; where `launches`
-// is not 0, that many launches after it timed into `nanoseconds`. 0, or the status the driver gave
+// The container in s_container, loaded, with its kernel launched as `shape` specifies. Every thread gets a case: thread
+// t takes case t of the cases, taken round. The answer of each case goes into s_answers as the kernel wrote it. Where
+// `launches` is not 0, the call times that many launches after it into `nanoseconds`. The return is 0, or the status
+// that the driver gave
 CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel, const CubinRunShape *shape,
                                 unsigned int launches, unsigned long long *nanoseconds)
 {
@@ -248,8 +255,8 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     status = (status == 0) ? driver->function_get(&function, module, kernel) : status;
     if (status == 0)
     {
-        // the part's own count of the registers the kernel allots, read off the loaded function before any launch: a
-        // count the attribute represents in a signed int is never negative
+        // the count of the registers that the kernel allots, as the part counts it, read from the loaded function
+        // before any launch. A count that the attribute holds in a signed int is never negative
         int reported = 0;
         s_part_registers =
             ((driver->function_attribute(&reported, CUBIN_RUN_ATTRIBUTE_NUM_REGS, function) == 0) && (reported >= 0))
@@ -289,8 +296,8 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     {
         return status;
     }
-    // the question's module given back, so that a process carrying many loads one question's code at a time. The
-    // memory its launch took is retained for the next question's
+    // the module of the question, given back, so that a process that carries many loads the code of one question at
+    // a time. The call keeps the memory that its launch took for the next question
     const unsigned long long freed_began = cubin_run_host_now();
     if (module != NULL)
     {
@@ -305,16 +312,17 @@ CubinRunDriver s_driver;
 
 int s_driver_opened = 0;
 
-// 1 where the run is dry: every question is written and checked against the gate as ever, and none reaches the driver
+// 1 where the run is dry. The program writes every question and checks it against the gate as always, and none
+// reaches the driver
 int s_dry = 0;
 
 // against the vendor's own disassembler, which scaffolding compiles the same C through
 unsigned int s_facets = 0u;
 
-// The container as it would reach the part, `size` bytes of it, passed as the run's blob named as `answers_path` with
-// .cubin for its extension: the --diff-output-against-vendor facet's object, for scaffolding to read against the
-// vendor's own disassembler. It is the post-safety-word container, passed whatever the gate's verdict; a question the
-// gate blocked is read too
+// The container as it would reach the part, `size` bytes of it, passed as the blob of the run named as `answers_path`
+// with .cubin for its extension. It is the object of the --diff-output-against-vendor facet, for scaffolding to read
+// against the own disassembler of the vendor. It is the container after the safety word, passed whatever the verdict
+// of the gate. The call also passes a question that the gate blocked
 void cubin_run_container_out(const char *answers_path, const unsigned char *container, unsigned long long size)
 {
     char path[CUBIN_RUN_LINE];
@@ -332,11 +340,11 @@ void cubin_run_container_out(const char *answers_path, const unsigned char *cont
     qry_member_append(path, container, size, QRY_ORDINARY);
 }
 
-// What a dry run would have passed the part, a record of each question: the question's shape, the gate's verdict, its
-// cases, and each place of its code. With the --query facet every place is written. Without it, only the places that
-// are not as the run's first question contains them, read back as our reader reads them. The first question's code is
-// stored as dry_base.bin, and every place of it is written. The record is a blob dry.txt of the run, a blob
-// a question, and the base the blob dry_base.bin
+// What a dry run would pass the part, a record for each question. It has the shape of the question, the verdict of the
+// gate, its cases, and each place of its code. With the --query facet, the call writes every place. Without it, it
+// writes only the places that differ from the first question of the run, read back as our reader reads them. The call
+// stores the code of the first question as dry_base.bin, and writes every place of it. The record is a blob dry.txt of
+// the run, a blob for each question, and the base, the blob dry_base.bin
 void cubin_run_dry_written(unsigned long long code_size, unsigned int registers, unsigned int launches,
                            const CubinRunShape *shape, unsigned int verdict, unsigned long long at)
 {
