@@ -60,10 +60,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <algorithm>
-#include <set>
-#include <string>
-#include <vector>
+// the pool of the host: the counts of every relation, run and language take a whole number each
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 31u;
 
 // the relations counted, in the order of their lanes
 #define SUFFIX_PAIRS 0u
@@ -72,24 +70,44 @@
 #define SUFFIX_IDENTICAL 3u
 #define SUFFIX_RELATIONS 4u
 
+// the rounds of the larger program at max: each round halves the counts left, and a count of them fits 64 bits
+#define SUFFIX_ROUNDS_MAX 64u
+
+// a suffix: its segments from word[first_segment] on, and the meanings it offers from word[first_offered] on, sorted
+// by their bytes once the input is read
 typedef struct
 {
-    std::vector<std::string> segments;
-    std::set<std::string> offered;
+    unsigned long long first_segment;
+    unsigned long long segments;
+    unsigned long long first_offered;
+    unsigned long long offered;
 } SuffixRow;
 
+// a noun: its segments from word[first_segment] on, and its meaning
 typedef struct
 {
-    std::vector<std::string> segments;
-    std::string meaning;
+    unsigned long long first_segment;
+    unsigned long long segments;
+    const char *meaning;
 } SuffixNoun;
 
+// a language as the input names it: its suffixes from suffix[first_suffix] on and its nouns from noun[first_noun] on
 typedef struct
 {
-    std::string name;
-    std::vector<SuffixRow> suffixes;
-    std::vector<SuffixNoun> nouns;
-    std::vector<std::vector<unsigned int>> flags;
+    const char *name;
+    unsigned long long first_suffix;
+    unsigned long long suffixes;
+    unsigned long long first_noun;
+    unsigned long long nouns;
+} SuffixRead;
+
+// a language retained: the one read, its relation bits, `words` words a relation in a cell of the temporary tier, and
+// what the machine gives it
+typedef struct
+{
+    const SuffixRead *read;
+    unsigned int *flags;
+    unsigned int words;
     StageWhole observed[SUFFIX_RELATIONS];
     StageWhole sum[SUFFIX_RELATIONS];
     StageWhole above[SUFFIX_RELATIONS];
@@ -103,89 +121,188 @@ typedef struct
     unsigned long long least_nouns;
 } SuffixSettings;
 
-static std::vector<std::string> suffix_words(const std::string &text, char part)
+// The input read once: its lines, its words, and its suffixes, nouns and languages. Each is a cell of the temporary
+// tier, the words at the input's bytes and the rest at its lines, which bound them before they fill
+typedef struct
 {
-    std::vector<std::string> words;
-    size_t start = 0u;
-    while (start <= text.size())
-    {
-        size_t end = text.find(part, start);
-        end = (end == std::string::npos) ? text.size() : end;
-        if (end > start)
-        {
-            words.push_back(text.substr(start, end - start));
-        }
-        start = end + 1u;
-    }
-    return words;
+    StageLines lines;
+    const char **word;
+    unsigned long long words;
+    SuffixRow *suffix;
+    unsigned long long suffixes;
+    SuffixNoun *noun;
+    unsigned long long nouns;
+    SuffixRead *language;
+    unsigned long long languages;
+} SuffixInput;
+
+static void suffix_released(SuffixInput *input)
+{
+    stage_cell_released(input->language);
+    stage_cell_released(input->noun);
+    stage_cell_released(input->suffix);
+    stage_cell_released((void *)input->word);
+    stage_lines_released(&input->lines);
 }
 
-static int suffix_read(const char *path, SuffixSettings *settings, std::vector<SuffixLanguage> *languages)
+// the words of a text split in place at `part`, each that holds a byte put at the input's next word; the count of them
+static unsigned long long suffix_words(char *text, char part, SuffixInput *input)
 {
-    std::vector<std::string> lines;
-    if (!stage_lines(path, &lines) || (lines.size() < 4u))
+    const unsigned long long first = input->words;
+    char *start = text;
+    for (;;)
+    {
+        char *const end = (char *)EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = start,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = (uint8_t)part);
+        if (end != NULL)
+        {
+            *end = '\0';
+        }
+        if (*start != '\0')
+        {
+            input->word[input->words] = start;
+            input->words += 1ull;
+        }
+        if (end == NULL)
+        {
+            return input->words - first;
+        }
+        start = end + 1;
+    }
+}
+
+// the order of two words by their bytes, for memor.sort
+static int suffix_word_order(const void *left, const void *right)
+{
+    return stage_text_order(*(const char *const *)left, *(const char *const *)right);
+}
+
+static int suffix_read(const char *path, SuffixSettings *settings, SuffixInput *input)
+{
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = input, .bytes = sizeof(*input), .val = 0);
+    if (!stage_lines(path, &input->lines) || (input->lines.count < 4u))
     {
         return 0;
     }
+    input->word = (const char **)stage_cell(input->lines.size + 1ull, sizeof(char *));
+    input->suffix = (SuffixRow *)stage_cell(input->lines.count, sizeof(SuffixRow));
+    input->noun = (SuffixNoun *)stage_cell(input->lines.count, sizeof(SuffixNoun));
+    input->language = (SuffixRead *)stage_cell(input->lines.count, sizeof(SuffixRead));
+    const char **const room = (const char **)stage_cell(input->lines.size + 1ull, sizeof(char *));
+    int ok = (input->word != NULL) && (input->suffix != NULL) && (input->noun != NULL) && (input->language != NULL) &&
+             (room != NULL);
     const char *heads[4] = {"permutations", "seed", "least_suffixes", "least_nouns"};
     unsigned long long *values[4] = {&settings->permutations, &settings->seed, &settings->least_suffixes,
                                      &settings->least_nouns};
-    for (size_t at = 0u; at < 4u; at += 1u)
+    StageFields fields;
+    for (unsigned long long at = 0ull; ok && (at < 4ull); at += 1ull)
     {
-        const std::vector<std::string> fields = stage_split(lines[at]);
-        if ((fields.size() != 2u) || (fields[0] != heads[at]))
-        {
-            return 0;
-        }
-        *values[at] = strtoull(fields[1].c_str(), NULL, 10);
+        stage_split(input->lines.line[at], &fields);
+        ok = stage_fields_are(&fields, 2u) && stage_same(fields.field[0], heads[at]);
+        *values[at] = ok ? strtoull(fields.field[1], NULL, 10) : 0ull;
     }
-    size_t at = 4u;
-    while (at < lines.size())
+    unsigned long long at = 4ull;
+    while (ok && (at < input->lines.count))
     {
-        const std::vector<std::string> head = stage_split(lines[at]);
-        if ((head.size() != 4u) || (head[0] != "language"))
+        stage_split(input->lines.line[at], &fields);
+        if (!stage_fields_are(&fields, 4u) || !stage_same(fields.field[0], "language"))
         {
-            return 0;
+            ok = 0;
+            break;
         }
-        SuffixLanguage language;
-        language.name = head[1];
-        const unsigned long long suffixes = strtoull(head[2].c_str(), NULL, 10);
-        const unsigned long long nouns = strtoull(head[3].c_str(), NULL, 10);
-        at += 1u;
-        for (unsigned long long one = 0ull; one < suffixes + nouns; one += 1ull, at += 1u)
+        SuffixRead *const language = &input->language[input->languages];
+        input->languages += 1ull;
+        language->name = fields.field[1];
+        language->first_suffix = input->suffixes;
+        language->first_noun = input->nouns;
+        const unsigned long long suffixes = strtoull(fields.field[2], NULL, 10);
+        const unsigned long long nouns = strtoull(fields.field[3], NULL, 10);
+        at += 1ull;
+        for (unsigned long long one = 0ull; ok && (one < suffixes + nouns); one += 1ull, at += 1ull)
         {
-            const std::vector<std::string> fields =
-                (at < lines.size()) ? stage_split(lines[at]) : std::vector<std::string>();
             const char *type = (one < suffixes) ? "suffix" : "noun";
-            if ((fields.size() != 3u) || (fields[0] != type))
+            if (at >= input->lines.count)
             {
-                return 0;
+                ok = 0;
+                break;
+            }
+            stage_split(input->lines.line[at], &fields);
+            if (!stage_fields_are(&fields, 3u) || !stage_same(fields.field[0], type))
+            {
+                ok = 0;
+                break;
             }
             if (one < suffixes)
             {
-                const std::vector<std::string> offered = suffix_words(fields[2], ',');
-                language.suffixes.push_back(
-                    {suffix_words(fields[1], ' '), std::set<std::string>(offered.begin(), offered.end())});
+                SuffixRow *const row = &input->suffix[input->suffixes];
+                input->suffixes += 1ull;
+                row->first_segment = input->words;
+                row->segments = suffix_words(fields.field[1], ' ', input);
+                row->first_offered = input->words;
+                row->offered = suffix_words(fields.field[2], ',', input);
+                // the meanings offered sorted once, for the binary search of each noun's meaning
+                EMBED_CALL(memor.sort, MemoriaCfg, .dst = &input->word[row->first_offered], .bytes = sizeof(char *),
+                           .scratch = room, .count = row->offered, .order = suffix_word_order);
             }
             else
             {
-                language.nouns.push_back({suffix_words(fields[1], ' '), fields[2]});
+                SuffixNoun *const noun = &input->noun[input->nouns];
+                input->nouns += 1ull;
+                noun->first_segment = input->words;
+                noun->segments = suffix_words(fields.field[1], ' ', input);
+                noun->meaning = fields.field[2];
             }
         }
-        languages->push_back(language);
+        language->suffixes = input->suffixes - language->first_suffix;
+        language->nouns = input->nouns - language->first_noun;
     }
-    return settings->permutations > 0ull;
+    stage_cell_released((void *)room);
+    return ok && (settings->permutations > 0ull);
+}
+
+// 1 where the suffix offers `meaning`, by a binary search of its sorted meanings
+static int suffix_offers(const SuffixInput *input, const SuffixRow *row, const char *meaning)
+{
+    const char *const *const offered = &input->word[row->first_offered];
+    unsigned long long low = 0ull;
+    unsigned long long high = row->offered;
+    while (low < high)
+    {
+        const unsigned long long middle = low + ((high - low) / 2ull);
+        const int order = stage_text_order(offered[middle], meaning);
+        if (order == 0)
+        {
+            return 1;
+        }
+        low = (order < 0) ? (middle + 1ull) : low;
+        high = (order < 0) ? high : middle;
+    }
+    return 0;
+}
+
+// 1 where the `count` words at one equal the `count` words at other, one by one
+static int suffix_same_words(const char *const *one, const char *const *other, unsigned long long count)
+{
+    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    {
+        if (!stage_same(one[at], other[at]))
+        {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 // whether the noun's segments end with the suffix's, the noun longer by between `least` and `max` segments
-static int suffix_ends(const std::vector<std::string> &noun, const std::vector<std::string> &suffix, size_t least,
-                       size_t max)
+static int suffix_ends(const SuffixInput *input, const SuffixNoun *noun, const SuffixRow *suffix,
+                       unsigned long long least, unsigned long long max)
 {
-    if ((noun.size() < suffix.size() + least) || (noun.size() > suffix.size() + max))
+    if ((noun->segments < suffix->segments + least) || (noun->segments > suffix->segments + max))
     {
         return 0;
     }
-    return std::equal(suffix.begin(), suffix.end(), noun.end() - (long long)suffix.size());
+    return suffix_same_words(&input->word[suffix->first_segment],
+                             &input->word[noun->first_segment + noun->segments - suffix->segments], suffix->segments);
 }
 
 // a count passed through, for its sum over a run of languages
@@ -220,28 +337,38 @@ static void suffix_value_program(unsigned int bits, StageProgram *program)
     stage_output(program, stage_step(program, ENGINE_RECORD_SUM, shuffles, one));
 }
 
-// a / b as its whole part and six digits, by the digits program; one text per value
-static int suffix_digits(SimResults *job, Stage *stage, const std::vector<StageRational> &values,
-                         std::vector<std::string> *displayed, EngineError *error)
+// a / b as its whole part and six digits, by the digits program; one text per value, at displayed
+static int suffix_digits(SimResults *job, Stage *stage, const StageRational *values, unsigned long long count,
+                         StageText *displayed, EngineError *error)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
     stage->name = "digits";
-    stage_digits_program(stage_widest(values) + 1u, &stage->program);
-    StageRows rows;
-    for (size_t at = 0u; at < values.size(); at += 1u)
+    stage_digits_program(stage_widest(values, count) + 1u, &stage->program);
+    StageTable rows = {NULL, 0ull, 0u};
+    int ok = stage_table_taken(&rows, count, 2u);
+    for (unsigned long long at = 0ull; ok && (at < count); at += 1ull)
     {
-        rows.push_back({values[at].num, values[at].den});
+        stage_row(&rows, at)[0] = values[at].num;
+        stage_row(&rows, at)[1] = values[at].den;
     }
-    std::vector<std::vector<StageWhole>> out;
-    const int ok = stage_rows(job, stage, rows, &out, error);
-    displayed->clear();
-    for (size_t at = 0u; ok && (at < out.size()); at += 1u)
+    StageTable out = {NULL, 0ull, 0u};
+    ok = ok && stage_rows(job, stage, &rows, &out, error);
+    for (unsigned long long at = 0ull; ok && (at < out.rows); at += 1ull)
     {
-        char fraction[16];
-        snprintf(fraction, sizeof(fraction), "%06u", out[at][1][0]);
-        displayed->push_back(stage_text_of(out[at][0]) + "." + fraction);
+        displayed[at] = stage_decimal_of(stage_row(&out, at)[0], stage_row(&out, at)[1]);
     }
+    stage_table_released(&out);
+    stage_table_released(&rows);
     return ok;
+}
+
+// the words at `words`, `count` of them, put one after the other
+static void suffix_joined(VerbaLinea *line, const char *const *words, unsigned long long count)
+{
+    for (unsigned long long part = 0ull; part < count; part += 1ull)
+    {
+        mmgr_line_put(line, words[part]);
+    }
 }
 
 int program_main(int count, char **arguments)
@@ -256,48 +383,66 @@ int program_main(int count, char **arguments)
     }
     SuffixSettings settings;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &settings, .bytes = sizeof(settings), .val = 0);
-    std::vector<SuffixLanguage> read;
-    if (!suffix_read(arguments[1], &settings, &read))
+    SuffixInput input;
+    if (!suffix_read(arguments[1], &settings, &input))
     {
         fprintf(stderr, "  lexical_suffix_origins: %s is not an input this program reads\n", arguments[1]);
         return 2;
     }
 
     // the languages retained, and each one's relation bits over its pairs, suffix by suffix and noun by noun
-    std::vector<SuffixLanguage> languages;
+    SuffixLanguage *const languages = (SuffixLanguage *)stage_cell(input.languages, sizeof(SuffixLanguage));
+    if (languages == NULL)
+    {
+        return 2;
+    }
+    unsigned long long language_count = 0ull;
     unsigned int words = 1u;
     unsigned long long all_pairs = 0ull;
-    for (size_t at = 0u; at < read.size(); at += 1u)
+    unsigned long long nouns_max = 0ull;
+    for (unsigned long long at = 0ull; at < input.languages; at += 1ull)
     {
-        SuffixLanguage language = read[at];
-        if ((language.suffixes.size() < settings.least_suffixes) || (language.nouns.size() < settings.least_nouns))
+        const SuffixRead *const read = &input.language[at];
+        if ((read->suffixes < settings.least_suffixes) || (read->nouns < settings.least_nouns))
         {
             continue;
         }
-        const size_t pairs = language.suffixes.size() * language.nouns.size();
+        SuffixLanguage *const language = &languages[language_count];
+        language->read = read;
+        const unsigned long long pairs = read->suffixes * read->nouns;
         const unsigned int own_words = (unsigned int)((pairs + 31u) / 32u);
-        language.flags.assign(SUFFIX_RELATIONS, std::vector<unsigned int>(own_words, 0u));
-        for (size_t suffix = 0u; suffix < language.suffixes.size(); suffix += 1u)
+        language->words = own_words;
+        language->flags =
+            (unsigned int *)stage_cell((unsigned long long)SUFFIX_RELATIONS * own_words, sizeof(unsigned int));
+        if (language->flags == NULL)
         {
-            for (size_t noun = 0u; noun < language.nouns.size(); noun += 1u)
+            return 2;
+        }
+        for (unsigned long long suffix = 0ull; suffix < read->suffixes; suffix += 1ull)
+        {
+            for (unsigned long long noun = 0ull; noun < read->nouns; noun += 1ull)
             {
-                const size_t bit = suffix * language.nouns.size() + noun;
-                const std::vector<std::string> &own = language.nouns[noun].segments;
-                const std::vector<std::string> &end = language.suffixes[suffix].segments;
+                const unsigned long long bit = suffix * read->nouns + noun;
+                const SuffixNoun *const own = &input.noun[read->first_noun + noun];
+                const SuffixRow *const end = &input.suffix[read->first_suffix + suffix];
+                const int same =
+                    (own->segments == end->segments) &&
+                    suffix_same_words(&input.word[own->first_segment], &input.word[end->first_segment], own->segments);
                 const unsigned int relation_flags[SUFFIX_RELATIONS] = {
-                    1u, (unsigned int)suffix_ends(own, end, 1u, 2u),
-                    (unsigned int)suffix_ends(own, end, 1u, own.size()), (unsigned int)(own == end)};
+                    1u, (unsigned int)suffix_ends(&input, own, end, 1u, 2u),
+                    (unsigned int)suffix_ends(&input, own, end, 1u, own->segments), (unsigned int)same};
                 for (unsigned int relation = 0u; relation < SUFFIX_RELATIONS; relation += 1u)
                 {
-                    language.flags[relation][bit / 32u] |= relation_flags[relation] << (bit % 32u);
+                    language->flags[relation * own_words + bit / 32u] |= relation_flags[relation] << (bit % 32u);
                 }
             }
         }
-        words = std::max(words, own_words);
+        words = (own_words > words) ? own_words : words;
+        nouns_max = (read->nouns > nouns_max) ? read->nouns : nouns_max;
         all_pairs += pairs;
-        languages.push_back(language);
+        language_count += 1ull;
     }
-    if (languages.empty())
+    if (language_count == 0ull)
     {
         fprintf(stderr, "  lexical_suffix_origins: no language contains %llu suffixes and %llu nouns\n",
                 settings.least_suffixes, settings.least_nouns);
@@ -307,7 +452,6 @@ int program_main(int count, char **arguments)
     // the count program: lanes ordered by relation, then run (the identity first), then language, then word
     const unsigned long long shuffles = settings.permutations;
     const unsigned long long runs = shuffles + 1ull;
-    const unsigned long long language_count = languages.size();
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     Stage count_stage;
@@ -315,61 +459,70 @@ int program_main(int count, char **arguments)
     count_stage.name = "count";
     stage_count_program(1, &count_stage.program);
     const unsigned long long count_lanes = SUFFIX_RELATIONS * runs * language_count * words;
-    std::vector<unsigned int> records((size_t)(count_lanes * 2ull), 0u);
-    std::vector<size_t> order;
-    std::vector<unsigned int> same(words, 0u);
-    for (size_t at = 0u; at < languages.size(); at += 1u)
+    unsigned int *records = (unsigned int *)stage_cell(count_lanes * 2ull, sizeof(unsigned int));
+    unsigned long long *const order = (unsigned long long *)stage_cell(nouns_max, sizeof(unsigned long long));
+    unsigned int *const same = (unsigned int *)stage_cell(words, sizeof(unsigned int));
+    int ok = (records != NULL) && (order != NULL) && (same != NULL);
+    for (unsigned long long at = 0ull; ok && (at < language_count); at += 1ull)
     {
         const SuffixLanguage &language = languages[at];
-        const size_t nouns = language.nouns.size();
-        const unsigned long long key = sim_mix(settings.seed ^ sim_mix((unsigned long long)at));
+        const SuffixRead *const read = language.read;
+        const unsigned long long nouns = read->nouns;
+        const unsigned long long key = sim_mix(settings.seed ^ sim_mix(at));
         for (unsigned long long run = 0ull; run < runs; run += 1ull)
         {
-            order = stage_run(0u, nouns, 1u);
+            for (unsigned long long noun = 0ull; noun < nouns; noun += 1ull)
+            {
+                order[noun] = noun;
+            }
             if (run > 0ull)
             {
-                for (size_t place = nouns - 1u; place > 0u; place -= 1u)
+                for (unsigned long long place = nouns - 1ull; place > 0ull; place -= 1ull)
                 {
-                    const size_t other = (size_t)sim_draw_below(key, (run * (unsigned long long)nouns) + place,
-                                                                (unsigned long long)place + 1ull);
-                    std::swap(order[place], order[other]);
+                    const unsigned long long other = sim_draw_below(key, (run * nouns) + place, place + 1ull);
+                    const unsigned long long held = order[place];
+                    order[place] = order[other];
+                    order[other] = held;
                 }
             }
-            std::fill(same.begin(), same.end(), 0u);
-            for (size_t suffix = 0u; suffix < language.suffixes.size(); suffix += 1u)
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = same, .bytes = words * sizeof(unsigned int), .val = 0);
+            for (unsigned long long suffix = 0ull; suffix < read->suffixes; suffix += 1ull)
             {
-                for (size_t noun = 0u; noun < nouns; noun += 1u)
+                for (unsigned long long noun = 0ull; noun < nouns; noun += 1ull)
                 {
-                    const size_t bit = suffix * nouns + noun;
+                    const unsigned long long bit = suffix * nouns + noun;
                     const unsigned int offered =
-                        (unsigned int)language.suffixes[suffix].offered.count(language.nouns[order[noun]].meaning);
+                        (unsigned int)suffix_offers(&input, &input.suffix[read->first_suffix + suffix],
+                                                    input.noun[read->first_noun + order[noun]].meaning);
                     same[bit / 32u] |= offered << (bit % 32u);
                 }
             }
             for (unsigned int relation = 0u; relation < SUFFIX_RELATIONS; relation += 1u)
             {
                 const unsigned long long first = ((relation * runs + run) * language_count + at) * words;
-                for (size_t word = 0u; word < language.flags[relation].size(); word += 1u)
+                for (unsigned int word = 0u; word < language.words; word += 1u)
                 {
-                    records[(size_t)((first + word) * 2ull)] = same[word];
-                    records[(size_t)((first + word) * 2ull + 1ull)] = language.flags[relation][word];
+                    records[(first + word) * 2ull] = same[word];
+                    records[(first + word) * 2ull + 1ull] = language.flags[relation * language.words + word];
                 }
             }
         }
     }
-    int ok = stage_position(&job, &count_stage, &error);
+    ok = ok && stage_position(&job, &count_stage, &error);
     const unsigned long long declared =
         count_lanes * (2ull + (ok ? count_stage.layout.out_limbs : 1u)) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "lexical_suffix_origins", count, arguments, declared);
-    std::vector<std::vector<StageWhole>> counted;
-    ok = ok && stage_summed(&job, &count_stage, records, count_lanes, words, std::vector<unsigned int>(1, 0u), &counted,
-                            &error);
-    records.clear();
-    records.shrink_to_fit();
-    auto counts = [&](unsigned int relation, unsigned long long run, size_t language) -> const StageWhole & {
-        return counted[0][(size_t)((relation * runs + run) * language_count + language)];
+    StageTable counted = {NULL, 0ull, 0u};
+    const unsigned int first_output[1] = {0u};
+    ok = ok && stage_summed(&job, &count_stage, records, count_lanes * 2ull, count_lanes, words, first_output, 1u,
+                            &counted, &error);
+    stage_cell_released(records);
+    records = NULL;
+    auto counts = [&](unsigned int relation, unsigned long long run,
+                      unsigned long long language) -> const StageWhole & {
+        return stage_row(&counted, 0ull)[(relation * runs + run) * language_count + language];
     };
-    for (size_t at = 0u; ok && (at < languages.size()); at += 1u)
+    for (unsigned long long at = 0ull; ok && (at < language_count); at += 1ull)
     {
         for (unsigned int relation = 0u; relation < SUFFIX_RELATIONS; relation += 1u)
         {
@@ -387,22 +540,24 @@ int program_main(int count, char **arguments)
     ok = ok && stage_position(&job, &pass_stage, &error);
     const unsigned long long pass_lanes = 3ull * runs * language_count;
     const unsigned int pass_limbs = (pass_stage.program.record_bits + 31u) / 32u;
-    std::vector<unsigned int> pass_records((size_t)(pass_lanes * pass_limbs), 0u);
+    unsigned int *const pass_records = (unsigned int *)stage_cell(pass_lanes * pass_limbs, sizeof(unsigned int));
+    ok = ok && (pass_records != NULL);
     for (unsigned int which = 0u; ok && (which < 3u); which += 1u)
     {
         for (unsigned long long run = 0ull; run < runs; run += 1ull)
         {
-            for (size_t at = 0u; at < languages.size(); at += 1u)
+            for (unsigned long long at = 0ull; at < language_count; at += 1ull)
             {
                 const unsigned long long lane = (which * runs + run) * language_count + at;
-                stage_put(&pass_records[(size_t)(lane * pass_limbs)], pass_stage.program.field_offset[0],
+                stage_put(&pass_records[lane * pass_limbs], pass_stage.program.field_offset[0],
                           pass_stage.program.field_bits[0], counts(tested[which], run, at));
             }
         }
     }
-    std::vector<std::vector<StageWhole>> pooled;
-    ok = ok && stage_summed(&job, &pass_stage, pass_records, pass_lanes, language_count,
-                            std::vector<unsigned int>(1, 0u), &pooled, &error);
+    StageTable pooled = {NULL, 0ull, 0u};
+    ok = ok && stage_summed(&job, &pass_stage, pass_records, pass_lanes * pass_limbs, pass_lanes, language_count,
+                            first_output, 1u, &pooled, &error);
+    const StageWhole *const pooled_row = ok ? stage_row(&pooled, 0ull) : NULL;
 
     // the above program: each language's shuffles and the pooled shuffles, against their observed counts
     Stage above_stage;
@@ -413,82 +568,98 @@ int program_main(int count, char **arguments)
     const unsigned long long sets = 2ull * (language_count + 1ull);
     const unsigned long long above_lanes = sets * shuffles;
     const unsigned int above_limbs = (above_stage.program.record_bits + 31u) / 32u;
-    std::vector<unsigned int> above_records((size_t)(above_lanes * above_limbs), 0u);
+    unsigned int *const above_records = (unsigned int *)stage_cell(above_lanes * above_limbs, sizeof(unsigned int));
+    ok = ok && (above_records != NULL);
     for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
     {
         for (unsigned long long set = 0ull; set <= language_count; set += 1ull)
         {
             const StageWhole &observed =
-                (set < language_count) ? counts(tested[which], 0ull, (size_t)set) : pooled[0][which * runs];
+                (set < language_count) ? counts(tested[which], 0ull, set) : pooled_row[which * runs];
             for (unsigned long long shuffle = 0ull; shuffle < shuffles; shuffle += 1ull)
             {
-                const StageWhole &drawn = (set < language_count) ? counts(tested[which], 1ull + shuffle, (size_t)set)
-                                                                 : pooled[0][which * runs + 1ull + shuffle];
-                unsigned int *record = &above_records[(
-                    size_t)((((which * (language_count + 1ull)) + set) * shuffles + shuffle) * above_limbs)];
+                const StageWhole &drawn = (set < language_count) ? counts(tested[which], 1ull + shuffle, set)
+                                                                 : pooled_row[which * runs + 1ull + shuffle];
+                unsigned int *record =
+                    &above_records[(((which * (language_count + 1ull)) + set) * shuffles + shuffle) * above_limbs];
                 stage_put(record, above_stage.program.field_offset[0], above_stage.program.field_bits[0], drawn);
                 stage_put(record, above_stage.program.field_offset[1], above_stage.program.field_bits[1], observed);
             }
         }
     }
-    std::vector<std::vector<StageWhole>> aboves;
-    ok = ok && stage_summed(&job, &above_stage, above_records, above_lanes, shuffles, {0u, 1u}, &aboves, &error);
+    StageTable aboves = {NULL, 0ull, 0u};
+    const unsigned int both_outputs[2] = {0u, 1u};
+    ok = ok && stage_summed(&job, &above_stage, above_records, above_lanes * above_limbs, above_lanes, shuffles,
+                            both_outputs, 2u, &aboves, &error);
     StageWhole pooled_above[2];
     StageWhole pooled_sum[2];
     for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
     {
-        for (size_t at = 0u; at < languages.size(); at += 1u)
+        for (unsigned long long at = 0ull; at < language_count; at += 1ull)
         {
-            languages[at].above[tested[which]] = aboves[0][which * (language_count + 1ull) + at];
-            languages[at].sum[tested[which]] = aboves[1][which * (language_count + 1ull) + at];
+            languages[at].above[tested[which]] = stage_row(&aboves, 0ull)[which * (language_count + 1ull) + at];
+            languages[at].sum[tested[which]] = stage_row(&aboves, 1ull)[which * (language_count + 1ull) + at];
         }
-        pooled_above[which] = aboves[0][which * (language_count + 1ull) + language_count];
-        pooled_sum[which] = aboves[1][which * (language_count + 1ull) + language_count];
+        pooled_above[which] = stage_row(&aboves, 0ull)[which * (language_count + 1ull) + language_count];
+        pooled_sum[which] = stage_row(&aboves, 1ull)[which * (language_count + 1ull) + language_count];
     }
 
-    // the larger program, in rounds: the largest pooled count among the shuffles of each relation
-    std::vector<std::vector<StageWhole>> left(2);
+    // The larger program, in rounds: the largest pooled count among the shuffles of each relation. Each round puts its
+    // larger counts at the front of the counts left, in place
+    StageWhole *const left[2] = {(StageWhole *)stage_cell(shuffles, sizeof(StageWhole)),
+                                 (StageWhole *)stage_cell(shuffles, sizeof(StageWhole))};
+    unsigned long long left_count[2] = {0ull, 0ull};
+    Stage *const larger_stages = (Stage *)stage_cell(SUFFIX_ROUNDS_MAX, sizeof(Stage));
+    unsigned int rounds = 0u;
+    ok = ok && (left[0] != NULL) && (left[1] != NULL) && (larger_stages != NULL);
     for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
     {
-        left[which].assign(pooled[0].begin() + (long long)(which * runs + 1ull),
-                           pooled[0].begin() + (long long)((which + 1ull) * runs));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = left[which], .src = &pooled_row[which * runs + 1ull],
+                   .bytes = (size_t)(shuffles * sizeof(StageWhole)));
+        left_count[which] = shuffles;
     }
-    std::vector<Stage> larger_stages;
-    while (ok && ((left[0].size() > 1u) || (left[1].size() > 1u)))
+    while (ok && ((left_count[0] > 1ull) || (left_count[1] > 1ull)) && (rounds < SUFFIX_ROUNDS_MAX))
     {
-        StageRows rows;
-        for (unsigned int which = 0u; which < 2u; which += 1u)
+        StageTable rows = {NULL, 0ull, 0u};
+        ok = stage_table_taken(&rows, (left_count[0] / 2ull) + (left_count[1] / 2ull), 2u);
+        unsigned long long row = 0ull;
+        for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
         {
-            for (size_t at = 0u; (at + 1u) < left[which].size(); at += 2u)
+            for (unsigned long long at = 0ull; (at + 1ull) < left_count[which]; at += 2ull)
             {
-                rows.push_back({left[which][at], left[which][at + 1u]});
+                stage_row(&rows, row)[0] = left[which][at];
+                stage_row(&rows, row)[1] = left[which][at + 1ull];
+                row += 1ull;
             }
         }
-        larger_stages.push_back(Stage());
-        Stage *stage = &larger_stages.back();
+        Stage *stage = &larger_stages[rounds];
+        rounds += 1u;
         EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
         stage->name = "larger";
         suffix_larger_program(count_bits + 1u, &stage->program);
-        std::vector<std::vector<StageWhole>> out;
-        ok = stage_rows(&job, stage, rows, &out, &error);
-        size_t lane = 0u;
+        StageTable out = {NULL, 0ull, 0u};
+        ok = ok && stage_rows(&job, stage, &rows, &out, &error);
+        unsigned long long lane = 0ull;
         for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
         {
-            std::vector<StageWhole> next;
-            for (size_t at = 0u; at < left[which].size(); at += 2u)
+            unsigned long long next = 0ull;
+            for (unsigned long long at = 0ull; at < left_count[which]; at += 2ull)
             {
-                if ((at + 1u) < left[which].size())
+                if ((at + 1ull) < left_count[which])
                 {
-                    next.push_back(out[lane][0]);
-                    lane += 1u;
+                    left[which][next] = stage_row(&out, lane)[0];
+                    lane += 1ull;
                 }
                 else
                 {
-                    next.push_back(left[which][at]);
+                    left[which][next] = left[which][at];
                 }
+                next += 1ull;
             }
-            left[which] = next;
+            left_count[which] = next;
         }
+        stage_table_released(&out);
+        stage_table_released(&rows);
     }
 
     // the value program: every p, per language for the tail relation and pooled for both
@@ -496,66 +667,101 @@ int program_main(int count, char **arguments)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &value_stage, .bytes = sizeof(value_stage), .val = 0);
     value_stage.name = "value";
     suffix_value_program(stage_bits(stage_whole(shuffles)) + 1u, &value_stage.program);
-    StageRows value_rows;
-    for (size_t at = 0u; ok && (at < languages.size()); at += 1u)
+    StageTable value_rows = {NULL, 0ull, 0u};
+    ok = ok && stage_table_taken(&value_rows, language_count + 2ull, 2u);
+    for (unsigned long long at = 0ull; ok && (at < language_count); at += 1ull)
     {
-        value_rows.push_back({languages[at].above[SUFFIX_TAIL], stage_whole(shuffles)});
+        stage_row(&value_rows, at)[0] = languages[at].above[SUFFIX_TAIL];
+        stage_row(&value_rows, at)[1] = stage_whole(shuffles);
     }
     for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
     {
-        value_rows.push_back({pooled_above[which], stage_whole(shuffles)});
+        stage_row(&value_rows, language_count + which)[0] = pooled_above[which];
+        stage_row(&value_rows, language_count + which)[1] = stage_whole(shuffles);
     }
-    std::vector<std::vector<StageWhole>> values;
-    ok = ok && stage_rows(&job, &value_stage, value_rows, &values, &error);
+    StageTable values = {NULL, 0ull, 0u};
+    ok = ok && stage_rows(&job, &value_stage, &value_rows, &values, &error);
 
     // the digits program: each null mean and each p
-    std::vector<StageRational> printed;
-    for (size_t at = 0u; ok && (at < languages.size()); at += 1u)
+    const unsigned long long printed_count = (3ull * language_count) + 4ull;
+    StageRational *const printed = (StageRational *)stage_cell(printed_count, sizeof(StageRational));
+    StageText *const displayed = (StageText *)stage_cell(printed_count, sizeof(StageText));
+    ok = ok && (printed != NULL) && (displayed != NULL);
+    unsigned long long printed_at = 0ull;
+    for (unsigned long long at = 0ull; ok && (at < language_count); at += 1ull)
     {
-        printed.push_back({languages[at].sum[SUFFIX_KINKADE], stage_whole(shuffles)});
-        printed.push_back({languages[at].sum[SUFFIX_TAIL], stage_whole(shuffles)});
-        printed.push_back(stage_pair_of(values[at]));
+        printed[printed_at] = {languages[at].sum[SUFFIX_KINKADE], stage_whole(shuffles)};
+        printed[printed_at + 1ull] = {languages[at].sum[SUFFIX_TAIL], stage_whole(shuffles)};
+        printed[printed_at + 2ull] = stage_pair_of(stage_row(&values, at));
+        printed_at += 3ull;
     }
     for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
     {
-        printed.push_back({pooled_sum[which], stage_whole(shuffles)});
-        printed.push_back(stage_pair_of(values[language_count + which]));
+        printed[printed_at] = {pooled_sum[which], stage_whole(shuffles)};
+        printed[printed_at + 1ull] = stage_pair_of(stage_row(&values, language_count + which));
+        printed_at += 2ull;
     }
     Stage digits_stage;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &digits_stage, .bytes = sizeof(digits_stage), .val = 0);
-    std::vector<std::string> displayed;
-    ok = ok && suffix_digits(&job, &digits_stage, printed, &displayed, &error);
+    ok = ok && suffix_digits(&job, &digits_stage, printed, printed_at, displayed, &error);
 
-    // the tail pairs observed, read from the identity run's bits
-    std::vector<std::string> found;
-    for (size_t at = 0u; ok && (at < languages.size()); at += 1u)
+    // The tail pairs observed, read from the identity run's bits: counted first, then their texts written, each in a
+    // text of a fixed bound
+    unsigned long long found_count = 0ull;
+    StageText *found = NULL;
+    int found_fits = 1;
+    for (int pass = 0; ok && (pass < 2); pass += 1)
     {
-        const SuffixLanguage &language = languages[at];
-        for (size_t suffix = 0u; suffix < language.suffixes.size(); suffix += 1u)
+        unsigned long long found_at = 0ull;
+        for (unsigned long long at = 0ull; at < language_count; at += 1ull)
         {
-            for (size_t noun = 0u; noun < language.nouns.size(); noun += 1u)
+            const SuffixLanguage &language = languages[at];
+            const SuffixRead *const read = language.read;
+            for (unsigned long long suffix = 0ull; suffix < read->suffixes; suffix += 1ull)
             {
-                const size_t bit = suffix * language.nouns.size() + noun;
-                const int tail = (language.flags[SUFFIX_TAIL][bit / 32u] >> (bit % 32u)) & 1u;
-                const int kinkade = (language.flags[SUFFIX_KINKADE][bit / 32u] >> (bit % 32u)) & 1u;
-                if (!tail || (language.suffixes[suffix].offered.count(language.nouns[noun].meaning) == 0u))
+                for (unsigned long long noun = 0ull; noun < read->nouns; noun += 1ull)
                 {
-                    continue;
+                    const unsigned long long bit = suffix * read->nouns + noun;
+                    const int tail = (language.flags[SUFFIX_TAIL * language.words + bit / 32u] >> (bit % 32u)) & 1u;
+                    const int kinkade =
+                        (language.flags[SUFFIX_KINKADE * language.words + bit / 32u] >> (bit % 32u)) & 1u;
+                    const SuffixRow *const row = &input.suffix[read->first_suffix + suffix];
+                    const SuffixNoun *const own = &input.noun[read->first_noun + noun];
+                    if (!tail || !suffix_offers(&input, row, own->meaning))
+                    {
+                        continue;
+                    }
+                    if (pass == 1)
+                    {
+                        VerbaLinea line = mmgr_line_over(found[found_at].bytes, sizeof(found[found_at].bytes));
+                        mmgr_line_put(&line, kinkade ? "Kinkade" : "tail   ");
+                        mmgr_line_put(&line, "  ");
+                        mmgr_line_put(&line, read->name);
+                        mmgr_line_put(&line, "  ");
+                        suffix_joined(&line, &input.word[own->first_segment], own->segments);
+                        mmgr_line_put(&line, " ~ =");
+                        suffix_joined(&line, &input.word[row->first_segment], row->segments);
+                        mmgr_line_put(&line, " '");
+                        mmgr_line_put(&line, own->meaning);
+                        mmgr_line_put(&line, "'");
+                        found_fits = found_fits && (line.at < sizeof(found[found_at].bytes));
+                        (void)mmgr_line_finish(&line);
+                    }
+                    found_at += 1ull;
                 }
-                std::string noun_text;
-                std::string suffix_text;
-                for (size_t part = 0u; part < language.nouns[noun].segments.size(); part += 1u)
-                {
-                    noun_text += language.nouns[noun].segments[part];
-                }
-                for (size_t part = 0u; part < language.suffixes[suffix].segments.size(); part += 1u)
-                {
-                    suffix_text += language.suffixes[suffix].segments[part];
-                }
-                found.push_back(std::string(kinkade ? "Kinkade" : "tail   ") + "  " + language.name + "  " + noun_text +
-                                " ~ =" + suffix_text + " '" + language.nouns[noun].meaning + "'");
             }
         }
+        if (pass == 0)
+        {
+            found_count = found_at;
+            found = (StageText *)stage_cell(found_count, sizeof(StageText));
+            ok = found != NULL;
+        }
+    }
+    if (ok && !found_fits)
+    {
+        fprintf(stderr, "  lexical_suffix_origins: a tail pair's text passes %u bytes\n", STAGE_TEXT_BYTES);
+        ok = 0;
     }
 
     const char *names[2] = {"Kinkade (noun one or two segments longer)", "tail (noun longer, ends in it)"};
@@ -564,35 +770,34 @@ int program_main(int count, char **arguments)
     {
         fprintf(out, "permutations %llu seed %llu least_suffixes %llu least_nouns %llu\n", settings.permutations,
                 settings.seed, settings.least_suffixes, settings.least_nouns);
-        for (size_t at = 0u; at < languages.size(); at += 1u)
+        for (unsigned long long at = 0ull; at < language_count; at += 1ull)
         {
             const SuffixLanguage &language = languages[at];
             fprintf(
                 out,
-                "language %s suffixes %zu nouns %zu pairs %s identical %s kinkade %s kinkade_sum %s kinkade_above %s "
+                "language %s suffixes %llu nouns %llu pairs %s identical %s kinkade %s kinkade_sum %s kinkade_above %s "
                 "tail %s tail_sum %s tail_above %s p %s/%s\n",
-                language.name.c_str(), language.suffixes.size(), language.nouns.size(),
-                stage_text_of(language.observed[SUFFIX_PAIRS]).c_str(),
-                stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(),
-                stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(),
-                stage_text_of(language.sum[SUFFIX_KINKADE]).c_str(),
-                stage_text_of(language.above[SUFFIX_KINKADE]).c_str(),
-                stage_text_of(language.observed[SUFFIX_TAIL]).c_str(), stage_text_of(language.sum[SUFFIX_TAIL]).c_str(),
-                stage_text_of(language.above[SUFFIX_TAIL]).c_str(), stage_text_of(values[at][0]).c_str(),
-                stage_text_of(values[at][1]).c_str());
+                language.read->name, language.read->suffixes, language.read->nouns,
+                stage_text_of(language.observed[SUFFIX_PAIRS]).bytes,
+                stage_text_of(language.observed[SUFFIX_IDENTICAL]).bytes,
+                stage_text_of(language.observed[SUFFIX_KINKADE]).bytes,
+                stage_text_of(language.sum[SUFFIX_KINKADE]).bytes, stage_text_of(language.above[SUFFIX_KINKADE]).bytes,
+                stage_text_of(language.observed[SUFFIX_TAIL]).bytes, stage_text_of(language.sum[SUFFIX_TAIL]).bytes,
+                stage_text_of(language.above[SUFFIX_TAIL]).bytes, stage_text_of(stage_row(&values, at)[0]).bytes,
+                stage_text_of(stage_row(&values, at)[1]).bytes);
         }
         for (unsigned int which = 0u; which < 2u; which += 1u)
         {
             fprintf(out, "pooled %s pairs %s observed %s sum %s largest %s above %s p %s/%s\n",
-                    (which == 0u) ? "kinkade" : "tail", stage_text_of(pooled[0][2u * runs]).c_str(),
-                    stage_text_of(pooled[0][which * runs]).c_str(), stage_text_of(pooled_sum[which]).c_str(),
-                    stage_text_of(left[which][0]).c_str(), stage_text_of(pooled_above[which]).c_str(),
-                    stage_text_of(values[language_count + which][0]).c_str(),
-                    stage_text_of(values[language_count + which][1]).c_str());
+                    (which == 0u) ? "kinkade" : "tail", stage_text_of(pooled_row[2u * runs]).bytes,
+                    stage_text_of(pooled_row[which * runs]).bytes, stage_text_of(pooled_sum[which]).bytes,
+                    stage_text_of(left[which][0]).bytes, stage_text_of(pooled_above[which]).bytes,
+                    stage_text_of(stage_row(&values, language_count + which)[0]).bytes,
+                    stage_text_of(stage_row(&values, language_count + which)[1]).bytes);
         }
-        for (size_t at = 0u; at < found.size(); at += 1u)
+        for (unsigned long long at = 0ull; at < found_count; at += 1ull)
         {
-            fprintf(out, "%s\n", found[at].c_str());
+            fprintf(out, "%s\n", found[at].bytes);
         }
         fclose(out);
     }
@@ -602,7 +807,7 @@ int program_main(int count, char **arguments)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, stage_displayed("language", 18u, 1).c_str());
+            mmgr_line_put(output_line, stage_displayed("language", 18u, 1).bytes);
             mmgr_line_put(output_line, " ");
             mmgr_line_put_right(output_line, "LS", 4u);
             mmgr_line_put(output_line, " ");
@@ -624,45 +829,45 @@ int program_main(int count, char **arguments)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        for (size_t at = 0u; at < languages.size(); at += 1u)
+        for (unsigned long long at = 0ull; at < language_count; at += 1ull)
         {
             const SuffixLanguage &language = languages[at];
             {
                 VerbaLinea *const output_line = platform_line_out();
-                mmgr_line_put(output_line, stage_displayed(language.name, 18u, 1).c_str());
+                mmgr_line_put(output_line, stage_displayed(language.read->name, 18u, 1).bytes);
                 mmgr_line_put(output_line, " ");
-                mmgr_line_decimal_columns(output_line, language.suffixes.size(), 4u);
+                mmgr_line_decimal_columns(output_line, language.read->suffixes, 4u);
                 mmgr_line_put(output_line, " ");
-                mmgr_line_decimal_columns(output_line, language.nouns.size(), 5u);
+                mmgr_line_decimal_columns(output_line, language.read->nouns, 5u);
                 mmgr_line_put(output_line, " ");
-                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_PAIRS]).c_str(), 5u);
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_PAIRS]).bytes, 5u);
                 mmgr_line_put(output_line, " ");
-                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_KINKADE]).c_str(), 7u);
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_KINKADE]).bytes, 7u);
                 mmgr_line_put(output_line, " ");
                 {
                     char linea_piece[9u + 1u];
                     VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
-                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u].c_str(), 9u);
+                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u].bytes, 9u);
                     (void)mmgr_line_finish(&linea_piece_line);
                     mmgr_line_put_right(output_line, linea_piece, 9u);
                 }
                 mmgr_line_put(output_line, " ");
-                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_TAIL]).c_str(), 5u);
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_TAIL]).bytes, 5u);
                 mmgr_line_put(output_line, " ");
                 {
                     char linea_piece[9u + 1u];
                     VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
-                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u + 1u].c_str(), 9u);
+                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u + 1u].bytes, 9u);
                     (void)mmgr_line_finish(&linea_piece_line);
                     mmgr_line_put_right(output_line, linea_piece, 9u);
                 }
                 mmgr_line_put(output_line, " ");
-                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_IDENTICAL]).c_str(), 5u);
+                mmgr_line_put_right(output_line, stage_text_of(language.observed[SUFFIX_IDENTICAL]).bytes, 5u);
                 mmgr_line_put(output_line, " ");
                 {
                     char linea_piece[9u + 1u];
                     VerbaLinea linea_piece_line = mmgr_line_over(linea_piece, sizeof linea_piece);
-                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u + 2u].c_str(), 9u);
+                    (void)mmgr_line_put_max(&linea_piece_line, displayed[at * 3u + 2u].bytes, 9u);
                     (void)mmgr_line_finish(&linea_piece_line);
                     mmgr_line_put_right(output_line, linea_piece, 9u);
                 }
@@ -676,30 +881,30 @@ int program_main(int count, char **arguments)
             mmgr_line_put(output_line, "pooled ");
             mmgr_line_put(output_line, names[which]);
             mmgr_line_put(output_line, ": observed ");
-            mmgr_line_put(output_line, stage_text_of(pooled[0][which * runs]).c_str());
+            mmgr_line_put(output_line, stage_text_of(pooled_row[which * runs]).bytes);
             mmgr_line_put(output_line, ", null mean ");
-            mmgr_line_put(output_line, displayed[language_count * 3u + which * 2u].c_str());
+            mmgr_line_put(output_line, displayed[language_count * 3u + which * 2u].bytes);
             mmgr_line_put(output_line, ", null max ");
-            mmgr_line_put(output_line, stage_text_of(left[which][0]).c_str());
+            mmgr_line_put(output_line, stage_text_of(left[which][0]).bytes);
             mmgr_line_put(output_line, ", p ");
-            mmgr_line_put(output_line, stage_text_of(values[language_count + which][0]).c_str());
+            mmgr_line_put(output_line, stage_text_of(stage_row(&values, language_count + which)[0]).bytes);
             mmgr_line_put(output_line, "/");
-            mmgr_line_put(output_line, stage_text_of(values[language_count + which][1]).c_str());
+            mmgr_line_put(output_line, stage_text_of(stage_row(&values, language_count + which)[1]).bytes);
             mmgr_line_put(output_line, " = ");
-            mmgr_line_put(output_line, displayed[language_count * 3u + which * 2u + 1u].c_str());
+            mmgr_line_put(output_line, displayed[language_count * 3u + which * 2u + 1u].bytes);
             mmgr_line_put(output_line, " over ");
             mmgr_line_decimal(output_line, shuffles, 1u);
             mmgr_line_put(output_line, " shuffles, ");
-            mmgr_line_put(output_line, stage_text_of(pooled[0][2u * runs]).c_str());
+            mmgr_line_put(output_line, stage_text_of(pooled_row[2u * runs]).bytes);
             mmgr_line_put(output_line, " same-meaning pairs");
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        for (size_t at = 0u; at < found.size(); at += 1u)
+        for (unsigned long long at = 0ull; at < found_count; at += 1ull)
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "   ");
-            mmgr_line_put(output_line, found[at].c_str());
+            mmgr_line_put(output_line, found[at].bytes);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -716,11 +921,28 @@ int program_main(int count, char **arguments)
     stage_release(&count_stage);
     stage_release(&pass_stage);
     stage_release(&above_stage);
-    for (size_t at = 0u; at < larger_stages.size(); at += 1u)
+    for (unsigned int at = 0u; at < rounds; at += 1u)
     {
         stage_release(&larger_stages[at]);
     }
     stage_release(&value_stage);
     stage_release(&digits_stage);
+    stage_table_released(&values);
+    stage_table_released(&value_rows);
+    stage_table_released(&aboves);
+    stage_table_released(&pooled);
+    stage_table_released(&counted);
+    void *const cells[10] = {found,   displayed,     printed,      larger_stages, left[1],
+                             left[0], above_records, pass_records, same,          order};
+    for (unsigned int each = 0u; each < 10u; each += 1u)
+    {
+        stage_cell_released(cells[each]);
+    }
+    for (unsigned long long at = 0ull; at < language_count; at += 1ull)
+    {
+        stage_cell_released(languages[at].flags);
+    }
+    stage_cell_released(languages);
+    suffix_released(&input);
     return sim_close(&job, "lexical_suffix_origins");
 }

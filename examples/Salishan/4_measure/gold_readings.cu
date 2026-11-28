@@ -66,47 +66,50 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <algorithm>
-#include <string>
-#include <vector>
+// the pool of the host: the pair tables, a cell of GOLD_CELLS counts each, and the distance stage's records
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 31u;
 
 #define GOLD_CELLS 65536u
 
 // the widest total a field stores, so that 2 A B fits 64 bits
 #define GOLD_TOTAL_BITS_MAX 31u
 
+// an absent comparison of a paper
+#define GOLD_ABSENT (~0ull)
+
+// a text of the input: its name, its language where it is a paper, and its lines from line[first] on, `count` of them
 typedef struct
 {
-    std::string name;
-    std::string language;
-    std::vector<std::string> lines;
+    const char *name;
+    const char *language;
+    unsigned long long first;
+    unsigned long long count;
 } GoldText;
 
-// a text's pair counts over the 2^16 cells, and how many pairs there are in all
+// a text's pair counts over the 2^16 cells, a cell of the temporary tier, and how many pairs there are in all
 typedef struct
 {
-    std::vector<unsigned int> counts;
+    unsigned int *counts;
     unsigned long long total;
 } GoldTable;
 
 // two tables measured against each other, and the distance the distance program gives them
 typedef struct
 {
-    std::string name;
-    size_t left;
-    size_t right;
+    StageText name;
+    unsigned long long left;
+    unsigned long long right;
     StageRational distance;
 } GoldComparison;
 
-// a paper's reading
+// a paper's reading: its comparisons to the anchors from comparison[first_against] on, one an anchor
 typedef struct
 {
-    size_t text;
-    size_t whole;
+    unsigned long long text;
+    unsigned long long whole;
     int qualified;
-    std::vector<size_t> against;
-    size_t own;
-    std::vector<size_t> order;
+    unsigned long long first_against;
+    unsigned long long own;
     StageRational floor;
     StageRational gap;
     int reads;
@@ -128,122 +131,155 @@ static void gold_distance_program(unsigned int count_bits, unsigned int total_bi
     stage_output(program, stage_step(program, ENGINE_RECORD_PRODUCT, both, stage_constant(program, 2ull)));
 }
 
-// the pairs of the lines `pick` lists, each line's bytes read alone
-static GoldTable gold_squash(const std::vector<std::string> &lines, const std::vector<size_t> &pick)
+// The pairs of a text's lines from `from` up to `until` at a step of `step`, each line's bytes read alone, into the
+// table at `table`, its counts a cell of the temporary tier. A line's bytes run to its line break, a NUL byte inside it
+// counted. 0 where the pool cannot meet the cell
+static int gold_squash(const StageLines *lines, const GoldText *text, unsigned long long from, unsigned long long until,
+                       unsigned long long step, GoldTable *table)
 {
-    GoldTable table;
-    table.counts.assign(GOLD_CELLS, 0u);
-    table.total = 0ull;
-    for (size_t at = 0u; at < pick.size(); at += 1u)
+    table->counts = (unsigned int *)stage_cell(GOLD_CELLS, sizeof(unsigned int));
+    table->total = 0ull;
+    if (table->counts == NULL)
     {
-        const std::string &line = lines[pick[at]];
-        for (size_t place = 0u; (place + 1u) < line.size(); place += 1u)
+        return 0;
+    }
+    for (unsigned long long at = from; at < until; at += step)
+    {
+        const char *const line = lines->line[text->first + at];
+        const unsigned long long length = lines->length[text->first + at];
+        // each byte is a step of the count: it starts the pair of itself and the byte after it
+        for (unsigned long long place = 0ull; (place + 1ull) < length; place += 1ull)
         {
             const unsigned int cell =
                 ((unsigned int)(unsigned char)line[place] << 8u) | (unsigned int)(unsigned char)line[place + 1u];
-            table.counts[cell] += 1u;
-            table.total += 1ull;
+            table->counts[cell] += 1u;
+            table->total += 1ull;
         }
     }
-    return table;
-}
-
-static int gold_block(const std::vector<std::string> &lines, size_t *at, const char *type, int with_language,
-                      GoldText *text)
-{
-    const std::string &head = lines[*at];
-    const std::string opening = std::string(type) + " ";
-    if (head.compare(0u, opening.size(), opening) != 0)
-    {
-        return 0;
-    }
-    const size_t last = head.rfind(' ');
-    if (last <= opening.size())
-    {
-        return 0;
-    }
-    std::string named = head.substr(opening.size(), last - opening.size());
-    if (with_language)
-    {
-        const size_t space = named.find(' ');
-        if (space == std::string::npos)
-        {
-            return 0;
-        }
-        text->language = named.substr(space + 1u);
-        named = named.substr(0u, space);
-    }
-    text->name = named;
-    const unsigned long long count = strtoull(head.c_str() + last + 1u, NULL, 10);
-    *at += 1u;
-    if ((*at + count) > lines.size())
-    {
-        return 0;
-    }
-    text->lines.assign(lines.begin() + (long long)*at, lines.begin() + (long long)(*at + count));
-    *at += (size_t)count;
     return 1;
 }
 
-static int gold_read(const char *path, std::vector<GoldText> *corpora, std::vector<GoldText> *papers,
-                     unsigned long long margin[2], unsigned long long *least)
+// The block of a text that starts at line *at: its head "<type> <name> <lines>", or "<type> <name> <language> <lines>"
+// where `with_language`, split in place, and the lines after it. 0 where the head or the count does not read
+static int gold_block(const StageLines *lines, unsigned long long *at, const char *type, int with_language,
+                      GoldText *text)
 {
-    FILE *in = fopen(path, "rb");
-    if (in == NULL)
+    char *const head = lines->line[*at];
+    const size_t opening =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
+    char *const last = (char *)EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = head,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ');
+    if ((last == NULL) || ((size_t)(last - head) <= opening))
     {
         return 0;
     }
-    std::string text;
-    char chunk[65536];
-    size_t got = 0u;
-    while ((got = fread(chunk, 1u, sizeof(chunk), in)) > 0u)
+    const unsigned long long count = strtoull(last + 1, NULL, 10);
+    *last = '\0';
+    char *const named = head + opening;
+    text->language = NULL;
+    if (with_language)
     {
-        text.append(chunk, got);
-    }
-    fclose(in);
-    std::vector<std::string> lines;
-    size_t start = 0u;
-    while (start < text.size())
-    {
-        size_t end = text.find('\n', start);
-        if (end == std::string::npos)
+        char *const space = (char *)EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = named,
+                                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ');
+        if (space == NULL)
         {
-            end = text.size();
+            return 0;
         }
-        lines.push_back(text.substr(start, end - start));
-        start = end + 1u;
+        *space = '\0';
+        text->language = space + 1;
     }
-    if ((lines.size() < 2u) || (sscanf(lines[0].c_str(), "margin %llu %llu", &margin[0], &margin[1]) != 2) ||
-        (margin[0] == 0ull) || (margin[1] == 0ull) || (sscanf(lines[1].c_str(), "least %llu", least) != 1))
+    text->name = named;
+    *at += 1ull;
+    if ((*at + count) > lines->count)
     {
         return 0;
     }
-    size_t at = 2u;
-    while (at < lines.size())
+    text->first = *at;
+    text->count = count;
+    *at += count;
+    return 1;
+}
+
+// the input read once: its lines, and its corpora and papers, each a cell of the temporary tier at the count of its
+// lines, which bounds them before they fill
+typedef struct
+{
+    StageLines lines;
+    GoldText *corpus;
+    unsigned long long corpora;
+    GoldText *paper;
+    unsigned long long papers;
+} GoldInput;
+
+static int gold_read(const char *path, GoldInput *input, unsigned long long margin[2], unsigned long long *least)
+{
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = input, .bytes = sizeof(*input), .val = 0);
+    if (!stage_lines(path, &input->lines))
     {
-        GoldText one;
-        if (lines[at].compare(0u, 7u, "corpus ") == 0)
+        return 0;
+    }
+    StageLines *const lines = &input->lines;
+    if ((lines->count < 2u) || (sscanf(lines->line[0], "margin %llu %llu", &margin[0], &margin[1]) != 2) ||
+        (margin[0] == 0ull) || (margin[1] == 0ull) || (sscanf(lines->line[1], "least %llu", least) != 1))
+    {
+        return 0;
+    }
+    input->corpus = (GoldText *)stage_cell(lines->count, sizeof(GoldText));
+    input->paper = (GoldText *)stage_cell(lines->count, sizeof(GoldText));
+    if ((input->corpus == NULL) || (input->paper == NULL))
+    {
+        return 0;
+    }
+    unsigned long long at = 2ull;
+    while (at < lines->count)
+    {
+        const char *const head = lines->line[at];
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = head, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "corpus "))
         {
-            if (!gold_block(lines, &at, "corpus", 0, &one))
+            if (!gold_block(lines, &at, "corpus", 0, &input->corpus[input->corpora]))
             {
                 return 0;
             }
-            corpora->push_back(one);
+            input->corpora += 1ull;
         }
-        else if (lines[at].compare(0u, 6u, "paper ") == 0)
+        else if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = head, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "paper "))
         {
-            if (!gold_block(lines, &at, "paper", 1, &one))
+            if (!gold_block(lines, &at, "paper", 1, &input->paper[input->papers]))
             {
                 return 0;
             }
-            papers->push_back(one);
+            input->papers += 1ull;
         }
         else
         {
             return 0;
         }
     }
-    return corpora->size() >= 2u;
+    return input->corpora >= 2u;
+}
+
+// a comparison's name: `left`, `joint` and `right` put one after the other; 0 where they pass the name's bound
+static int gold_named(StageText *name, const char *left, const char *joint, const char *right)
+{
+    VerbaLinea line = mmgr_line_over(name->bytes, sizeof(name->bytes));
+    mmgr_line_put(&line, left);
+    mmgr_line_put(&line, joint);
+    mmgr_line_put(&line, right);
+    const int fits = line.at < sizeof(name->bytes);
+    (void)mmgr_line_finish(&line);
+    return fits;
+}
+
+// the bytes of a decimal text before its point, all of it where it holds none
+static int gold_whole_length(const char *text)
+{
+    const char *const point =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+    return (point != NULL)
+               ? (int)(point - text)
+               : (int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
 }
 
 int program_main(int count, char **arguments)
@@ -256,115 +292,166 @@ int program_main(int count, char **arguments)
         fprintf(stderr, "  usage: gold_readings <input> <output> [<figures>]\n");
         return 2;
     }
-    std::vector<GoldText> corpora;
-    std::vector<GoldText> texts;
+    GoldInput input;
     unsigned long long margin[2] = {0ull, 0ull};
     unsigned long long least = 0ull;
-    if (!gold_read(arguments[1], &corpora, &texts, margin, &least))
+    if (!gold_read(arguments[1], &input, margin, &least))
     {
         fprintf(stderr, "  gold_readings: %s is not an input this program reads\n", arguments[1]);
         return 2;
     }
+    const GoldText *const corpora = input.corpus;
+    const GoldText *const texts = input.paper;
+    const unsigned long long paper_count = input.papers;
     const unsigned long long unit_margin[2] = {1ull, 1ull};
 
-    // the tables: each corpus whole, its midpoint halves and its alternating halves, then each paper whole and its
-    // midpoint halves
-    const size_t named = corpora.size();
-    std::vector<GoldTable> tables;
-    for (size_t at = 0u; at < named; at += 1u)
+    // the anchors: every corpus but English
+    const unsigned long long named = input.corpora;
+    unsigned long long *const anchors = (unsigned long long *)stage_cell(named, sizeof(unsigned long long));
+    if (anchors == NULL)
     {
-        tables.push_back(gold_squash(corpora[at].lines, stage_run(0u, corpora[at].lines.size(), 1u)));
+        return 2;
     }
-    for (size_t at = 0u; at < named; at += 1u)
+    unsigned long long anchor_count = 0ull;
+    for (unsigned long long at = 0ull; at < named; at += 1ull)
     {
-        const size_t lines = corpora[at].lines.size();
-        tables.push_back(gold_squash(corpora[at].lines, stage_run(0u, lines / 2u, 1u)));
-        tables.push_back(gold_squash(corpora[at].lines, stage_run(lines / 2u, lines, 1u)));
-    }
-    for (size_t at = 0u; at < named; at += 1u)
-    {
-        const size_t lines = corpora[at].lines.size();
-        tables.push_back(gold_squash(corpora[at].lines, stage_run(0u, lines, 2u)));
-        tables.push_back(gold_squash(corpora[at].lines, stage_run(1u, lines, 2u)));
-    }
-    std::vector<size_t> anchors;
-    for (size_t at = 0u; at < named; at += 1u)
-    {
-        if (corpora[at].name != "English")
+        if (!stage_same(corpora[at].name, "English"))
         {
-            anchors.push_back(at);
+            anchors[anchor_count] = at;
+            anchor_count += 1ull;
         }
     }
 
-    std::vector<GoldComparison> comparisons;
-    for (size_t one = 0u; one < named; one += 1u)
+    // The tables: each corpus whole, its midpoint halves and its alternating halves, then each paper whole and its
+    // midpoint halves. The comparisons: every pair of corpora, each corpus's halves, and each paper's
+    const unsigned long long pairs = stage_order_pairs(named);
+    GoldTable *const tables = (GoldTable *)stage_cell((5ull * named) + (3ull * paper_count), sizeof(GoldTable));
+    GoldComparison *const comparisons = (GoldComparison *)stage_cell(
+        pairs + (2ull * named) + (paper_count * (anchor_count + 1ull)), sizeof(GoldComparison));
+    GoldPaper *const papers = (GoldPaper *)stage_cell(paper_count, sizeof(GoldPaper));
+    if ((tables == NULL) || (comparisons == NULL) || (papers == NULL))
     {
-        for (size_t two = one + 1u; two < named; two += 1u)
+        return 2;
+    }
+    unsigned long long table_count = 0ull;
+    int ok = 1;
+    for (unsigned long long at = 0ull; ok && (at < named); at += 1ull)
+    {
+        ok = gold_squash(&input.lines, &corpora[at], 0ull, corpora[at].count, 1ull, &tables[table_count]);
+        table_count += 1ull;
+    }
+    for (unsigned long long at = 0ull; ok && (at < named); at += 1ull)
+    {
+        const unsigned long long count_of = corpora[at].count;
+        ok = gold_squash(&input.lines, &corpora[at], 0ull, count_of / 2ull, 1ull, &tables[table_count]) &&
+             gold_squash(&input.lines, &corpora[at], count_of / 2ull, count_of, 1ull, &tables[table_count + 1ull]);
+        table_count += 2ull;
+    }
+    for (unsigned long long at = 0ull; ok && (at < named); at += 1ull)
+    {
+        const unsigned long long count_of = corpora[at].count;
+        ok = gold_squash(&input.lines, &corpora[at], 0ull, count_of, 2ull, &tables[table_count]) &&
+             gold_squash(&input.lines, &corpora[at], 1ull, count_of, 2ull, &tables[table_count + 1ull]);
+        table_count += 2ull;
+    }
+    unsigned long long comparison_count = 0ull;
+    int names_fit = 1;
+    for (unsigned long long one = 0ull; one < named; one += 1ull)
+    {
+        for (unsigned long long two = one + 1ull; two < named; two += 1ull)
         {
-            comparisons.push_back({corpora[one].name + " to " + corpora[two].name, one, two, {}});
+            GoldComparison *const comparison = &comparisons[comparison_count];
+            names_fit = names_fit && gold_named(&comparison->name, corpora[one].name, " to ", corpora[two].name);
+            comparison->left = one;
+            comparison->right = two;
+            comparison_count += 1ull;
         }
     }
-    const size_t pairs = comparisons.size();
-    for (size_t at = 0u; at < named; at += 1u)
+    for (unsigned long long at = 0ull; at < named; at += 1ull)
     {
-        comparisons.push_back({corpora[at].name + " midpoint", named + (2u * at), named + (2u * at) + 1u, {}});
+        GoldComparison *const comparison = &comparisons[comparison_count];
+        names_fit = names_fit && gold_named(&comparison->name, corpora[at].name, " midpoint", "");
+        comparison->left = named + (2ull * at);
+        comparison->right = named + (2ull * at) + 1ull;
+        comparison_count += 1ull;
     }
-    for (size_t at = 0u; at < named; at += 1u)
+    for (unsigned long long at = 0ull; at < named; at += 1ull)
     {
-        comparisons.push_back(
-            {corpora[at].name + " alternating", (3u * named) + (2u * at), (3u * named) + (2u * at) + 1u, {}});
+        GoldComparison *const comparison = &comparisons[comparison_count];
+        names_fit = names_fit && gold_named(&comparison->name, corpora[at].name, " alternating", "");
+        comparison->left = (3ull * named) + (2ull * at);
+        comparison->right = (3ull * named) + (2ull * at) + 1ull;
+        comparison_count += 1ull;
     }
 
-    std::vector<GoldPaper> papers;
-    for (size_t at = 0u; at < texts.size(); at += 1u)
+    for (unsigned long long at = 0ull; ok && (at < paper_count); at += 1ull)
     {
-        GoldPaper paper;
-        paper.text = at;
-        paper.whole = tables.size();
-        paper.own = (size_t)-1;
-        paper.reads = 0;
-        const size_t lines = texts[at].lines.size();
-        tables.push_back(gold_squash(texts[at].lines, stage_run(0u, lines, 1u)));
-        paper.qualified = tables.back().total >= least;
-        if (paper.qualified)
+        GoldPaper *const paper = &papers[at];
+        paper->text = at;
+        paper->whole = table_count;
+        paper->own = GOLD_ABSENT;
+        paper->reads = 0;
+        const unsigned long long count_of = texts[at].count;
+        ok = gold_squash(&input.lines, &texts[at], 0ull, count_of, 1ull, &tables[table_count]);
+        table_count += 1ull;
+        paper->qualified = ok && (tables[paper->whole].total >= least);
+        if (paper->qualified)
         {
-            for (size_t one = 0u; one < anchors.size(); one += 1u)
+            paper->first_against = comparison_count;
+            for (unsigned long long one = 0ull; one < anchor_count; one += 1ull)
             {
-                paper.against.push_back(comparisons.size());
-                comparisons.push_back(
-                    {texts[at].name + " to " + corpora[anchors[one]].name, paper.whole, anchors[one], {}});
+                GoldComparison *const comparison = &comparisons[comparison_count];
+                names_fit =
+                    names_fit && gold_named(&comparison->name, texts[at].name, " to ", corpora[anchors[one]].name);
+                comparison->left = paper->whole;
+                comparison->right = anchors[one];
+                comparison_count += 1ull;
             }
-            const size_t first = tables.size();
-            tables.push_back(gold_squash(texts[at].lines, stage_run(0u, lines / 2u, 1u)));
-            tables.push_back(gold_squash(texts[at].lines, stage_run(lines / 2u, lines, 1u)));
-            if ((lines >= 2u) && (tables[first].total > 0ull) && (tables[first + 1u].total > 0ull))
+            const unsigned long long first = table_count;
+            ok = gold_squash(&input.lines, &texts[at], 0ull, count_of / 2ull, 1ull, &tables[table_count]) &&
+                 gold_squash(&input.lines, &texts[at], count_of / 2ull, count_of, 1ull, &tables[table_count + 1ull]);
+            table_count += 2ull;
+            if (ok && (count_of >= 2u) && (tables[first].total > 0ull) && (tables[first + 1u].total > 0ull))
             {
-                paper.own = comparisons.size();
-                comparisons.push_back({texts[at].name + " midpoint", first, first + 1u, {}});
+                paper->own = comparison_count;
+                GoldComparison *const comparison = &comparisons[comparison_count];
+                names_fit = names_fit && gold_named(&comparison->name, texts[at].name, " midpoint", "");
+                comparison->left = first;
+                comparison->right = first + 1ull;
+                comparison_count += 1ull;
             }
         }
-        papers.push_back(paper);
+    }
+    if (!ok || !names_fit)
+    {
+        fprintf(stderr, "  gold_readings: the pool cannot meet a table, or a comparison's name passes %u bytes\n",
+                STAGE_TEXT_BYTES);
+        return 2;
     }
 
+    // each comparison's cells that either table holds a pair in, counted
     unsigned int max_count = 0u;
     unsigned long long max_total = 0ull;
-    size_t run = 1u;
+    unsigned long long run = 1ull;
     int whole = 1;
-    std::vector<std::vector<unsigned int>> cells(comparisons.size());
-    for (size_t at = 0u; at < comparisons.size(); at += 1u)
+    for (unsigned long long at = 0ull; at < comparison_count; at += 1ull)
     {
         const GoldTable &left = tables[comparisons[at].left];
         const GoldTable &right = tables[comparisons[at].right];
+        unsigned long long occupied = 0ull;
         for (unsigned int cell = 0u; cell < GOLD_CELLS; cell += 1u)
         {
             if ((left.counts[cell] != 0u) || (right.counts[cell] != 0u))
             {
-                cells[at].push_back(cell);
-                max_count = std::max(max_count, std::max(left.counts[cell], right.counts[cell]));
+                occupied += 1ull;
+                const unsigned int larger =
+                    (left.counts[cell] > right.counts[cell]) ? left.counts[cell] : right.counts[cell];
+                max_count = (larger > max_count) ? larger : max_count;
             }
         }
-        run = std::max(run, cells[at].size());
-        max_total = std::max(max_total, std::max(left.total, right.total));
+        run = (occupied > run) ? occupied : run;
+        const unsigned long long total = (left.total > right.total) ? left.total : right.total;
+        max_total = (total > max_total) ? total : max_total;
         whole = whole && (left.total > 0ull) && (right.total > 0ull);
     }
     const unsigned int count_bits = stage_bits(stage_whole(max_count));
@@ -382,56 +469,65 @@ int program_main(int count, char **arguments)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &distance_stage, .bytes = sizeof(distance_stage), .val = 0);
     distance_stage.name = "distance";
     gold_distance_program(count_bits, total_bits, &distance_stage.program);
-    const unsigned long long lanes = (unsigned long long)comparisons.size() * run;
+    const unsigned long long lanes = comparison_count * run;
     const unsigned int in_limbs = (distance_stage.program.record_bits + 31u) / 32u;
-    std::vector<unsigned int> records((size_t)(lanes * in_limbs), 0u);
+    unsigned int *records = (unsigned int *)stage_cell(lanes * in_limbs, sizeof(unsigned int));
+    if (records == NULL)
+    {
+        return 2;
+    }
     const unsigned int *field_bits = distance_stage.program.field_bits;
     const unsigned int *field_offset = distance_stage.program.field_offset;
-    for (size_t at = 0u; at < comparisons.size(); at += 1u)
+    for (unsigned long long at = 0ull; at < comparison_count; at += 1ull)
     {
         const GoldTable &left = tables[comparisons[at].left];
         const GoldTable &right = tables[comparisons[at].right];
-        for (size_t place = 0u; place < run; place += 1u)
+        unsigned long long place = 0ull;
+        for (unsigned int cell = 0u; cell < GOLD_CELLS; cell += 1u)
         {
-            unsigned int *record = &records[(size_t)(((unsigned long long)at * run + place) * in_limbs)];
-            if (place < cells[at].size())
+            if ((left.counts[cell] != 0u) || (right.counts[cell] != 0u))
             {
-                stage_put(record, field_offset[0], field_bits[0], stage_whole(left.counts[cells[at][place]]));
-                stage_put(record, field_offset[1], field_bits[1], stage_whole(right.counts[cells[at][place]]));
+                unsigned int *record = &records[(at * run + place) * in_limbs];
+                stage_put(record, field_offset[0], field_bits[0], stage_whole(left.counts[cell]));
+                stage_put(record, field_offset[1], field_bits[1], stage_whole(right.counts[cell]));
+                place += 1ull;
             }
+        }
+        for (place = 0ull; place < run; place += 1ull)
+        {
+            unsigned int *record = &records[(at * run + place) * in_limbs];
             stage_put(record, field_offset[2], field_bits[2], stage_whole(left.total));
             stage_put(record, field_offset[3], field_bits[3], stage_whole(right.total));
         }
     }
 
-    int ok = stage_position(&job, &distance_stage, &error);
+    ok = stage_position(&job, &distance_stage, &error);
     // the buffers the program names for itself: the distance stage's records in and out, the max it stores at once
     const unsigned long long declared =
         lanes * ((unsigned long long)in_limbs + distance_stage.layout.out_limbs) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "gold_readings", count, arguments, declared);
-    std::vector<unsigned int> distance_out;
+    unsigned int *distance_out = NULL;
     unsigned int *device_out = NULL;
-    ok = ok && stage_sweep(&job, &distance_stage, records, lanes, &distance_out, &device_out, &error);
-    records.clear();
-    records.shrink_to_fit();
+    ok = ok && stage_sweep(&job, &distance_stage, records, lanes * in_limbs, lanes, &distance_out, &device_out, &error);
+    stage_cell_released(records);
+    records = NULL;
 
     const DeviceRecordStep *apart = ok ? &distance_stage.layout.step_table[distance_stage.program.outputs[0]] : NULL;
     const DeviceRecordStep *twice = ok ? &distance_stage.layout.step_table[distance_stage.program.outputs[1]] : NULL;
     const unsigned int sum_limbs = ok ? ((apart->out_bits + stage_bits(stage_whole(run)) + 31u) / 32u) + 1u : 0u;
-    std::vector<unsigned int> device_sums(comparisons.size() * sum_limbs, 0u);
-    std::vector<unsigned int> host_sums(comparisons.size() * sum_limbs, 0u);
+    unsigned int *const device_sums = (unsigned int *)stage_cell(comparison_count * sum_limbs, sizeof(unsigned int));
+    unsigned int *const host_sums = (unsigned int *)stage_cell(comparison_count * sum_limbs, sizeof(unsigned int));
+    ok = ok && (device_sums != NULL) && (host_sums != NULL);
     if (ok)
     {
         const unsigned int out_limbs = distance_stage.layout.out_limbs;
-        const CycleRecordSumRequest on_device = {
-            device_out,         lanes, run, out_limbs, apart->out_offset, apart->out_bits, sum_limbs,
-            device_sums.data(), &error};
-        const CycleRecordSumRequest on_host = {
-            distance_out.data(), lanes, run, out_limbs, apart->out_offset, apart->out_bits, sum_limbs,
-            host_sums.data(),    &error};
+        const CycleRecordSumRequest on_device = {device_out,      lanes,     run,         out_limbs, apart->out_offset,
+                                                 apart->out_bits, sum_limbs, device_sums, &error};
+        const CycleRecordSumRequest on_host = {distance_out,    lanes,     run,       out_limbs, apart->out_offset,
+                                               apart->out_bits, sum_limbs, host_sums, &error};
         ok = (cycle_record_sum(&on_device) != CYCLE_ERROR) && (cycle_record_sum_host(&on_host) != CYCLE_ERROR);
-        ok = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_sums.data(), .other = host_sums.data(),
-                               .bytes = device_sums.size() * sizeof(unsigned int)) == 0);
+        ok = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_sums, .other = host_sums,
+                               .bytes = comparison_count * sum_limbs * sizeof(unsigned int)) == 0);
     }
     sim_check(&job, ok, "the device's sum of each comparison equals the host's");
     if (device_out != NULL)
@@ -440,189 +536,238 @@ int program_main(int count, char **arguments)
     }
 
     int bounded = ok;
-    for (size_t at = 0u; ok && (at < comparisons.size()); at += 1u)
+    for (unsigned long long at = 0ull; ok && (at < comparison_count); at += 1ull)
     {
-        comparisons[at].distance.num.assign(device_sums.begin() + (long long)(at * sum_limbs),
-                                            device_sums.begin() + (long long)((at + 1u) * sum_limbs));
-        const unsigned int *first =
-            &distance_out[(size_t)((unsigned long long)at * run * distance_stage.layout.out_limbs)];
+        comparisons[at].distance.num = stage_whole_of(&device_sums[at * sum_limbs], sum_limbs);
+        const unsigned int *first = &distance_out[at * run * distance_stage.layout.out_limbs];
         comparisons[at].distance.den = stage_take(first, twice->out_offset, twice->out_bits);
         bounded = bounded && (stage_sign(comparisons[at].distance.num, 32u * sum_limbs) >= 0) &&
                   (stage_order_of(comparisons[at].distance.num, comparisons[at].distance.den) <= 0);
     }
+    bounded = bounded && stage_fits("distance");
     sim_check(&job, bounded, "every distance lies in [0, 1]");
-    distance_out.clear();
-    distance_out.shrink_to_fit();
+    stage_cell_released(distance_out);
+    distance_out = NULL;
     ok = ok && bounded;
 
     // the ratio of each corpus's midpoint split-half distance to its alternating one
     Stage ratio_stage;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &ratio_stage, .bytes = sizeof(ratio_stage), .val = 0);
     ratio_stage.name = "ratio";
-    std::vector<StageRational> halves;
-    for (size_t at = 0u; at < (2u * named); at += 1u)
+    StageRational *const halves = (StageRational *)stage_cell(2ull * named, sizeof(StageRational));
+    StageRational *const ratios = (StageRational *)stage_cell(named, sizeof(StageRational));
+    ok = ok && (halves != NULL) && (ratios != NULL);
+    for (unsigned long long at = 0ull; ok && (at < (2ull * named)); at += 1ull)
     {
-        halves.push_back(comparisons[pairs + at].distance);
+        halves[at] = comparisons[pairs + at].distance;
     }
-    stage_ratio_program(stage_widest(halves), &ratio_stage.program);
-    StageRows ratio_rows;
-    for (size_t at = 0u; at < named; at += 1u)
+    stage_ratio_program(ok ? stage_widest(halves, 2ull * named) : 1u, &ratio_stage.program);
+    StageTable ratio_rows = {NULL, 0ull, 0u};
+    ok = ok && stage_table_taken(&ratio_rows, named, 4u);
+    for (unsigned long long at = 0ull; ok && (at < named); at += 1ull)
     {
         const StageRational &mid = comparisons[pairs + at].distance;
         const StageRational &alt = comparisons[pairs + named + at].distance;
-        ratio_rows.push_back({mid.num, mid.den, alt.num, alt.den});
+        StageWhole *const row = stage_row(&ratio_rows, at);
+        row[0] = mid.num;
+        row[1] = mid.den;
+        row[2] = alt.num;
+        row[3] = alt.den;
     }
-    std::vector<std::vector<StageWhole>> ratio_out;
-    ok = ok && stage_rows(&job, &ratio_stage, ratio_rows, &ratio_out, &error);
-    std::vector<StageRational> ratios;
-    for (size_t at = 0u; ok && (at < named); at += 1u)
+    StageTable ratio_out = {NULL, 0ull, 0u};
+    ok = ok && stage_rows(&job, &ratio_stage, &ratio_rows, &ratio_out, &error);
+    for (unsigned long long at = 0ull; ok && (at < named); at += 1ull)
     {
-        ratios.push_back(stage_pair_of(ratio_out[at]));
+        ratios[at] = stage_pair_of(stage_row(&ratio_out, at));
     }
 
-    // the first compare: each pair against each split-half distance, the orders the ranges need, and each paper's
-    // distances to the language corpora
-    std::vector<StageRational> xs;
-    std::vector<StageRational> ys;
-    std::vector<int> margined;
-    for (size_t at = 0u; at < pairs; at += 1u)
+    // The first compare: each pair against each split-half distance, the orders the ranges need, and each paper's
+    // distances to the language corpora. The values and names of the orders are cells at their counts
+    StageRational *const pair_values = (StageRational *)stage_cell(pairs, sizeof(StageRational));
+    StageRational *const midpoint_values = (StageRational *)stage_cell(named, sizeof(StageRational));
+    StageRational *const alternating_values = (StageRational *)stage_cell(named, sizeof(StageRational));
+    StageRational *const paper_values = (StageRational *)stage_cell(paper_count * anchor_count, sizeof(StageRational));
+    const char **const anchor_names = (const char **)stage_cell(anchor_count, sizeof(char *));
+    StageOrder *const paper_orders = (StageOrder *)stage_cell(paper_count, sizeof(StageOrder));
+    ok = ok && (pair_values != NULL) && (midpoint_values != NULL) && (alternating_values != NULL) &&
+         (paper_values != NULL) && (anchor_names != NULL) && (paper_orders != NULL);
+    StageOrder pair_order = {pair_values, NULL, pairs, 0ull, NULL};
+    StageOrder midpoint_order = {midpoint_values, NULL, named, 0ull, NULL};
+    StageOrder alternating_order = {alternating_values, NULL, named, 0ull, NULL};
+    StageOrder ratio_order = {ratios, NULL, named, 0ull, NULL};
+    StageOrder *orders[4] = {&pair_order, &midpoint_order, &alternating_order, &ratio_order};
+    unsigned long long first_count = (4ull * pairs) + stage_order_pairs(pairs) + (3ull * stage_order_pairs(named));
+    for (unsigned long long at = 0ull; ok && (at < pairs); at += 1ull)
     {
-        for (size_t type = 0u; type < 2u; type += 1u)
+        pair_values[at] = comparisons[at].distance;
+    }
+    for (unsigned long long at = 0ull; ok && (at < named); at += 1ull)
+    {
+        midpoint_values[at] = comparisons[pairs + at].distance;
+        alternating_values[at] = comparisons[pairs + named + at].distance;
+    }
+    for (unsigned long long one = 0ull; ok && (one < anchor_count); one += 1ull)
+    {
+        anchor_names[one] = corpora[anchors[one]].name;
+    }
+    for (unsigned long long at = 0ull; ok && (at < paper_count); at += 1ull)
+    {
+        StageOrder *const paper_order = &paper_orders[at];
+        paper_order->values = &paper_values[at * anchor_count];
+        paper_order->names = anchor_names;
+        paper_order->count = papers[at].qualified ? anchor_count : 0ull;
+        for (unsigned long long one = 0ull; one < paper_order->count; one += 1ull)
         {
-            const size_t sides[2] = {comparisons[at].left, comparisons[at].right};
-            for (size_t side = 0u; side < 2u; side += 1u)
+            paper_values[at * anchor_count + one] = comparisons[papers[at].first_against + one].distance;
+        }
+        first_count += stage_order_pairs(paper_order->count);
+    }
+    StageRational *const xs = (StageRational *)stage_cell(first_count, sizeof(StageRational));
+    StageRational *const ys = (StageRational *)stage_cell(first_count, sizeof(StageRational));
+    int *const margined = (int *)stage_cell(first_count, sizeof(int));
+    int *const first_signs = (int *)stage_cell(first_count, sizeof(int));
+    ok = ok && (xs != NULL) && (ys != NULL) && (margined != NULL) && (first_signs != NULL);
+    unsigned long long first_lanes = 0ull;
+    for (unsigned long long at = 0ull; ok && (at < pairs); at += 1ull)
+    {
+        for (unsigned long long type = 0ull; type < 2ull; type += 1ull)
+        {
+            const unsigned long long sides[2] = {comparisons[at].left, comparisons[at].right};
+            for (unsigned long long side = 0ull; side < 2ull; side += 1ull)
             {
-                xs.push_back(comparisons[at].distance);
-                ys.push_back(comparisons[pairs + (type * named) + sides[side]].distance);
-                margined.push_back(1);
+                xs[first_lanes] = comparisons[at].distance;
+                ys[first_lanes] = comparisons[pairs + (type * named) + sides[side]].distance;
+                margined[first_lanes] = 1;
+                first_lanes += 1ull;
             }
         }
     }
-    StageOrder pair_order;
-    StageOrder midpoint_order;
-    StageOrder alternating_order;
-    StageOrder ratio_order;
-    for (size_t at = 0u; at < pairs; at += 1u)
+    for (unsigned int at = 0u; ok && (at < 4u); at += 1u)
     {
-        pair_order.values.push_back(comparisons[at].distance);
+        stage_order_lanes(orders[at], xs, ys, &first_lanes);
     }
-    for (size_t at = 0u; at < named; at += 1u)
-    {
-        midpoint_order.values.push_back(comparisons[pairs + at].distance);
-        alternating_order.values.push_back(comparisons[pairs + named + at].distance);
-    }
-    ratio_order.values = ratios;
-    StageOrder *orders[4] = {&pair_order, &midpoint_order, &alternating_order, &ratio_order};
-    for (size_t at = 0u; at < 4u; at += 1u)
-    {
-        stage_order_lanes(orders[at], &xs, &ys);
-    }
-    std::vector<StageOrder> paper_orders(papers.size());
-    for (size_t at = 0u; at < papers.size(); at += 1u)
-    {
-        if (!papers[at].qualified)
-        {
-            continue;
-        }
-        for (size_t one = 0u; one < anchors.size(); one += 1u)
-        {
-            paper_orders[at].values.push_back(comparisons[papers[at].against[one]].distance);
-            paper_orders[at].names.push_back(corpora[anchors[one]].name);
-        }
-        stage_order_lanes(&paper_orders[at], &xs, &ys);
-    }
-    margined.resize(xs.size(), 0);
-    Stage first_stage;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &first_stage, .bytes = sizeof(first_stage), .val = 0);
-    std::vector<int> first_signs;
-    ok = ok && stage_compare(&job, &first_stage, "first compare", xs, ys, margined, margin, &first_signs, &error);
-    for (size_t at = 0u; ok && (at < 4u); at += 1u)
-    {
-        stage_order_read(orders[at], first_signs);
-    }
-    for (size_t at = 0u; ok && (at < papers.size()); at += 1u)
+    for (unsigned long long at = 0ull; ok && (at < paper_count); at += 1ull)
     {
         if (papers[at].qualified)
         {
-            stage_order_read(&paper_orders[at], first_signs);
-            for (size_t one = 0u; one < paper_orders[at].sorted.size(); one += 1u)
-            {
-                papers[at].order.push_back(anchors[paper_orders[at].sorted[one]]);
-            }
+            stage_order_lanes(&paper_orders[at], xs, ys, &first_lanes);
         }
     }
+    Stage first_stage;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &first_stage, .bytes = sizeof(first_stage), .val = 0);
+    ok = ok &&
+         stage_compare(&job, &first_stage, "first compare", xs, ys, margined, first_lanes, margin, first_signs, &error);
+    for (unsigned int at = 0u; ok && (at < 4u); at += 1u)
+    {
+        ok = stage_order_read(orders[at], first_signs);
+    }
+    for (unsigned long long at = 0ull; ok && (at < paper_count); at += 1ull)
+    {
+        if (papers[at].qualified)
+        {
+            ok = stage_order_read(&paper_orders[at], first_signs);
+        }
+    }
+    // a qualified paper's order: its anchors, nearest first
+    auto paper_anchor = [&](unsigned long long paper, unsigned long long place) -> unsigned long long {
+        return anchors[paper_orders[paper].sorted[place]];
+    };
 
     // each reserved paper's gap between its nearest corpus and the runner-up
     Stage gap_stage;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &gap_stage, .bytes = sizeof(gap_stage), .val = 0);
     gap_stage.name = "gap";
-    std::vector<StageRational> near;
-    StageRows gap_rows;
-    std::vector<size_t> gapped;
-    for (size_t at = 0u; ok && (at < papers.size()); at += 1u)
+    StageRational *const near = (StageRational *)stage_cell(2ull * paper_count, sizeof(StageRational));
+    unsigned long long *const gapped = (unsigned long long *)stage_cell(paper_count, sizeof(unsigned long long));
+    ok = ok && (near != NULL) && (gapped != NULL);
+    unsigned long long gapped_count = 0ull;
+    for (unsigned long long at = 0ull; ok && (at < paper_count); at += 1ull)
     {
-        if (papers[at].qualified && (papers[at].order.size() >= 2u))
+        if (papers[at].qualified && (anchor_count >= 2ull))
         {
-            const StageRational &one = comparisons[papers[at].against[paper_orders[at].sorted[0]]].distance;
-            const StageRational &two = comparisons[papers[at].against[paper_orders[at].sorted[1]]].distance;
-            near.push_back(one);
-            near.push_back(two);
-            gap_rows.push_back({one.num, one.den, two.num, two.den});
-            gapped.push_back(at);
+            near[2ull * gapped_count] = comparisons[papers[at].first_against + paper_orders[at].sorted[0]].distance;
+            near[2ull * gapped_count + 1ull] =
+                comparisons[papers[at].first_against + paper_orders[at].sorted[1]].distance;
+            gapped[gapped_count] = at;
+            gapped_count += 1ull;
         }
     }
-    stage_gap_program(stage_widest(near), &gap_stage.program);
-    std::vector<std::vector<StageWhole>> gap_out;
-    ok = ok && stage_rows(&job, &gap_stage, gap_rows, &gap_out, &error);
-    for (size_t at = 0u; ok && (at < gapped.size()); at += 1u)
+    StageTable gap_rows = {NULL, 0ull, 0u};
+    ok = ok && stage_table_taken(&gap_rows, gapped_count, 4u);
+    for (unsigned long long at = 0ull; ok && (at < gapped_count); at += 1ull)
+    {
+        StageWhole *const row = stage_row(&gap_rows, at);
+        row[0] = near[2ull * at].num;
+        row[1] = near[2ull * at].den;
+        row[2] = near[2ull * at + 1ull].num;
+        row[3] = near[2ull * at + 1ull].den;
+    }
+    stage_gap_program(ok ? stage_widest(near, 2ull * gapped_count) : 1u, &gap_stage.program);
+    StageTable gap_out = {NULL, 0ull, 0u};
+    ok = ok && stage_rows(&job, &gap_stage, &gap_rows, &gap_out, &error);
+    for (unsigned long long at = 0ull; ok && (at < gapped_count); at += 1ull)
     {
         GoldPaper &paper = papers[gapped[at]];
-        paper.gap = stage_pair_of(gap_out[at]);
-        paper.floor = (paper.own != (size_t)-1) ? comparisons[paper.own].distance : stage_unit();
+        paper.gap = stage_pair_of(stage_row(&gap_out, at));
+        paper.floor = (paper.own != GOLD_ABSENT) ? comparisons[paper.own].distance : stage_unit();
     }
 
     // the second compare: each gap against the margin times its paper's split-half distance
-    std::vector<StageRational> gap_xs;
-    std::vector<StageRational> gap_ys;
-    for (size_t at = 0u; at < gapped.size(); at += 1u)
+    StageRational *const gap_xs = (StageRational *)stage_cell(gapped_count, sizeof(StageRational));
+    StageRational *const gap_ys = (StageRational *)stage_cell(gapped_count, sizeof(StageRational));
+    int *const gap_margined = (int *)stage_cell(gapped_count, sizeof(int));
+    int *const second_signs = (int *)stage_cell(gapped_count, sizeof(int));
+    ok = ok && (gap_xs != NULL) && (gap_ys != NULL) && (gap_margined != NULL) && (second_signs != NULL);
+    for (unsigned long long at = 0ull; ok && (at < gapped_count); at += 1ull)
     {
-        gap_xs.push_back(papers[gapped[at]].gap);
-        gap_ys.push_back(papers[gapped[at]].floor);
+        gap_xs[at] = papers[gapped[at]].gap;
+        gap_ys[at] = papers[gapped[at]].floor;
+        gap_margined[at] = 1;
     }
     Stage second_stage;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &second_stage, .bytes = sizeof(second_stage), .val = 0);
-    std::vector<int> second_signs;
-    ok = ok && stage_compare(&job, &second_stage, "second compare", gap_xs, gap_ys, std::vector<int>(gap_xs.size(), 1),
-                             margin, &second_signs, &error);
-    for (size_t at = 0u; ok && (at < gapped.size()); at += 1u)
+    ok = ok && stage_compare(&job, &second_stage, "second compare", gap_xs, gap_ys, gap_margined, gapped_count, margin,
+                             second_signs, &error);
+    for (unsigned long long at = 0ull; ok && (at < gapped_count); at += 1ull)
     {
         papers[gapped[at]].reads = second_signs[at] == 1;
     }
 
     // the third compare: the orders of the gaps and of the split-half distances over the papers reserved and not read
-    StageOrder gap_order;
-    StageOrder floor_order;
-    for (size_t at = 0u; at < gapped.size(); at += 1u)
+    StageRational *const gap_values = (StageRational *)stage_cell(gapped_count, sizeof(StageRational));
+    StageRational *const floor_values = (StageRational *)stage_cell(gapped_count, sizeof(StageRational));
+    ok = ok && (gap_values != NULL) && (floor_values != NULL);
+    StageOrder gap_order = {gap_values, NULL, 0ull, 0ull, NULL};
+    StageOrder floor_order = {floor_values, NULL, 0ull, 0ull, NULL};
+    for (unsigned long long at = 0ull; ok && (at < gapped_count); at += 1ull)
     {
         if (!papers[gapped[at]].reads)
         {
-            gap_order.values.push_back(papers[gapped[at]].gap);
-            floor_order.values.push_back(papers[gapped[at]].floor);
+            gap_values[gap_order.count] = papers[gapped[at]].gap;
+            floor_values[floor_order.count] = papers[gapped[at]].floor;
+            gap_order.count += 1ull;
+            floor_order.count += 1ull;
         }
     }
-    std::vector<StageRational> third_xs;
-    std::vector<StageRational> third_ys;
-    stage_order_lanes(&gap_order, &third_xs, &third_ys);
-    stage_order_lanes(&floor_order, &third_xs, &third_ys);
-    Stage third_stage;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &third_stage, .bytes = sizeof(third_stage), .val = 0);
-    std::vector<int> third_signs;
-    ok = ok && stage_compare(&job, &third_stage, "third compare", third_xs, third_ys,
-                             std::vector<int>(third_xs.size(), 0), unit_margin, &third_signs, &error);
+    const unsigned long long third_count = stage_order_pairs(gap_order.count) + stage_order_pairs(floor_order.count);
+    StageRational *const third_xs = (StageRational *)stage_cell(third_count, sizeof(StageRational));
+    StageRational *const third_ys = (StageRational *)stage_cell(third_count, sizeof(StageRational));
+    int *const third_margined = (int *)stage_cell(third_count, sizeof(int));
+    int *const third_signs = (int *)stage_cell(third_count, sizeof(int));
+    ok = ok && (third_xs != NULL) && (third_ys != NULL) && (third_margined != NULL) && (third_signs != NULL);
+    unsigned long long third_lanes = 0ull;
     if (ok)
     {
-        stage_order_read(&gap_order, third_signs);
-        stage_order_read(&floor_order, third_signs);
+        stage_order_lanes(&gap_order, third_xs, third_ys, &third_lanes);
+        stage_order_lanes(&floor_order, third_xs, third_ys, &third_lanes);
+    }
+    Stage third_stage;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &third_stage, .bytes = sizeof(third_stage), .val = 0);
+    ok = ok && stage_compare(&job, &third_stage, "third compare", third_xs, third_ys, third_margined, third_lanes,
+                             unit_margin, third_signs, &error);
+    if (ok)
+    {
+        ok = stage_order_read(&gap_order, third_signs) && stage_order_read(&floor_order, third_signs);
     }
 
     // the medians, a middle value or the mean of the middle two
@@ -632,177 +777,202 @@ int program_main(int count, char **arguments)
     StageOrder *medians_of[2] = {&gap_order, &floor_order};
     StageRational medians[2] = {stage_unit(), stage_unit()};
     int median_qualified[2] = {0, 0};
-    StageRows mean_rows;
-    std::vector<size_t> mean_for;
-    std::vector<StageRational> mean_values;
-    for (size_t at = 0u; ok && (at < 2u); at += 1u)
+    StageTable mean_rows = {NULL, 0ull, 0u};
+    ok = ok && stage_table_taken(&mean_rows, 2ull, 4u);
+    unsigned long long mean_count = 0ull;
+    unsigned long long mean_for[2] = {0ull, 0ull};
+    StageRational mean_values[4];
+    for (unsigned int at = 0u; ok && (at < 2u); at += 1u)
     {
-        const size_t sorted_size = medians_of[at]->sorted.size();
-        if (sorted_size == 0u)
+        const unsigned long long sorted_size = medians_of[at]->count;
+        if (sorted_size == 0ull)
         {
             continue;
         }
         median_qualified[at] = 1;
-        const StageRational &upper = medians_of[at]->values[medians_of[at]->sorted[sorted_size / 2u]];
-        if ((sorted_size % 2u) == 1u)
+        const StageRational &upper = medians_of[at]->values[medians_of[at]->sorted[sorted_size / 2ull]];
+        if ((sorted_size % 2ull) == 1ull)
         {
             medians[at] = upper;
             continue;
         }
-        const StageRational &lower = medians_of[at]->values[medians_of[at]->sorted[(sorted_size / 2u) - 1u]];
-        mean_rows.push_back({lower.num, lower.den, upper.num, upper.den});
-        mean_values.push_back(lower);
-        mean_values.push_back(upper);
-        mean_for.push_back(at);
+        const StageRational &lower = medians_of[at]->values[medians_of[at]->sorted[(sorted_size / 2ull) - 1ull]];
+        StageWhole *const row = stage_row(&mean_rows, mean_count);
+        row[0] = lower.num;
+        row[1] = lower.den;
+        row[2] = upper.num;
+        row[3] = upper.den;
+        mean_values[2ull * mean_count] = lower;
+        mean_values[2ull * mean_count + 1ull] = upper;
+        mean_for[mean_count] = at;
+        mean_count += 1ull;
     }
-    stage_mean_program(stage_widest(mean_values), &mean_stage.program);
-    std::vector<std::vector<StageWhole>> mean_out;
-    ok = ok && stage_rows(&job, &mean_stage, mean_rows, &mean_out, &error);
-    for (size_t at = 0u; ok && (at < mean_for.size()); at += 1u)
+    mean_rows.rows = mean_count;
+    stage_mean_program(stage_widest(mean_values, 2ull * mean_count), &mean_stage.program);
+    StageTable mean_out = {NULL, 0ull, 0u};
+    ok = ok && stage_rows(&job, &mean_stage, &mean_rows, &mean_out, &error);
+    for (unsigned long long at = 0ull; ok && (at < mean_count); at += 1ull)
     {
-        medians[mean_for[at]] = stage_pair_of(mean_out[at]);
+        medians[mean_for[at]] = stage_pair_of(stage_row(&mean_out, at));
     }
 
     // every value printed, as its whole part and six digits
-    std::vector<StageRational> printed;
-    for (size_t at = 0u; at < comparisons.size(); at += 1u)
+    const unsigned long long printed_room = comparison_count + named + (2ull * gapped_count) + 3ull;
+    StageRational *const printed = (StageRational *)stage_cell(printed_room, sizeof(StageRational));
+    StageText *const decimal = (StageText *)stage_cell(printed_room, sizeof(StageText));
+    ok = ok && (printed != NULL) && (decimal != NULL);
+    unsigned long long printed_count = 0ull;
+    for (unsigned long long at = 0ull; ok && (at < comparison_count); at += 1ull)
     {
-        printed.push_back(comparisons[at].distance);
+        printed[printed_count] = comparisons[at].distance;
+        printed_count += 1ull;
     }
-    const size_t ratio_at = printed.size();
-    printed.insert(printed.end(), ratios.begin(), ratios.end());
-
-    for (size_t at = 0u; at < gapped.size(); at += 1u)
+    const unsigned long long ratio_at = printed_count;
+    for (unsigned long long at = 0ull; ok && (at < named); at += 1ull)
     {
-        printed.push_back(papers[gapped[at]].gap);
-        printed.push_back(papers[gapped[at]].floor);
+        printed[printed_count] = ratios[at];
+        printed_count += 1ull;
     }
-    const size_t median_at = printed.size();
-    printed.push_back(medians[0]);
-    printed.push_back(medians[1]);
+    for (unsigned long long at = 0ull; ok && (at < gapped_count); at += 1ull)
+    {
+        printed[printed_count] = papers[gapped[at]].gap;
+        printed[printed_count + 1ull] = papers[gapped[at]].floor;
+        printed_count += 2ull;
+    }
+    const unsigned long long median_at = printed_count;
+    if (ok)
+    {
+        printed[printed_count] = medians[0];
+        printed[printed_count + 1ull] = medians[1];
+        printed_count += 2ull;
+    }
 
     // how many times the median gap fits inside the median split-half distance
     Stage noise_stage;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &noise_stage, .bytes = sizeof(noise_stage), .val = 0);
     noise_stage.name = "noise ratio";
-    std::vector<StageRational> noise_values = {medians[0], medians[1]};
-    stage_ratio_program(stage_widest(noise_values), &noise_stage.program);
-    StageRows noise_rows;
-    if (median_qualified[0] && median_qualified[1] &&
-        (stage_sign(medians[0].num, 32u * (unsigned int)medians[0].num.size()) > 0))
+    stage_ratio_program(stage_widest(medians, 2ull), &noise_stage.program);
+    StageTable noise_rows = {NULL, 0ull, 0u};
+    ok = ok && stage_table_taken(&noise_rows, 1ull, 4u);
+    noise_rows.rows = 0ull;
+    if (ok && median_qualified[0] && median_qualified[1] &&
+        (stage_sign(medians[0].num, 32u * medians[0].num.count) > 0))
     {
-        noise_rows.push_back({medians[1].num, medians[1].den, medians[0].num, medians[0].den});
+        StageWhole *const row = stage_row(&noise_rows, 0ull);
+        row[0] = medians[1].num;
+        row[1] = medians[1].den;
+        row[2] = medians[0].num;
+        row[3] = medians[0].den;
+        noise_rows.rows = 1ull;
     }
-    std::vector<std::vector<StageWhole>> noise_out;
-    ok = ok && stage_rows(&job, &noise_stage, noise_rows, &noise_out, &error);
-    const size_t noise_at = printed.size();
-    if (ok && !noise_out.empty())
+    StageTable noise_out = {NULL, 0ull, 0u};
+    ok = ok && stage_rows(&job, &noise_stage, &noise_rows, &noise_out, &error);
+    const unsigned long long noise_at = printed_count;
+    if (ok && (noise_out.rows != 0ull))
     {
-        printed.push_back(stage_pair_of(noise_out[0]));
+        printed[printed_count] = stage_pair_of(stage_row(&noise_out, 0ull));
+        printed_count += 1ull;
     }
     Stage digits_stage;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &digits_stage, .bytes = sizeof(digits_stage), .val = 0);
     digits_stage.name = "digits";
-    stage_digits_program(stage_widest(printed), &digits_stage.program);
-    StageRows digit_rows;
-    for (size_t at = 0u; at < printed.size(); at += 1u)
+    stage_digits_program(ok ? stage_widest(printed, printed_count) : 1u, &digits_stage.program);
+    StageTable digit_rows = {NULL, 0ull, 0u};
+    ok = ok && stage_table_taken(&digit_rows, printed_count, 2u);
+    for (unsigned long long at = 0ull; ok && (at < printed_count); at += 1ull)
     {
-        digit_rows.push_back({printed[at].num, printed[at].den});
+        stage_row(&digit_rows, at)[0] = printed[at].num;
+        stage_row(&digit_rows, at)[1] = printed[at].den;
     }
-    std::vector<std::vector<StageWhole>> digit_out;
-    ok = ok && stage_rows(&job, &digits_stage, digit_rows, &digit_out, &error);
-    std::vector<std::string> decimal(printed.size());
-    for (size_t at = 0u; ok && (at < printed.size()); at += 1u)
+    StageTable digit_out = {NULL, 0ull, 0u};
+    ok = ok && stage_rows(&job, &digits_stage, &digit_rows, &digit_out, &error);
+    for (unsigned long long at = 0ull; ok && (at < printed_count); at += 1ull)
     {
-        // the six digits are below 10^6, which the first limb stores
-        char fraction[32];
-        snprintf(fraction, sizeof(fraction), "%06u", digit_out[at][1][0]);
-        decimal[at] = stage_text_of(digit_out[at][0]) + "." + fraction;
+        decimal[at] = stage_decimal_of(stage_row(&digit_out, at)[0], stage_row(&digit_out, at)[1]);
     }
 
     // the counts the readings come to
     unsigned int pairs_read[2] = {0u, 0u};
-    std::vector<int> pair_reads(pairs * 2u, 0);
-    for (size_t at = 0u; ok && (at < pairs); at += 1u)
+    int *const pair_reads = (int *)stage_cell(pairs * 2ull, sizeof(int));
+    ok = ok && (pair_reads != NULL);
+    for (unsigned long long at = 0ull; ok && (at < pairs); at += 1ull)
     {
-        for (size_t type = 0u; type < 2u; type += 1u)
+        for (unsigned long long type = 0ull; type < 2ull; type += 1ull)
         {
-            const int reads =
-                (first_signs[(at * 4u) + (type * 2u)] == 1) && (first_signs[(at * 4u) + (type * 2u) + 1u] == 1);
-            pair_reads[(at * 2u) + type] = reads;
+            const int reads = (first_signs[(at * 4ull) + (type * 2ull)] == 1) &&
+                              (first_signs[(at * 4ull) + (type * 2ull) + 1ull] == 1);
+            pair_reads[(at * 2ull) + type] = reads;
             pairs_read[type] += (unsigned int)reads;
         }
     }
     unsigned int small = 0u;
     unsigned int read = 0u;
     unsigned int agreed = 0u;
-    for (size_t at = 0u; at < papers.size(); at += 1u)
+    for (unsigned long long at = 0ull; ok && (at < paper_count); at += 1ull)
     {
         small += (unsigned int)!papers[at].qualified;
         if (papers[at].reads)
         {
             read += 1u;
-            agreed += (unsigned int)(corpora[papers[at].order[0]].name == texts[papers[at].text].language);
+            agreed += (unsigned int)stage_same(corpora[paper_anchor(at, 0ull)].name, texts[papers[at].text].language);
         }
     }
-    const unsigned int unread = (unsigned int)papers.size() - small - read;
+    const unsigned int unread = (unsigned int)paper_count - small - read;
 
     FILE *out = ok ? fopen(arguments[2], "w") : NULL;
     if (out != NULL)
     {
         fprintf(out, "margin %llu/%llu least %llu\n", margin[0], margin[1], least);
-        for (size_t at = 0u; at < named; at += 1u)
+        for (unsigned long long at = 0ull; at < named; at += 1ull)
         {
-            fprintf(out, "corpus %s lines %zu pairs %llu\n", corpora[at].name.c_str(), corpora[at].lines.size(),
-                    tables[at].total);
+            fprintf(out, "corpus %s lines %llu pairs %llu\n", corpora[at].name, corpora[at].count, tables[at].total);
         }
-        for (size_t at = 0u; at < comparisons.size(); at += 1u)
+        for (unsigned long long at = 0ull; at < comparison_count; at += 1ull)
         {
-            fprintf(out, "distance %s = %s / %s\n", comparisons[at].name.c_str(),
-                    stage_text_of(comparisons[at].distance.num).c_str(),
-                    stage_text_of(comparisons[at].distance.den).c_str());
+            fprintf(out, "distance %s = %s / %s\n", comparisons[at].name.bytes,
+                    stage_text_of(comparisons[at].distance.num).bytes,
+                    stage_text_of(comparisons[at].distance.den).bytes);
         }
-        for (size_t at = 0u; at < named; at += 1u)
+        for (unsigned long long at = 0ull; at < named; at += 1ull)
         {
-            fprintf(out, "ratio %s midpoint to alternating = %s / %s\n", corpora[at].name.c_str(),
-                    stage_text_of(ratios[at].num).c_str(), stage_text_of(ratios[at].den).c_str());
+            fprintf(out, "ratio %s midpoint to alternating = %s / %s\n", corpora[at].name,
+                    stage_text_of(ratios[at].num).bytes, stage_text_of(ratios[at].den).bytes);
         }
-        for (size_t at = 0u; at < pairs; at += 1u)
+        for (unsigned long long at = 0ull; at < pairs; at += 1ull)
         {
-            fprintf(out, "verdict %s midpoint %d %d alternating %d %d\n", comparisons[at].name.c_str(),
-                    first_signs[at * 4u], first_signs[(at * 4u) + 1u], first_signs[(at * 4u) + 2u],
-                    first_signs[(at * 4u) + 3u]);
+            fprintf(out, "verdict %s midpoint %d %d alternating %d %d\n", comparisons[at].name.bytes,
+                    first_signs[at * 4ull], first_signs[(at * 4ull) + 1ull], first_signs[(at * 4ull) + 2ull],
+                    first_signs[(at * 4ull) + 3ull]);
         }
-        size_t gap_place = 0u;
-        for (size_t at = 0u; at < papers.size(); at += 1u)
+        unsigned long long gap_place = 0ull;
+        for (unsigned long long at = 0ull; at < paper_count; at += 1ull)
         {
             const GoldPaper &paper = papers[at];
             const GoldText &text = texts[paper.text];
             if (!paper.qualified)
             {
-                fprintf(out, "paper %s attributes %s pairs %llu reserved 0\n", text.name.c_str(), text.language.c_str(),
+                fprintf(out, "paper %s attributes %s pairs %llu reserved 0\n", text.name, text.language,
                         tables[paper.whole].total);
                 continue;
             }
-            const int gapped_here = (gap_place < gapped.size()) && (gapped[gap_place] == at);
-            fprintf(out, "paper %s attributes %s pairs %llu reserved 1 nearest %s", text.name.c_str(),
-                    text.language.c_str(), tables[paper.whole].total,
-                    paper.order.empty() ? "-" : corpora[paper.order[0]].name.c_str());
+            const int gapped_here = (gap_place < gapped_count) && (gapped[gap_place] == at);
+            fprintf(out, "paper %s attributes %s pairs %llu reserved 1 nearest %s", text.name, text.language,
+                    tables[paper.whole].total, (anchor_count == 0ull) ? "-" : corpora[paper_anchor(at, 0ull)].name);
             if (gapped_here)
             {
-                fprintf(out, " gap %s / %s split %s / %s reads %d", stage_text_of(paper.gap.num).c_str(),
-                        stage_text_of(paper.gap.den).c_str(), stage_text_of(paper.floor.num).c_str(),
-                        stage_text_of(paper.floor.den).c_str(), paper.reads);
-                gap_place += 1u;
+                fprintf(out, " gap %s / %s split %s / %s reads %d", stage_text_of(paper.gap.num).bytes,
+                        stage_text_of(paper.gap.den).bytes, stage_text_of(paper.floor.num).bytes,
+                        stage_text_of(paper.floor.den).bytes, paper.reads);
+                gap_place += 1ull;
             }
             fprintf(out, "\n");
         }
-        for (size_t at = 0u; at < 2u; at += 1u)
+        for (unsigned int at = 0u; at < 2u; at += 1u)
         {
             if (median_qualified[at])
             {
                 fprintf(out, "median %s = %s / %s\n", (at == 0u) ? "gap" : "split",
-                        stage_text_of(medians[at].num).c_str(), stage_text_of(medians[at].den).c_str());
+                        stage_text_of(medians[at].num).bytes, stage_text_of(medians[at].den).bytes);
             }
         }
         fclose(out);
@@ -828,21 +998,21 @@ int program_main(int count, char **arguments)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        for (size_t at = 0u; at < named; at += 1u)
+        for (unsigned long long at = 0ull; at < named; at += 1ull)
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
-            mmgr_line_put_columns(output_line, corpora[at].name.c_str(), 16u);
+            mmgr_line_put_columns(output_line, corpora[at].name, 16u);
             mmgr_line_put(output_line, " ");
-            mmgr_line_decimal_columns(output_line, corpora[at].lines.size(), 8u);
+            mmgr_line_decimal_columns(output_line, corpora[at].count, 8u);
             mmgr_line_put(output_line, " ");
             mmgr_line_decimal_columns(output_line, tables[at].total, 10u);
             mmgr_line_put(output_line, "  ");
-            mmgr_line_put_columns(output_line, decimal[pairs + at].c_str(), 12u);
+            mmgr_line_put_columns(output_line, decimal[pairs + at].bytes, 12u);
             mmgr_line_put(output_line, " ");
-            mmgr_line_put_columns(output_line, decimal[pairs + named + at].c_str(), 12u);
+            mmgr_line_put_columns(output_line, decimal[pairs + named + at].bytes, 12u);
             mmgr_line_put(output_line, " ");
-            mmgr_line_put_columns(output_line, decimal[ratio_at + at].c_str(), 10u);
+            mmgr_line_put_columns(output_line, decimal[ratio_at + at].bytes, 10u);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -859,17 +1029,17 @@ int program_main(int count, char **arguments)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        for (size_t at = 0u; at < pairs; at += 1u)
+        for (unsigned long long at = 0ull; at < pairs; at += 1ull)
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
-            mmgr_line_put_columns(output_line, comparisons[at].name.c_str(), 34u);
+            mmgr_line_put_columns(output_line, comparisons[at].name.bytes, 34u);
             mmgr_line_put(output_line, " ");
-            mmgr_line_put_columns(output_line, decimal[at].c_str(), 10u);
+            mmgr_line_put_columns(output_line, decimal[at].bytes, 10u);
             mmgr_line_put(output_line, " ");
-            mmgr_line_put_columns(output_line, pair_reads[at * 2u] ? "reads" : "does not", 9u);
+            mmgr_line_put_columns(output_line, pair_reads[at * 2ull] ? "reads" : "does not", 9u);
             mmgr_line_put(output_line, " ");
-            mmgr_line_put_columns(output_line, pair_reads[(at * 2u) + 1u] ? "reads" : "does not", 9u);
+            mmgr_line_put_columns(output_line, pair_reads[(at * 2ull) + 1ull] ? "reads" : "does not", 9u);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -888,7 +1058,7 @@ int program_main(int count, char **arguments)
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
-            mmgr_line_decimal(output_line, papers.size(), 1u);
+            mmgr_line_decimal(output_line, paper_count, 1u);
             mmgr_line_put(output_line, " papers name a language the corpora cover: ");
             mmgr_line_decimal(output_line, small, 1u);
             mmgr_line_put(output_line, " contain fewer than ");
@@ -909,9 +1079,9 @@ int program_main(int count, char **arguments)
             mmgr_line_put(output_line, "  over the ");
             mmgr_line_decimal(output_line, unread, 1u);
             mmgr_line_put(output_line, " that do not read, the median gap is ");
-            mmgr_line_put(output_line, decimal[median_at].c_str());
+            mmgr_line_put(output_line, decimal[median_at].bytes);
             mmgr_line_put(output_line, " and the median split-half distance ");
-            mmgr_line_put(output_line, decimal[median_at + 1u].c_str());
+            mmgr_line_put(output_line, decimal[median_at + 1u].bytes);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -929,49 +1099,46 @@ int program_main(int count, char **arguments)
         FILE *figures = fopen(arguments[3], "w");
         if (figures != NULL)
         {
-            const std::string *least_pair = &decimal[pair_order.sorted.front()];
-            const std::string *max_pair = &decimal[pair_order.sorted.back()];
-            fprintf(figures, "\\newcommand{\\GoldProfiles}{%zu}\n", named);
-            fprintf(figures, "\\newcommand{\\GoldLanguages}{%zu}\n", anchors.size());
-            fprintf(figures, "\\newcommand{\\GoldPairs}{%zu}\n", pairs);
+            const char *const least_pair = decimal[pair_order.sorted[0]].bytes;
+            const char *const max_pair = decimal[pair_order.sorted[pairs - 1ull]].bytes;
+            fprintf(figures, "\\newcommand{\\GoldProfiles}{%llu}\n", named);
+            fprintf(figures, "\\newcommand{\\GoldLanguages}{%llu}\n", anchor_count);
+            fprintf(figures, "\\newcommand{\\GoldPairs}{%llu}\n", pairs);
             fprintf(figures, "\\newcommand{\\GoldPairsReadMidpoint}{%u}\n", pairs_read[0]);
             fprintf(figures, "\\newcommand{\\GoldPairsReadAlternating}{%u}\n", pairs_read[1]);
-            fprintf(figures, "\\newcommand{\\GoldPairLeast}{%.5s}\n", least_pair->c_str());
-            fprintf(figures, "\\newcommand{\\GoldPairMost}{%.5s}\n", max_pair->c_str());
-            fprintf(figures, "\\newcommand{\\GoldSplitLeast}{%.5s}\n",
-                    decimal[pairs + midpoint_order.sorted.front()].c_str());
+            fprintf(figures, "\\newcommand{\\GoldPairLeast}{%.5s}\n", least_pair);
+            fprintf(figures, "\\newcommand{\\GoldPairMost}{%.5s}\n", max_pair);
+            fprintf(figures, "\\newcommand{\\GoldSplitLeast}{%.5s}\n", decimal[pairs + midpoint_order.sorted[0]].bytes);
             fprintf(figures, "\\newcommand{\\GoldSplitMost}{%.5s}\n",
-                    decimal[pairs + midpoint_order.sorted.back()].c_str());
+                    decimal[pairs + midpoint_order.sorted[named - 1ull]].bytes);
             fprintf(figures, "\\newcommand{\\GoldAlternatingLeast}{%.5s}\n",
-                    decimal[pairs + named + alternating_order.sorted.front()].c_str());
+                    decimal[pairs + named + alternating_order.sorted[0]].bytes);
             fprintf(figures, "\\newcommand{\\GoldAlternatingMost}{%.5s}\n",
-                    decimal[pairs + named + alternating_order.sorted.back()].c_str());
-            fprintf(figures, "\\newcommand{\\GoldRatioLeast}{%.4s}\n",
-                    decimal[ratio_at + ratio_order.sorted.front()].c_str());
+                    decimal[pairs + named + alternating_order.sorted[named - 1ull]].bytes);
+            fprintf(figures, "\\newcommand{\\GoldRatioLeast}{%.4s}\n", decimal[ratio_at + ratio_order.sorted[0]].bytes);
             fprintf(figures, "\\newcommand{\\GoldRatioMost}{%.4s}\n",
-                    decimal[ratio_at + ratio_order.sorted.back()].c_str());
+                    decimal[ratio_at + ratio_order.sorted[named - 1ull]].bytes);
             unsigned int unread_pairs = 0u;
-            for (size_t at = 0u; at < pairs; at += 1u)
+            for (unsigned long long at = 0ull; at < pairs; at += 1ull)
             {
-                if (pair_reads[at * 2u])
+                if (pair_reads[at * 2ull])
                 {
                     continue;
                 }
                 unread_pairs += 1u;
                 const GoldComparison &pair = comparisons[at];
                 // the side whose midpoint split-half distance the pair did not clear
-                const size_t wider = (first_signs[at * 4u] != 1) ? pair.left : pair.right;
-                fprintf(figures, "\\newcommand{\\GoldUnreadLeft}{%s}\n", corpora[pair.left].name.c_str());
-                fprintf(figures, "\\newcommand{\\GoldUnreadRight}{%s}\n", corpora[pair.right].name.c_str());
-                fprintf(figures, "\\newcommand{\\GoldUnreadDistance}{%.5s}\n", decimal[at].c_str());
-                fprintf(figures, "\\newcommand{\\GoldUnreadWider}{%s}\n", corpora[wider].name.c_str());
-                fprintf(figures, "\\newcommand{\\GoldUnreadWiderLines}{%zu}\n", corpora[wider].lines.size());
-                fprintf(figures, "\\newcommand{\\GoldUnreadSplit}{%.5s}\n", decimal[pairs + wider].c_str());
-                fprintf(figures, "\\newcommand{\\GoldUnreadAlternating}{%.5s}\n",
-                        decimal[pairs + named + wider].c_str());
+                const unsigned long long wider = (first_signs[at * 4ull] != 1) ? pair.left : pair.right;
+                fprintf(figures, "\\newcommand{\\GoldUnreadLeft}{%s}\n", corpora[pair.left].name);
+                fprintf(figures, "\\newcommand{\\GoldUnreadRight}{%s}\n", corpora[pair.right].name);
+                fprintf(figures, "\\newcommand{\\GoldUnreadDistance}{%.5s}\n", decimal[at].bytes);
+                fprintf(figures, "\\newcommand{\\GoldUnreadWider}{%s}\n", corpora[wider].name);
+                fprintf(figures, "\\newcommand{\\GoldUnreadWiderLines}{%llu}\n", corpora[wider].count);
+                fprintf(figures, "\\newcommand{\\GoldUnreadSplit}{%.5s}\n", decimal[pairs + wider].bytes);
+                fprintf(figures, "\\newcommand{\\GoldUnreadAlternating}{%.5s}\n", decimal[pairs + named + wider].bytes);
             }
             fprintf(figures, "\\newcommand{\\GoldPairsUnread}{%u}\n", unread_pairs);
-            fprintf(figures, "\\newcommand{\\GoldPapers}{%zu}\n", papers.size());
+            fprintf(figures, "\\newcommand{\\GoldPapers}{%llu}\n", paper_count);
             fprintf(figures, "\\newcommand{\\GoldPapersSmall}{%u}\n", small);
             fprintf(figures, "\\newcommand{\\GoldPapersLeast}{%llu}\n", least);
             fprintf(figures, "\\newcommand{\\GoldPapersRead}{%u}\n", read);
@@ -979,36 +1146,36 @@ int program_main(int count, char **arguments)
             fprintf(figures, "\\newcommand{\\GoldPapersUnread}{%u}\n", unread);
             fprintf(figures, "\\newcommand{\\GoldPapersNotRead}{%u}\n", unread + small);
             fprintf(figures, "\\newcommand{\\GoldMedianGap}{%.6s}\n",
-                    median_qualified[0] ? decimal[median_at].c_str() : "--");
+                    median_qualified[0] ? decimal[median_at].bytes : "--");
             fprintf(figures, "\\newcommand{\\GoldMedianSplit}{%.6s}\n",
-                    median_qualified[1] ? decimal[median_at + 1u].c_str() : "--");
-            const std::string noise = (noise_at < decimal.size()) ? decimal[noise_at] : std::string("--");
-            fprintf(figures, "\\newcommand{\\GoldNoiseTimes}{%s}\n", noise.substr(0u, noise.find('.')).c_str());
+                    median_qualified[1] ? decimal[median_at + 1u].bytes : "--");
+            const char *const noise = (noise_at < printed_count) ? decimal[noise_at].bytes : "--";
+            fprintf(figures, "\\newcommand{\\GoldNoiseTimes}{%.*s}\n", gold_whole_length(noise), noise);
             // the pairs of languages alone, English left out: how many, how many read alternating, and how many
             // change verdict between the midpoint reading and the alternating one
             unsigned int language_pairs = 0u;
             unsigned int language_read = 0u;
             unsigned int language_changed = 0u;
-            for (size_t at = 0u; at < pairs; at += 1u)
+            for (unsigned long long at = 0ull; at < pairs; at += 1ull)
             {
-                if ((corpora[comparisons[at].left].name == "English") ||
-                    (corpora[comparisons[at].right].name == "English"))
+                if (stage_same(corpora[comparisons[at].left].name, "English") ||
+                    stage_same(corpora[comparisons[at].right].name, "English"))
                 {
                     continue;
                 }
                 language_pairs += 1u;
-                language_read += (unsigned int)pair_reads[(at * 2u) + 1u];
-                language_changed += (unsigned int)(pair_reads[at * 2u] != pair_reads[(at * 2u) + 1u]);
+                language_read += (unsigned int)pair_reads[(at * 2ull) + 1ull];
+                language_changed += (unsigned int)(pair_reads[at * 2ull] != pair_reads[(at * 2ull) + 1ull]);
             }
             fprintf(figures, "\\newcommand{\\GoldLanguagePairs}{%u}\n", language_pairs);
             fprintf(figures, "\\newcommand{\\GoldLanguagePairsReadAlternating}{%u}\n", language_read);
             fprintf(figures, "\\newcommand{\\GoldLanguagePairsChanged}{%u}\n", language_changed);
-            size_t language_lines = 0u;
-            for (size_t at = 0u; at < anchors.size(); at += 1u)
+            unsigned long long language_lines = 0ull;
+            for (unsigned long long at = 0ull; at < anchor_count; at += 1ull)
             {
-                language_lines += corpora[anchors[at]].lines.size();
+                language_lines += corpora[anchors[at]].count;
             }
-            fprintf(figures, "\\newcommand{\\GoldLanguageLines}{%zu}\n", language_lines);
+            fprintf(figures, "\\newcommand{\\GoldLanguageLines}{%llu}\n", language_lines);
             fclose(figures);
         }
         sim_check(&job, figures != NULL, "the figures are written out");
@@ -1023,5 +1190,64 @@ int program_main(int count, char **arguments)
     stage_release(&mean_stage);
     stage_release(&noise_stage);
     stage_release(&digits_stage);
+    StageTable *const used_tables[] = {&digit_out, &digit_rows, &noise_out, &noise_rows, &mean_out,
+                                       &mean_rows, &gap_out,    &gap_rows,  &ratio_out,  &ratio_rows};
+    for (unsigned int each = 0u; each < (unsigned int)(sizeof(used_tables) / sizeof(used_tables[0])); each += 1u)
+    {
+        stage_table_released(used_tables[each]);
+    }
+    StageOrder *const used_orders[] = {&floor_order,       &gap_order,      &ratio_order,
+                                       &alternating_order, &midpoint_order, &pair_order};
+    for (unsigned int each = 0u; each < (unsigned int)(sizeof(used_orders) / sizeof(used_orders[0])); each += 1u)
+    {
+        stage_order_released(used_orders[each]);
+    }
+    for (unsigned long long at = 0ull; (paper_orders != NULL) && (at < paper_count); at += 1ull)
+    {
+        stage_order_released(&paper_orders[at]);
+    }
+    void *const cells[] = {pair_reads,
+                           decimal,
+                           printed,
+                           third_signs,
+                           third_margined,
+                           third_ys,
+                           third_xs,
+                           floor_values,
+                           gap_values,
+                           second_signs,
+                           gap_margined,
+                           gap_ys,
+                           gap_xs,
+                           gapped,
+                           near,
+                           first_signs,
+                           margined,
+                           ys,
+                           xs,
+                           paper_orders,
+                           (void *)anchor_names,
+                           paper_values,
+                           alternating_values,
+                           midpoint_values,
+                           pair_values,
+                           ratios,
+                           halves,
+                           host_sums,
+                           device_sums};
+    for (unsigned int each = 0u; each < (unsigned int)(sizeof(cells) / sizeof(cells[0])); each += 1u)
+    {
+        stage_cell_released(cells[each]);
+    }
+    for (unsigned long long at = 0ull; at < table_count; at += 1ull)
+    {
+        stage_cell_released(tables[at].counts);
+    }
+    void *const read_cells[] = {papers, comparisons, tables, anchors, input.paper, input.corpus};
+    for (unsigned int each = 0u; each < (unsigned int)(sizeof(read_cells) / sizeof(read_cells[0])); each += 1u)
+    {
+        stage_cell_released(read_cells[each]);
+    }
+    stage_lines_released(&input.lines);
     return sim_close(&job, "gold_readings");
 }
