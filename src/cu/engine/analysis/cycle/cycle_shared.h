@@ -3,11 +3,15 @@
 #ifndef CYCLE_SHARED_H
 #define CYCLE_SHARED_H
 
-// What the record machine's files share: the headers, the checks and the record a program is stored as. The
-// machine is cut into its functional chunks: cycle_{sweep,launch}.cu the key sweep, cycle_record_*.cu the record
-// interpreter and the record calls, cycle_prelude.cu the prelude a C lane opens with, and cycle_compile_*.cu NVRTC,
-// nvJitLink, the cache and a program compiled. A kernel stays in the file that launches it; a compiled program's
-// kernel is its own text's (program_unit)
+// What the files of the record machine share: the headers, the checks, and the record that stores a program. The
+// machine has these functional parts:
+//
+// - cycle_{sweep,launch}.cu: the key sweep.
+// - cycle_record_*.cu: the record interpreter and the record calls.
+// - cycle_prelude.cu: the prelude that a C lane opens with.
+// - cycle_compile_*.cu: NVRTC, nvJitLink, the cache and a compiled program.
+//
+// A kernel stays in the file that launches it. The kernel of a compiled program belongs to its own text (program_unit)
 
 #include "cycle.h"
 
@@ -15,15 +19,16 @@
 #include "../../../../../includes/codecs/crc/crc.h"
 #include "../../runtime/obsignatio/obsignatio.h"
 
-// the code generator, which writes a program's lane as PTX or C source for the target named here, and the launch it
-// reads; and its assembly printer, which the device runs to write the lane's text again
+// the code generator, which writes the lane of a program as PTX or C source for the target named here. Then the launch
+// that it reads. Then its assembly printer, which the device runs to write the text of the lane again
 #include "../../../engine/rmc/asm_printer.h"
 #include "../../../engine/rmc/code_generator.h"
 #include "../../../engine/rmc/codegen_device.h"
 
 #include <cooperative_groups.h>
 #include <cuda_runtime.h>
-// NVRTC's and nvJitLink's prototypes only: both libraries are loaded at run time, and a build links nothing beyond them
+// the prototypes of NVRTC and nvJitLink only. The program loads both libraries at run time, and a build links nothing
+// beyond them
 #include <nvJitLink.h>
 #include <nvrtc.h>
 
@@ -59,15 +64,23 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
     engine_error_check((condition_), (type_), ENGINE_MODULE_CYCLE, (unsigned int)__LINE__, (const void *)(evacaddr_),  \
                        (error_))
 
-// compiled is 1 where the program runs as its own kernel (below, the record program compiled), whose library the
-// process's cache contains; 0 where it runs on the interpreter. The block is the host's copy of the program's
-// EngineProgramBlock, and device_block the one its thread blocks write; hot is what they share on the device; registers
-// and local_bytes are the compiled kernel's registers a thread and local frame a thread, the grant it runs within.
-// places are a thread's registers in shared memory and threads a thread block's; register_bytes is the shared memory a
-// thread block's registers take, the launch's dynamic shared memory, and shared_bytes all a thread block uses, the
-// kernel's own beside them; resident is the thread blocks the device fits at once. host_program is the resident of a
-// program the host's compiler built (CYCLE_RECORD_HOST_C=1), which runs on the host's threads, and host_grid sets the
-// threads it runs on; both NULL where the program is the device's. table_words is the words of the program's tables
+// the fields of CycleRecord:
+//
+// - `compiled`: 1 where the program runs as its own kernel (below, the record program compiled), whose library the
+//   cache of the process holds. It is 0 where the program runs on the interpreter.
+// - `block`: the copy of the host of the EngineProgramBlock of the program. Its thread blocks write the copy at
+//   `device_block`.
+// - `hot`: what the thread blocks share on the device.
+// - `registers` and `local_bytes`: the registers and the local frame of the compiled kernel for each thread, the grant
+//   that it runs within.
+// - `places`: the registers of a thread in shared memory. `threads` is the threads of a thread block.
+// - `register_bytes`: the shared memory that the registers of a thread block take, the dynamic shared memory of the
+//   launch. `shared_bytes` is all that a thread block uses, with the own memory of the kernel beside them.
+// - `resident`: the thread blocks that the device fits at once.
+// - `host_program`: the resident of a program that the compiler of the host built (CYCLE_RECORD_HOST_C=1), which runs
+//   on the threads of the host. `host_grid` sets the threads that it runs on. Both are NULL where the program belongs
+//   to the device.
+// - `table_words`: the words of the tables of the program.
 typedef void (*CycleHostEntry)(CycleCompiledLaunch launch);
 
 typedef void (*CycleHostGrid)(unsigned int blocks);
@@ -119,9 +132,9 @@ int cycle_environment_set(const char *name);
 
 unsigned long long cycle_environment_microseconds(const char *name, unsigned long long otherwise);
 
-// a program's lane compiled and cached for `record`, 0 where it stays on the interpreter, and CYCLE_ERROR in `error`
-// where the device wrote the lane apart from the host's; and a cached kernel's library given back
-// (cycle_compile_route.cu)
+// the lane of a program, compiled and cached for `record`, or 0 where it stays on the interpreter. CYCLE_ERROR goes in
+// `error` where the device wrote the lane apart from that of the host. Then the library of a cached kernel, given
+// back (cycle_compile_route.cu)
 int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, EngineError *error);
 
 void cycle_program_release(cudaKernel_t kernel);
