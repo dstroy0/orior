@@ -17,8 +17,8 @@ static void psi_value_product(const PsiValue *left, const PsiValue *right, PsiVa
     }
 }
 
-// an upper bound on sum over r >= first of gamma^-(factor beta(r)): terms to first + 1, then twice the next, since
-// the exponents grow by at least one a term and the rest is under a geometric series of ratio 1/gamma
+// an upper bound on the sum over `r >= first` of `gamma^-(factor beta(r))`: the terms to `first + 1`, then twice the
+// next. The exponents grow by at least one for each term, and the rest is under a geometric series of ratio `1/gamma`
 static void psi_series_upper(PsiValue *value, const PsiCase *psi_case, unsigned long long factor, unsigned int first)
 {
     psi_value_add_term(value, sim_rational(1LL, 1LL), factor * psi_case->weight[first]);
@@ -26,10 +26,11 @@ static void psi_series_upper(PsiValue *value, const PsiCase *psi_case, unsigned 
     psi_value_add_term(value, sim_rational(2LL, 1LL), factor * psi_case->weight[first + 2u]);
 }
 
-// The corrected chain at every scale. (3.11) gives |mu_k| >= gamma^-n beta(k) with the alphas cut at r <= k. The cut
-// tails move mu by at max sum_(p>=2) eps_(k,p), psi lying in [0, 1]. The images T_k have width (gamma - 2) b_k and
-// the ramps take rho = gamma^-(beta(k+1)+2) on each side. The supports U_k are disjoint when
-// gamma^-n beta(k) - sum_(p>=2) eps_(k,p) - (gamma - 2) eps_(k,2) sum_p alpha_p - 2 rho > 0, every sum an upper bound
+// The corrected chain at every scale. Equation (3.11) gives `|mu_k| >= gamma^-n beta(k)`, with the alphas cut at
+// `r <= k`. The cut tails move mu by at max `sum_(p>=2) eps_(k,p)`, as psi lies in `[0, 1]`. The images T_k have the
+// width `(gamma - 2) b_k`, and the ramps take `rho = gamma^-(beta(k+1)+2)` on each side. The supports U_k are
+// disjoint when `gamma^-n beta(k) - sum_(p>=2) eps_(k,p) - (gamma - 2) eps_(k,2) sum_p alpha_p - 2 rho > 0`, with
+// every sum an upper bound
 static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case)
 {
     VerbaLinea *const line = &results->line;
@@ -84,8 +85,8 @@ static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case
     sim_flush(results);
 }
 
-// the m + 1 shifts: x + q a sits in a level-k gap for q where x, in units of s = gamma^-k / (gamma - 1) modulo
-// (gamma - 1) s, lies in ((gamma - 2 - q) s, (gamma - 1 - q) s); every half unit is tried
+// the `m + 1` shifts. `x + q a` sits in a level-k gap for q where x lies in `((gamma - 2 - q) s, (gamma - 1 - q) s)`,
+// in units of `s = gamma^-k / (gamma - 1)` modulo `(gamma - 1) s`. The call tries every half unit
 static unsigned long long psi_gaps_shared(unsigned long long base, unsigned long long shifts)
 {
     const long long period = 2LL * ((long long)base - 1LL);
