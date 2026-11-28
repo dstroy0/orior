@@ -92,8 +92,8 @@ typedef struct
     unsigned long long pattern_range;
     // the shot law, SIM_SHOT_POISSON, SIM_SHOT_SYMMETRIC, SIM_SHOT_HALF or SIM_SHOT_PAIRED, or 0 for none
     unsigned long long shot;
-    // the terms noise_vector_integration_table.md rows 7 to 11 plant, each 0 unless set: an offset of this variance
-    // drawn per frame for each row, each column and each plane
+    // the terms that noise_vector_integration_table.md rows 7 to 11 plant, each 0 unless the caller sets it. Each is an
+    // offset of this variance, drawn for each frame for each row, each column and each plane
     unsigned long long row_square;
     unsigned long long column_square;
     unsigned long long plane_square;
@@ -104,34 +104,36 @@ typedef struct
     unsigned long long spike_numerator;
     unsigned long long spike_denominator;
     unsigned long long spike_electrons;
-    // charge before and beside the gain (rows 2, 3 and 6), each 0 unless set: the dark electrons a voxel collects a
-    // frame at the camera's exposure, D dt, drawn with the light by the shot law; and a reset offset of this variance
-    // drawn per voxel-frame (kTC), level-free like the read
+    // charge before and beside the gain (rows 2, 3 and 6), each 0 unless the caller sets it. First come the dark
+    // electrons that a voxel collects in a frame at the camera exposure, `D dt`, drawn with the light by the shot law.
+    // Then a reset offset of this variance, drawn for each voxel-frame (kTC), free of the level as the read is
     unsigned long long dark;
     unsigned long long reset_square;
-    // a count law's stages after the draw, each off unless set (rows 12 to 14): every counted electron retained with
-    // chance thin_numerator / 2^thin_bits, thin_bits 1 to 16 (quantum efficiency, a binomial thinning); then, where
-    // excess is set, every electron left doubled or lost with chance 1/2, F^2 = 2 (an electron-multiplying register)
+    // the stages of a count law after the draw, each off unless the caller sets it (rows 12 to 14). First, the sim
+    // keeps every counted electron with chance `thin_numerator / 2^thin_bits`, thin_bits 1 to 16 (quantum efficiency, a
+    // binomial thinning). Then, where excess is not zero, each electron that stays doubles or goes with chance 1/2,
+    // `F^2 = 2` (a register that multiplies electrons)
     unsigned long long thin_numerator;
     unsigned int thin_bits;
     unsigned int excess;
-    // optical crosstalk (row 16), 0 unless set, 1 to 4: the light takes blur_eighths / 8 of each x neighbor's before
-    // the draw and retains (8 - 2 blur_eighths) / 8 of its own, rounded to the nearest; an edge voxel's missing
-    // neighbor is itself
+    // optical crosstalk (row 16), 0 unless the caller sets it, 1 to 4. Before the draw, the light takes
+    // `blur_eighths / 8` of that of each x neighbor, and keeps `(8 - 2 blur_eighths) / 8` of its own, rounded to the
+    // nearest. An edge voxel is its own neighbor where it has no neighbor on that side
     unsigned long long blur_eighths;
-    // a light scale shared by the whole volume, with memory (row 10), off unless scale_bits is set, 1 to 32: frame t's
-    // light times (2^scale_bits + e_t) / 2^scale_bits before the draw, rounded to the nearest, e_t the sum of
-    // scale_octaves draws of variance scale_square, octave o's sustained for 2^o frames
+    // a light scale that the whole volume shares, with memory (row 10), off unless the caller sets scale_bits, 1 to 32.
+    // Before the draw, the light of frame t goes times `(2^scale_bits + e_t) / 2^scale_bits`, rounded to the nearest.
+    // `e_t` is the sum of scale_octaves draws of variance scale_square, with that of octave o held for `2^o` frames
     unsigned long long scale_square;
     unsigned int scale_octaves;
     unsigned int scale_bits;
-    // a gain per camera pixel (PRNU, row 19), off unless gain_pattern_bits is set, 1 to 32: the pixel (y, x)'s gain is
-    // gain (2^gain_pattern_bits + p) / 2^gain_pattern_bits in every plane, p drawn once in [-range, range] with
-    // gain_pattern_range below 2^gain_pattern_bits, and the gained count rounded by chance so its mean is exact
+    // a gain for each camera pixel (PRNU, row 19), off unless the caller sets gain_pattern_bits, 1 to 32. The gain of
+    // the pixel (y, x) is `gain (2^gain_pattern_bits + p) / 2^gain_pattern_bits` in every plane. The sim draws p once
+    // in `[-range, range]`, with gain_pattern_range below `2^gain_pattern_bits`. It rounds the gained count by chance,
+    // so that its mean is exact
     unsigned long long gain_pattern_range;
     unsigned int gain_pattern_bits;
-    // an offset per camera pixel (DSNU, row 18), 0 unless set: the pixel (y, x)'s offset, drawn once in [0, range], is
-    // added in every plane, where pattern_range's is drawn anew at each voxel
+    // an offset for each camera pixel (DSNU, row 18), 0 unless the caller sets it. The sim draws the offset of the
+    // pixel (y, x) once in `[0, range]`, and adds it in every plane. It draws that of pattern_range again at each voxel
     unsigned long long offset_pattern_range;
 } SimCamera;
 
@@ -256,8 +258,8 @@ static inline __host__ __device__ long long sim_scale(const SimCamera *camera, u
     return shared;
 }
 
-// The light a voxel's draw is made from: the scene's signal, blurred along x before the draw, then scaled by the
-// shared scale, each where the camera specifies so.
+// The light that the draw of a voxel comes from: the signal of the scene, blurred along x before the draw. Then the
+// shared scale scales it, each where the camera tells so.
 static inline __host__ __device__ unsigned long long sim_light(const SimScene *scene, const SimCamera *camera,
                                                                unsigned long long frame, const long long *place)
 {
