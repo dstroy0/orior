@@ -24,6 +24,7 @@ import os
 import subprocess
 import sys
 import unittest
+import unittest.mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -201,6 +202,34 @@ class LegalBlocksAreBlankedPerBlockAndNotPerLine(unittest.TestCase):
         self.assertEqual(retained[:3], ["", "", ""], "the license block goes")
         self.assertIn("crucial", retained[5], "and the @file block beneath it does not")
 
+    def test_the_header_line_under_an_spdx_line_is_read(self):
+        """A `//` header puts the description of its file under the SPDX line in the same block, with no blank.
+
+        The blank of the block took the header of every C file of the tree out of the check. In src/ and ui/, 1799
+        STE findings went quiet. The legal part ends after the three-way SPDX line that every file of this tree
+        carries.
+        """
+        said = [
+            "// a project - Copyright (C) 2026 Somebody <nobody@example.com>",
+            "// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational",
+            "// ring_buffer.h: a crucial myriad of frames, which is what makes it work.",
+            "// The frames are written by the reader.",
+        ]
+        retained = dc.legal_blank(said, "src/ring_buffer.h")
+        self.assertEqual(retained[:2], ["", ""], "the legal lines go")
+        self.assertIn("crucial", retained[2], "the header line stays")
+        self.assertIn("written", retained[3], "and the lines after it stay")
+
+    def test_a_grant_with_no_header_line_is_blanked_whole(self):
+        """A GPL grant holds no line that starts with the name of the file, and goes whole as it did."""
+        said = [
+            "// Copyright (C) 2026 Somebody",
+            "// This program is free software: you can redistribute it and/or modify",
+            "// it under the terms of the GNU General Public License as published by",
+            "// the Free Software Foundation, either version 3 of the License.",
+        ]
+        self.assertEqual(dc.legal_blank(said, "vendor/grant.c"), ["", "", "", ""])
+
     def test_a_file_with_no_legal_line_is_returned_unchanged(self):
         said = ["# a comment", "# another", "", "# a third"]
         self.assertEqual(dc.legal_blank(said), said)
@@ -212,19 +241,23 @@ class LegalBlocksAreBlankedPerBlockAndNotPerLine(unittest.TestCase):
         a backlog. A block walker reaching too far reports the same zero on this test and 164
         findings on the tree, and for that reason the two boundary tests above are asserted by shape.
         """
-        roots = [os.path.join(dc.REPOSITORY, "maint")]
-        roots = [one for one in roots if os.path.isdir(one)]
+        # utils/maint, where f74307cd6 moved maint. The old root no longer existed, and the test read 0 files and
+        # passed while the header of every file went quiet
+        roots = [os.path.join(dc.REPOSITORY, "utils", "maint")]
+        self.assertTrue(all(os.path.isdir(one) for one in roots), "the scope exists")
         silenced = 0
         read = 0
         for path in sorted(dc.walk_markdown(roots)):
             read += 1
             with open(path, encoding="utf-8", errors="replace") as handle:
                 lines = handle.read().splitlines()
-            raw = dc.prose_only(path, lines)
-            blanked = set()
-            for start, stop in dc.comment_blocks(raw):
-                if any(dc.LEGAL.search(one) for one in raw[start:stop]):
-                    blanked.update(range(start + 1, stop + 1))
+            # the call prose_only blanks the legal blocks itself. Thus the view before the blank comes from it with
+            # the blank passed over. Then legal_blank runs on that view alone
+            with unittest.mock.patch("docs_check.prose.legal_blank", lambda said, path=None, ledger=None: said):
+                raw = dc.prose_only(path, lines)
+            # the lines that legal_blank itself takes out. Thus this test measures a change to its rule
+            kept = dc.legal_blank(raw, path)
+            blanked = {at + 1 for at, (one, two) in enumerate(zip(raw, kept)) if one and not two}
             if not blanked:
                 continue
             quotations = path.endswith(".md")
@@ -378,8 +411,9 @@ class TheSubjectIsTheConvention(unittest.TestCase):
         The rule is the objective's own clause written down before a document needs it, the
         opposite of the usual order and is why the number is asserted and not described.
         """
-        roots = [os.path.join(dc.REPOSITORY, "maint")]
-        roots = [one for one in roots if os.path.isdir(one)]
+        # utils/maint, where f74307cd6 moved maint. The old root no longer existed, and the test read 0 files
+        roots = [os.path.join(dc.REPOSITORY, "utils", "maint")]
+        self.assertTrue(all(os.path.isdir(one) for one in roots), "the scope exists")
         silenced = 0
         read = 0
         for path in sorted(dc.walk_markdown(roots)):
