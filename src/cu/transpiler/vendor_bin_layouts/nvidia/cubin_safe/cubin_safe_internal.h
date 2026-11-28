@@ -19,22 +19,24 @@
 
 #define CUBIN_WAIT_SHIFT (SASS_WAIT_FIRST - 64u)
 
-// the max code sections one image is read for: a kernel and the functions it calls
+// the max code sections that the check reads for one image: a kernel and the functions that it calls
 #define CUBIN_SAFE_SECTIONS 64u
 
-// where a register sits in an instruction, read whole however much of it a run covered: the first bit of each of the
-// four fixed eight-bit register fields (sass_assemble.h), the width of one, and RZ, the zero register every kernel
-// allots whatever count it allots
+// where a register sits in an instruction, read whole however much of it a run covered. It is the first bit of each of
+// the four fixed eight-bit register fields (sass_assemble.h), and the width of one. Then RZ, the zero register that
+// every kernel allots, whatever count it allots
 #define CUBIN_REGISTER_FIELDS 4u
 
 #define CUBIN_REGISTER_WIDTH 8u
 
 #define CUBIN_REGISTER_ZERO 255u
 
-// the vendor's verdict, the gated list the cross writes: the longest line read, the room a first grow gives, and the
-// bits retained of the high word, the scheduler's own left out since whatever reaches the part sets them. The list
-// contains as many encodings as the file names: it is sized to its input, with no ceiling of its own, since a ceiling
-// short of the file would block nothing of the rest and let it reach the part
+// the verdict of the vendor, the gated list that the cross writes. It is the longest line read, the room that a first
+// grow gives, and the bits kept of the high word. The own bits of the scheduler stay out, because whatever reaches the
+// part sets them.
+//
+// The list holds as many encodings as the file names. Its size follows its input, with no ceiling of its own. A
+// ceiling short of the file would block nothing of the rest, and let it reach the part
 #define CUBIN_SAFE_GATED_LINE 1024u
 
 #define CUBIN_SAFE_GATED_FIRST 1024u
@@ -44,13 +46,14 @@
 // the vendor's instruction set rule 13 reads, read by cubin_safe_tables_read (constant.c)
 const struct TablesSetTag *cubin_safe_tables(void);
 
-// 1 where the class the vendor's instruction set reads the encoding `low` and `high` as is named for an operation
-// that transfers control or waits, EXIT apart, whatever name the machine file's form gives it (rules 2 and 3, class.c)
+// 1 where the instruction set of the vendor reads the encoding `low` and `high` as a class. Its name must be that of an
+// operation that transfers control or waits, EXIT apart. That holds whatever name the form of the machine file gives it
+// (rules 2 and 3, class.c)
 int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high);
 
-// 1 where the class the vendor's instruction set reads the encoding `low` and `high` as names it illegal by one of
-// its conditions on the registers, out of range or misaligned for its width: the vendor's own pipe, read before the
-// part, apart from what the part answers (rule 14, class.c)
+// 1 where the instruction set of the vendor reads the encoding `low` and `high` as a class that names it illegal. That
+// is by one of its conditions on the registers, out of range or misaligned for its width. It is the own pipe of the
+// vendor, read before the part, apart from what the part answers (rule 14, class.c)
 int cubin_class_illegal(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high);
 
 
