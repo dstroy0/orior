@@ -3,11 +3,11 @@
 #ifndef KEY_SCHEDULE_CORE_H
 #define KEY_SCHEDULE_CORE_H
 
-// key_schedule's record layout as one source the host and the device both compile (engine_table.md item 11(a), the
-// compiler on the device): each step arranged for the device from its term, its register placed in the file, and each
-// output placed in the record. The host's key_schedule_record_layout runs it and builds the layout. The device runs it
-// in one thread, since each place is taken from what the steps before it freed. The lists it works in are the caller's,
-// each as long as the program has steps
+// the record layout of key_schedule, as one source that the host and the device both compile (engine_table.md item
+// 11(a), the compiler on the device). It arranges each step for the device from its term, puts its register in the
+// file, and puts each output in the record. The key_schedule_record_layout of the host runs it and builds the layout.
+// The device runs it in one thread, because each step takes its place from what the steps before it freed. The lists
+// that it works in belong to the caller, each as long as the program has steps
 
 #include "../../engine_config.h"
 
@@ -36,10 +36,15 @@ struct KeyScheduleBlock
     unsigned int limbs;
 };
 
-// a layout: the key's terms, outputs and tables' sizes, the fields' offsets and the members' limbs it reads, and
-// whether registers are reused; each step arranged; its lists, each as long as the steps, the endings' firsts and the
-// blocks free one more; each table's first word, and past the last the tables' words; the file's limbs and the record's
-// bits it arranged; and where it ended, and at what
+// a layout:
+//
+// - the terms, outputs and table sizes of the key, the field offsets and member limbs that it reads, and whether the
+//   code uses registers again
+// - each step arranged
+// - its lists, each as long as the steps. The firsts of the endings and the free blocks have one more.
+// - the first word of each table, and past the last, the words of the tables
+// - the limbs of the file and the bits of the record that it arranged
+// - where it ended, and at what
 struct KeyScheduleCoreLayout
 {
     const EngineRecordTerm *terms;
@@ -64,8 +69,9 @@ struct KeyScheduleCoreLayout
     unsigned int at;
 };
 
-// The step indices a term reads, by which a register is freed once its last reader has run. A field, a constant and the
-// lane's number read no register; a table, an absolute and a wrap read one; the rest read two.
+// The step indices that a term reads, by which the call frees a register after its last reader runs. A field, a
+// constant and the number of the lane read no register. A table, an absolute and a wrap read one, and the rest read
+// two.
 KEY_SCHEDULE_CORE unsigned int key_schedule_core_refs(const EngineRecordTerm *term, unsigned int *refs)
 {
     if ((term->operation == ENGINE_RECORD_PRODUCT) || (term->operation == ENGINE_RECORD_SUM) ||
@@ -153,9 +159,10 @@ KEY_SCHEDULE_CORE void key_schedule_core_free(KeyScheduleBlock *freed, unsigned 
     }
 }
 
-// The register file's total limbs: with reuse, a register is freed once its last reader has run, and a later step takes
-// its place, and a long chain runs within ENGINE_RECORD_LIMBS_MAX; without reuse, every step uses its own place, the
-// layout the proven programs were measured against. 0 where the file passes ENGINE_RECORD_LIMBS_MAX
+// The total limbs of the register file. With reuse, the call frees a register after its last reader runs, and a later
+// step takes its place. Thus a long chain runs within ENGINE_RECORD_LIMBS_MAX. With no reuse, every step uses its own
+// place, the layout that the program measured the proven programs against. 0 where the file passes
+// ENGINE_RECORD_LIMBS_MAX
 KEY_SCHEDULE_CORE int key_schedule_core_places(KeyScheduleCoreLayout *layout)
 {
     const unsigned int steps = layout->step_count;
@@ -184,9 +191,9 @@ KEY_SCHEDULE_CORE int key_schedule_core_places(KeyScheduleCoreLayout *layout)
             layout->last_use[refs[ref]] = step;
         }
     }
-    // each register waits under its last reader, and is freed as the step after that reader begins: the registers
-    // ending under each step arranged in step order, a stable count of them by their last reader: they are freed at the
-    // same steps, in the same order, as a scan of every earlier step would free them
+    // each register waits under its last reader, and the call frees it as the step after that reader starts. The
+    // registers that end under each step go in step order, a stable count of them by their last reader. The call frees
+    // them at the same steps, in the same order, as a scan of every earlier step would free them
     for (unsigned int step = 0u; step <= steps; step += 1u)
     {
         layout->ending_first[step] = 0u;
@@ -244,9 +251,9 @@ KEY_SCHEDULE_CORE int key_schedule_core_error(KeyScheduleCoreLayout *layout, uns
     return 0;
 }
 
-// Each step arranged for the device from its term, as key_schedule_record_layout positions it out: its limbs, operands and
-// fields, each table's first word, each register's place, and each output's offset and bits in the record: 1 where it
-// is satisfied, else 0 with where it ended in `end` and `at`
+// Each step, arranged for the device from its term, as key_schedule_record_layout arranges it. That is its limbs,
+// operands and fields, the first word of each table, and the place of each register. Then the offset and bits of each
+// output in the record. The return is 1 where the call meets it, else 0 with where it ended in `end` and `at`
 KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *layout)
 {
     layout->end = KEY_SCHEDULE_CORE_OK;
@@ -332,7 +339,7 @@ KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *lay
     for (unsigned int output = 0u; output < layout->output_count; output += 1u)
     {
         DeviceRecordStep *const device = &layout->steps[layout->outputs[output]];
-        // the record's bits are bounded by a 31-bit count below, and an offset arranged is below them
+        // a 31-bit count below bounds the bits of the record, and an arranged offset is below them
         device->out_offset = (unsigned int)layout->out_bits;
         device->out_bits = layout->terms[layout->outputs[output]].bits + 1u;
         layout->out_bits += (unsigned long long)device->out_bits;
